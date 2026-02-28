@@ -20,6 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@floating-ui/react": "^0.27.18",
     "@tanstack/react-query": "^5.90.21",
     "better-sqlite3": "^12.6.2",
     "react": "^19.2.4",
@@ -50,8 +51,8 @@
     "wait-on": "^8.0.5"
   },
   "build": {
-    "appId": "com.godown.stock",
-    "productName": "Godown Stock",
+    "appId": "com.godown.stock.lite",
+    "productName": "Godown Stock Lite",
     "directories": {
       "output": "release"
     },

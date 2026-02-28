@@ -1,14 +1,31 @@
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
-import { formatDateForView } from "../lib/date";
-import type { LedgerRow } from "../../shared/types";
+import FormModal from "../components/FormModal";
+import Tooltip from "../components/Tooltip";
+import TransactionTypeBadge from "../components/TransactionTypeBadge";
+import LedgerRowActions from "../components/LedgerRowActions";
+import { formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
+import type {
+  LedgerRow,
+  MahajanLend,
+  MahajanDeposit,
+  Item,
+} from "../../shared/types";
 
 export default function MahajanLedger() {
   const { mahajanId } = useParams<{ mahajanId: string }>();
+  const navigate = useNavigate();
   const api = getElectron();
+  const queryClient = useQueryClient();
   const id = Number(mahajanId);
+  const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
+  const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
+    null
+  );
 
   const { data: mahajans = [] } = useQuery({
     queryKey: ["mahajans"],
@@ -21,18 +38,128 @@ export default function MahajanLedger() {
     enabled: !!id,
   });
 
+  const { data: lends = [] } = useQuery<MahajanLend[]>({
+    queryKey: ["mahajanLends", id],
+    queryFn: () => api.getMahajanLends(id) as Promise<MahajanLend[]>,
+    enabled: !!id,
+  });
+
+  const { data: deposits = [] } = useQuery<MahajanDeposit[]>({
+    queryKey: ["mahajanDeposits", id],
+    queryFn: () => api.getMahajanDeposits(id) as Promise<MahajanDeposit[]>,
+    enabled: !!id,
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["items"],
+    queryFn: () => api.getItems(),
+  });
+
+  const { data: balance, isLoading: balanceLoading } = useQuery({
+    queryKey: ["mahajanBalance", id],
+    queryFn: () =>
+      api.getMahajanBalance(id) as Promise<{
+        totalLends: number;
+        totalDeposits: number;
+        balance: number;
+      }>,
+    enabled: !!id,
+  });
+
   const mahajan = (mahajans as { id: number; name: string }[]).find(
     (m) => m.id === id
   );
+  const itemList = items as Item[];
+
+  const updateLend = useMutation({
+    mutationFn: ({
+      id: lendId,
+      l,
+    }: {
+      id: number;
+      l: {
+        mahajan_id?: number;
+        product_id?: number | null;
+        product_name?: string;
+        quantity?: number;
+        transaction_date?: string;
+        amount?: number;
+        notes?: string;
+      };
+    }) => api.updateMahajanLend(lendId, l),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      setEditingLend(null);
+      toast.success("Lend updated");
+    },
+    onError: (err: Error) =>
+      toast.error(err.message ?? "Failed to update lend"),
+  });
+
+  const updateDeposit = useMutation({
+    mutationFn: ({
+      id: depositId,
+      d,
+    }: {
+      id: number;
+      d: { transaction_date?: string; amount?: number; notes?: string };
+    }) => api.updateMahajanDeposit(depositId, d),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
+      setEditingDeposit(null);
+      toast.success("Deposit updated");
+    },
+    onError: (err: Error) =>
+      toast.error(err.message ?? "Failed to update deposit"),
+  });
+
+  const deleteLend = useMutation({
+    mutationFn: (lendId: number) => api.deleteMahajanLend(lendId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      toast.success("Lend deleted");
+    },
+    onError: (err: Error) =>
+      toast.error(err.message ?? "Failed to delete lend"),
+  });
+
+  const deleteDeposit = useMutation({
+    mutationFn: (depositId: number) => api.deleteMahajanDeposit(depositId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
+      toast.success("Deposit deleted");
+    },
+    onError: (err: Error) =>
+      toast.error(err.message ?? "Failed to delete deposit"),
+  });
+
+  const getLendRecord = (row: LedgerRow): MahajanLend | undefined =>
+    lends.find((l) => l.id === row.id);
+  const getDepositRecord = (row: LedgerRow): MahajanDeposit | undefined =>
+    deposits.find((d) => d.id === row.id);
 
   if (!id) return <div className="text-gray-500">Invalid Mahajan</div>;
 
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
-        <Link to="/mahajans" className="text-gray-500 hover:text-gray-700">
-          Back to Mahajans
-        </Link>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          ← Back
+        </button>
         <h1 className="text-2xl font-semibold text-gray-900">
           Ledger: {mahajan?.name ?? `ID ${id}`}
         </h1>
@@ -40,6 +167,53 @@ export default function MahajanLedger() {
       <p className="text-sm text-gray-500 mb-4">
         Lends and deposits date wise.
       </p>
+      {balanceLoading && (
+        <p className="text-sm text-gray-500 mb-4">Loading balance…</p>
+      )}
+      {!balanceLoading && balance != null && (
+        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div>
+            <span className="text-xs font-medium uppercase text-gray-500">
+              Total Lends
+            </span>
+            <p className="text-lg font-semibold text-amber-800">
+              ₹{balance.totalLends.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-gray-500">
+              Total Deposits
+            </span>
+            <p className="text-lg font-semibold text-green-800">
+              ₹{balance.totalDeposits.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-gray-500">
+              Balance (Lend − Deposit)
+            </span>
+            <p
+              className={
+                balance.balance >= 0
+                  ? "text-lg font-semibold text-amber-800"
+                  : "text-lg font-semibold text-green-800"
+              }
+            >
+              ₹{balance.balance.toFixed(2)}
+              {balance.balance > 0 && (
+                <span className="ml-1 text-sm font-normal text-gray-500">
+                  (you owe them)
+                </span>
+              )}
+              {balance.balance < 0 && (
+                <span className="ml-1 text-sm font-normal text-gray-500">
+                  (they owe you)
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
           <TableLoader />
@@ -59,12 +233,15 @@ export default function MahajanLedger() {
               <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
                 Amount
               </th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {ledger.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
                   No transactions yet.
                 </td>
               </tr>
@@ -72,18 +249,12 @@ export default function MahajanLedger() {
               ledger.map((row) => (
                 <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-sm text-gray-900">
-                    {formatDateForView(row.transaction_date)}
+                    <Tooltip content={formatDateForForm(row.transaction_date)}>
+                      <span>{formatDateForView(row.transaction_date)}</span>
+                    </Tooltip>
                   </td>
                   <td className="px-4 py-2 text-sm">
-                    <span
-                      className={
-                        row.type === "lend"
-                          ? "text-amber-700"
-                          : "text-green-700"
-                      }
-                    >
-                      {row.type === "lend" ? "Lend" : "Deposit"}
-                    </span>
+                    <TransactionTypeBadge type={row.type} />
                   </td>
                   <td className="px-4 py-2 text-sm text-gray-900">
                     {row.description}
@@ -91,6 +262,24 @@ export default function MahajanLedger() {
                   <td className="px-4 py-2 text-sm text-right font-medium">
                     {row.amount.toFixed(2)}
                   </td>
+                  <LedgerRowActions
+                    type={row.type}
+                    onEdit={() => {
+                      if (row.type === "lend") {
+                        const rec = getLendRecord(row);
+                        if (rec) setEditingLend(rec);
+                        else toast.error("Lend record not found");
+                      } else {
+                        const rec = getDepositRecord(row);
+                        if (rec) setEditingDeposit(rec);
+                        else toast.error("Deposit record not found");
+                      }
+                    }}
+                    onDelete={() => {
+                      if (row.type === "lend") deleteLend.mutate(row.id);
+                      else deleteDeposit.mutate(row.id);
+                    }}
+                  />
                 </tr>
               ))
             )}
@@ -98,6 +287,217 @@ export default function MahajanLedger() {
         </table>
         )}
       </div>
+
+      <FormModal
+        title="Edit Lend"
+        open={!!editingLend}
+        onClose={() => setEditingLend(null)}
+        maxWidth="max-w-3xl"
+      >
+        {editingLend && (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const productId = (form.product_id as HTMLSelectElement)?.value
+                ? Number((form.product_id as HTMLSelectElement).value)
+                : null;
+              const item = productId
+                ? itemList.find((i) => i.id === productId)
+                : undefined;
+              const transaction_date = parseFormDate(
+                (form.transaction_date as HTMLInputElement).value
+              );
+              if (!transaction_date) return;
+              updateLend.mutate({
+                id: editingLend.id,
+                l: {
+                  mahajan_id: id,
+                  transaction_date,
+                  product_id: productId || null,
+                  product_name:
+                    item?.name ?? editingLend.product_name ?? undefined,
+                  quantity:
+                    Number((form.quantity as HTMLInputElement).value) || 0,
+                  amount: Number((form.amount as HTMLInputElement).value),
+                  notes:
+                    (form.notes as HTMLInputElement).value?.trim() || undefined,
+                },
+              });
+            }}
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date * (dd/mm/yyyy)
+              </label>
+              <input
+                name="transaction_date"
+                type="text"
+                defaultValue={formatDateForForm(editingLend.transaction_date)}
+                placeholder="dd/mm/yyyy"
+                required
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Product
+              </label>
+              <select
+                name="product_id"
+                className="w-full border rounded px-3 py-2"
+                defaultValue={editingLend.product_id ?? ""}
+              >
+                <option value="">—</option>
+                {itemList.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quantity
+              </label>
+              <input
+                name="quantity"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                defaultValue={editingLend.quantity ?? 0}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Amount *
+              </label>
+              <input
+                name="amount"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                defaultValue={editingLend.amount}
+                required
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <input
+                name="notes"
+                defaultValue={editingLend.notes ?? ""}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingLend(null)}
+                className="px-3 py-1.5 border rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-amber-600 text-white rounded"
+              >
+                Update
+              </button>
+            </div>
+          </form>
+        )}
+      </FormModal>
+
+      <FormModal
+        title="Edit Deposit"
+        open={!!editingDeposit}
+        onClose={() => setEditingDeposit(null)}
+      >
+        {editingDeposit && (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const transaction_date = parseFormDate(
+                (form.transaction_date as HTMLInputElement).value
+              );
+              if (!transaction_date) return;
+              updateDeposit.mutate({
+                id: editingDeposit.id,
+                d: {
+                  transaction_date,
+                  amount: Number((form.amount as HTMLInputElement).value),
+                  notes: (form.notes as HTMLInputElement).value || undefined,
+                },
+              });
+            }}
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date * (dd/mm/yyyy)
+              </label>
+              <input
+                name="transaction_date"
+                type="text"
+                defaultValue={formatDateForForm(
+                  editingDeposit.transaction_date
+                )}
+                placeholder="dd/mm/yyyy"
+                required
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Amount *
+              </label>
+              <input
+                name="amount"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                defaultValue={editingDeposit.amount}
+                required
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <input
+                name="notes"
+                defaultValue={editingDeposit.notes ?? ""}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingDeposit(null)}
+                className="px-3 py-1.5 border rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-green-600 text-white rounded"
+              >
+                Update
+              </button>
+            </div>
+          </form>
+        )}
+      </FormModal>
     </div>
   );
 }

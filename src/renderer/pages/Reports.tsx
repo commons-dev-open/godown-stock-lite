@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
-import { formatDateForView } from "../lib/date";
+import { formatDateForView, formatDateForForm } from "../lib/date";
 import DateInput from "../components/DateInput";
+import Tooltip from "../components/Tooltip";
 
 export default function Reports() {
   const queryClient = useQueryClient();
@@ -88,7 +89,11 @@ export default function Reports() {
                   }[]
                 ).map((s) => (
                   <tr key={s.sale_date} className="border-b">
-                    <td className="py-2">{formatDateForView(s.sale_date)}</td>
+                    <td className="py-2">
+                    <Tooltip content={formatDateForForm(s.sale_date)}>
+                      <span>{formatDateForView(s.sale_date)}</span>
+                    </Tooltip>
+                  </td>
                     <td className="text-right py-2">
                       {s.sale_amount.toFixed(2)}
                     </td>

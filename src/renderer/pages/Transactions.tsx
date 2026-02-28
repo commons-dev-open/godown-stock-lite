@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
@@ -6,6 +7,11 @@ import FormModal from "../components/FormModal";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import TableLoader from "../components/TableLoader";
 import DateInput from "../components/DateInput";
+import Tooltip from "../components/Tooltip";
+import TransactionTypeBadge, {
+  type TransactionType,
+} from "../components/TransactionTypeBadge";
+import LedgerRowActions from "../components/LedgerRowActions";
 import {
   todayISO,
   formatDateForView,
@@ -506,27 +512,28 @@ export default function Transactions() {
                         className="hover:bg-gray-50"
                       >
                         <td className="px-4 py-2 text-sm">
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                              row.type === "lend"
-                                ? "bg-amber-100 text-amber-800"
-                                : row.type === "deposit"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {row.type === "lend"
-                              ? "Lend"
-                              : row.type === "deposit"
-                                ? "Deposit"
-                                : "Cash"}
-                          </span>
+                          <TransactionTypeBadge type={row.type as TransactionType} />
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900">
-                          {formatDateForView(row.transaction_date)}
+                          <Tooltip
+                            content={formatDateForForm(row.transaction_date)}
+                          >
+                            <span>
+                              {formatDateForView(row.transaction_date)}
+                            </span>
+                          </Tooltip>
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                          {row.mahajan_name ?? "—"}
+                          {row.mahajan_id == null ? (
+                            row.mahajan_name ?? "—"
+                          ) : (
+                            <Link
+                              to={`/mahajans/ledger/${row.mahajan_id}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {row.mahajan_name ?? "—"}
+                            </Link>
+                          )}
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-600">
                           {row.type === "deposit"
@@ -561,42 +568,22 @@ export default function Transactions() {
                         >
                           {row.notes ?? "—"}
                         </td>
-                        <td className="px-4 py-2 text-right text-sm space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (row.type === "lend")
-                                setEditingLend(toLendRecord(row));
-                              else if (row.type === "deposit")
-                                setEditingDeposit(toDepositRecord(row));
-                              else setEditingPurchase(toPurchaseRecord(row));
-                            }}
-                            className="text-blue-600 hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const msg =
-                                row.type === "lend"
-                                  ? "Delete this lend?"
-                                  : row.type === "deposit"
-                                    ? "Delete this deposit?"
-                                    : "Delete this cash purchase?";
-                              if (globalThis.confirm(msg)) {
-                                if (row.type === "lend")
-                                  deleteLend.mutate(row.id);
-                                else if (row.type === "deposit")
-                                  deleteDeposit.mutate(row.id);
-                                else deletePurchase.mutate(row.id);
-                              }
-                            }}
-                            className="text-red-600 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
+                        <LedgerRowActions
+                          type={row.type as "lend" | "deposit" | "cash_purchase"}
+                          onEdit={() => {
+                            if (row.type === "lend")
+                              setEditingLend(toLendRecord(row));
+                            else if (row.type === "deposit")
+                              setEditingDeposit(toDepositRecord(row));
+                            else setEditingPurchase(toPurchaseRecord(row));
+                          }}
+                          onDelete={() => {
+                            if (row.type === "lend") deleteLend.mutate(row.id);
+                            else if (row.type === "deposit")
+                              deleteDeposit.mutate(row.id);
+                            else deletePurchase.mutate(row.id);
+                          }}
+                        />
                       </tr>
                     ))}
                   </tbody>
@@ -852,7 +839,13 @@ export default function Transactions() {
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
               Receive lend from <strong>{confirmPayload.mahajanName}</strong> on{" "}
-              {formatDateForView(confirmPayload.transaction_date)}
+              <Tooltip
+                content={formatDateForForm(confirmPayload.transaction_date)}
+              >
+                <span>
+                  {formatDateForView(confirmPayload.transaction_date)}
+                </span>
+              </Tooltip>
             </p>
             <div className="overflow-auto max-h-60">
               <table className="w-full text-sm border-collapse">
@@ -1497,7 +1490,15 @@ export default function Transactions() {
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
               Cash purchase on{" "}
-              <strong>{formatDateForView(confirmPurchasePayload.transaction_date)}</strong>
+              <Tooltip
+                content={formatDateForForm(
+                  confirmPurchasePayload.transaction_date
+                )}
+              >
+                <strong>
+                  {formatDateForView(confirmPurchasePayload.transaction_date)}
+                </strong>
+              </Tooltip>
               {confirmPurchasePayload.notes
                 ? ` — ${confirmPurchasePayload.notes}`
                 : ""}

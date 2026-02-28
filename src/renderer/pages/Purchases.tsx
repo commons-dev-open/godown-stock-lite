@@ -7,6 +7,7 @@ import FormModal from "../components/FormModal";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import DateInput from "../components/DateInput";
+import Tooltip from "../components/Tooltip";
 import { todayISO, formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
 import type { Purchase } from "../../shared/types";
 
@@ -153,7 +154,11 @@ export default function Purchases() {
                 {
                   key: "transaction_date",
                   label: "Date",
-                  render: (r) => formatDateForView(r.transaction_date),
+                  render: (r) => (
+                  <Tooltip content={formatDateForForm(r.transaction_date)}>
+                    <span>{formatDateForView(r.transaction_date)}</span>
+                  </Tooltip>
+                ),
                 },
                 { key: "product_name", label: "Product" },
                 {

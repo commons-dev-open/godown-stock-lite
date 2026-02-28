@@ -6,6 +6,7 @@ import FormModal from "../components/FormModal";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import DateInput from "../components/DateInput";
+import Tooltip from "../components/Tooltip";
 import { todayISO, formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
 import type { DailySale } from "../../shared/types";
 
@@ -129,7 +130,11 @@ export default function DailySales() {
                 {
                   key: "sale_date",
                   label: "Date",
-                  render: (r) => formatDateForView(r.sale_date),
+                  render: (r) => (
+                  <Tooltip content={formatDateForForm(r.sale_date)}>
+                    <span>{formatDateForView(r.sale_date)}</span>
+                  </Tooltip>
+                ),
                 },
                 {
                   key: "sale_amount",

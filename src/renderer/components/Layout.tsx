@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -11,6 +11,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const navClass = ({ isActive }: Readonly<{ isActive: boolean }>) =>
     `block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
       isActive
@@ -22,8 +23,15 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-screen bg-gray-50">
       <aside className="w-52 shrink-0 flex flex-col border-r border-gray-200 bg-white">
         <div className="p-4 border-b border-gray-100">
+          {/* <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mb-2 flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
+          >
+            ← Back
+          </button> */}
           <h1 className="text-base font-semibold text-gray-900">
-            Godown Stock
+            Godown Stock Lite
           </h1>
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
