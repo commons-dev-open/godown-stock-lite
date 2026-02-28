@@ -4,8 +4,10 @@ import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
-import { todayISO, formatDate } from "../lib/date";
+import DateInput from "../components/DateInput";
+import { todayISO, formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
 import type { Purchase } from "../../shared/types";
 
 type PurchaseRow = Purchase & { product_name?: string };
@@ -118,26 +120,24 @@ export default function Purchases() {
         <div className="flex gap-4 items-center">
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             From date
-            <input
-              type="date"
+            <DateInput
               value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
+              onChange={(v) => {
+                setFromDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             To date
-            <input
-              type="date"
+            <DateInput
               value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
+              onChange={(v) => {
+                setToDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
             />
           </label>
         </div>
@@ -145,7 +145,7 @@ export default function Purchases() {
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
-          <div className="text-center py-8 text-gray-500">Loading…</div>
+          <TableLoader />
         ) : (
           <>
             <DataTable<PurchaseRow>
@@ -153,7 +153,7 @@ export default function Purchases() {
                 {
                   key: "transaction_date",
                   label: "Date",
-                  render: (r) => formatDate(r.transaction_date),
+                  render: (r) => formatDateForView(r.transaction_date),
                 },
                 { key: "product_name", label: "Product" },
                 {
@@ -194,8 +194,10 @@ export default function Purchases() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const transaction_date = (form.transaction_date as HTMLInputElement)
-              .value;
+            const transaction_date = parseFormDate(
+              (form.transaction_date as HTMLInputElement).value
+            );
+            if (!transaction_date) return;
             const notes = (form.notes as HTMLInputElement).value?.trim() || "";
             const lines: PurchaseLine[] = purchaseLines
               .map((_, idx) => {
@@ -231,12 +233,13 @@ export default function Purchases() {
         >
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date *
+              Date * (dd/mm/yyyy)
             </label>
             <input
               name="transaction_date"
-              type="date"
-              defaultValue={todayISO()}
+              type="text"
+              defaultValue={formatDateForForm(todayISO())}
+              placeholder="dd/mm/yyyy"
               required
               className="w-full border rounded px-3 py-2"
             />
@@ -369,11 +372,14 @@ export default function Purchases() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              updatePurchase.mutate({
-                id: editing.id,
-                p: {
-                  transaction_date: (form.transaction_date as HTMLInputElement)
-                    .value,
+              const transaction_date = parseFormDate(
+                  (form.transaction_date as HTMLInputElement).value
+                );
+                if (!transaction_date) return;
+                updatePurchase.mutate({
+                  id: editing.id,
+                  p: {
+                    transaction_date,
                   amount: Number((form.amount as HTMLInputElement).value),
                   notes: (form.notes as HTMLInputElement).value || undefined,
                 },
@@ -382,12 +388,13 @@ export default function Purchases() {
           >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date *
+                Date * (dd/mm/yyyy)
               </label>
               <input
                 name="transaction_date"
-                type="date"
-                defaultValue={editing.transaction_date}
+                type="text"
+                defaultValue={formatDateForForm(editing.transaction_date)}
+                placeholder="dd/mm/yyyy"
                 required
                 className="w-full border rounded px-3 py-2"
               />

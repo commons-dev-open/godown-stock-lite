@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
-import { formatDate } from "../lib/date";
+import TableLoader from "../components/TableLoader";
+import { formatDateForView } from "../lib/date";
+import DateInput from "../components/DateInput";
 
 export default function Reports() {
   const queryClient = useQueryClient();
@@ -21,7 +23,7 @@ export default function Reports() {
     profitLoss: number;
   } | null>(null);
 
-  const { data: weeklySales = [] } = useQuery({
+  const { data: weeklySales = [], isLoading: weeklyLoading } = useQuery({
     queryKey: ["weeklySale", weeklyDate],
     queryFn: () => api.getWeeklySale(weeklyDate),
     enabled: !!weeklyDate,
@@ -55,15 +57,18 @@ export default function Reports() {
           Select a date to see 7 days of entries (descending from that date).
         </p>
         <div className="flex gap-2 items-center mb-4">
-          <input
-            type="date"
+          <DateInput
             value={weeklyDate}
-            onChange={(e) => setWeeklyDate(e.target.value)}
-            className="border rounded px-3 py-1.5"
+            onChange={setWeeklyDate}
+            className="border rounded px-3 py-1.5 w-[10rem]"
           />
         </div>
         {weeklyDate && (
-          <div className="overflow-x-auto">
+          <>
+            {weeklyLoading ? (
+              <TableLoader />
+            ) : (
+            <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b">
@@ -83,7 +88,7 @@ export default function Reports() {
                   }[]
                 ).map((s) => (
                   <tr key={s.sale_date} className="border-b">
-                    <td className="py-2">{formatDate(s.sale_date)}</td>
+                    <td className="py-2">{formatDateForView(s.sale_date)}</td>
                     <td className="text-right py-2">
                       {s.sale_amount.toFixed(2)}
                     </td>
@@ -98,6 +103,8 @@ export default function Reports() {
               </tbody>
             </table>
           </div>
+            )}
+          </>
         )}
       </section>
 
@@ -107,18 +114,16 @@ export default function Reports() {
           Enter date range to get total sale and expenditure.
         </p>
         <div className="flex gap-2 items-center mb-4">
-          <input
-            type="date"
+          <DateInput
             value={totalFrom}
-            onChange={(e) => setTotalFrom(e.target.value)}
-            className="border rounded px-3 py-1.5"
+            onChange={setTotalFrom}
+            className="border rounded px-3 py-1.5 w-[10rem]"
           />
           <span className="text-gray-500">to</span>
-          <input
-            type="date"
+          <DateInput
             value={totalTo}
-            onChange={(e) => setTotalTo(e.target.value)}
-            className="border rounded px-3 py-1.5"
+            onChange={setTotalTo}
+            className="border rounded px-3 py-1.5 w-[10rem]"
           />
         </div>
         {totalSaleResult && (

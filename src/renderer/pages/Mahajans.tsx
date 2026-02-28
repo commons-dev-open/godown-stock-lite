@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import type { Mahajan } from "../../shared/types";
 
@@ -68,8 +69,6 @@ export default function Mahajans() {
     onError: (err: Error) => alert(err.message),
   });
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>;
-
   return (
     <div>
       <div className="flex flex-col gap-3 mb-4">
@@ -97,7 +96,7 @@ export default function Mahajans() {
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
-          <div className="text-center py-8 text-gray-500">Loading…</div>
+          <TableLoader />
         ) : (
           <>
             <DataTable<Mahajan>

@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
-import { todayISO, formatDate } from "../lib/date";
+import DateInput from "../components/DateInput";
+import { todayISO, formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
 import type { DailySale } from "../../shared/types";
 
 export default function DailySales() {
@@ -78,8 +80,6 @@ export default function DailySales() {
     },
   });
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>;
-
   return (
     <div>
       <div className="flex flex-col gap-3 mb-4">
@@ -96,26 +96,24 @@ export default function DailySales() {
         <div className="flex gap-4 items-center">
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             From
-            <input
-              type="date"
+            <DateInput
               value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
+              onChange={(v) => {
+                setFromDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             To
-            <input
-              type="date"
+            <DateInput
               value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
+              onChange={(v) => {
+                setToDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
             />
           </label>
         </div>
@@ -123,7 +121,7 @@ export default function DailySales() {
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
-          <div className="text-center py-8 text-gray-500">Loading…</div>
+          <TableLoader />
         ) : (
           <>
             <DataTable<DailySale>
@@ -131,7 +129,7 @@ export default function DailySales() {
                 {
                   key: "sale_date",
                   label: "Date",
-                  render: (r) => formatDate(r.sale_date),
+                  render: (r) => formatDateForView(r.sale_date),
                 },
                 {
                   key: "sale_amount",
@@ -177,8 +175,14 @@ export default function DailySales() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            createSale.mutate({
-              sale_date: (form.sale_date as HTMLInputElement).value,
+            const saleDate = parseFormDate(
+                (form.sale_date as HTMLInputElement).value
+              );
+              if (!saleDate) {
+                return;
+              }
+              createSale.mutate({
+                sale_date: saleDate,
               sale_amount: Number((form.sale_amount as HTMLInputElement).value),
               cash_in_hand: Number(
                 (form.cash_in_hand as HTMLInputElement).value
@@ -192,12 +196,13 @@ export default function DailySales() {
         >
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date *
+              Date * (dd/mm/yyyy)
             </label>
             <input
               name="sale_date"
-              type="date"
-              defaultValue={todayISO()}
+              type="text"
+              defaultValue={formatDateForForm(todayISO())}
+              placeholder="dd/mm/yyyy"
               required
               className="w-full border rounded px-3 py-2"
             />
@@ -276,10 +281,14 @@ export default function DailySales() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              updateSale.mutate({
-                id: editing.id,
-                s: {
-                  sale_date: (form.sale_date as HTMLInputElement).value,
+              const saleDate = parseFormDate(
+                  (form.sale_date as HTMLInputElement).value
+                );
+                if (!saleDate) return;
+                updateSale.mutate({
+                  id: editing.id,
+                  s: {
+                    sale_date: saleDate,
                   sale_amount: Number(
                     (form.sale_amount as HTMLInputElement).value
                   ),
@@ -297,12 +306,13 @@ export default function DailySales() {
           >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date *
+                Date * (dd/mm/yyyy)
               </label>
               <input
                 name="sale_date"
-                type="date"
-                defaultValue={editing.sale_date}
+                type="text"
+                defaultValue={formatDateForForm(editing.sale_date)}
+                placeholder="dd/mm/yyyy"
                 required
                 className="w-full border rounded px-3 py-2"
               />

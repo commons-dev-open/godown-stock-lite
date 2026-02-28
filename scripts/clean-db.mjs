@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Deletes the Godown SQLite DB so the app will recreate and seed it on next launch.
- * Uses the same userData path as Electron (package name "godown-app").
+ * Uses the same userData path as Electron (package name "godown-stock-lite").
  */
 import fs from "fs";
 import path from "path";
@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 
 function getDbPath() {
-  const appName = "godown-app";
+  const appName = "godown-stock-lite";
   if (process.platform === "darwin") {
     return path.join(process.env.HOME, "Library", "Application Support", appName, "godown.db");
   }

@@ -1,5 +1,5 @@
 {
-  "name": "godown-app",
+  "name": "godown-stock-lite",
   "version": "1.0.0",
   "description": "Godown Stock Management Desktop App",
   "main": "dist/main/index.js",

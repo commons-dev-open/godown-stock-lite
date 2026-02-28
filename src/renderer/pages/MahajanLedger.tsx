@@ -1,7 +1,8 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
-import { formatDate } from "../lib/date";
+import TableLoader from "../components/TableLoader";
+import { formatDateForView } from "../lib/date";
 import type { LedgerRow } from "../../shared/types";
 
 export default function MahajanLedger() {
@@ -25,7 +26,6 @@ export default function MahajanLedger() {
   );
 
   if (!id) return <div className="text-gray-500">Invalid Mahajan</div>;
-  if (isLoading) return <div className="text-gray-500">Loading...</div>;
 
   return (
     <div>
@@ -41,6 +41,9 @@ export default function MahajanLedger() {
         Lends and deposits date wise.
       </p>
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        {isLoading ? (
+          <TableLoader />
+        ) : (
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -69,7 +72,7 @@ export default function MahajanLedger() {
               ledger.map((row) => (
                 <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-sm text-gray-900">
-                    {formatDate(row.transaction_date)}
+                    {formatDateForView(row.transaction_date)}
                   </td>
                   <td className="px-4 py-2 text-sm">
                     <span
@@ -93,6 +96,7 @@ export default function MahajanLedger() {
             )}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );
