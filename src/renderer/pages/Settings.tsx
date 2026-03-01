@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckIcon } from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
@@ -68,6 +69,7 @@ export default function Settings() {
           </div>
           <div className="mt-4">
             <Button type="submit" disabled={setSettingsMutation.isPending}>
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
             </Button>
           </div>

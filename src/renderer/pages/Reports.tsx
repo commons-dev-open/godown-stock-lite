@@ -1,5 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  CalculatorIcon,
+  CheckIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
 import { formatDateForView, formatDateForForm } from "../lib/date";
@@ -71,8 +76,9 @@ export default function Reports() {
             <button
               type="button"
               onClick={() => setWeeklyDate("")}
-              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+              className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
             >
+              <XMarkIcon className="w-4 h-4" aria-hidden />
               Clear
             </button>
           )}
@@ -82,45 +88,45 @@ export default function Reports() {
             {weeklyLoading ? (
               <TableLoader />
             ) : (
-            <div className="table-scroll-wrap overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-right py-2">Sale</th>
-                  <th className="text-right py-2">Cash in Hand</th>
-                  <th className="text-right py-2">Expenditure</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(
-                  weeklySales as {
-                    sale_date: string;
-                    sale_amount: number;
-                    cash_in_hand: number;
-                    expenditure_amount: number | null;
-                  }[]
-                ).map((s) => (
-                  <tr key={s.sale_date} className="border-b">
-                    <td className="py-2">
-                    <Tooltip content={formatDateForForm(s.sale_date)}>
-                      <span>{formatDateForView(s.sale_date)}</span>
-                    </Tooltip>
-                  </td>
-                    <td className="text-right py-2">
-                      {formatDecimal(s.sale_amount)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatDecimal(s.cash_in_hand)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatDecimal(s.expenditure_amount ?? 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <div className="table-scroll-wrap overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left py-2">Date</th>
+                      <th className="text-right py-2">Sale</th>
+                      <th className="text-right py-2">Cash in Hand</th>
+                      <th className="text-right py-2">Expenditure</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      weeklySales as {
+                        sale_date: string;
+                        sale_amount: number;
+                        cash_in_hand: number;
+                        expenditure_amount: number | null;
+                      }[]
+                    ).map((s) => (
+                      <tr key={s.sale_date} className="border-b">
+                        <td className="py-2">
+                          <Tooltip content={formatDateForForm(s.sale_date)}>
+                            <span>{formatDateForView(s.sale_date)}</span>
+                          </Tooltip>
+                        </td>
+                        <td className="text-right py-2">
+                          {formatDecimal(s.sale_amount)}
+                        </td>
+                        <td className="text-right py-2">
+                          {formatDecimal(s.cash_in_hand)}
+                        </td>
+                        <td className="text-right py-2">
+                          {formatDecimal(s.expenditure_amount ?? 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
@@ -155,8 +161,9 @@ export default function Reports() {
                 setTotalFrom("");
                 setTotalTo("");
               }}
-              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+              className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
             >
+              <XMarkIcon className="w-4 h-4" aria-hidden />
               Clear filters
             </button>
           )}
@@ -169,7 +176,9 @@ export default function Reports() {
             </p>
             <p>
               <strong>Total Expenditure:</strong>{" "}
-              {formatDecimal((totalSaleResult as { expenditure: number }).expenditure)}
+              {formatDecimal(
+                (totalSaleResult as { expenditure: number }).expenditure
+              )}
             </p>
           </div>
         )}
@@ -210,8 +219,9 @@ export default function Reports() {
                 if (!Number.isFinite(amt)) return;
                 setOpening.mutate({ year: plYear, amount: amt });
               }}
-              className="px-3 py-1.5 bg-gray-100 rounded text-sm hover:bg-gray-200"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-sm hover:bg-gray-200"
             >
+              <CheckIcon className="w-4 h-4" aria-hidden />
               Set Opening
             </button>
           </div>
@@ -232,8 +242,9 @@ export default function Reports() {
                 const result = await api.getProfitLoss(plYear, closing);
                 setPlResult(result);
               }}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             >
+              <CalculatorIcon className="w-4 h-4" aria-hidden />
               Calculate
             </button>
           </div>

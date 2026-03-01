@@ -6,6 +6,12 @@ import FormModal from "./FormModal";
 import DateInput from "./DateInput";
 import Tooltip from "./Tooltip";
 import MahajanBalanceCard from "./MahajanBalanceCard";
+import {
+  ClipboardDocumentCheckIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import Button from "./Button";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
@@ -173,17 +179,13 @@ export default function AddLendModal({
         onClose={handleClose}
         maxWidth="max-w-3xl"
       >
-        <form className="space-y-3" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={handleSubmit}>
           {fixedMahajanId == null && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Mahajan *
               </label>
-              <select
-                name="mahajan_id"
-                required
-                className="w-full border rounded px-3 py-2"
-              >
+              <select name="mahajan_id" required className="input-base w-full">
                 <option value="">Select</option>
                 {mahajanList.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -194,152 +196,165 @@ export default function AddLendModal({
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Date * (dd/mm/yyyy)
             </label>
             <DateInput
               value={lendFormDate}
               onChange={setLendFormDate}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input-base w-full"
             />
           </div>
-          <div className="border rounded p-2 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Products
-              </span>
-              <button
-                type="button"
-                onClick={() => setLendLines((prev) => [...prev, emptyLine()])}
-                className="text-sm text-amber-600 hover:text-amber-700"
-              >
-                + Add product
-              </button>
-            </div>
-            {lendLines.map((line, idx) => {
-              const selectedItem = line.product_id
-                ? itemList.find((i) => i.id === line.product_id)
-                : undefined;
-              return (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Product
-                    </label>
-                    <select
-                      name={`product_id_${idx}`}
-                      required={idx === 0}
-                      value={line.product_id || ""}
-                      onChange={(e) => {
-                        const id = Number(e.target.value);
-                        const item = itemList.find((i) => i.id === id);
-                        setLendLines((prev) => {
-                          const next = [...prev];
-                          next[idx] = {
-                            ...next[idx],
-                            product_id: id,
-                            product_name: item?.name ?? "",
-                          };
-                          return next;
-                        });
-                      }}
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    >
-                      <option value="">—</option>
-                      {itemList.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name}
-                        </option>
-                      ))}
-                    </select>
+          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+            <div className="min-w-0 overflow-x-auto">
+              <div className="min-w-[32rem]">
+                {lendLines.length > 0 && (
+                  <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2">
+                    <span>Product</span>
+                    <span>Qty</span>
+                    <span>Unit</span>
+                    <span>Amount</span>
+                    <span aria-hidden="true" />
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Qty{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
-                    </label>
-                    <input
-                      name={`quantity_${idx}`}
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      step="1"
-                      value={line.quantity || ""}
-                      onChange={(e) =>
-                        setLendLines((prev) => {
-                          const n = [...prev];
-                          n[idx] = {
-                            ...n[idx],
-                            quantity: Number(e.target.value) || 0,
-                          };
-                          return n;
-                        })
-                      }
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Amount
-                    </label>
-                    <input
-                      name={`amount_${idx}`}
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={line.amount || ""}
-                      onChange={(e) =>
-                        setLendLines((prev) => {
-                          const n = [...prev];
-                          n[idx] = {
-                            ...n[idx],
-                            amount: Number(e.target.value) || 0,
-                          };
-                          return n;
-                        })
-                      }
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-end">
-                    {lendLines.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLendLines((prev) =>
-                            prev.filter((_, i) => i !== idx)
-                          )
-                        }
-                        className="text-red-600 hover:text-red-700 text-sm py-1.5"
+                )}
+                <div className="space-y-3">
+                  {lendLines.map((line, idx) => {
+                    const selectedItem = line.product_id
+                      ? itemList.find((i) => i.id === line.product_id)
+                      : undefined;
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
                       >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
+                        <select
+                          name={`product_id_${idx}`}
+                          required={idx === 0}
+                          value={line.product_id || ""}
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            const item = itemList.find((i) => i.id === id);
+                            setLendLines((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                product_id: id,
+                                product_name: item?.name ?? "",
+                              };
+                              return next;
+                            });
+                          }}
+                          className="input-base w-full min-w-0"
+                          aria-label="Product"
+                        >
+                          <option value="">Select product</option>
+                          {itemList.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name={`quantity_${idx}`}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={line.quantity || ""}
+                          onChange={(e) =>
+                            setLendLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                quantity: Number(e.target.value) || 0,
+                              };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label={
+                            selectedItem?.unit
+                              ? `Quantity (${selectedItem.unit})`
+                              : "Quantity"
+                          }
+                        />
+                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                          {selectedItem?.unit ?? "—"}
+                        </span>
+                        <input
+                          name={`amount_${idx}`}
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          placeholder="0"
+                          value={line.amount || ""}
+                          onChange={(e) =>
+                            setLendLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                amount: Number(e.target.value) || 0,
+                              };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label="Amount"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLendLines((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
+                          aria-label="Remove line"
+                          disabled={lendLines.length <= 1}
+                        >
+                          <TrashIcon className="w-4 h-4" aria-hidden />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setLendLines((prev) => [...prev, emptyLine()])}
+                  className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                >
+                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  Add item
+                </Button>
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Notes
             </label>
-            <input name="notes" className="w-full border rounded px-3 py-2" />
+            <textarea
+              name="notes"
+              rows={3}
+              placeholder="Optional notes for this transaction"
+              className="input-base w-full resize-y min-h-[4.5rem]"
+            />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-3 py-1.5 border rounded"
-            >
+          <div className="flex justify-end gap-2 pt-1 border-t border-gray-200">
+            <Button type="button" variant="secondary" onClick={handleClose}>
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-amber-600 text-white rounded"
-            >
+            </Button>
+            <Button type="submit" variant="amber">
+              <ClipboardDocumentCheckIcon
+                className="w-5 h-5 mr-1.5"
+                aria-hidden
+              />
               Review &amp; confirm
-            </button>
+            </Button>
           </div>
         </form>
       </FormModal>

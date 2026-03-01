@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 interface Column<T> {
   key: string;
@@ -50,7 +51,7 @@ export default function DataTable<T extends { id: number }>({
               </th>
             ))}
             {(onEdit || onDelete) && (
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+              <th className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase w-[1%]">
                 Actions
               </th>
             )}
@@ -67,25 +68,31 @@ export default function DataTable<T extends { id: number }>({
                 </td>
               ))}
               {(onEdit || onDelete) && (
-                <td className="px-4 py-2 text-right text-sm space-x-2">
-                  {onEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onEdit(row)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      type="button"
-                      onClick={() => onDelete(row)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  )}
+                <td className="px-2 py-2 text-right text-sm w-[1%]">
+                  <span className="inline-flex items-center gap-0.5">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(row)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Edit"
+                        aria-label="Edit"
+                      >
+                        <PencilSquareIcon className="w-5 h-5" />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(row)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete"
+                        aria-label="Delete"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    )}
+                  </span>
                 </td>
               )}
             </tr>

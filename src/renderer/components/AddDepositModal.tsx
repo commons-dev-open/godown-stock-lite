@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
 import DateInput from "./DateInput";
+import Button from "./Button";
 import { todayISO } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 
@@ -123,20 +125,18 @@ export default function AddDepositModal({
           <input name="notes" className="w-full border rounded px-3 py-2" />
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 border rounded"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
+            <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="green"
             disabled={createDeposit.isPending}
-            className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
           >
+            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
             {createDeposit.isPending ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </form>
     </FormModal>

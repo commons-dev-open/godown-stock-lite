@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface SearchFilterBarProps {
   searchValue: string;
@@ -30,8 +31,9 @@ export default function SearchFilterBar({
         <button
           type="button"
           onClick={onClearFilters}
-          className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+          className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
         >
+          <XMarkIcon className="w-4 h-4" aria-hidden />
           Clear filters
         </button>
       )}

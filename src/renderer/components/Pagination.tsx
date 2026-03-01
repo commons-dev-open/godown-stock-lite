@@ -1,3 +1,4 @@
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { PAGE_SIZE } from "../../shared/constants";
 
 interface PaginationProps {
@@ -24,13 +25,15 @@ export default function Pagination({
       <span className="text-gray-600">
         Showing {start}–{end} of {total}
       </span>
-      <div className="flex gap-1">
+      <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          aria-label="Previous page"
         >
+          <ChevronLeftIcon className="w-4 h-4" />
           Previous
         </button>
         <span className="px-2 py-1 text-gray-700">
@@ -40,9 +43,11 @@ export default function Pagination({
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          aria-label="Next page"
         >
           Next
+          <ChevronRightIcon className="w-4 h-4" />
         </button>
       </div>
     </div>

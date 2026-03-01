@@ -27,6 +27,14 @@ import {
   exportDailySalesToPdf,
   getPrintTableBody,
 } from "../lib/exportDailySales";
+import {
+  ArrowDownTrayIcon,
+  CheckIcon,
+  DocumentArrowDownIcon,
+  PrinterIcon,
+  PlusIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import type { DailySale } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
@@ -203,6 +211,7 @@ export default function DailySales() {
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
+                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Export
               </Button>
             </div>
@@ -216,29 +225,33 @@ export default function DailySales() {
                 >
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportCsv}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPdf}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPrint}
                   >
+                    <PrinterIcon className="w-4 h-4 shrink-0" />
                     Print (A4)
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Sale
             </Button>
           </div>
@@ -274,8 +287,9 @@ export default function DailySales() {
                 setToDate("");
                 setPage(1);
               }}
-              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+              className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
             >
+              <XMarkIcon className="w-4 h-4" aria-hidden />
               Clear filters
             </button>
           )}
@@ -414,19 +428,18 @@ export default function DailySales() {
             <input name="notes" className="w-full border rounded px-3 py-2" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => setAddOpen(false)}
-              className="px-3 py-1.5 border rounded"
             >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded"
-            >
+            </Button>
+            <Button type="submit">
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
-            </button>
+            </Button>
           </div>
         </form>
       </FormModal>
@@ -524,19 +537,18 @@ export default function DailySales() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setEditing(null)}
-                className="px-3 py-1.5 border rounded"
               >
+                <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-blue-600 text-white rounded"
-              >
+              </Button>
+              <Button type="submit">
+                <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Update
-              </button>
+              </Button>
             </div>
           </form>
         )}

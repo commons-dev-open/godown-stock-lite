@@ -20,6 +20,7 @@ import type {
 import { formatBillDateTime } from "../lib/exportUtils";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
+  CheckIcon,
   DocumentArrowDownIcon,
   EyeIcon,
   PencilSquareIcon,
@@ -59,11 +60,6 @@ const DEFAULT_LINE_ROW: LineRow = {
   price: 0,
   priceMode: "per_unit",
 };
-
-const INPUT_CLASS =
-  "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
-const SELECT_CLASS =
-  "border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0";
 
 /** Payload line sent to API (no priceMode/totalInput). */
 type LinePayload = Omit<LineRow, "priceMode" | "totalInput"> & {
@@ -161,18 +157,20 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
                 {unitToShort(line.unit, invoiceUnits)}
               </td>
               <td className="border border-gray-300 px-2 py-1 text-right">
-                Rs. {formatDecimal(line.price)}
+                ₹{formatDecimal(line.price)}
               </td>
               <td className="border border-gray-300 px-2 py-1 text-right">
-                Rs. {formatDecimal(line.amount ?? line.quantity * line.price)}
+                ₹{formatDecimal(line.amount ?? line.quantity * line.price)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className={isPrint ? "mt-1 font-medium" : "mt-3 font-medium"}>
-        Total: Rs. {formatDecimal(total)}
-      </div>
+      {isPrint && (
+        <div className="mt-1 font-medium">
+          Total: Rs. {formatDecimal(total)}
+        </div>
+      )}
     </div>
   );
 });
@@ -298,18 +296,16 @@ export default function Invoices() {
         key: "total" as const,
         label: "Total",
         render: (r: InvoiceRow) =>
-          r.total != null && r.total > 0
-            ? `Rs. ${formatDecimal(r.total)}`
-            : "—",
+          r.total != null && r.total > 0 ? `₹${formatDecimal(r.total)}` : "—",
       },
       {
         key: "actions" as const,
         label: "Actions",
         render: (r: InvoiceRow) => (
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-0.5">
             <button
               type="button"
-              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors shrink-0"
               title="View"
               onClick={() => fetchAndView(r.id)}
               aria-label="View invoice"
@@ -356,7 +352,10 @@ export default function Invoices() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Invoices</h1>
-        <Button onClick={() => setCreateOpen(true)}>Create Invoice</Button>
+        <Button onClick={() => setCreateOpen(true)}>
+          <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+          Create Invoice
+        </Button>
       </div>
 
       <SearchFilterBar
@@ -447,25 +446,39 @@ export default function Invoices() {
           onClose={() => setViewing(null)}
           maxWidth="max-w-2xl"
           footer={
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  exportInvoiceToPdf(
-                    viewing,
-                    viewing.lines,
-                    settings,
-                    invoiceUnits
-                  );
-                }}
-              >
-                <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Export PDF
-              </Button>
-              <Button onClick={() => setPrintData(viewing)}>
-                <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Print
-              </Button>
+            <div className="flex w-full items-center justify-between gap-4">
+              <span className="font-medium text-gray-900">
+                Total: ₹
+                {formatDecimal(
+                  viewing.lines.reduce(
+                    (s, l) => s + (l.amount ?? l.quantity * l.price),
+                    0
+                  )
+                )}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    exportInvoiceToPdf(
+                      viewing,
+                      viewing.lines,
+                      settings,
+                      invoiceUnits
+                    );
+                  }}
+                >
+                  <DocumentArrowDownIcon
+                    className="w-5 h-5 mr-1.5"
+                    aria-hidden
+                  />
+                  Export PDF
+                </Button>
+                <Button onClick={() => setPrintData(viewing)}>
+                  <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  Print
+                </Button>
+              </div>
             </div>
           }
         >
@@ -533,17 +546,19 @@ function InvoiceFormModal({
   ) => void;
   isPending: boolean;
 }>) {
-  const [invoiceNumber, setInvoiceNumber] = useState(() =>
-    invoice?.invoice_number ?? ""
+  const [invoiceNumber, setInvoiceNumber] = useState(
+    () => invoice?.invoice_number ?? ""
   );
-  const [customerName, setCustomerName] = useState(() =>
-    invoice?.customer_name ?? ""
+  const [customerName, setCustomerName] = useState(
+    () => invoice?.customer_name ?? ""
   );
-  const [customerAddress, setCustomerAddress] = useState(() =>
-    invoice?.customer_address ?? ""
+  const [customerAddress, setCustomerAddress] = useState(
+    () => invoice?.customer_address ?? ""
   );
   const [invoiceDate, setInvoiceDate] = useState(() =>
-    invoice ? invoice.invoice_date.slice(0, 10) : new Date().toISOString().slice(0, 10)
+    invoice
+      ? invoice.invoice_date.slice(0, 10)
+      : new Date().toISOString().slice(0, 10)
   );
   const [notes, setNotes] = useState(() => invoice?.notes ?? "");
   const [lines, setLines] = useState<LineRow[]>(() => {
@@ -662,25 +677,31 @@ function InvoiceFormModal({
       onClose={onClose}
       maxWidth="max-w-4xl"
       footer={
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            form="invoice-form-modal"
-            variant="secondary"
-            disabled={isPending}
-            data-action="save"
-          >
-            Save
-          </Button>
-          <Button
-            type="submit"
-            form="invoice-form-modal"
-            disabled={isPending}
-            data-action="print"
-          >
-            <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Save and Print
-          </Button>
+        <div className="flex w-full items-center justify-between gap-4">
+          <span className="font-medium text-gray-900">
+            Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              form="invoice-form-modal"
+              variant="secondary"
+              disabled={isPending}
+              data-action="save"
+            >
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Save
+            </Button>
+            <Button
+              type="submit"
+              form="invoice-form-modal"
+              disabled={isPending}
+              data-action="print"
+            >
+              <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Save and Print
+            </Button>
+          </div>
         </div>
       }
     >
@@ -695,7 +716,7 @@ function InvoiceFormModal({
               <input
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                className={INPUT_CLASS}
+                className="input-base w-full"
               />
             </FormField>
           ) : (
@@ -709,7 +730,7 @@ function InvoiceFormModal({
               type="date"
               value={invoiceDate}
               onChange={(e) => setInvoiceDate(e.target.value)}
-              className={INPUT_CLASS}
+              className="input-base w-full"
               required
             />
           </FormField>
@@ -718,14 +739,14 @@ function InvoiceFormModal({
           <input
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
-            className={INPUT_CLASS}
+            className="input-base w-full"
           />
         </FormField>
         <FormField label="Customer address">
           <textarea
             value={customerAddress}
             onChange={(e) => setCustomerAddress(e.target.value)}
-            className={`${INPUT_CLASS} resize-y`}
+            className="input-base w-full resize-y"
             rows={2}
           />
         </FormField>
@@ -733,33 +754,17 @@ function InvoiceFormModal({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className={`${INPUT_CLASS} resize-y`}
+            className="input-base w-full resize-y"
             rows={2}
             placeholder="Optional notes for this invoice"
           />
         </FormField>
 
-        <div className="border-t border-gray-200 pt-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-800">Line items</h3>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setLines((prev) => [
-                  ...prev,
-                  { ...DEFAULT_LINE_ROW, _key: Date.now() },
-                ])
-              }
-            >
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add item
-            </Button>
-          </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
           <div className="min-w-0 overflow-x-auto">
             <div className="min-w-[36rem]">
               {lines.length > 0 && (
-                <div className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center text-xs text-gray-500 mb-2 px-3 py-2">
+                <div className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2">
                   <span>Product</span>
                   <span>Qty</span>
                   <span>Unit</span>
@@ -773,14 +778,14 @@ function InvoiceFormModal({
                 {lines.map((line, idx) => (
                   <div
                     key={line.id ?? line._key ?? idx}
-                    className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center p-3 rounded-lg bg-gray-50 border border-gray-100"
+                    className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
                   >
                     <select
                       value={line.product_id || ""}
                       onChange={(e) =>
                         handleProductChange(idx, Number(e.target.value))
                       }
-                      className={`${SELECT_CLASS} w-full`}
+                      className="input-base w-full min-w-0"
                       aria-label="Product"
                     >
                       <option value="">Select product</option>
@@ -817,7 +822,7 @@ function InvoiceFormModal({
                           })
                         );
                       }}
-                      className={`${INPUT_CLASS} w-full text-right`}
+                      className="input-base w-full text-right"
                       aria-label="Quantity"
                     />
                     <select
@@ -829,7 +834,7 @@ function InvoiceFormModal({
                           )
                         )
                       }
-                      className={`${SELECT_CLASS} w-full`}
+                      className="input-base w-full min-w-0"
                       aria-label="Unit"
                     >
                       <option value="">—</option>
@@ -862,7 +867,7 @@ function InvoiceFormModal({
                           })
                         );
                       }}
-                      className={`${SELECT_CLASS} w-full text-sm`}
+                      className="input-base w-full text-sm min-w-0"
                       title="Enter price per unit or total for this line"
                       aria-label="Price type"
                     >
@@ -888,11 +893,11 @@ function InvoiceFormModal({
                               )
                             )
                           }
-                          className={`${INPUT_CLASS} w-full text-right`}
+                          className="input-base w-full text-right"
                           aria-label="Unit price"
                         />
                         <span className="text-xs text-gray-600 whitespace-nowrap">
-                          Rs.{" "}
+                          ₹
                           {formatDecimal(
                             (line.quantity || 0) * (line.price || 0)
                           )}
@@ -926,13 +931,13 @@ function InvoiceFormModal({
                               })
                             );
                           }}
-                          className={`${INPUT_CLASS} w-full text-right`}
+                          className="input-base w-full text-right"
                           title="Total amount for this line (quantity can be entered before or after)"
                           aria-label="Line total"
                         />
                         {line.quantity > 0 && line.price > 0 ? (
-                          <span className="text-xs text-gray-600 whitespace-nowrap">
-                            Rs. {formatDecimal(line.price)}/
+                          <span className="text-xs text-gray-600 whitespace-nowrap ml-2">
+                            ₹{formatDecimal(line.price)}/
                             {unitToShort(line.unit, invoiceUnits) || "unit"}
                           </span>
                         ) : (
@@ -953,10 +958,21 @@ function InvoiceFormModal({
                   </div>
                 ))}
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  setLines((prev) => [
+                    ...prev,
+                    { ...DEFAULT_LINE_ROW, _key: Date.now() },
+                  ])
+                }
+                className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+              >
+                <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                Add item
+              </Button>
             </div>
-          </div>
-          <div className="border-t border-gray-200 pt-4 mt-4 font-medium text-gray-900">
-            Total: Rs. {formatDecimal(roundDecimal(formTotal, 2))}
           </div>
         </div>
       </form>

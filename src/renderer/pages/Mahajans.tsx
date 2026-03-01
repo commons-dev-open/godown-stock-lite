@@ -33,6 +33,12 @@ import {
   getPrintTableBody,
   type MahajanSummaryForExport,
 } from "../lib/exportMahajans";
+import {
+  ArrowDownTrayIcon,
+  DocumentArrowDownIcon,
+  PlusIcon,
+  PrinterIcon,
+} from "@heroicons/react/24/outline";
 import type { Mahajan } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
@@ -194,7 +200,9 @@ export default function Mahajans() {
 
   async function getBalancesForExport(): Promise<Record<number, number>> {
     try {
-      const res = (await api.getAllMahajanBalances()) as { balances: Record<number, number> };
+      const res = (await api.getAllMahajanBalances()) as {
+        balances: Record<number, number>;
+      };
       return res?.balances ?? {};
     } catch {
       return {};
@@ -264,6 +272,7 @@ export default function Mahajans() {
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
+                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Export
               </Button>
             </div>
@@ -277,29 +286,33 @@ export default function Mahajans() {
                 >
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportCsv}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPdf}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPrint}
                   >
+                    <PrinterIcon className="w-4 h-4 shrink-0" />
                     Print (A4)
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Mahajan
             </Button>
           </div>

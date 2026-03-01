@@ -32,6 +32,17 @@ import {
   getPrintTableBody,
   type TransactionExportRow,
 } from "../lib/exportTransactions";
+import {
+  ArrowDownTrayIcon,
+  BanknotesIcon,
+  DocumentArrowDownIcon,
+  FunnelIcon,
+  PlusIcon,
+  PrinterIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import Button from "../components/Button";
 import type {
   Item,
   MahajanLend,
@@ -670,12 +681,10 @@ export default function Transactions() {
           <h1 className="text-2xl font-semibold text-gray-900">Transactions</h1>
           <div className="flex gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
-              <button
-                type="button"
-                className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-md text-sm hover:bg-gray-200 border border-gray-300"
-              >
+              <Button variant="secondary" type="button">
+                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Export
-              </button>
+              </Button>
             </div>
             <FloatingPortal>
               {exportOpen && (
@@ -687,49 +696,47 @@ export default function Transactions() {
                 >
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportCsv}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPdf}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPrint}
                   >
+                    <PrinterIcon className="w-4 h-4 shrink-0" />
                     Print (A4)
                   </button>
                 </div>
               )}
             </FloatingPortal>
-            <button
-              type="button"
+            <Button
+              variant="primary"
               onClick={() => setPurchaseAddOpen(true)}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+              className="!bg-blue-600 hover:!bg-blue-700"
             >
+              <BanknotesIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cash Purchase
-            </button>
-            <button
-              type="button"
-              onClick={() => setLendOpen(true)}
-              className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
-            >
+            </Button>
+            <Button variant="amber" onClick={() => setLendOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Lend
-            </button>
-            <button
-              type="button"
-              onClick={() => setDepositOpen(true)}
-              className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
-            >
+            </Button>
+            <Button variant="green" onClick={() => setDepositOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Deposit
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -772,8 +779,9 @@ export default function Transactions() {
           <button
             type="button"
             onClick={() => setMoreFiltersOpen(true)}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
           >
+            <FunnelIcon className="w-4 h-4" aria-hidden />
             More filters
             {(filterDateFrom || filterDateTo) && (
               <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
@@ -796,10 +804,10 @@ export default function Transactions() {
                 <button
                   type="button"
                   onClick={() => setMoreFiltersOpen(false)}
-                  className="text-gray-500 hover:text-gray-700 p-1"
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
                   aria-label="Close"
                 >
-                  ×
+                  <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
               <div className="flex flex-col gap-4">
@@ -1005,8 +1013,20 @@ export default function Transactions() {
           setLendLines([emptyLine()]);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          <>
+            <Button
+              type="submit"
+              form="transactions-add-lend-form"
+              variant="amber"
+            >
+              Review &amp; confirm
+            </Button>
+          </>
+        }
       >
         <form
+          id="transactions-add-lend-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -1080,146 +1100,138 @@ export default function Transactions() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
-          <div className="border rounded p-2 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Products
-              </span>
-              <button
-                type="button"
-                onClick={() => setLendLines((prev) => [...prev, emptyLine()])}
-                className="text-sm text-amber-600 hover:text-amber-700"
-              >
-                + Add product
-              </button>
-            </div>
-            {lendLines.map((line, idx) => {
-              const selectedItem = line.product_id
-                ? (items as Item[]).find((i) => i.id === line.product_id)
-                : undefined;
-              return (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Product
-                    </label>
-                    <select
-                      name={`product_id_${idx}`}
-                      required={idx === 0}
-                      value={line.product_id || ""}
-                      onChange={(e) => {
-                        const id = Number(e.target.value);
-                        const item = itemList.find((i) => i.id === id);
-                        setLendLines((prev) => {
-                          const next = [...prev];
-                          next[idx] = {
-                            ...next[idx],
-                            product_id: id,
-                            product_name: item?.name ?? "",
-                          };
-                          return next;
-                        });
-                      }}
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    >
-                      <option value="">—</option>
-                      {itemList.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name}
-                        </option>
-                      ))}
-                    </select>
+          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+            <div className="min-w-0 overflow-x-auto">
+              <div className="min-w-[32rem]">
+                {lendLines.length > 0 && (
+                  <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1">
+                    <span>Product</span>
+                    <span>Qty</span>
+                    <span>Unit</span>
+                    <span>Amount</span>
+                    <span aria-hidden="true" />
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Qty{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
-                    </label>
-                    <input
-                      name={`quantity_${idx}`}
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      step="1"
-                      value={line.quantity || ""}
-                      onChange={(e) =>
-                        setLendLines((prev) => {
-                          const n = [...prev];
-                          n[idx] = {
-                            ...n[idx],
-                            quantity: Number(e.target.value) || 0,
-                          };
-                          return n;
-                        })
-                      }
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-gray-500 mb-0.5">
-                      Amount
-                    </label>
-                    <input
-                      name={`amount_${idx}`}
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={line.amount || ""}
-                      onChange={(e) =>
-                        setLendLines((prev) => {
-                          const n = [...prev];
-                          n[idx] = {
-                            ...n[idx],
-                            amount: Number(e.target.value) || 0,
-                          };
-                          return n;
-                        })
-                      }
-                      className="w-full border rounded px-2 py-1.5 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-end">
-                    {lendLines.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLendLines((prev) =>
-                            prev.filter((_, i) => i !== idx)
-                          )
-                        }
-                        className="text-red-600 hover:text-red-700 text-sm py-1.5"
+                )}
+                <div className="space-y-3">
+                  {lendLines.map((line, idx) => {
+                    const selectedItem = line.product_id
+                      ? itemList.find((i) => i.id === line.product_id)
+                      : undefined;
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
                       >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
+                        <select
+                          name={`product_id_${idx}`}
+                          required={idx === 0}
+                          value={line.product_id || ""}
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            const item = itemList.find((i) => i.id === id);
+                            setLendLines((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                product_id: id,
+                                product_name: item?.name ?? "",
+                              };
+                              return next;
+                            });
+                          }}
+                          className="input-base w-full min-w-0"
+                          aria-label="Product"
+                        >
+                          <option value="">Select product</option>
+                          {itemList.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name={`quantity_${idx}`}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={line.quantity || ""}
+                          onChange={(e) =>
+                            setLendLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                quantity: Number(e.target.value) || 0,
+                              };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label={
+                            selectedItem?.unit
+                              ? `Quantity (${selectedItem.unit})`
+                              : "Quantity"
+                          }
+                        />
+                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                          {selectedItem?.unit ?? "—"}
+                        </span>
+                        <input
+                          name={`amount_${idx}`}
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          placeholder="0"
+                          value={line.amount || ""}
+                          onChange={(e) =>
+                            setLendLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                amount: Number(e.target.value) || 0,
+                              };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label="Amount"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLendLines((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
+                          aria-label="Remove line"
+                          disabled={lendLines.length <= 1}
+                        >
+                          <TrashIcon className="w-4 h-4" aria-hidden />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setLendLines((prev) => [...prev, emptyLine()])}
+                  className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                >
+                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  Add item
+                </Button>
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setLendOpen(false);
-                setLendLines([emptyLine()]);
-              }}
-              className="px-3 py-1.5 border rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-amber-600 text-white rounded"
-            >
-              Review &amp; confirm
-            </button>
           </div>
         </form>
       </FormModal>
@@ -1232,6 +1244,39 @@ export default function Transactions() {
           setConfirmPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmLendOpen(false);
+                setConfirmPayload(null);
+              }}
+            >
+              Back
+            </Button>
+            <Button
+              variant="amber"
+              onClick={() => {
+                if (!confirmPayload) return;
+                createLendBatch.mutate({
+                  mahajan_id: confirmPayload.mahajan_id,
+                  transaction_date: confirmPayload.transaction_date,
+                  notes: confirmPayload.notes || undefined,
+                  lines: confirmPayload.lines.map((l) => ({
+                    product_id: l.product_id,
+                    product_name: l.product_name,
+                    quantity: l.quantity,
+                    amount: l.amount,
+                  })),
+                });
+              }}
+              disabled={createLendBatch.isPending || !confirmPayload}
+            >
+              {createLendBatch.isPending ? "Saving…" : "Confirm"}
+            </Button>
+          </>
+        }
       >
         {confirmPayload && (
           <div className="space-y-4">
@@ -1347,38 +1392,6 @@ export default function Transactions() {
                 </p>
               </div>
             ) : null}
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmLendOpen(false);
-                  setConfirmPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  createLendBatch.mutate({
-                    mahajan_id: confirmPayload.mahajan_id,
-                    transaction_date: confirmPayload.transaction_date,
-                    notes: confirmPayload.notes || undefined,
-                    lines: confirmPayload.lines.map((l) => ({
-                      product_id: l.product_id,
-                      product_name: l.product_name,
-                      quantity: l.quantity,
-                      amount: l.amount,
-                    })),
-                  });
-                }}
-                disabled={createLendBatch.isPending}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
-              >
-                {createLendBatch.isPending ? "Saving…" : "Confirm"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -1387,8 +1400,20 @@ export default function Transactions() {
         title="Add Deposit"
         open={depositOpen}
         onClose={() => setDepositOpen(false)}
+        footer={
+          <>
+            <Button
+              type="submit"
+              form="transactions-add-deposit-form"
+              variant="green"
+            >
+              Save
+            </Button>
+          </>
+        }
       >
         <form
+          id="transactions-add-deposit-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -1449,21 +1474,6 @@ export default function Transactions() {
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setDepositOpen(false)}
-              className="px-3 py-1.5 border rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-green-600 text-white rounded"
-            >
-              Save
-            </button>
-          </div>
         </form>
       </FormModal>
 
@@ -1476,9 +1486,23 @@ export default function Transactions() {
           setConfirmEditLendPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          editingLend ? (
+            <>
+              <Button
+                type="submit"
+                form="transactions-edit-lend-form"
+                variant="amber"
+              >
+                Review &amp; Update
+              </Button>
+            </>
+          ) : undefined
+        }
       >
         {editingLend && (
           <form
+            id="transactions-edit-lend-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -1611,21 +1635,6 @@ export default function Transactions() {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingLend(null)}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-amber-600 text-white rounded"
-              >
-                Review &amp; Update
-              </button>
-            </div>
           </form>
         )}
       </FormModal>
@@ -1638,6 +1647,46 @@ export default function Transactions() {
           setConfirmEditLendPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmEditLendOpen(false);
+                setConfirmEditLendPayload(null);
+              }}
+            >
+              Back
+            </Button>
+            <Button
+              variant="amber"
+              onClick={() => {
+                if (!confirmEditLendPayload) return;
+                updateLend.mutate({
+                  id: confirmEditLendPayload.record.id,
+                  l: {
+                    mahajan_id: confirmEditLendPayload.newValues.mahajan_id,
+                    transaction_date:
+                      confirmEditLendPayload.newValues.transaction_date,
+                    product_id: confirmEditLendPayload.newValues.product_id,
+                    product_name:
+                      confirmEditLendPayload.newValues.product_name ??
+                      undefined,
+                    quantity: confirmEditLendPayload.newValues.quantity,
+                    amount: confirmEditLendPayload.newValues.amount,
+                    notes: confirmEditLendPayload.newValues.notes ?? undefined,
+                  },
+                });
+                setConfirmEditLendOpen(false);
+                setConfirmEditLendPayload(null);
+                setEditingLend(null);
+              }}
+              disabled={updateLend.isPending}
+            >
+              {updateLend.isPending ? "Updating…" : "Confirm Update"}
+            </Button>
+          </>
+        }
       >
         {confirmEditLendPayload && (
           <div className="space-y-4">
@@ -1822,47 +1871,6 @@ export default function Transactions() {
                 </div>
               ) : null}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmEditLendOpen(false);
-                  setConfirmEditLendPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirmEditLendPayload) return;
-                  updateLend.mutate({
-                    id: confirmEditLendPayload.record.id,
-                    l: {
-                      mahajan_id: confirmEditLendPayload.newValues.mahajan_id,
-                      transaction_date:
-                        confirmEditLendPayload.newValues.transaction_date,
-                      product_id: confirmEditLendPayload.newValues.product_id,
-                      product_name:
-                        confirmEditLendPayload.newValues.product_name ??
-                        undefined,
-                      quantity: confirmEditLendPayload.newValues.quantity,
-                      amount: confirmEditLendPayload.newValues.amount,
-                      notes:
-                        confirmEditLendPayload.newValues.notes ?? undefined,
-                    },
-                  });
-                  setConfirmEditLendOpen(false);
-                  setConfirmEditLendPayload(null);
-                  setEditingLend(null);
-                }}
-                disabled={updateLend.isPending}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
-              >
-                {updateLend.isPending ? "Updating…" : "Confirm Update"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -1875,9 +1883,23 @@ export default function Transactions() {
           setConfirmEditDepositOpen(false);
           setConfirmEditDepositPayload(null);
         }}
+        footer={
+          editingDeposit ? (
+            <>
+              <Button
+                type="submit"
+                form="transactions-edit-deposit-form"
+                variant="green"
+              >
+                Review &amp; Update
+              </Button>
+            </>
+          ) : undefined
+        }
       >
         {editingDeposit && (
           <form
+            id="transactions-edit-deposit-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -1932,21 +1954,6 @@ export default function Transactions() {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingDeposit(null)}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-green-600 text-white rounded"
-              >
-                Review &amp; Update
-              </button>
-            </div>
           </form>
         )}
       </FormModal>
@@ -1959,6 +1966,41 @@ export default function Transactions() {
           setConfirmEditDepositPayload(null);
         }}
         maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmEditDepositOpen(false);
+                setConfirmEditDepositPayload(null);
+              }}
+            >
+              Back
+            </Button>
+            <Button
+              variant="green"
+              onClick={() => {
+                if (!confirmEditDepositPayload) return;
+                updateDeposit.mutate({
+                  id: confirmEditDepositPayload.record.id,
+                  d: {
+                    transaction_date:
+                      confirmEditDepositPayload.newValues.transaction_date,
+                    amount: confirmEditDepositPayload.newValues.amount,
+                    notes:
+                      confirmEditDepositPayload.newValues.notes ?? undefined,
+                  },
+                });
+                setConfirmEditDepositOpen(false);
+                setConfirmEditDepositPayload(null);
+                setEditingDeposit(null);
+              }}
+              disabled={updateDeposit.isPending}
+            >
+              {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
+            </Button>
+          </>
+        }
       >
         {confirmEditDepositPayload && (
           <div className="space-y-4">
@@ -2080,41 +2122,6 @@ export default function Transactions() {
                 </div>
               ) : null}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmEditDepositOpen(false);
-                  setConfirmEditDepositPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirmEditDepositPayload) return;
-                  updateDeposit.mutate({
-                    id: confirmEditDepositPayload.record.id,
-                    d: {
-                      transaction_date:
-                        confirmEditDepositPayload.newValues.transaction_date,
-                      amount: confirmEditDepositPayload.newValues.amount,
-                      notes:
-                        confirmEditDepositPayload.newValues.notes ?? undefined,
-                    },
-                  });
-                  setConfirmEditDepositOpen(false);
-                  setConfirmEditDepositPayload(null);
-                  setEditingDeposit(null);
-                }}
-                disabled={updateDeposit.isPending}
-                className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
-              >
-                {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -2127,8 +2134,20 @@ export default function Transactions() {
           setPurchaseLines([emptyPurchaseLine()]);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          <>
+            <Button
+              type="submit"
+              form="transactions-cash-purchase-form"
+              variant="primary"
+            >
+              Review &amp; confirm
+            </Button>
+          </>
+        }
       >
         <form
+          id="transactions-cash-purchase-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -2187,142 +2206,140 @@ export default function Transactions() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
-          <div className="border rounded p-2 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Products
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setPurchaseLines((prev) => [...prev, emptyPurchaseLine()])
-                }
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                + Add product
-              </button>
-            </div>
-            {purchaseLines.map((line, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-4">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Product
-                  </label>
-                  <select
-                    name={`product_id_${idx}`}
-                    required={idx === 0}
-                    value={line.product_id || ""}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      const item = itemList.find((i) => i.id === id);
-                      setPurchaseLines((prev) => {
-                        const next = [...prev];
-                        next[idx] = {
-                          ...next[idx],
-                          product_id: id,
-                          product_name: item?.name ?? "",
-                        };
-                        return next;
-                      });
-                    }}
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  >
-                    <option value="">—</option>
-                    {itemList.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
+          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+            <div className="min-w-0 overflow-x-auto">
+              <div className="min-w-[32rem]">
+                {purchaseLines.length > 0 && (
+                  <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1">
+                    <span>Product</span>
+                    <span>Qty</span>
+                    <span>Unit</span>
+                    <span>Amount</span>
+                    <span aria-hidden="true" />
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {purchaseLines.map((line, idx) => {
+                    const selectedItem = line.product_id
+                      ? itemList.find((i) => i.id === line.product_id)
+                      : undefined;
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
+                      >
+                        <select
+                          name={`product_id_${idx}`}
+                          required={idx === 0}
+                          value={line.product_id || ""}
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            const item = itemList.find((i) => i.id === id);
+                            setPurchaseLines((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                product_id: id,
+                                product_name: item?.name ?? "",
+                              };
+                              return next;
+                            });
+                          }}
+                          className="input-base w-full min-w-0"
+                          aria-label="Product"
+                        >
+                          <option value="">Select product</option>
+                          {itemList.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name={`quantity_${idx}`}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={line.quantity === 0 ? "" : line.quantity}
+                          onChange={(e) =>
+                            setPurchaseLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                quantity: Number(e.target.value) || 0,
+                              };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label={
+                            selectedItem?.unit
+                              ? `Quantity (${selectedItem.unit})`
+                              : "Quantity"
+                          }
+                        />
+                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                          {selectedItem?.unit ?? "—"}
+                        </span>
+                        <input
+                          name={`amount_${idx}`}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="1"
+                          required={idx === 0}
+                          placeholder="0"
+                          value={line.amount === 0 ? "" : line.amount}
+                          onChange={(e) =>
+                            setPurchaseLines((prev) => {
+                              const n = [...prev];
+                              const val =
+                                Math.floor(Number(e.target.value)) || 0;
+                              n[idx] = { ...n[idx], amount: val };
+                              return n;
+                            })
+                          }
+                          className="input-base w-full text-right"
+                          aria-label="Amount"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPurchaseLines((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
+                          aria-label="Remove line"
+                          disabled={purchaseLines.length <= 1}
+                        >
+                          <TrashIcon className="w-4 h-4" aria-hidden />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Qty
-                  </label>
-                  <input
-                    name={`quantity_${idx}`}
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    value={line.quantity === 0 ? "" : line.quantity}
-                    onChange={(e) =>
-                      setPurchaseLines((prev) => {
-                        const n = [...prev];
-                        n[idx] = {
-                          ...n[idx],
-                          quantity: Number(e.target.value) || 0,
-                        };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Amount (₹) *
-                  </label>
-                  <input
-                    name={`amount_${idx}`}
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    required={idx === 0}
-                    value={line.amount === 0 ? "" : line.amount}
-                    onChange={(e) =>
-                      setPurchaseLines((prev) => {
-                        const n = [...prev];
-                        const val = Math.floor(Number(e.target.value)) || 0;
-                        n[idx] = { ...n[idx], amount: val };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2 flex items-end">
-                  {purchaseLines.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPurchaseLines((prev) =>
-                          prev.filter((_, i) => i !== idx)
-                        )
-                      }
-                      className="text-red-600 hover:text-red-700 text-sm py-1.5"
-                    >
-                      Remove
-                    </button>
-                  ) : null}
-                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() =>
+                    setPurchaseLines((prev) => [...prev, emptyPurchaseLine()])
+                  }
+                  className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                >
+                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  Add item
+                </Button>
               </div>
-            ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setPurchaseAddOpen(false);
-                setPurchaseLines([emptyPurchaseLine()]);
-              }}
-              className="px-3 py-1.5 border rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded"
-            >
-              Review &amp; confirm
-            </button>
           </div>
         </form>
       </FormModal>
@@ -2335,6 +2352,39 @@ export default function Transactions() {
           setConfirmPurchasePayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmPurchaseOpen(false);
+                setConfirmPurchasePayload(null);
+              }}
+            >
+              Back
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (!confirmPurchasePayload) return;
+                createPurchaseBatch.mutate({
+                  transaction_date: confirmPurchasePayload.transaction_date,
+                  notes: confirmPurchasePayload.notes || undefined,
+                  lines: confirmPurchasePayload.lines.map((l) => ({
+                    product_id: l.product_id,
+                    quantity: l.quantity,
+                    amount: l.amount,
+                  })),
+                });
+              }}
+              disabled={
+                createPurchaseBatch.isPending || !confirmPurchasePayload
+              }
+            >
+              {createPurchaseBatch.isPending ? "Saving…" : "Confirm"}
+            </Button>
+          </>
+        }
       >
         {confirmPurchasePayload && (
           <div className="space-y-4">
@@ -2398,36 +2448,6 @@ export default function Transactions() {
                 confirmPurchasePayload.lines.reduce((s, l) => s + l.amount, 0)
               )}
             </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmPurchaseOpen(false);
-                  setConfirmPurchasePayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  createPurchaseBatch.mutate({
-                    transaction_date: confirmPurchasePayload.transaction_date,
-                    notes: confirmPurchasePayload.notes || undefined,
-                    lines: confirmPurchasePayload.lines.map((l) => ({
-                      product_id: l.product_id,
-                      quantity: l.quantity,
-                      amount: l.amount,
-                    })),
-                  });
-                }}
-                disabled={createPurchaseBatch.isPending}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-50"
-              >
-                {createPurchaseBatch.isPending ? "Saving…" : "Confirm"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -2532,21 +2552,6 @@ export default function Transactions() {
                 onChange={(e) => setEditPurchaseNotes(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingPurchase(null)}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-blue-600 text-white rounded"
-              >
-                Review &amp; Update
-              </button>
             </div>
           </form>
         )}

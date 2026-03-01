@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface FormModalProps {
   title: string;
@@ -28,22 +29,22 @@ export default function FormModal({
         aria-hidden
       />
       <div
-        className={`relative bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-auto ${maxWidth}`}
+        className={`relative flex flex-col bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] ${maxWidth}`}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex shrink-0 items-center justify-between p-4 border-b bg-white rounded-t-lg">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-1"
+            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
             aria-label="Close"
           >
-            ×
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
         {footer != null ? (
-          <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
+          <div className="flex shrink-0 justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-lg">
             {footer}
           </div>
         ) : null}

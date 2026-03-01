@@ -27,6 +27,17 @@ import {
   exportItemsToPdf,
   getPrintTableBody,
 } from "../lib/exportItems";
+import {
+  ArrowDownTrayIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  DocumentArrowDownIcon,
+  PlusIcon,
+  PrinterIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import type {
   Item,
   ItemOtherUnit,
@@ -269,6 +280,7 @@ export default function Items() {
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
+                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Export
               </Button>
             </div>
@@ -282,38 +294,44 @@ export default function Items() {
                 >
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportCsv}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPdf}
                   >
+                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                     onClick={handleExportPrint}
                   >
+                    <PrinterIcon className="w-4 h-4 shrink-0" />
                     Print (A4)
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="secondary" onClick={() => setAddStockOpen(true)}>
+              <ArrowUpIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Stock
             </Button>
             <Button
               variant="secondary"
               onClick={() => setReduceStockOpen(true)}
             >
+              <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Reduce Stock
             </Button>
             <Button variant="primary" onClick={() => setAddProductOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add Product
             </Button>
           </div>
@@ -510,6 +528,7 @@ export default function Items() {
                   ])
                 }
               >
+                <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Add unit
               </Button>
             </div>
@@ -538,9 +557,11 @@ export default function Items() {
                   onClick={() =>
                     setAddOtherUnits((prev) => prev.filter((_, i) => i !== idx))
                   }
-                  className="text-red-600 hover:underline text-sm"
+                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Remove"
+                  aria-label="Remove"
                 >
-                  Remove
+                  <TrashIcon className="w-4 h-4" />
                 </button>
               </div>
             ))}
@@ -598,9 +619,11 @@ export default function Items() {
               type="button"
               onClick={() => setAddProductOpen(false)}
             >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button variant="primary" type="submit">
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
             </Button>
           </div>
@@ -739,6 +762,7 @@ export default function Items() {
                     ])
                   }
                 >
+                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
                   Add unit
                 </Button>
               </div>
@@ -769,9 +793,11 @@ export default function Items() {
                         prev.filter((_, i) => i !== idx)
                       )
                     }
-                    className="text-red-600 hover:underline text-sm"
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                    title="Remove"
+                    aria-label="Remove"
                   >
-                    Remove
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -832,9 +858,11 @@ export default function Items() {
                 type="button"
                 onClick={() => setEditing(null)}
               >
+                <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Cancel
               </Button>
               <Button variant="primary" type="submit">
+                <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
                 Update
               </Button>
             </div>
@@ -899,9 +927,11 @@ export default function Items() {
               type="button"
               onClick={() => setAddStockOpen(false)}
             >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button variant="primary" type="submit">
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add
             </Button>
           </div>
@@ -965,9 +995,11 @@ export default function Items() {
               type="button"
               onClick={() => setReduceStockOpen(false)}
             >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button variant="primary" type="submit">
+              <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Reduce
             </Button>
           </div>

@@ -1,3 +1,5 @@
+import { PlusIcon } from "@heroicons/react/24/outline";
+
 interface EmptyStateProps {
   message?: string;
   /** When true, uses border and bg (for inside a card). Default true. */
@@ -28,8 +30,9 @@ export default function EmptyState({
           <button
             type="button"
             onClick={onAction}
-            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
           >
+            <PlusIcon className="w-5 h-5" aria-hidden />
             {actionLabel}
           </button>
         </div>

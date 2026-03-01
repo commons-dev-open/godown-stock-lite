@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  CheckIcon,
+  CubeIcon,
+  DocumentTextIcon,
+  PlusIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
@@ -110,23 +117,25 @@ export default function Units() {
         <button
           type="button"
           onClick={() => setActiveSection("stock")}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "stock"
               ? "bg-white border border-b-0 border-gray-200 text-gray-900"
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
+          <CubeIcon className="w-4 h-4" aria-hidden />
           Stock units (godown)
         </button>
         <button
           type="button"
           onClick={() => setActiveSection("invoice")}
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "invoice"
               ? "bg-white border border-b-0 border-gray-200 text-gray-900"
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
+          <DocumentTextIcon className="w-4 h-4" aria-hidden />
           Invoice units
         </button>
       </div>
@@ -134,7 +143,10 @@ export default function Units() {
       {activeSection === "stock" && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => setStockAddOpen(true)}>Add unit</Button>
+            <Button onClick={() => setStockAddOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Add unit
+            </Button>
           </div>
           <DataTable<Unit>
             columns={[
@@ -164,7 +176,10 @@ export default function Units() {
       {activeSection === "invoice" && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => setInvoiceAddOpen(true)}>Add unit</Button>
+            <Button onClick={() => setInvoiceAddOpen(true)}>
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Add unit
+            </Button>
           </div>
           <DataTable<InvoiceUnit>
             columns={[
@@ -196,6 +211,7 @@ export default function Units() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setStockAddOpen(false)}>
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button
@@ -216,6 +232,7 @@ export default function Units() {
                 });
               }}
             >
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add
             </Button>
           </>
@@ -264,6 +281,7 @@ export default function Units() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setStockEditing(null)}>
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button
@@ -285,6 +303,7 @@ export default function Units() {
                 });
               }}
             >
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
             </Button>
           </>
@@ -340,6 +359,7 @@ export default function Units() {
               variant="secondary"
               onClick={() => setInvoiceAddOpen(false)}
             >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button
@@ -365,6 +385,7 @@ export default function Units() {
                 });
               }}
             >
+              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add
             </Button>
           </>
@@ -423,6 +444,7 @@ export default function Units() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setInvoiceEditing(null)}>
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Cancel
             </Button>
             <Button
@@ -449,6 +471,7 @@ export default function Units() {
                 });
               }}
             >
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
             </Button>
           </>

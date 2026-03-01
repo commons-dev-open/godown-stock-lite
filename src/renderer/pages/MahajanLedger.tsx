@@ -32,6 +32,16 @@ import {
   getPrintTableBody,
   type MahajanBalanceForExport,
 } from "../lib/exportMahajanLedger";
+import {
+  ArrowDownTrayIcon,
+  ArrowLeftIcon,
+  DocumentArrowDownIcon,
+  FunnelIcon,
+  PlusIcon,
+  PrinterIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import Button from "../components/Button";
 import type {
   LedgerRow,
   MahajanLend,
@@ -375,9 +385,10 @@ export default function MahajanLedger() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-700"
           >
-            ← Back
+            <ArrowLeftIcon className="w-5 h-5" aria-hidden />
+            Back
           </button>
           <h1 className="text-2xl font-semibold text-gray-900">
             Ledger: {mahajan?.name ?? `ID ${id}`}
@@ -385,12 +396,10 @@ export default function MahajanLedger() {
         </div>
         <div className="flex gap-2">
           <div ref={exportRefs.setReference} {...getExportRefProps()}>
-            <button
-              type="button"
-              className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-md text-sm hover:bg-gray-200 border border-gray-300"
-            >
+            <Button variant="secondary" type="button">
+              <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Export
-            </button>
+            </Button>
           </div>
           <FloatingPortal>
             {exportOpen && (
@@ -402,42 +411,39 @@ export default function MahajanLedger() {
               >
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                   onClick={handleExportCsv}
                 >
+                  <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                   Export as CSV
                 </button>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                   onClick={handleExportPdf}
                 >
+                  <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
                   Export as PDF
                 </button>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                   onClick={handleExportPrint}
                 >
+                  <PrinterIcon className="w-4 h-4 shrink-0" />
                   Print (A4)
                 </button>
               </div>
             )}
           </FloatingPortal>
-          <button
-            type="button"
-            onClick={() => setLendModalOpen(true)}
-            className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
-          >
+          <Button variant="amber" onClick={() => setLendModalOpen(true)}>
+            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
             Add Lend
-          </button>
-          <button
-            type="button"
-            onClick={() => setDepositModalOpen(true)}
-            className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
-          >
+          </Button>
+          <Button variant="green" onClick={() => setDepositModalOpen(true)}>
+            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
             Deposit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -458,8 +464,9 @@ export default function MahajanLedger() {
         <button
           type="button"
           onClick={() => setMoreFiltersOpen(true)}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
         >
+          <FunnelIcon className="w-4 h-4" aria-hidden />
           More filters
           {(filterDateFrom || filterDateTo) && (
             <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
@@ -482,10 +489,10 @@ export default function MahajanLedger() {
               <button
                 type="button"
                 onClick={() => setMoreFiltersOpen(false)}
-                className="text-gray-500 hover:text-gray-700 p-1"
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close"
               >
-                ×
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="flex flex-col gap-4">
@@ -524,8 +531,9 @@ export default function MahajanLedger() {
                     });
                     setMoreFiltersOpen(false);
                   }}
-                  className="text-sm text-gray-600 hover:text-gray-900 underline self-start"
+                  className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 self-start"
                 >
+                  <XMarkIcon className="w-4 h-4" aria-hidden />
                   Clear filters
                 </button>
               )}
