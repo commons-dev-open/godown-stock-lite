@@ -4,6 +4,7 @@ import { formatDecimal } from "../../shared/numbers";
 import {
   formatDateForFile,
   downloadCsv,
+  downloadPdf,
   csvPrefixRowsForFilters,
   type AppliedFilter,
 } from "./exportUtils";
@@ -91,7 +92,7 @@ export function exportTransactionsToPdf(
     styles: { fontSize: 8 },
     headStyles: { fillColor: [66, 139, 202] },
   });
-  doc.save(`transactions-${formatDateForFile(new Date())}.pdf`);
+  downloadPdf(doc, `transactions-${formatDateForFile(new Date())}.pdf`);
 }
 
 export function getPrintTableBody(

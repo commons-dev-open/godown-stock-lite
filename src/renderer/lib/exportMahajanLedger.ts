@@ -5,6 +5,7 @@ import {
   formatDateForFile,
   sanitizeForFilename,
   downloadCsv,
+  downloadPdf,
   csvPrefixRowsForFilters,
   type AppliedFilter,
 } from "./exportUtils";
@@ -112,7 +113,10 @@ export function exportMahajanLedgerToPdf(
     headStyles: { fillColor: [66, 139, 202] },
   });
   const safeName = sanitizeForFilename(mahajanName);
-  doc.save(`mahajan-ledger-${safeName}-${formatDateForFile(new Date())}.pdf`);
+  downloadPdf(
+    doc,
+    `mahajan-ledger-${safeName}-${formatDateForFile(new Date())}.pdf`
+  );
 }
 
 export function getPrintTableBody(

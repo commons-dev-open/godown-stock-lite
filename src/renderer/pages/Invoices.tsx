@@ -10,6 +10,7 @@ import SearchFilterBar from "../components/SearchFilterBar";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
+import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
 import type {
   Invoice,
@@ -17,7 +18,7 @@ import type {
   InvoiceUnit,
   Item,
 } from "../../shared/types";
-import { formatBillDateTime } from "../lib/exportUtils";
+import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
   CheckIcon,
@@ -137,7 +138,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             <th className="border border-gray-300 px-2 py-1 text-right">Qty</th>
             <th className="border border-gray-300 px-2 py-1 text-left">Unit</th>
             <th className="border border-gray-300 px-2 py-1 text-right">
-              Price
+              Price/unit
             </th>
             <th className="border border-gray-300 px-2 py-1 text-right">
               Amount
@@ -167,9 +168,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
         </tbody>
       </table>
       {isPrint && (
-        <div className="mt-1 font-medium">
-          Total: Rs. {formatDecimal(total)}
-        </div>
+        <div className="mt-1 font-medium">Total: ₹{formatDecimal(total)}</div>
       )}
     </div>
   );
@@ -339,11 +338,27 @@ export default function Invoices() {
 
   useEffect(() => {
     if (!printData) return;
-    const onAfterPrint = () => setPrintData(null);
+    const previousTitle = document.title;
+    const invNum = (printData.invoice_number ?? `INV-${printData.id}`)
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, "_");
+    const customer = (printData.customer_name ?? "")
+      .trim()
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, "_");
+    const base = customer
+      ? `Invoice_${invNum}_${customer}`
+      : `Invoice_${invNum}`;
+    document.title = `${base}_${formatDateForFile(new Date())}`;
+    const onAfterPrint = () => {
+      document.title = previousTitle;
+      setPrintData(null);
+    };
     globalThis.addEventListener("afterprint", onAfterPrint);
     const t = setTimeout(() => globalThis.print(), 100);
     return () => {
       clearTimeout(t);
+      document.title = previousTitle;
       globalThis.removeEventListener("afterprint", onAfterPrint);
     };
   }, [printData]);
@@ -458,14 +473,26 @@ export default function Invoices() {
               </span>
               <div className="flex gap-2">
                 <Button
+                  type="button"
                   variant="secondary"
-                  onClick={() => {
-                    exportInvoiceToPdf(
-                      viewing,
-                      viewing.lines,
-                      settings,
-                      invoiceUnits
-                    );
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                      exportInvoiceToPdf(
+                        viewing,
+                        viewing.lines,
+                        settings,
+                        invoiceUnits
+                      );
+                      toast.success("Exported as PDF.");
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to export PDF."
+                      );
+                    }
                   }}
                 >
                   <DocumentArrowDownIcon
@@ -493,7 +520,7 @@ export default function Invoices() {
         >
           <div className="invoice-print-header">
             {settings?.company_name?.trim() && (
-              <div className="font-semibold font-[150%]">
+              <div className="font-semibold text-[150%] mb-1">
                 {settings.company_name.trim()}
               </div>
             )}
@@ -501,6 +528,9 @@ export default function Invoices() {
               <div className="text-gray-700">
                 {settings.company_address.trim()}
               </div>
+            )}
+            {settings?.owner_phone?.trim() && (
+              <div>Phone: {settings.owner_phone.trim()}</div>
             )}
             {settings?.gstin?.trim() && (
               <div>GST No.: {settings.gstin.trim()}</div>

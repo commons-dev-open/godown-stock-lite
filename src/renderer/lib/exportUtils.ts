@@ -77,3 +77,17 @@ export function downloadCsv(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** Trigger PDF download via blob URL. Use instead of jsPDF save() for Electron compatibility. */
+export function downloadPdf(
+  doc: { output: (type: "blob") => Blob },
+  filename: string
+): void {
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

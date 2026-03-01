@@ -24,12 +24,15 @@ export default function FormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 z-0 bg-black/50"
         onClick={onClose}
         aria-hidden
       />
       <div
-        className={`relative flex flex-col bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] ${maxWidth}`}
+        role="dialog"
+        aria-modal="true"
+        className={`relative z-10 flex flex-col bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] ${maxWidth}`}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between p-4 border-b bg-white rounded-t-lg">
           <h2 className="text-lg font-semibold">{title}</h2>

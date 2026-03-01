@@ -27,6 +27,7 @@ import {
   exportDailySalesToPdf,
   getPrintTableBody,
 } from "../lib/exportDailySales";
+import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
   CheckIcon,
@@ -194,11 +195,17 @@ export default function DailySales() {
 
   useEffect(() => {
     if (!printData) return;
-    const onAfterPrint = () => setPrintData(null);
+    const previousTitle = document.title;
+    document.title = `Daily_Sales_${formatDateForFile(new Date())}`;
+    const onAfterPrint = () => {
+      document.title = previousTitle;
+      setPrintData(null);
+    };
     globalThis.addEventListener("afterprint", onAfterPrint);
     const timeoutId = setTimeout(() => globalThis.print(), 100);
     return () => {
       clearTimeout(timeoutId);
+      document.title = previousTitle;
       globalThis.removeEventListener("afterprint", onAfterPrint);
     };
   }, [printData]);
@@ -245,7 +252,7 @@ export default function DailySales() {
                     onClick={handleExportPrint}
                   >
                     <PrinterIcon className="w-4 h-4 shrink-0" />
-                    Print (A4)
+                    Print
                   </button>
                 </div>
               )}

@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDecimal } from "../../shared/numbers";
-import { formatDateForFile, downloadCsv } from "./exportUtils";
+import { formatDateForFile, downloadCsv, downloadPdf } from "./exportUtils";
 import type { Mahajan } from "../../shared/types";
 
 export interface MahajanSummaryForExport {
@@ -121,7 +121,7 @@ export function exportMahajansToPdf(
     styles: { fontSize: 8 },
     headStyles: { fillColor: [66, 139, 202] },
   });
-  doc.save(`mahajans-${formatDateForFile(new Date())}.pdf`);
+  downloadPdf(doc, `mahajans-${formatDateForFile(new Date())}.pdf`);
 }
 
 export function getPrintTableBody(

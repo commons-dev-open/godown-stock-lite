@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDecimal } from "../../shared/numbers";
-import { formatDateForFile, downloadCsv } from "./exportUtils";
+import { formatDateForFile, downloadCsv, downloadPdf } from "./exportUtils";
 import type { Item } from "../../shared/types";
 
 const COLUMNS = [
@@ -63,7 +63,7 @@ export function exportItemsToPdf(items: Item[]): void {
     styles: { fontSize: 8 },
     headStyles: { fillColor: [66, 139, 202] },
   });
-  doc.save(`products-stock-${formatDateForFile(new Date())}.pdf`);
+  downloadPdf(doc, `products-stock-${formatDateForFile(new Date())}.pdf`);
 }
 
 export function getPrintTableBody(items: Item[]): { columns: string[]; rows: string[][] } {

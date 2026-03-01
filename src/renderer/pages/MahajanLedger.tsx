@@ -32,6 +32,7 @@ import {
   getPrintTableBody,
   type MahajanBalanceForExport,
 } from "../lib/exportMahajanLedger";
+import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
   ArrowLeftIcon,
@@ -367,11 +368,21 @@ export default function MahajanLedger() {
 
   useEffect(() => {
     if (!printData) return;
-    const onAfterPrint = () => setPrintData(null);
+    const previousTitle = document.title;
+    const name = (printData.mahajanName ?? "")
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, "_");
+    const base = name ? `Mahajan_Ledger_${name}` : "Mahajan_Ledger";
+    document.title = `${base}_${formatDateForFile(new Date())}`;
+    const onAfterPrint = () => {
+      document.title = previousTitle;
+      setPrintData(null);
+    };
     globalThis.addEventListener("afterprint", onAfterPrint);
     const timeoutId = setTimeout(() => globalThis.print(), 100);
     return () => {
       clearTimeout(timeoutId);
+      document.title = previousTitle;
       globalThis.removeEventListener("afterprint", onAfterPrint);
     };
   }, [printData]);
@@ -431,7 +442,7 @@ export default function MahajanLedger() {
                   onClick={handleExportPrint}
                 >
                   <PrinterIcon className="w-4 h-4 shrink-0" />
-                  Print (A4)
+                  Print
                 </button>
               </div>
             )}
