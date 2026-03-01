@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useClick,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from "@floating-ui/react";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
@@ -11,13 +22,23 @@ import TransactionTypeBadge from "../components/TransactionTypeBadge";
 import LedgerRowActions from "../components/LedgerRowActions";
 import AddLendModal from "../components/AddLendModal";
 import AddDepositModal from "../components/AddDepositModal";
+import MahajanBalanceCard from "../components/MahajanBalanceCard";
+import EmptyState from "../components/EmptyState";
 import { formatDateForView, formatDateForForm } from "../lib/date";
+import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
+import {
+  exportMahajanLedgerToCsv,
+  exportMahajanLedgerToPdf,
+  getPrintTableBody,
+  type MahajanBalanceForExport,
+} from "../lib/exportMahajanLedger";
 import type {
   LedgerRow,
   MahajanLend,
   MahajanDeposit,
   Item,
 } from "../../shared/types";
+import { formatDecimal } from "../../shared/numbers";
 
 export default function MahajanLedger() {
   const { mahajanId } = useParams<{ mahajanId: string }>();
@@ -66,9 +87,39 @@ export default function MahajanLedger() {
     row: LedgerRow;
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [printData, setPrintData] = useState<{
+    columns: string[];
+    rows: string[][];
+    mahajanName: string;
+    balance: MahajanBalanceForExport | null;
+    filterDetails?: { label: string; value: string }[];
+  } | null>(null);
+
+  const {
+    refs: exportRefs,
+    floatingStyles: exportFloatingStyles,
+    context: exportContext,
+  } = useFloating({
+    open: exportOpen,
+    onOpenChange: setExportOpen,
+    placement: "bottom-end",
+    middleware: [offset(4), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const exportClick = useClick(exportContext);
+  const exportDismiss = useDismiss(exportContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const {
+    getReferenceProps: getExportRefProps,
+    getFloatingProps: getExportFloatingProps,
+  } = useInteractions([exportClick, exportDismiss]);
 
   useEffect(() => {
-    if (editingLend) setEditLendDate(editingLend.transaction_date);
+    if (editingLend)
+      queueMicrotask(() => setEditLendDate(editingLend.transaction_date));
   }, [editingLend]);
   const [editLendProductId, setEditLendProductId] = useState<number | null>(
     null
@@ -78,21 +129,28 @@ export default function MahajanLedger() {
   const [editLendNotes, setEditLendNotes] = useState("");
   useEffect(() => {
     if (editingLend) {
-      setEditLendProductId(editingLend.product_id ?? null);
-      setEditLendQuantity(editingLend.quantity ?? 0);
-      setEditLendAmount(editingLend.amount);
-      setEditLendNotes(editingLend.notes ?? "");
+      const e = editingLend;
+      queueMicrotask(() => {
+        setEditLendProductId(e.product_id ?? null);
+        setEditLendQuantity(e.quantity ?? 0);
+        setEditLendAmount(e.amount);
+        setEditLendNotes(e.notes ?? "");
+      });
     }
   }, [editingLend]);
   useEffect(() => {
-    if (editingDeposit) setEditDepositDate(editingDeposit.transaction_date);
+    if (editingDeposit)
+      queueMicrotask(() => setEditDepositDate(editingDeposit.transaction_date));
   }, [editingDeposit]);
   const [editDepositAmount, setEditDepositAmount] = useState<number>(0);
   const [editDepositNotes, setEditDepositNotes] = useState("");
   useEffect(() => {
     if (editingDeposit) {
-      setEditDepositAmount(editingDeposit.amount);
-      setEditDepositNotes(editingDeposit.notes ?? "");
+      const e = editingDeposit;
+      queueMicrotask(() => {
+        setEditDepositAmount(e.amount);
+        setEditDepositNotes(e.notes ?? "");
+      });
     }
   }, [editingDeposit]);
 
@@ -160,6 +218,9 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setEditingLend(null);
       toast.success("Lend updated");
@@ -180,6 +241,9 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
       toast.success("Deposit updated");
     },
@@ -193,6 +257,9 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       toast.success("Lend deleted");
     },
@@ -206,6 +273,9 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       toast.success("Deposit deleted");
     },
     onError: (err: Error) =>
@@ -236,6 +306,65 @@ export default function MahajanLedger() {
     if (updates.dateTo !== undefined) setFilterDateTo(updates.dateTo);
   };
 
+  const mahajanLabel = mahajan?.name ?? `ID ${id}`;
+
+  const appliedFilters = useMemo(() => {
+    const list: { label: string; value: string }[] = [];
+    if (filterType !== "all") list.push({ label: "Type", value: filterType });
+    if (filterDateFrom) list.push({ label: "Date From", value: filterDateFrom });
+    if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
+    return list;
+  }, [filterType, filterDateFrom, filterDateTo]);
+
+  function handleExportCsv() {
+    setExportOpen(false);
+    if (filteredLedger.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportMahajanLedgerToCsv(filteredLedger, mahajanLabel, appliedFilters);
+    toast.success("Exported as CSV.");
+  }
+
+  function handleExportPdf() {
+    setExportOpen(false);
+    if (filteredLedger.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportMahajanLedgerToPdf(
+      filteredLedger,
+      mahajanLabel,
+      balance ?? null,
+      appliedFilters
+    );
+    toast.success("Exported as PDF.");
+  }
+
+  function handleExportPrint() {
+    setExportOpen(false);
+    if (filteredLedger.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    setPrintData({
+      ...getPrintTableBody(filteredLedger, appliedFilters),
+      mahajanName: mahajanLabel,
+      balance: balance ?? null,
+    });
+  }
+
+  useEffect(() => {
+    if (!printData) return;
+    const onAfterPrint = () => setPrintData(null);
+    globalThis.addEventListener("afterprint", onAfterPrint);
+    const timeoutId = setTimeout(() => globalThis.print(), 100);
+    return () => {
+      clearTimeout(timeoutId);
+      globalThis.removeEventListener("afterprint", onAfterPrint);
+    };
+  }, [printData]);
+
   if (!id) return <div className="text-gray-500">Invalid Mahajan</div>;
 
   return (
@@ -254,12 +383,52 @@ export default function MahajanLedger() {
           </h1>
         </div>
         <div className="flex gap-2">
+          <div ref={exportRefs.setReference} {...getExportRefProps()}>
+            <button
+              type="button"
+              className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-md text-sm hover:bg-gray-200 border border-gray-300"
+            >
+              Export
+            </button>
+          </div>
+          <FloatingPortal>
+            {exportOpen && (
+              <div
+                ref={exportRefs.setFloating}
+                style={exportFloatingStyles}
+                {...getExportFloatingProps()}
+                className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={handleExportCsv}
+                >
+                  Export as CSV
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={handleExportPdf}
+                >
+                  Export as PDF
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={handleExportPrint}
+                >
+                  Print (A4)
+                </button>
+              </div>
+            )}
+          </FloatingPortal>
           <button
             type="button"
             onClick={() => setLendModalOpen(true)}
             className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
           >
-            AddLend
+            Add Lend
           </button>
           <button
             type="button"
@@ -364,61 +533,17 @@ export default function MahajanLedger() {
         </div>
       )}
 
-      {balanceLoading && (
-        <p className="text-sm text-gray-500 mb-4">Loading balance…</p>
-      )}
-      {!balanceLoading && balance != null && (
-        <div className="mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <div>
-            <span className="text-xs font-medium uppercase text-gray-500">
-              Total Lends
-            </span>
-            <p className="text-lg font-semibold text-amber-800">
-              ₹{balance.totalLends.toFixed(2)}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs font-medium uppercase text-gray-500">
-              Total Deposits
-            </span>
-            <p className="text-lg font-semibold text-green-800">
-              ₹{balance.totalDeposits.toFixed(2)}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs font-medium uppercase text-gray-500">
-              Balance (Lend − Deposit)
-            </span>
-            <p
-              className={
-                balance.balance >= 0
-                  ? "text-lg font-semibold text-amber-800"
-                  : "text-lg font-semibold text-green-800"
-              }
-            >
-              ₹{Math.abs(balance.balance).toFixed(2)}
-              {balance.balance > 0 && (
-                <span className="ml-1 text-sm font-normal text-gray-500">
-                  (you owe them)
-                </span>
-              )}
-              {balance.balance < 0 && (
-                <span className="ml-1 text-sm font-normal text-gray-500">
-                  (they owe you)
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-      )}
+      <MahajanBalanceCard
+        balance={balance}
+        loading={balanceLoading}
+        variant="row"
+      />
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="table-scroll-wrap overflow-x-auto">
           {isLoading ? (
             <TableLoader />
           ) : filteredLedger.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No records match the filters.
-            </div>
+            <EmptyState />
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -465,7 +590,7 @@ export default function MahajanLedger() {
                       <td
                         className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass}`}
                       >
-                        {row.amount.toFixed(2)}
+                        {formatDecimal(row.amount)}
                       </td>
                       <LedgerRowActions
                         type={row.type}
@@ -611,9 +736,7 @@ export default function MahajanLedger() {
                 min="0"
                 step="0.01"
                 value={editLendAmount}
-                onChange={(e) =>
-                  setEditLendAmount(Number(e.target.value) || 0)
-                }
+                onChange={(e) => setEditLendAmount(Number(e.target.value) || 0)}
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -706,10 +829,10 @@ export default function MahajanLedger() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {confirmEditLendPayload.record.amount.toFixed(2)}
+                      {formatDecimal(confirmEditLendPayload.record.amount)}
                     </td>
                     <td className="p-2">
-                      {confirmEditLendPayload.newValues.amount.toFixed(2)}
+                      {formatDecimal(confirmEditLendPayload.newValues.amount)}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -738,26 +861,27 @@ export default function MahajanLedger() {
                 return (
                   <p className="text-gray-700">
                     <strong>Stock:</strong>{" "}
-                    {confirmEditLendPayload.record.product_id != null ? (
-                      (() => {
-                        const item = (
-                          items as { id: number; current_stock: number }[]
-                        ).find(
-                          (i) =>
-                            i.id === confirmEditLendPayload!.record.product_id!
-                        );
-                        const oldStock = item?.current_stock ?? 0;
-                        const newStock = oldStock + qtyDelta;
-                        return (
-                          <>
-                            Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
-                            {qtyDelta} → <strong>{newStock}</strong> after update
-                          </>
-                        );
-                      })()
-                    ) : (
-                      "Product changed; stock impact applies to new product."
-                    )}
+                    {confirmEditLendPayload.record.product_id != null
+                      ? (() => {
+                          const item = (
+                            items as { id: number; current_stock: number }[]
+                          ).find(
+                            (i) =>
+                              i.id ===
+                              confirmEditLendPayload!.record.product_id!
+                          );
+                          const oldStock = item?.current_stock ?? 0;
+                          const newStock = oldStock + qtyDelta;
+                          return (
+                            <>
+                              Current stock {oldStock} →{" "}
+                              {qtyDelta >= 0 ? "+" : ""}
+                              {qtyDelta} → <strong>{newStock}</strong> after
+                              update
+                            </>
+                          );
+                        })()
+                      : "Product changed; stock impact applies to new product."}
                   </p>
                 );
               })()}
@@ -767,8 +891,8 @@ export default function MahajanLedger() {
                 <div className="space-y-1 text-gray-700">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
-                    {balance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {balance.totalDeposits.toFixed(2)} →{" "}
+                    {formatDecimal(balance.totalLends)}, Total Deposits ₹
+                    {formatDecimal(balance.totalDeposits)} →{" "}
                     <span
                       className={
                         balance.balance >= 0
@@ -776,21 +900,22 @@ export default function MahajanLedger() {
                           : "font-medium text-green-800"
                       }
                     >
-                      ₹{Math.abs(balance.balance).toFixed(2)}
+                      ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (you owe them)
+                          (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (they owe you)
+                          (receivable)
                         </span>
                       )}
                     </span>
                   </p>
                   {confirmEditLendPayload.newValues.amount -
-                    confirmEditLendPayload.record.amount !== 0 &&
+                    confirmEditLendPayload.record.amount !==
+                    0 &&
                     (() => {
                       const balanceAfter =
                         balance.balance -
@@ -805,20 +930,20 @@ export default function MahajanLedger() {
                           }
                         >
                           After this update: Total Lends will change by ₹
-                          {(
+                          {formatDecimal(
                             confirmEditLendPayload.newValues.amount -
-                            confirmEditLendPayload.record.amount
-                          ).toFixed(2)}{" "}
+                              confirmEditLendPayload.record.amount
+                          )}{" "}
                           → Balance will be ₹
-                          {Math.abs(balanceAfter).toFixed(2)}
+                          {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (you owe them)
+                              (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (they owe you)
+                              (receivable)
                             </span>
                           )}
                         </p>
@@ -1008,10 +1133,12 @@ export default function MahajanLedger() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {confirmEditDepositPayload.record.amount.toFixed(2)}
+                      {formatDecimal(confirmEditDepositPayload.record.amount)}
                     </td>
                     <td className="p-2">
-                      {confirmEditDepositPayload.newValues.amount.toFixed(2)}
+                      {formatDecimal(
+                        confirmEditDepositPayload.newValues.amount
+                      )}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -1034,8 +1161,8 @@ export default function MahajanLedger() {
                 <div className="space-y-1 text-gray-700">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
-                    {balance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {balance.totalDeposits.toFixed(2)} →{" "}
+                    {formatDecimal(balance.totalLends)}, Total Deposits ₹
+                    {formatDecimal(balance.totalDeposits)} →{" "}
                     <span
                       className={
                         balance.balance >= 0
@@ -1043,21 +1170,22 @@ export default function MahajanLedger() {
                           : "font-medium text-green-800"
                       }
                     >
-                      ₹{Math.abs(balance.balance).toFixed(2)}
+                      ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (you owe them)
+                          (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (they owe you)
+                          (receivable)
                         </span>
                       )}
                     </span>
                   </p>
                   {confirmEditDepositPayload.newValues.amount -
-                    confirmEditDepositPayload.record.amount !== 0 &&
+                    confirmEditDepositPayload.record.amount !==
+                    0 &&
                     (() => {
                       const balanceAfter =
                         balance.balance +
@@ -1072,20 +1200,18 @@ export default function MahajanLedger() {
                           }
                         >
                           After this update: Total Deposits will change by ₹
-                          {(
-                            confirmEditDepositPayload.newValues.amount -
-                            confirmEditDepositPayload.record.amount
-                          ).toFixed(2)}{" "}
+                          {confirmEditDepositPayload.newValues.amount -
+                            confirmEditDepositPayload.record.amount}{" "}
                           → Balance will be ₹
-                          {Math.abs(balanceAfter).toFixed(2)}
+                          {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (you owe them)
+                              (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (they owe you)
+                              (receivable)
                             </span>
                           )}
                         </p>
@@ -1159,9 +1285,7 @@ export default function MahajanLedger() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Type</td>
                     <td className="p-2">
-                      <TransactionTypeBadge
-                        type={deleteConfirmPayload.type}
-                      />
+                      <TransactionTypeBadge type={deleteConfirmPayload.type} />
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -1193,7 +1317,7 @@ export default function MahajanLedger() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {deleteConfirmPayload.record.amount.toFixed(2)}
+                      {formatDecimal(deleteConfirmPayload.record.amount)}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -1237,21 +1361,21 @@ export default function MahajanLedger() {
                       const newStock = oldStock - qty;
                       return (
                         <>
-                          Current stock {oldStock} → −{qty} →{" "}
+                          Current stock {oldStock} → -{qty} →{" "}
                           <strong>{newStock}</strong> after delete
                         </>
                       );
                     })()}
                   </p>
                 )}
-              {(balanceLoading || balance == null) ? (
+              {balanceLoading || balance == null ? (
                 <p className="text-gray-500">Loading balance…</p>
               ) : (
                 <div className="space-y-1 text-gray-700">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
-                    {balance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {balance.totalDeposits.toFixed(2)} →{" "}
+                    {formatDecimal(balance.totalLends)}, Total Deposits ₹
+                    {formatDecimal(balance.totalDeposits)} →{" "}
                     <span
                       className={
                         balance.balance >= 0
@@ -1259,15 +1383,15 @@ export default function MahajanLedger() {
                           : "font-medium text-green-800"
                       }
                     >
-                      ₹{Math.abs(balance.balance).toFixed(2)}
+                      ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (you owe them)
+                          (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (they owe you)
+                          (receivable)
                         </span>
                       )}
                     </span>
@@ -1276,8 +1400,7 @@ export default function MahajanLedger() {
                     const balanceAfter =
                       deleteConfirmPayload.type === "lend"
                         ? balance.balance - deleteConfirmPayload.record.amount
-                        : balance.balance +
-                          deleteConfirmPayload.record.amount;
+                        : balance.balance + deleteConfirmPayload.record.amount;
                     return (
                       <p
                         className={
@@ -1291,17 +1414,16 @@ export default function MahajanLedger() {
                           ? "Total Lends"
                           : "Total Deposits"}{" "}
                         will decrease by ₹
-                        {deleteConfirmPayload.record.amount.toFixed(2)} →
-                        Balance will be ₹
-                        {Math.abs(balanceAfter).toFixed(2)}
+                        {formatDecimal(deleteConfirmPayload.record.amount)} →
+                        Balance will be ₹{formatDecimal(Math.abs(balanceAfter))}
                         {balanceAfter > 0 && (
                           <span className="ml-1 text-gray-500 font-normal">
-                            (you owe them)
+                            (payable)
                           </span>
                         )}
                         {balanceAfter < 0 && (
                           <span className="ml-1 text-gray-500 font-normal">
-                            (they owe you)
+                            (receivable)
                           </span>
                         )}
                       </p>
@@ -1342,6 +1464,91 @@ export default function MahajanLedger() {
           </div>
         )}
       </FormModal>
+
+      {printData && (
+        <div
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          aria-hidden
+        >
+          <header className="mb-4 border-b border-gray-200 pb-3">
+            <p className="text-sm font-semibold text-gray-900">
+              Godown Stock Lite
+            </p>
+            <p className="text-xs text-gray-600">Mahajan Ledger</p>
+            <p className="text-xs text-gray-700">
+              Mahajan: {printData.mahajanName}
+            </p>
+            {printData.filterDetails != null && printData.filterDetails.length > 0 && (
+              <div className="mt-2 space-y-0.5 text-xs">
+                <p className="font-medium text-gray-700">Applied filters</p>
+                {printData.filterDetails.map((f) => (
+                  <p key={f.label} className="text-gray-600">
+                    {f.label}: {f.value}
+                  </p>
+                ))}
+              </div>
+            )}
+            {printData.balance != null && (
+              <div className="mt-2 space-y-1 text-xs">
+                <p className="text-gray-700">
+                  <span className="font-medium">Total Lends</span>
+                  <span className="ml-2">
+                    ₹{formatDecimal(printData.balance.totalLends)}
+                  </span>
+                </p>
+                <p className="text-gray-700">
+                  <span className="font-medium">Total Deposits</span>
+                  <span className="ml-2">
+                    ₹{formatDecimal(printData.balance.totalDeposits)}
+                  </span>
+                </p>
+                <p className="text-gray-700">
+                  <span className="font-medium">Balance (Lend - Deposit)</span>
+                  <span className="ml-2">
+                    ₹{formatDecimal(Math.abs(printData.balance.balance))}
+                    {printData.balance.balance > 0 && " (payable)"}
+                    {printData.balance.balance < 0 && " (receivable)"}
+                  </span>
+                </p>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-gray-500">
+              {new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </header>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr>
+                {printData.columns.map((col) => (
+                  <th
+                    key={col}
+                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {printData.rows.map((row) => (
+                <tr key={row[0]}>
+                  {row.map((cell, ci) => (
+                    <td
+                      key={`${row[0]}-${printData.columns[ci]}`}
+                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

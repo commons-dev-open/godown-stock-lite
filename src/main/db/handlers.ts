@@ -1,13 +1,13 @@
 import { randomUUID } from "crypto";
 import { ipcMain } from "electron";
+import { PAGE_SIZE } from "../../shared/constants";
+import { roundDecimal } from "../../shared/numbers";
 import { getDb } from "./index";
 
 export function registerIpcHandlers(): void {
   function db() {
     return getDb();
   }
-
-  const PAGE_SIZE = 30;
 
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {
@@ -65,8 +65,8 @@ export function registerIpcHandlers(): void {
           item.name,
           item.code ?? null,
           item.unit || "pcs",
-          item.current_stock ?? 0,
-          item.reorder_level ?? null
+          roundDecimal(item.current_stock ?? 0),
+          item.reorder_level != null ? roundDecimal(item.reorder_level) : null
         );
       return result.lastInsertRowid;
     }
@@ -103,9 +103,11 @@ export function registerIpcHandlers(): void {
           item.name ?? row.name,
           item.code !== undefined ? item.code : row.code,
           item.unit ?? row.unit,
-          item.current_stock ?? row.current_stock,
+          roundDecimal(item.current_stock ?? row.current_stock),
           item.reorder_level !== undefined
-            ? item.reorder_level
+            ? item.reorder_level != null
+              ? roundDecimal(item.reorder_level)
+              : null
             : row.reorder_level,
           id
         );
@@ -130,22 +132,23 @@ export function registerIpcHandlers(): void {
       .prepare(
         "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
       )
-      .run(quantity, id);
+      .run(roundDecimal(quantity), id);
     return id;
   });
 
   ipcMain.handle("items:reduceStock", (_, id: number, quantity: number) => {
-    if (quantity <= 0) throw new Error("Quantity must be positive.");
+    const qty = roundDecimal(quantity);
+    if (qty <= 0) throw new Error("Quantity must be positive.");
     const row = db()
       .prepare("SELECT current_stock FROM items WHERE id = ?")
       .get(id) as { current_stock: number } | undefined;
     if (!row) throw new Error("Item not found");
-    if (row.current_stock < quantity) throw new Error("Insufficient stock.");
+    if (row.current_stock < qty) throw new Error("Insufficient stock.");
     db()
       .prepare(
         "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
       )
-      .run(quantity, id);
+      .run(qty, id);
     return id;
   });
 
@@ -290,7 +293,8 @@ export function registerIpcHandlers(): void {
         notes?: string;
       }
     ) => {
-      const quantity = l.quantity ?? 0;
+      const quantity = roundDecimal(l.quantity ?? 0);
+      const amount = roundDecimal(l.amount);
       const result = db()
         .prepare(
           "INSERT INTO transactions (type, mahajan_id, product_id, quantity, amount, transaction_date, notes) VALUES ('lend', ?, ?, ?, ?, ?, ?)"
@@ -299,7 +303,7 @@ export function registerIpcHandlers(): void {
           l.mahajan_id,
           l.product_id ?? null,
           quantity,
-          l.amount,
+          amount,
           l.transaction_date,
           l.notes ?? null
         );
@@ -342,7 +346,8 @@ export function registerIpcHandlers(): void {
       const run = db().transaction(() => {
         const ids: number[] = [];
         for (const line of payload.lines) {
-          if (line.quantity <= 0) throw new Error("Quantity must be positive.");
+          const qty = roundDecimal(line.quantity);
+          if (qty <= 0) throw new Error("Quantity must be positive.");
           const row = db()
             .prepare("SELECT current_stock FROM items WHERE id = ?")
             .get(line.product_id) as { current_stock: number } | undefined;
@@ -355,8 +360,8 @@ export function registerIpcHandlers(): void {
               batchUuid,
               payload.mahajan_id,
               line.product_id,
-              line.quantity,
-              line.amount,
+              qty,
+              roundDecimal(line.amount),
               payload.transaction_date,
               payload.notes ?? null
             );
@@ -365,7 +370,7 @@ export function registerIpcHandlers(): void {
             .prepare(
               "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
             )
-            .run(line.quantity, line.product_id);
+            .run(qty, line.product_id);
         }
         return ids;
       });
@@ -396,7 +401,12 @@ export function registerIpcHandlers(): void {
       const oldQuantity = (row.quantity as number) ?? 0;
       const newProductId =
         l.product_id !== undefined ? l.product_id : oldProductId;
-      const newQuantity = l.quantity !== undefined ? l.quantity : oldQuantity;
+      const newQuantity =
+        l.quantity !== undefined ? roundDecimal(l.quantity) : oldQuantity;
+      const newAmount =
+        l.amount !== undefined
+          ? roundDecimal(l.amount)
+          : (row.amount as number);
 
       db().transaction(() => {
         db()
@@ -408,7 +418,7 @@ export function registerIpcHandlers(): void {
             newProductId,
             newQuantity,
             l.transaction_date ?? row.transaction_date,
-            l.amount ?? row.amount,
+            newAmount,
             l.notes !== undefined ? l.notes : row.notes,
             id
           );
@@ -500,7 +510,12 @@ export function registerIpcHandlers(): void {
         .prepare(
           "INSERT INTO transactions (type, mahajan_id, amount, transaction_date, notes) VALUES ('deposit', ?, ?, ?, ?)"
         )
-        .run(d.mahajan_id, d.amount, d.transaction_date, d.notes ?? null);
+        .run(
+          d.mahajan_id,
+          roundDecimal(d.amount),
+          d.transaction_date,
+          d.notes ?? null
+        );
       return result.lastInsertRowid;
     }
   );
@@ -522,7 +537,7 @@ export function registerIpcHandlers(): void {
         )
         .run(
           d.transaction_date ?? row.transaction_date,
-          d.amount ?? row.amount,
+          roundDecimal(d.amount ?? (row.amount as number)),
           d.notes !== undefined ? d.notes : row.notes,
           id
         );
@@ -698,9 +713,11 @@ export function registerIpcHandlers(): void {
         )
         .run(
           s.sale_date,
-          s.sale_amount,
-          s.cash_in_hand,
-          s.expenditure_amount ?? null,
+          roundDecimal(s.sale_amount),
+          roundDecimal(s.cash_in_hand),
+          s.expenditure_amount != null
+            ? roundDecimal(s.expenditure_amount)
+            : null,
           s.notes ?? null
         );
       return result.lastInsertRowid;
@@ -730,10 +747,12 @@ export function registerIpcHandlers(): void {
         )
         .run(
           s.sale_date ?? row.sale_date,
-          s.sale_amount ?? row.sale_amount,
-          s.cash_in_hand ?? row.cash_in_hand,
+          roundDecimal(s.sale_amount ?? (row.sale_amount as number)),
+          roundDecimal(s.cash_in_hand ?? (row.cash_in_hand as number)),
           s.expenditure_amount !== undefined
-            ? s.expenditure_amount
+            ? s.expenditure_amount != null
+              ? roundDecimal(s.expenditure_amount)
+              : null
             : row.expenditure_amount,
           s.notes !== undefined ? s.notes : row.notes,
           id
@@ -825,7 +844,8 @@ export function registerIpcHandlers(): void {
         notes?: string;
       }
     ) => {
-      if (p.quantity == null || p.quantity < 0)
+      const qty = roundDecimal(p.quantity);
+      if (qty < 0)
         throw new Error("Quantity is required and must be non-negative.");
       const result = db()
         .prepare(
@@ -833,8 +853,8 @@ export function registerIpcHandlers(): void {
         )
         .run(
           p.product_id,
-          p.quantity,
-          p.amount,
+          qty,
+          roundDecimal(p.amount),
           p.transaction_date,
           p.notes ?? null
         );
@@ -858,7 +878,8 @@ export function registerIpcHandlers(): void {
       const run = db().transaction(() => {
         const ids: number[] = [];
         for (const line of payload.lines) {
-          if (line.quantity == null || line.quantity < 0)
+          const qty = roundDecimal(line.quantity);
+          if (qty < 0)
             throw new Error("Quantity is required and must be non-negative.");
           if (line.amount < 0) throw new Error("Amount must be non-negative.");
           const result = db()
@@ -867,8 +888,8 @@ export function registerIpcHandlers(): void {
             )
             .run(
               line.product_id,
-              line.quantity,
-              line.amount,
+              qty,
+              roundDecimal(line.amount),
               payload.transaction_date,
               payload.notes ?? null
             );
@@ -899,8 +920,10 @@ export function registerIpcHandlers(): void {
         .get(id) as Record<string, unknown> | undefined;
       if (!row) throw new Error("Cash purchase not found");
       const quantity =
-        p.quantity !== undefined ? p.quantity : (row.quantity as number);
-      if (quantity == null || quantity < 0)
+        p.quantity !== undefined
+          ? roundDecimal(p.quantity)
+          : (row.quantity as number);
+      if (quantity < 0)
         throw new Error("Quantity is required and must be non-negative.");
       db()
         .prepare(
@@ -909,7 +932,7 @@ export function registerIpcHandlers(): void {
         .run(
           p.transaction_date ?? row.transaction_date,
           quantity,
-          p.amount ?? row.amount,
+          roundDecimal(p.amount ?? (row.amount as number)),
           p.notes !== undefined ? p.notes : row.notes,
           id
         );
@@ -923,6 +946,67 @@ export function registerIpcHandlers(): void {
   });
 
   // ---- Reports ----
+  ipcMain.handle("reports:getTotalLend", () => {
+    const row = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend'"
+      )
+      .get() as { total: number };
+    return { totalLend: row?.total ?? 0 };
+  });
+
+  ipcMain.handle("reports:getMahajanSummary", () => {
+    const totalLendRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend'"
+      )
+      .get() as { total: number };
+    const totalDepositRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'deposit'"
+      )
+      .get() as { total: number };
+    const balanceRows = db()
+      .prepare(
+        `SELECT mahajan_id,
+          COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) -
+          COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS balance
+         FROM transactions WHERE type IN ('lend','deposit') GROUP BY mahajan_id`
+      )
+      .all() as { mahajan_id: number; balance: number }[];
+    const totalLend = Number(totalLendRow?.total ?? 0);
+    const totalDeposit = Number(totalDepositRow?.total ?? 0);
+    const balance = totalLend - totalDeposit;
+    let countOweMe = 0;
+    let countIOwe = 0;
+    for (const r of balanceRows) {
+      const b = Number(r.balance);
+      if (b < 0) countOweMe += 1;
+      else if (b > 0) countIOwe += 1;
+    }
+    return {
+      totalLend,
+      totalDeposit,
+      balance,
+      countOweMe,
+      countIOwe,
+    };
+  });
+
+  ipcMain.handle("reports:getAllMahajanBalances", () => {
+    const rows = db()
+      .prepare(
+        `SELECT mahajan_id,
+          COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) -
+          COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS balance
+         FROM transactions WHERE type IN ('lend','deposit') GROUP BY mahajan_id`
+      )
+      .all() as { mahajan_id: number; balance: number }[];
+    const balances: Record<number, number> = {};
+    for (const r of rows) balances[r.mahajan_id] = r.balance;
+    return { balances };
+  });
+
   ipcMain.handle("reports:getMahajanBalance", (_, mahajanId: number) => {
     const lends = db()
       .prepare(
@@ -1000,11 +1084,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     "reports:setOpeningBalance",
     (_, year: number, amount: number) => {
+      const rounded = roundDecimal(amount);
       db()
         .prepare(
           "INSERT INTO opening_balance (year, amount, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(year) DO UPDATE SET amount = ?, updated_at = datetime('now')"
         )
-        .run(year, amount, amount);
+        .run(year, rounded, rounded);
       return year;
     }
   );

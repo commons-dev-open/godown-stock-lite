@@ -172,6 +172,22 @@ const electronAPI = {
   deletePurchase: (id: number) => ipcRenderer.invoke("purchases:delete", id),
 
   // Reports
+  getTotalLend: () =>
+    ipcRenderer.invoke("reports:getTotalLend") as Promise<{
+      totalLend: number;
+    }>,
+  getMahajanSummary: () =>
+    ipcRenderer.invoke("reports:getMahajanSummary") as Promise<{
+      totalLend: number;
+      totalDeposit: number;
+      balance: number;
+      countOweMe: number;
+      countIOwe: number;
+    }>,
+  getAllMahajanBalances: () =>
+    ipcRenderer.invoke("reports:getAllMahajanBalances") as Promise<{
+      balances: Record<number, number>;
+    }>,
   getMahajanBalance: (mahajanId: number) =>
     ipcRenderer.invoke("reports:getMahajanBalance", mahajanId),
   getMahajanLedger: (mahajanId: number) =>

@@ -1,14 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useClick,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from "@floating-ui/react";
+import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import Button from "../components/Button";
+import EmptyState from "../components/EmptyState";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
+import {
+  exportDailySalesToCsv,
+  exportDailySalesToPdf,
+  getPrintTableBody,
+} from "../lib/exportDailySales";
 import type { DailySale } from "../../shared/types";
+import { formatDecimal } from "../../shared/numbers";
 
 export default function DailySales() {
   const queryClient = useQueryClient();
@@ -20,12 +40,34 @@ export default function DailySales() {
   const [toDate, setToDate] = useState("");
   const [addSaleDate, setAddSaleDate] = useState(todayISO());
   const [editSaleDate, setEditSaleDate] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [printData, setPrintData] = useState<{
+    columns: string[];
+    rows: string[][];
+    filterDetails?: { label: string; value: string }[];
+  } | null>(null);
+
+  const { refs: exportRefs, floatingStyles: exportFloatingStyles, context: exportContext } =
+    useFloating({
+      open: exportOpen,
+      onOpenChange: setExportOpen,
+      placement: "bottom-end",
+      middleware: [offset(4), flip(), shift({ padding: 8 })],
+      whileElementsMounted: autoUpdate,
+    });
+  const exportClick = useClick(exportContext);
+  const exportDismiss = useDismiss(exportContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const { getReferenceProps: getExportRefProps, getFloatingProps: getExportFloatingProps } =
+    useInteractions([exportClick, exportDismiss]);
 
   useEffect(() => {
-    if (addOpen) setAddSaleDate(todayISO());
+    if (addOpen) queueMicrotask(() => setAddSaleDate(todayISO()));
   }, [addOpen]);
   useEffect(() => {
-    if (editing) setEditSaleDate(editing.sale_date);
+    if (editing) queueMicrotask(() => setEditSaleDate(editing.sale_date));
   }, [editing]);
 
   const { data: pageResult, isLoading } = useQuery({
@@ -90,18 +132,111 @@ export default function DailySales() {
     },
   });
 
+  const appliedFilters = useMemo(() => {
+    const list: { label: string; value: string }[] = [];
+    if (fromDate) list.push({ label: "From Date", value: fromDate });
+    if (toDate) list.push({ label: "To Date", value: toDate });
+    return list;
+  }, [fromDate, toDate]);
+
+  async function getExportData(): Promise<DailySale[]> {
+    const data = (await api.getDailySales(
+      fromDate || undefined,
+      toDate || undefined
+    )) as DailySale[];
+    return data ?? [];
+  }
+
+  async function handleExportCsv() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportDailySalesToCsv(data, appliedFilters);
+    toast.success("Exported as CSV.");
+  }
+
+  async function handleExportPdf() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportDailySalesToPdf(data, appliedFilters);
+    toast.success("Exported as PDF.");
+  }
+
+  async function handleExportPrint() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    setPrintData(getPrintTableBody(data, appliedFilters));
+  }
+
+  useEffect(() => {
+    if (!printData) return;
+    const onAfterPrint = () => setPrintData(null);
+    globalThis.addEventListener("afterprint", onAfterPrint);
+    const timeoutId = setTimeout(() => globalThis.print(), 100);
+    return () => {
+      clearTimeout(timeoutId);
+      globalThis.removeEventListener("afterprint", onAfterPrint);
+    };
+  }, [printData]);
+
   return (
     <div>
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900">Daily Sales</h1>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-          >
-            Add Sale
-          </button>
+          <div className="flex items-center gap-2">
+            <div ref={exportRefs.setReference} {...getExportRefProps()}>
+              <Button variant="secondary" type="button">
+                Export
+              </Button>
+            </div>
+            <FloatingPortal>
+              {exportOpen && (
+                <div
+                  ref={exportRefs.setFloating}
+                  style={exportFloatingStyles}
+                  {...getExportFloatingProps()}
+                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportCsv}
+                  >
+                    Export as CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPdf}
+                  >
+                    Export as PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPrint}
+                  >
+                    Print (A4)
+                  </button>
+                </div>
+              )}
+            </FloatingPortal>
+            <Button variant="primary" onClick={() => setAddOpen(true)}>
+              Add Sale
+            </Button>
+          </div>
         </div>
         <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
           <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
@@ -146,9 +281,7 @@ export default function DailySales() {
         {isLoading ? (
           <TableLoader />
         ) : sales.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No records match the filters.
-          </div>
+          <EmptyState />
         ) : (
           <>
             <DataTable<DailySale>
@@ -157,25 +290,25 @@ export default function DailySales() {
                   key: "sale_date",
                   label: "Date",
                   render: (r) => (
-                  <Tooltip content={formatDateForForm(r.sale_date)}>
-                    <span>{formatDateForView(r.sale_date)}</span>
-                  </Tooltip>
-                ),
+                    <Tooltip content={formatDateForForm(r.sale_date)}>
+                      <span>{formatDateForView(r.sale_date)}</span>
+                    </Tooltip>
+                  ),
                 },
                 {
                   key: "sale_amount",
                   label: "Sale Amount",
-                  render: (r) => r.sale_amount.toFixed(2),
+                  render: (r) => formatDecimal(r.sale_amount),
                 },
                 {
                   key: "cash_in_hand",
                   label: "Cash in Hand",
-                  render: (r) => r.cash_in_hand.toFixed(2),
+                  render: (r) => formatDecimal(r.cash_in_hand),
                 },
                 {
                   key: "expenditure_amount",
                   label: "Expenditure",
-                  render: (r) => (r.expenditure_amount ?? 0).toFixed(2),
+                  render: (r) => formatDecimal(r.expenditure_amount ?? 0),
                 },
               ]}
               data={sales}
@@ -207,8 +340,8 @@ export default function DailySales() {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
             if (!addSaleDate) return;
-              createSale.mutate({
-                sale_date: addSaleDate,
+            createSale.mutate({
+              sale_date: addSaleDate,
               sale_amount: Number((form.sale_amount as HTMLInputElement).value),
               cash_in_hand: Number(
                 (form.cash_in_hand as HTMLInputElement).value
@@ -305,10 +438,10 @@ export default function DailySales() {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
               if (!editSaleDate) return;
-                updateSale.mutate({
-                  id: editing.id,
-                  s: {
-                    sale_date: editSaleDate,
+              updateSale.mutate({
+                id: editing.id,
+                s: {
+                  sale_date: editSaleDate,
                   sale_amount: Number(
                     (form.sale_amount as HTMLInputElement).value
                   ),
@@ -403,6 +536,65 @@ export default function DailySales() {
           </form>
         )}
       </FormModal>
+
+      {printData && (
+        <div
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          aria-hidden
+        >
+          <header className="mb-4 border-b border-gray-200 pb-3">
+            <p className="text-sm font-semibold text-gray-900">
+              Godown Stock Lite
+            </p>
+            <p className="text-xs text-gray-600">Daily Sales</p>
+            {printData.filterDetails != null &&
+              printData.filterDetails.length > 0 && (
+                <div className="mt-2 space-y-0.5 text-xs">
+                  <p className="font-medium text-gray-700">Applied filters</p>
+                  {printData.filterDetails.map((f) => (
+                    <p key={f.label} className="text-gray-600">
+                      {f.label}: {f.value}
+                    </p>
+                  ))}
+                </div>
+              )}
+            <p className="mt-1 text-xs text-gray-500">
+              {new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </header>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr>
+                {printData.columns.map((col) => (
+                  <th
+                    key={col}
+                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {printData.rows.map((row) => (
+                <tr key={row[0]}>
+                  {row.map((cell, ci) => (
+                    <td
+                      key={`${row[0]}-${printData.columns[ci]}`}
+                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

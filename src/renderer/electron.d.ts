@@ -152,6 +152,15 @@ export interface ElectronAPI {
     }
   ) => Promise<number>;
   deletePurchase: (id: number) => Promise<number>;
+  getTotalLend: () => Promise<{ totalLend: number }>;
+  getMahajanSummary: () => Promise<{
+    totalLend: number;
+    totalDeposit: number;
+    balance: number;
+    countOweMe: number;
+    countIOwe: number;
+  }>;
+  getAllMahajanBalances: () => Promise<{ balances: Record<number, number> }>;
   getMahajanBalance: (
     mahajanId: number
   ) => Promise<{ totalLends: number; totalDeposits: number; balance: number }>;

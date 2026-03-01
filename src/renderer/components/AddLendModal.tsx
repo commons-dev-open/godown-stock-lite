@@ -5,8 +5,12 @@ import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
 import DateInput from "./DateInput";
 import Tooltip from "./Tooltip";
+import MahajanBalanceCard from "./MahajanBalanceCard";
+import Button from "./Button";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
+import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import type { Item } from "../../shared/types";
+import { formatDecimal } from "../../shared/numbers";
 
 export type LendLine = {
   product_id: number;
@@ -51,10 +55,10 @@ export default function AddLendModal({
   } | null>(null);
 
   useEffect(() => {
-    if (open) setLendFormDate(todayISO());
+    if (open) queueMicrotask(() => setLendFormDate(todayISO()));
   }, [open]);
   useEffect(() => {
-    if (open) setLendLines([emptyLine()]);
+    if (open) queueMicrotask(() => setLendLines([emptyLine()]));
   }, [open]);
 
   const { data: mahajans = [] } = useQuery({
@@ -92,6 +96,9 @@ export default function AddLendModal({
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setConfirmLendOpen(false);
       setConfirmPayload(null);
@@ -118,8 +125,7 @@ export default function AddLendModal({
     e.preventDefault();
     const form = e.currentTarget;
     const mahajanId =
-      fixedMahajanId ??
-      Number((form.mahajan_id as HTMLSelectElement)?.value);
+      fixedMahajanId ?? Number((form.mahajan_id as HTMLSelectElement)?.value);
     if (!mahajanId || !lendFormDate) return;
     const notes = (form.notes as HTMLInputElement)?.value?.trim() || "";
     const lines: LendLine[] = lendLines
@@ -151,8 +157,7 @@ export default function AddLendModal({
     const mahajan = mahajanList.find((m) => m.id === mahajanId);
     setConfirmPayload({
       mahajan_id: mahajanId,
-      mahajanName:
-        fixedMahajanName || (mahajan?.name ?? ""),
+      mahajanName: fixedMahajanName || (mahajan?.name ?? ""),
       transaction_date: lendFormDate,
       notes,
       lines,
@@ -216,102 +221,102 @@ export default function AddLendModal({
                 ? itemList.find((i) => i.id === line.product_id)
                 : undefined;
               return (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Product
-                  </label>
-                  <select
-                    name={`product_id_${idx}`}
-                    required={idx === 0}
-                    value={line.product_id || ""}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      const item = itemList.find((i) => i.id === id);
-                      setLendLines((prev) => {
-                        const next = [...prev];
-                        next[idx] = {
-                          ...next[idx],
-                          product_id: id,
-                          product_name: item?.name ?? "",
-                        };
-                        return next;
-                      });
-                    }}
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  >
-                    <option value="">—</option>
-                    {itemList.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Qty{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
-                  </label>
-                  <input
-                    name={`quantity_${idx}`}
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    value={line.quantity || ""}
-                    onChange={(e) =>
-                      setLendLines((prev) => {
-                        const n = [...prev];
-                        n[idx] = {
-                          ...n[idx],
-                          quantity: Number(e.target.value) || 0,
-                        };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Amount
-                  </label>
-                  <input
-                    name={`amount_${idx}`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.01"
-                    value={line.amount || ""}
-                    onChange={(e) =>
-                      setLendLines((prev) => {
-                        const n = [...prev];
-                        n[idx] = {
-                          ...n[idx],
-                          amount: Number(e.target.value) || 0,
-                        };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2 flex items-end">
-                  {lendLines.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLendLines((prev) =>
-                          prev.filter((_, i) => i !== idx)
-                        )
-                      }
-                      className="text-red-600 hover:text-red-700 text-sm py-1.5"
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Product
+                    </label>
+                    <select
+                      name={`product_id_${idx}`}
+                      required={idx === 0}
+                      value={line.product_id || ""}
+                      onChange={(e) => {
+                        const id = Number(e.target.value);
+                        const item = itemList.find((i) => i.id === id);
+                        setLendLines((prev) => {
+                          const next = [...prev];
+                          next[idx] = {
+                            ...next[idx],
+                            product_id: id,
+                            product_name: item?.name ?? "",
+                          };
+                          return next;
+                        });
+                      }}
+                      className="w-full border rounded px-2 py-1.5 text-sm"
                     >
-                      Remove
-                    </button>
-                  ) : null}
+                      <option value="">—</option>
+                      {itemList.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Qty{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
+                    </label>
+                    <input
+                      name={`quantity_${idx}`}
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      step="1"
+                      value={line.quantity || ""}
+                      onChange={(e) =>
+                        setLendLines((prev) => {
+                          const n = [...prev];
+                          n[idx] = {
+                            ...n[idx],
+                            quantity: Number(e.target.value) || 0,
+                          };
+                          return n;
+                        })
+                      }
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Amount
+                    </label>
+                    <input
+                      name={`amount_${idx}`}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={line.amount || ""}
+                      onChange={(e) =>
+                        setLendLines((prev) => {
+                          const n = [...prev];
+                          n[idx] = {
+                            ...n[idx],
+                            amount: Number(e.target.value) || 0,
+                          };
+                          return n;
+                        })
+                      }
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-end">
+                    {lendLines.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLendLines((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="text-red-600 hover:text-red-700 text-sm py-1.5"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -397,84 +402,34 @@ export default function AddLendModal({
             </div>
             <p className="text-sm font-medium">
               Total lend amount (this transaction): ₹
-              {confirmPayload.lines
-                .reduce((s, l) => s + l.amount, 0)
-                .toFixed(2)}
+              {formatDecimal(
+                confirmPayload.lines.reduce((s, l) => s + l.amount, 0)
+              )}
             </p>
-            {balanceLoading ? (
-              <p className="text-sm text-gray-500">Loading balance…</p>
-            ) : mahajanBalance != null ? (
-              <div className="text-sm rounded border p-3 bg-gray-50 space-y-1">
-                <p>Total Lends: ₹{mahajanBalance.totalLends.toFixed(2)}</p>
-                <p>
-                  Total Deposits: ₹{mahajanBalance.totalDeposits.toFixed(2)}
-                </p>
-                <p className="font-medium">
-                  Balance (Lend - Deposit):{" "}
-                  <span
-                    className={
-                      mahajanBalance.balance >= 0
-                        ? "text-amber-700"
-                        : "text-green-700"
-                    }
-                  >
-                    ₹{Math.abs(mahajanBalance.balance).toFixed(2)}
-                    {mahajanBalance.balance > 0 && (
-                      <span className="ml-1 text-gray-500 font-normal">
-                        (you owe them)
-                      </span>
-                    )}
-                    {mahajanBalance.balance < 0 && (
-                      <span className="ml-1 text-gray-500 font-normal">
-                        (they owe you)
-                      </span>
-                    )}
-                  </span>
-                </p>
-                <p className="font-medium">
-                  After this lend:{" "}
-                  {(() => {
-                    const balanceAfter =
-                      mahajanBalance.balance +
-                      confirmPayload.lines.reduce((s, l) => s + l.amount, 0);
-                    return (
-                      <span
-                        className={
-                          balanceAfter >= 0
-                            ? "text-amber-700"
-                            : "text-green-700"
-                        }
-                      >
-                        ₹{Math.abs(balanceAfter).toFixed(2)}
-                        {balanceAfter > 0 && (
-                          <span className="ml-1 text-gray-500 font-normal">
-                            (you owe them)
-                          </span>
-                        )}
-                        {balanceAfter < 0 && (
-                          <span className="ml-1 text-gray-500 font-normal">
-                            (they owe you)
-                          </span>
-                        )}
-                      </span>
-                    );
-                  })()}
-                </p>
-              </div>
-            ) : null}
+            <MahajanBalanceCard
+              balance={mahajanBalance}
+              loading={balanceLoading}
+              variant="compact"
+              balanceAfter={
+                mahajanBalance
+                  ? mahajanBalance.balance +
+                    confirmPayload.lines.reduce((s, l) => s + l.amount, 0)
+                  : undefined
+              }
+              balanceAfterLabel="After this lend:"
+            />
             <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setConfirmLendOpen(false);
                   setConfirmPayload(null);
                 }}
-                className="px-3 py-1.5 border rounded"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="amber"
                 onClick={() => {
                   createLendBatch.mutate({
                     mahajan_id: confirmPayload.mahajan_id,
@@ -489,10 +444,9 @@ export default function AddLendModal({
                   });
                 }}
                 disabled={createLendBatch.isPending}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
               >
                 {createLendBatch.isPending ? "Saving…" : "Confirm"}
-              </button>
+              </Button>
             </div>
           </div>
         )}

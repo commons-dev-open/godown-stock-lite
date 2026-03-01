@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -11,7 +11,6 @@ const navItems = [
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   const navClass = ({ isActive }: Readonly<{ isActive: boolean }>) =>
     `block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
       isActive

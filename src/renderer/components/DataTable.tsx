@@ -12,6 +12,8 @@ interface DataTableProps<T extends { id: number }> {
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
   emptyMessage?: string;
+  /** Optional class for the scroll wrapper (e.g. table-scroll-wrap--shorter) */
+  scrollWrapClassName?: string;
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -20,6 +22,7 @@ export default function DataTable<T extends { id: number }>({
   onEdit,
   onDelete,
   emptyMessage = "No data",
+  scrollWrapClassName,
 }: DataTableProps<T>) {
   if (data.length === 0) {
     return (
@@ -29,7 +32,12 @@ export default function DataTable<T extends { id: number }>({
     );
   }
   return (
-    <div className="table-scroll-wrap overflow-x-auto">
+    <div
+      className={
+        "table-scroll-wrap overflow-x-auto" +
+        (scrollWrapClassName ? ` ${scrollWrapClassName}` : "")
+      }
+    >
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>

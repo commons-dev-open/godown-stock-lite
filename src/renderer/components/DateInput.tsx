@@ -167,7 +167,7 @@ export default function DateInput({
       <FloatingPortal>
         {pickerOpen && (
           <div
-            ref={refs.setFloating}
+            ref={refs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
             style={floatingStyles}
             {...getFloatingProps()}
             className="z-50 w-64 rounded-lg border border-gray-200 bg-white shadow-lg p-3"

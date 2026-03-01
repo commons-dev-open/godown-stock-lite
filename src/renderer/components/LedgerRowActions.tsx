@@ -1,7 +1,7 @@
 type ActionType = "lend" | "deposit" | "cash_purchase";
 
 export default function LedgerRowActions({
-  type,
+  type: _type,
   onEdit,
   onDelete,
 }: Readonly<{

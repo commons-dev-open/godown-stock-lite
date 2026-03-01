@@ -5,6 +5,7 @@ import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
 import DateInput from "./DateInput";
 import { todayISO } from "../lib/date";
+import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 
 export interface AddDepositModalProps {
   open: boolean;
@@ -23,7 +24,7 @@ export default function AddDepositModal({
   const [depositFormDate, setDepositFormDate] = useState(todayISO());
 
   useEffect(() => {
-    if (open) setDepositFormDate(todayISO());
+    if (open) queueMicrotask(() => setDepositFormDate(todayISO()));
   }, [open]);
 
   const { data: mahajans = [] } = useQuery({
@@ -43,6 +44,9 @@ export default function AddDepositModal({
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       onClose();
       toast.success("Deposit saved");
     },
@@ -56,8 +60,7 @@ export default function AddDepositModal({
     e.preventDefault();
     const form = e.currentTarget;
     const mahajanId =
-      fixedMahajanId ??
-      Number((form.mahajan_id as HTMLSelectElement)?.value);
+      fixedMahajanId ?? Number((form.mahajan_id as HTMLSelectElement)?.value);
     if (!mahajanId || !depositFormDate) return;
     createDeposit.mutate({
       mahajan_id: mahajanId,

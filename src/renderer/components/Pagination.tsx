@@ -1,4 +1,4 @@
-const PAGE_SIZE = 30;
+import { PAGE_SIZE } from "../../shared/constants";
 
 interface PaginationProps {
   page: number;

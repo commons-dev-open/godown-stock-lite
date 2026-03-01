@@ -316,9 +316,7 @@ const TXN_START = "2025-01-01";
 const TXN_END = "2026-03-01";
 
 function seedUnits(db: Database.Database): void {
-  const unitNames = [
-    ...new Set(ITEM_TEMPLATES.map((i) => i.unit)),
-  ].sort();
+  const unitNames = [...new Set(ITEM_TEMPLATES.map((i) => i.unit))].sort();
   const insertUnit = db.prepare(
     "INSERT OR IGNORE INTO units (name) VALUES (?)"
   );
@@ -404,14 +402,21 @@ function seedDeposits(
   for (const mahajanId of mahajanIds) {
     const totalLend = lendAmountByMahajan[mahajanId] ?? 0;
     if (totalLend <= 0) continue;
+    // Majority: deposit 5%–95% of lend (positive balance). Minority: 100%–120% (more deposit than lend).
+    const overDeposit = Math.random() < 0.25; // 25% can have more deposit than lend
+    const depositRatio = overDeposit
+      ? 1 + Math.random() * 0.2 // 100% to 120%
+      : 0.05 + Math.random() * 0.9; // 5% to 95%
+    const totalToDeposit = Math.round(totalLend * depositRatio * 100) / 100;
+    if (totalToDeposit <= 0) continue;
     const numDeposits = randomInt(1, 5);
-    let remaining = totalLend;
+    let remaining = totalToDeposit;
     for (let d = 0; d < numDeposits && remaining > 0; d++) {
       const amount =
         d === numDeposits - 1
           ? remaining
           : Math.round(
-              randomInt(500, Math.min(50000, remaining)) * 100
+              randomInt(500, Math.min(50000, Math.max(500, remaining))) * 100
             ) / 100;
       const actualAmount = Math.min(amount, remaining);
       if (actualAmount <= 0) break;
@@ -450,7 +455,7 @@ function seedDailySales(db: Database.Database): void {
      VALUES (?, ?, ?, ?, ?)`
   );
   let runningCash = 50000;
-  let d = new Date("2025-01-01");
+  const d = new Date("2025-01-01");
   const saleEnd = new Date("2026-03-01");
   while (d <= saleEnd) {
     const sale_amount = Math.round(randomInt(3000, 85000) * 100) / 100;

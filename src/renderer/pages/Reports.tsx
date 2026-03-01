@@ -5,6 +5,7 @@ import TableLoader from "../components/TableLoader";
 import { formatDateForView, formatDateForForm } from "../lib/date";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
+import { formatDecimal } from "../../shared/numbers";
 
 export default function Reports() {
   const queryClient = useQueryClient();
@@ -107,13 +108,13 @@ export default function Reports() {
                     </Tooltip>
                   </td>
                     <td className="text-right py-2">
-                      {s.sale_amount.toFixed(2)}
+                      {formatDecimal(s.sale_amount)}
                     </td>
                     <td className="text-right py-2">
-                      {s.cash_in_hand.toFixed(2)}
+                      {formatDecimal(s.cash_in_hand)}
                     </td>
                     <td className="text-right py-2">
-                      {(s.expenditure_amount ?? 0).toFixed(2)}
+                      {formatDecimal(s.expenditure_amount ?? 0)}
                     </td>
                   </tr>
                 ))}
@@ -164,13 +165,11 @@ export default function Reports() {
           <div className="text-sm">
             <p>
               <strong>Total Sale:</strong>{" "}
-              {(totalSaleResult as { total: number }).total.toFixed(2)}
+              {formatDecimal((totalSaleResult as { total: number }).total)}
             </p>
             <p>
               <strong>Total Expenditure:</strong>{" "}
-              {(totalSaleResult as { expenditure: number }).expenditure.toFixed(
-                2
-              )}
+              {formatDecimal((totalSaleResult as { expenditure: number }).expenditure)}
             </p>
           </div>
         )}
@@ -241,10 +240,10 @@ export default function Reports() {
         </div>
         {plResult && (
           <div className="text-sm space-y-1 border-t pt-3">
-            <p>Opening Balance: {plResult.openingBalance.toFixed(2)}</p>
-            <p>Total Sale: {plResult.totalSale.toFixed(2)}</p>
-            <p>Total Expenditure: {plResult.totalExpenditure.toFixed(2)}</p>
-            <p>Closing Balance: {plResult.closingBalance.toFixed(2)}</p>
+            <p>Opening Balance: {formatDecimal(plResult.openingBalance)}</p>
+            <p>Total Sale: {formatDecimal(plResult.totalSale)}</p>
+            <p>Total Expenditure: {formatDecimal(plResult.totalExpenditure)}</p>
+            <p>Closing Balance: {formatDecimal(plResult.closingBalance)}</p>
             <p className="font-medium pt-2">
               Profit/Loss:{" "}
               <span
@@ -252,7 +251,7 @@ export default function Reports() {
                   plResult.profitLoss >= 0 ? "text-green-700" : "text-red-700"
                 }
               >
-                {plResult.profitLoss.toFixed(2)}
+                {formatDecimal(plResult.profitLoss)}
               </span>
             </p>
           </div>

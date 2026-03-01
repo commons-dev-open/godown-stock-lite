@@ -1,9 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useClick,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from "@floating-ui/react";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
+import EmptyState from "../components/EmptyState";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import TableLoader from "../components/TableLoader";
 import DateInput from "../components/DateInput";
@@ -13,12 +25,20 @@ import TransactionTypeBadge, {
 } from "../components/TransactionTypeBadge";
 import LedgerRowActions from "../components/LedgerRowActions";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
+import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
+import {
+  exportTransactionsToCsv,
+  exportTransactionsToPdf,
+  getPrintTableBody,
+  type TransactionExportRow,
+} from "../lib/exportTransactions";
 import type {
   Item,
   MahajanLend,
   MahajanDeposit,
   Purchase,
 } from "../../shared/types";
+import { formatDecimal } from "../../shared/numbers";
 
 type LendLine = {
   product_id: number;
@@ -144,6 +164,34 @@ export default function Transactions() {
     row: LedgerRow;
   } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [printData, setPrintData] = useState<{
+    columns: string[];
+    rows: string[][];
+    filterDetails?: { label: string; value: string }[];
+  } | null>(null);
+
+  const {
+    refs: exportRefs,
+    floatingStyles: exportFloatingStyles,
+    context: exportContext,
+  } = useFloating({
+    open: exportOpen,
+    onOpenChange: setExportOpen,
+    placement: "bottom-end",
+    middleware: [offset(4), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const exportClick = useClick(exportContext);
+  const exportDismiss = useDismiss(exportContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const {
+    getReferenceProps: getExportRefProps,
+    getFloatingProps: getExportFloatingProps,
+  } = useInteractions([exportClick, exportDismiss]);
+
   const [lendFormDate, setLendFormDate] = useState(todayISO());
   const [depositFormDate, setDepositFormDate] = useState(todayISO());
   const [editLendDate, setEditLendDate] = useState("");
@@ -152,13 +200,14 @@ export default function Transactions() {
   const [editPurchaseDate, setEditPurchaseDate] = useState("");
 
   useEffect(() => {
-    if (lendOpen) setLendFormDate(todayISO());
+    if (lendOpen) queueMicrotask(() => setLendFormDate(todayISO()));
   }, [lendOpen]);
   useEffect(() => {
-    if (depositOpen) setDepositFormDate(todayISO());
+    if (depositOpen) queueMicrotask(() => setDepositFormDate(todayISO()));
   }, [depositOpen]);
   useEffect(() => {
-    if (editingLend) setEditLendDate(editingLend.transaction_date);
+    if (editingLend)
+      queueMicrotask(() => setEditLendDate(editingLend.transaction_date));
   }, [editingLend]);
   const [editLendProductId, setEditLendProductId] = useState<number | null>(
     null
@@ -169,38 +218,51 @@ export default function Transactions() {
   const [editLendNotes, setEditLendNotes] = useState("");
   useEffect(() => {
     if (editingLend) {
-      setEditLendProductId(editingLend.product_id ?? null);
-      setEditLendMahajanId(editingLend.mahajan_id);
-      setEditLendQuantity(editingLend.quantity ?? 0);
-      setEditLendAmount(editingLend.amount);
-      setEditLendNotes(editingLend.notes ?? "");
+      const e = editingLend;
+      queueMicrotask(() => {
+        setEditLendProductId(e.product_id ?? null);
+        setEditLendMahajanId(e.mahajan_id);
+        setEditLendQuantity(e.quantity ?? 0);
+        setEditLendAmount(e.amount);
+        setEditLendNotes(e.notes ?? "");
+      });
     }
   }, [editingLend]);
   useEffect(() => {
-    if (editingDeposit) setEditDepositDate(editingDeposit.transaction_date);
+    if (editingDeposit)
+      queueMicrotask(() => setEditDepositDate(editingDeposit.transaction_date));
   }, [editingDeposit]);
   const [editDepositAmount, setEditDepositAmount] = useState<number>(0);
   const [editDepositNotes, setEditDepositNotes] = useState("");
   useEffect(() => {
     if (editingDeposit) {
-      setEditDepositAmount(editingDeposit.amount);
-      setEditDepositNotes(editingDeposit.notes ?? "");
+      const e = editingDeposit;
+      queueMicrotask(() => {
+        setEditDepositAmount(e.amount);
+        setEditDepositNotes(e.notes ?? "");
+      });
     }
   }, [editingDeposit]);
   useEffect(() => {
-    if (purchaseAddOpen) setPurchaseFormDate(todayISO());
+    if (purchaseAddOpen) queueMicrotask(() => setPurchaseFormDate(todayISO()));
   }, [purchaseAddOpen]);
   useEffect(() => {
-    if (editingPurchase) setEditPurchaseDate(editingPurchase.transaction_date);
+    if (editingPurchase)
+      queueMicrotask(() =>
+        setEditPurchaseDate(editingPurchase.transaction_date)
+      );
   }, [editingPurchase]);
   const [editPurchaseQuantity, setEditPurchaseQuantity] = useState<number>(0);
   const [editPurchaseAmount, setEditPurchaseAmount] = useState<number>(0);
   const [editPurchaseNotes, setEditPurchaseNotes] = useState("");
   useEffect(() => {
     if (editingPurchase) {
-      setEditPurchaseQuantity(editingPurchase.quantity);
-      setEditPurchaseAmount(editingPurchase.amount);
-      setEditPurchaseNotes(editingPurchase.notes ?? "");
+      const e = editingPurchase;
+      queueMicrotask(() => {
+        setEditPurchaseQuantity(e.quantity);
+        setEditPurchaseAmount(e.amount);
+        setEditPurchaseNotes(e.notes ?? "");
+      });
     }
   }, [editingPurchase]);
 
@@ -294,6 +356,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setLendOpen(false);
       setConfirmLendOpen(false);
@@ -316,6 +381,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       setDepositOpen(false);
       toast.success("Deposit saved");
     },
@@ -342,6 +410,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setEditingLend(null);
       toast.success("Lend updated");
@@ -361,6 +432,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
       toast.success("Deposit updated");
     },
@@ -373,6 +447,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       toast.success("Lend deleted");
     },
@@ -385,6 +462,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      setLedgerUpdatesAvailable(true);
       toast.success("Deposit deleted");
     },
     onError: (err: Error) =>
@@ -442,7 +522,102 @@ export default function Transactions() {
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
-  const itemList = items as { id: number; name: string }[];
+  const itemList = items as Item[];
+
+  const appliedFilters = useMemo(() => {
+    const list: { label: string; value: string }[] = [];
+    if (filterMahajanId !== "") {
+      const m = mahajanList.find((x) => x.id === filterMahajanId);
+      list.push({ label: "Mahajan", value: m?.name ?? String(filterMahajanId) });
+    }
+    if (filterType !== "all")
+      list.push({ label: "Type", value: filterType });
+    if (filterDateFrom) list.push({ label: "Date From", value: filterDateFrom });
+    if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
+    return list;
+  }, [
+    filterMahajanId,
+    filterType,
+    filterDateFrom,
+    filterDateTo,
+    mahajanList,
+  ]);
+
+  async function getExportData(): Promise<TransactionExportRow[]> {
+    const result = (await api.getMahajanLedgerPage({
+      mahajanId:
+        filterType === "cash_purchase"
+          ? null
+          : filterMahajanId === ""
+            ? null
+            : filterMahajanId,
+      transactionType: filterType,
+      dateFrom: filterDateFrom || undefined,
+      dateTo: filterDateTo || undefined,
+      page: 1,
+      limit: 999999,
+    })) as { data: LedgerRow[]; total: number };
+    const rows = result?.data ?? [];
+    return rows.map((row) => {
+      const item =
+        row.product_id != null
+          ? itemList.find((i) => i.id === row.product_id)
+          : undefined;
+      return {
+        type: row.type,
+        transaction_date: row.transaction_date,
+        mahajan_name: row.mahajan_name,
+        product_name: row.product_name,
+        quantity: row.quantity,
+        unit: item?.unit ?? "—",
+        amount: row.amount,
+        notes: row.notes,
+      };
+    });
+  }
+
+  async function handleExportCsv() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportTransactionsToCsv(data, appliedFilters);
+    toast.success("Exported as CSV.");
+  }
+
+  async function handleExportPdf() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportTransactionsToPdf(data, appliedFilters);
+    toast.success("Exported as PDF.");
+  }
+
+  async function handleExportPrint() {
+    setExportOpen(false);
+    const data = await getExportData();
+    if (data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    setPrintData(getPrintTableBody(data, appliedFilters));
+  }
+
+  useEffect(() => {
+    if (!printData) return;
+    const onAfterPrint = () => setPrintData(null);
+    globalThis.addEventListener("afterprint", onAfterPrint);
+    const timeoutId = setTimeout(() => globalThis.print(), 100);
+    return () => {
+      clearTimeout(timeoutId);
+      globalThis.removeEventListener("afterprint", onAfterPrint);
+    };
+  }, [printData]);
 
   const handleFilterChange = (updates: {
     mahajanId?: number | "";
@@ -497,6 +672,46 @@ export default function Transactions() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-gray-900">Transactions</h1>
           <div className="flex gap-2">
+            <div ref={exportRefs.setReference} {...getExportRefProps()}>
+              <button
+                type="button"
+                className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-md text-sm hover:bg-gray-200 border border-gray-300"
+              >
+                Export
+              </button>
+            </div>
+            <FloatingPortal>
+              {exportOpen && (
+                <div
+                  ref={exportRefs.setFloating}
+                  style={exportFloatingStyles}
+                  {...getExportFloatingProps()}
+                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportCsv}
+                  >
+                    Export as CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPdf}
+                  >
+                    Export as PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPrint}
+                  >
+                    Print (A4)
+                  </button>
+                </div>
+              )}
+            </FloatingPortal>
             <button
               type="button"
               onClick={() => setPurchaseAddOpen(true)}
@@ -644,9 +859,7 @@ export default function Transactions() {
           {ledgerLoading ? (
             <TableLoader />
           ) : unifiedRows.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No records match the filters.
-            </div>
+            <EmptyState />
           ) : (
             <>
               <div className="table-scroll-wrap overflow-x-auto">
@@ -741,7 +954,7 @@ export default function Transactions() {
                         <td
                           className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass(row.type)}`}
                         >
-                          ₹{row.amount.toFixed(2)}
+                          ₹{formatDecimal(row.amount)}
                         </td>
                         <td
                           className="px-4 py-2 text-sm text-gray-600 truncate max-w-[12rem]"
@@ -1072,17 +1285,17 @@ export default function Transactions() {
             </div>
             <p className="text-sm font-medium">
               Total lend amount (this transaction): ₹
-              {confirmPayload.lines
-                .reduce((s, l) => s + l.amount, 0)
-                .toFixed(2)}
+              {formatDecimal(
+                confirmPayload.lines.reduce((s, l) => s + l.amount, 0)
+              )}
             </p>
             {balanceLoading ? (
               <p className="text-sm text-gray-500">Loading balance…</p>
             ) : mahajanBalance != null ? (
               <div className="text-sm rounded border p-3 bg-gray-50 space-y-1">
-                <p>Total Lends: ₹{mahajanBalance.totalLends.toFixed(2)}</p>
+                <p>Total Lends: ₹{formatDecimal(mahajanBalance.totalLends)}</p>
                 <p>
-                  Total Deposits: ₹{mahajanBalance.totalDeposits.toFixed(2)}
+                  Total Deposits: ₹{formatDecimal(mahajanBalance.totalDeposits)}
                 </p>
                 <p className="font-medium">
                   Balance (Lend - Deposit):{" "}
@@ -1093,15 +1306,15 @@ export default function Transactions() {
                         : "text-green-700"
                     }
                   >
-                    ₹{Math.abs(mahajanBalance.balance).toFixed(2)}
+                    ₹{formatDecimal(Math.abs(mahajanBalance.balance))}
                     {mahajanBalance.balance > 0 && (
                       <span className="ml-1 text-gray-500 font-normal">
-                        (you owe them)
+                        (payable)
                       </span>
                     )}
                     {mahajanBalance.balance < 0 && (
                       <span className="ml-1 text-gray-500 font-normal">
-                        (they owe you)
+                        (receivable)
                       </span>
                     )}
                   </span>
@@ -1120,15 +1333,15 @@ export default function Transactions() {
                             : "text-green-700"
                         }
                       >
-                        ₹{Math.abs(balanceAfter).toFixed(2)}
+                        ₹{formatDecimal(Math.abs(balanceAfter))}
                         {balanceAfter > 0 && (
                           <span className="ml-1 text-gray-500 font-normal">
-                            (you owe them)
+                            (payable)
                           </span>
                         )}
                         {balanceAfter < 0 && (
                           <span className="ml-1 text-gray-500 font-normal">
-                            (they owe you)
+                            (receivable)
                           </span>
                         )}
                       </span>
@@ -1385,9 +1598,7 @@ export default function Transactions() {
                 min="0"
                 step="0.01"
                 value={editLendAmount}
-                onChange={(e) =>
-                  setEditLendAmount(Number(e.target.value) || 0)
-                }
+                onChange={(e) => setEditLendAmount(Number(e.target.value) || 0)}
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -1491,10 +1702,10 @@ export default function Transactions() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {confirmEditLendPayload.record.amount.toFixed(2)}
+                      {formatDecimal(confirmEditLendPayload.record.amount)}
                     </td>
                     <td className="p-2">
-                      {confirmEditLendPayload.newValues.amount.toFixed(2)}
+                      {formatDecimal(confirmEditLendPayload.newValues.amount)}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -1523,26 +1734,27 @@ export default function Transactions() {
                 return (
                   <p className="text-gray-700">
                     <strong>Stock:</strong>{" "}
-                    {confirmEditLendPayload.record.product_id != null ? (
-                      (() => {
-                        const item = (
-                          items as { id: number; current_stock: number }[]
-                        ).find(
-                          (i) =>
-                            i.id === confirmEditLendPayload!.record.product_id!
-                        );
-                        const oldStock = item?.current_stock ?? 0;
-                        const newStock = oldStock + qtyDelta;
-                        return (
-                          <>
-                            Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
-                            {qtyDelta} → <strong>{newStock}</strong> after update
-                          </>
-                        );
-                      })()
-                    ) : (
-                      "Product changed; stock impact applies to new product."
-                    )}
+                    {confirmEditLendPayload.record.product_id != null
+                      ? (() => {
+                          const item = (
+                            items as { id: number; current_stock: number }[]
+                          ).find(
+                            (i) =>
+                              i.id ===
+                              confirmEditLendPayload!.record.product_id!
+                          );
+                          const oldStock = item?.current_stock ?? 0;
+                          const newStock = oldStock + qtyDelta;
+                          return (
+                            <>
+                              Current stock {oldStock} →{" "}
+                              {qtyDelta >= 0 ? "+" : ""}
+                              {qtyDelta} → <strong>{newStock}</strong> after
+                              update
+                            </>
+                          );
+                        })()
+                      : "Product changed; stock impact applies to new product."}
                   </p>
                 );
               })()}
@@ -1552,8 +1764,8 @@ export default function Transactions() {
                 <div className="space-y-1 text-gray-700">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
-                    {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {editReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                    {formatDecimal(editReviewBalance.totalLends)}, Total
+                    Deposits ₹{formatDecimal(editReviewBalance.totalDeposits)} →{" "}
                     <span
                       className={
                         editReviewBalance.balance >= 0
@@ -1561,21 +1773,22 @@ export default function Transactions() {
                           : "font-medium text-green-800"
                       }
                     >
-                      ₹{Math.abs(editReviewBalance.balance).toFixed(2)}
+                      ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (you owe them)
+                          (payable)
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (they owe you)
+                          (receivable)
                         </span>
                       )}
                     </span>
                   </p>
                   {confirmEditLendPayload.newValues.amount -
-                    confirmEditLendPayload.record.amount !== 0 &&
+                    confirmEditLendPayload.record.amount !==
+                    0 &&
                     (() => {
                       const balanceAfter =
                         editReviewBalance.balance -
@@ -1590,20 +1803,20 @@ export default function Transactions() {
                           }
                         >
                           After this update: Total Lends will change by ₹
-                          {(
+                          {formatDecimal(
                             confirmEditLendPayload.newValues.amount -
-                            confirmEditLendPayload.record.amount
-                          ).toFixed(2)}{" "}
+                              confirmEditLendPayload.record.amount
+                          )}{" "}
                           → Balance will be ₹
-                          {Math.abs(balanceAfter).toFixed(2)}
+                          {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (you owe them)
+                              (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (they owe you)
+                              (receivable)
                             </span>
                           )}
                         </p>
@@ -1781,10 +1994,12 @@ export default function Transactions() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {confirmEditDepositPayload.record.amount.toFixed(2)}
+                      {formatDecimal(confirmEditDepositPayload.record.amount)}
                     </td>
                     <td className="p-2">
-                      {confirmEditDepositPayload.newValues.amount.toFixed(2)}
+                      {formatDecimal(
+                        confirmEditDepositPayload.newValues.amount
+                      )}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -1807,8 +2022,8 @@ export default function Transactions() {
                 <div className="space-y-1 text-gray-700">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
-                    {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {editReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                    {formatDecimal(editReviewBalance.totalLends)}, Total
+                    Deposits ₹{formatDecimal(editReviewBalance.totalDeposits)} →{" "}
                     <span
                       className={
                         editReviewBalance.balance >= 0
@@ -1816,21 +2031,22 @@ export default function Transactions() {
                           : "font-medium text-green-800"
                       }
                     >
-                      ₹{Math.abs(editReviewBalance.balance).toFixed(2)}
+                      ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (you owe them)
+                          (payable)
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
                         <span className="ml-1 text-gray-500 font-normal">
-                          (they owe you)
+                          (receivable)
                         </span>
                       )}
                     </span>
                   </p>
                   {confirmEditDepositPayload.newValues.amount -
-                    confirmEditDepositPayload.record.amount !== 0 &&
+                    confirmEditDepositPayload.record.amount !==
+                    0 &&
                     (() => {
                       const balanceAfter =
                         editReviewBalance.balance +
@@ -1845,20 +2061,20 @@ export default function Transactions() {
                           }
                         >
                           After this update: Total Deposits will change by ₹
-                          {(
+                          {formatDecimal(
                             confirmEditDepositPayload.newValues.amount -
-                            confirmEditDepositPayload.record.amount
-                          ).toFixed(2)}{" "}
+                              confirmEditDepositPayload.record.amount
+                          )}{" "}
                           → Balance will be ₹
-                          {Math.abs(balanceAfter).toFixed(2)}
+                          {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (you owe them)
+                              (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (they owe you)
+                              (receivable)
                             </span>
                           )}
                         </p>
@@ -2171,7 +2387,7 @@ export default function Transactions() {
                         <td className="p-2 text-right">{line.quantity}</td>
                         <td className="p-2 text-right">{after}</td>
                         <td className="p-2 text-right">
-                          ₹{line.amount.toFixed(0)}
+                          ₹{formatDecimal(line.amount)}
                         </td>
                       </tr>
                     );
@@ -2181,9 +2397,9 @@ export default function Transactions() {
             </div>
             <p className="text-sm font-medium">
               Total amount: ₹
-              {confirmPurchasePayload.lines
-                .reduce((s, l) => s + l.amount, 0)
-                .toFixed(0)}
+              {formatDecimal(
+                confirmPurchasePayload.lines.reduce((s, l) => s + l.amount, 0)
+              )}
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -2394,10 +2610,12 @@ export default function Transactions() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {confirmEditPurchasePayload.record.amount.toFixed(2)}
+                      {formatDecimal(confirmEditPurchasePayload.record.amount)}
                     </td>
                     <td className="p-2">
-                      {confirmEditPurchasePayload.newValues.amount.toFixed(2)}
+                      {formatDecimal(
+                        confirmEditPurchasePayload.newValues.amount
+                      )}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -2422,8 +2640,7 @@ export default function Transactions() {
                 const item = (
                   items as { id: number; current_stock: number }[]
                 ).find(
-                  (i) =>
-                    i.id === confirmEditPurchasePayload!.record.product_id!
+                  (i) => i.id === confirmEditPurchasePayload!.record.product_id!
                 );
                 const oldStock = item?.current_stock ?? 0;
                 const newStock = oldStock + qtyDelta;
@@ -2502,9 +2719,7 @@ export default function Transactions() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Type</td>
                     <td className="p-2">
-                      <TransactionTypeBadge
-                        type={deleteConfirmPayload.type}
-                      />
+                      <TransactionTypeBadge type={deleteConfirmPayload.type} />
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -2543,7 +2758,7 @@ export default function Transactions() {
                   <tr className="border-b">
                     <td className="p-2 font-medium">Amount (₹)</td>
                     <td className="p-2">
-                      {deleteConfirmPayload.row.amount.toFixed(2)}
+                      {formatDecimal(deleteConfirmPayload.row.amount)}
                     </td>
                   </tr>
                   <tr className="border-b">
@@ -2584,15 +2799,14 @@ export default function Transactions() {
                       const item = (
                         items as { id: number; current_stock: number }[]
                       ).find(
-                        (i) =>
-                          i.id === deleteConfirmPayload!.row.product_id!
+                        (i) => i.id === deleteConfirmPayload!.row.product_id!
                       );
                       const oldStock = item?.current_stock ?? 0;
                       const qty = deleteConfirmPayload.row.quantity ?? 0;
                       const newStock = oldStock - qty;
                       return (
                         <>
-                          Current stock {oldStock} → −{qty} →{" "}
+                          Current stock {oldStock} → -{qty} →{" "}
                           <strong>{newStock}</strong> after delete
                         </>
                       );
@@ -2608,9 +2822,9 @@ export default function Transactions() {
                     <div className="space-y-1 text-gray-700">
                       <p>
                         <strong>Mahajan balance:</strong> Total Lends ₹
-                        {deleteReviewBalance.totalLends.toFixed(2)}, Total
+                        {formatDecimal(deleteReviewBalance.totalLends)}, Total
                         Deposits ₹
-                        {deleteReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                        {formatDecimal(deleteReviewBalance.totalDeposits)} →{" "}
                         <span
                           className={
                             deleteReviewBalance.balance >= 0
@@ -2619,17 +2833,15 @@ export default function Transactions() {
                           }
                         >
                           ₹
-                          {Math.abs(
-                            deleteReviewBalance.balance
-                          ).toFixed(2)}
+                          {formatDecimal(Math.abs(deleteReviewBalance.balance))}
                           {deleteReviewBalance.balance > 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (you owe them)
+                              (payable)
                             </span>
                           )}
                           {deleteReviewBalance.balance < 0 && (
                             <span className="ml-1 text-gray-500 font-normal">
-                              (they owe you)
+                              (receivable)
                             </span>
                           )}
                         </span>
@@ -2654,17 +2866,17 @@ export default function Transactions() {
                               ? "Total Lends"
                               : "Total Deposits"}{" "}
                             will decrease by ₹
-                            {deleteConfirmPayload.row.amount.toFixed(2)} →
+                            {formatDecimal(deleteConfirmPayload.row.amount)} →
                             Balance will be ₹
-                            {Math.abs(balanceAfter).toFixed(2)}
+                            {formatDecimal(Math.abs(balanceAfter))}
                             {balanceAfter > 0 && (
                               <span className="ml-1 text-gray-500 font-normal">
-                                (you owe them)
+                                (payable)
                               </span>
                             )}
                             {balanceAfter < 0 && (
                               <span className="ml-1 text-gray-500 font-normal">
-                                (they owe you)
+                                (receivable)
                               </span>
                             )}
                           </p>
@@ -2715,6 +2927,65 @@ export default function Transactions() {
           </div>
         )}
       </FormModal>
+
+      {printData && (
+        <div
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          aria-hidden
+        >
+          <header className="mb-4 border-b border-gray-200 pb-3">
+            <p className="text-sm font-semibold text-gray-900">
+              Godown Stock Lite
+            </p>
+            <p className="text-xs text-gray-600">Transactions</p>
+            {printData.filterDetails != null &&
+              printData.filterDetails.length > 0 && (
+                <div className="mt-2 space-y-0.5 text-xs">
+                  <p className="font-medium text-gray-700">Applied filters</p>
+                  {printData.filterDetails.map((f) => (
+                    <p key={f.label} className="text-gray-600">
+                      {f.label}: {f.value}
+                    </p>
+                  ))}
+                </div>
+              )}
+            <p className="mt-1 text-xs text-gray-500">
+              {new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </header>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr>
+                {printData.columns.map((col) => (
+                  <th
+                    key={col}
+                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {printData.rows.map((row) => (
+                <tr key={row[0]}>
+                  {row.map((cell, ci) => (
+                    <td
+                      key={`${row[0]}-${printData.columns[ci]}`}
+                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

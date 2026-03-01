@@ -9,10 +9,9 @@ module.exports = {
   ignorePatterns: ["dist", "release", "node_modules"],
   parser: "@typescript-eslint/parser",
   parserOptions: { ecmaVersion: "latest", sourceType: "module" },
-  plugins: ["@typescript-eslint", "react-refresh"],
+  plugins: ["@typescript-eslint"],
   settings: { react: { version: "18.2" } },
   rules: {
-    "react-refresh/only-export-components": "warn",
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
   },

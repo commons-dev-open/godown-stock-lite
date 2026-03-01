@@ -1,11 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useClick,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from "@floating-ui/react";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import FormField from "../components/FormField";
+import Button from "../components/Button";
+import EmptyState from "../components/EmptyState";
+import SearchFilterBar from "../components/SearchFilterBar";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import toast from "react-hot-toast";
+import { useMutationWithToast } from "../hooks/useMutationWithToast";
+import {
+  exportItemsToCsv,
+  exportItemsToPdf,
+  getPrintTableBody,
+} from "../lib/exportItems";
 import type { Item, Unit } from "../../shared/types";
+import { formatDecimal } from "../../shared/numbers";
 
 const UNIT_ADD_NEW = "__new__";
 
@@ -22,6 +45,27 @@ export default function Items() {
   const [search, setSearch] = useState("");
   const [addUnitSelect, setAddUnitSelect] = useState<string>("");
   const [editUnitSelect, setEditUnitSelect] = useState<string>("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [printData, setPrintData] = useState<{
+    columns: string[];
+    rows: string[][];
+  } | null>(null);
+
+  const { refs: exportRefs, floatingStyles: exportFloatingStyles, context: exportContext } =
+    useFloating({
+      open: exportOpen,
+      onOpenChange: setExportOpen,
+      placement: "bottom-end",
+      middleware: [offset(4), flip(), shift({ padding: 8 })],
+      whileElementsMounted: autoUpdate,
+    });
+  const exportClick = useClick(exportContext);
+  const exportDismiss = useDismiss(exportContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const { getReferenceProps: getExportRefProps, getFloatingProps: getExportFloatingProps } =
+    useInteractions([exportClick, exportDismiss]);
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
@@ -30,7 +74,7 @@ export default function Items() {
 
   const { data: items = [] } = useQuery({
     queryKey: ["items"],
-    queryFn: () => api.getItems(),
+    queryFn: () => api.getItems() as Promise<Item[]>,
   });
 
   const { data: pageResult, isLoading } = useQuery({
@@ -97,16 +141,15 @@ export default function Items() {
     },
   });
 
-  const deleteItem = useMutation({
+  const deleteItem = useMutationWithToast({
     mutationFn: (id: number) => api.deleteItem(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
     },
-    onError: (err: Error) => alert(err.message),
   });
 
-  const addStock = useMutation({
+  const addStock = useMutationWithToast({
     mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
       api.addStock(id, quantity),
     onSuccess: () => {
@@ -115,10 +158,9 @@ export default function Items() {
       setAddStockOpen(false);
       setAddStockItem(null);
     },
-    onError: (err: Error) => alert(err.message),
   });
 
-  const reduceStock = useMutation({
+  const reduceStock = useMutationWithToast({
     mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
       api.reduceStock(id, quantity),
     onSuccess: () => {
@@ -127,8 +169,58 @@ export default function Items() {
       setReduceStockOpen(false);
       setReduceStockItem(null);
     },
-    onError: (err: Error) => alert(err.message),
   });
+
+  async function getExportData(): Promise<Item[]> {
+    const data = await queryClient.fetchQuery({
+      queryKey: ["items"],
+      queryFn: () => api.getItems() as Promise<Item[]>,
+    });
+    return data ?? [];
+  }
+
+  async function handleExportCsv() {
+    setExportOpen(false);
+    const allItems = await getExportData();
+    if (allItems.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportItemsToCsv(allItems);
+    toast.success("Exported as CSV.");
+  }
+
+  async function handleExportPdf() {
+    setExportOpen(false);
+    const allItems = await getExportData();
+    if (allItems.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    exportItemsToPdf(allItems);
+    toast.success("Exported as PDF.");
+  }
+
+  async function handleExportPrint() {
+    setExportOpen(false);
+    const allItems = await getExportData();
+    if (allItems.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    setPrintData(getPrintTableBody(allItems));
+  }
+
+  useEffect(() => {
+    if (!printData) return;
+    const onAfterPrint = () => setPrintData(null);
+    globalThis.addEventListener("afterprint", onAfterPrint);
+    const timeoutId = setTimeout(() => globalThis.print(), 100);
+    return () => {
+      clearTimeout(timeoutId);
+      globalThis.removeEventListener("afterprint", onAfterPrint);
+    };
+  }, [printData]);
 
   return (
     <div>
@@ -137,72 +229,101 @@ export default function Items() {
           <h1 className="text-2xl font-semibold text-gray-900">
             Products & Stock
           </h1>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setAddStockOpen(true)}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200"
-            >
+          <div className="flex items-center gap-2">
+            <div ref={exportRefs.setReference} {...getExportRefProps()}>
+              <Button variant="secondary" type="button">
+                Export
+              </Button>
+            </div>
+            <FloatingPortal>
+              {exportOpen && (
+                <div
+                  ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
+                  style={exportFloatingStyles}
+                  {...getExportFloatingProps()}
+                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportCsv}
+                  >
+                    Export as CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPdf}
+                  >
+                    Export as PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleExportPrint}
+                  >
+                    Print (A4)
+                  </button>
+                </div>
+              )}
+            </FloatingPortal>
+            <Button variant="secondary" onClick={() => setAddStockOpen(true)}>
               Add Stock
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setReduceStockOpen(true)}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200"
             >
               Reduce Stock
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddProductOpen(true)}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-            >
+            </Button>
+            <Button variant="primary" onClick={() => setAddProductOpen(true)}>
               Add Product
-            </button>
+            </Button>
           </div>
         </div>
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-          <input
-            type="search"
-            placeholder="Search by name or code…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0 w-64 max-w-full"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                setPage(1);
-              }}
-              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
+        <SearchFilterBar
+          searchValue={search}
+          onSearchChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          onClearFilters={
+            search
+              ? () => {
+                  setSearch("");
+                  setPage(1);
+                }
+              : undefined
+          }
+          placeholder="Search by name or code…"
+        />
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
           <TableLoader />
         ) : itemsPage.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No records match the filters.
-          </div>
+          <EmptyState />
         ) : (
           <>
             <DataTable<Item>
               columns={[
                 { key: "name", label: "Name" },
                 { key: "code", label: "Code" },
+                {
+                  key: "current_stock",
+                  label: "Current Stock",
+                  render: (r) => formatDecimal(r.current_stock),
+                },
                 { key: "unit", label: "Unit" },
-                { key: "current_stock", label: "Current Stock" },
-                { key: "reorder_level", label: "Reorder Level" },
+                {
+                  key: "reorder_level",
+                  label: "Reorder Level",
+                  render: (r) =>
+                    r.reorder_level != null
+                      ? formatDecimal(r.reorder_level)
+                      : "",
+                },
               ]}
               data={itemsPage}
               onEdit={setEditing}
@@ -235,49 +356,61 @@ export default function Items() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const isNewUnit =
-              (form.unit as HTMLSelectElement).value === UNIT_ADD_NEW;
-            const newUnitName = (
-              form.unit_name as HTMLInputElement | undefined
-            )?.value?.trim();
+            const els = form.elements as HTMLFormControlsCollection & {
+              name: HTMLInputElement;
+              code: HTMLInputElement;
+              unit: HTMLSelectElement;
+              unit_name?: HTMLInputElement;
+              current_stock: HTMLInputElement;
+              reorder_level: HTMLInputElement;
+            };
+            const isNewUnit = els.unit.value === UNIT_ADD_NEW;
+            const newUnitName = els.unit_name?.value?.trim();
             createItem.mutate({
-              name: (form.name as HTMLInputElement).value,
-              code: (form.code as HTMLInputElement).value || undefined,
-              unit: isNewUnit ? "" : (form.unit as HTMLSelectElement).value,
+              name: els.name.value,
+              code: els.code.value || undefined,
+              unit: isNewUnit ? "" : els.unit.value,
               newUnitName: isNewUnit ? newUnitName : undefined,
-              current_stock:
-                Number((form.current_stock as HTMLInputElement).value) || 0,
+              current_stock: Number(els.current_stock.value) || 0,
               reorder_level:
-                Number((form.reorder_level as HTMLInputElement).value) ||
-                undefined,
+                Number(els.reorder_level.value) || undefined,
             });
           }}
         >
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name *
-            </label>
+          <FormField label="Name" required>
             <input
               name="name"
               required
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Code
-            </label>
-            <input name="code" className="w-full border rounded px-3 py-2" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit
-            </label>
+          </FormField>
+          <FormField label="Code">
+            <input
+              name="code"
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </FormField>
+          <FormField
+            label="Unit"
+            required
+            extra={
+              addUnitSelect === UNIT_ADD_NEW ? (
+                <FormField label="Unit name" required>
+                  <input
+                    name="unit_name"
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="e.g. packets, tins, bags"
+                    required={addUnitSelect === UNIT_ADD_NEW}
+                  />
+                </FormField>
+              ) : undefined
+            }
+          >
             <select
               name="unit"
               value={addUnitSelect}
               onChange={(e) => setAddUnitSelect(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
               required
             >
               <option value="">Select unit</option>
@@ -288,57 +421,35 @@ export default function Items() {
               ))}
               <option value={UNIT_ADD_NEW}>Add new…</option>
             </select>
-            {addUnitSelect === UNIT_ADD_NEW && (
-              <div className="mt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Unit name *
-                </label>
-                <input
-                  name="unit_name"
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="e.g. packets, tins, bags"
-                  required={addUnitSelect === UNIT_ADD_NEW}
-                />
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Current Stock
-            </label>
+          </FormField>
+          <FormField label="Current Stock">
             <input
               name="current_stock"
               type="number"
               min="0"
               defaultValue="0"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reorder Level
-            </label>
+          </FormField>
+          <FormField label="Reorder Level">
             <input
               name="reorder_level"
               type="number"
               min="0"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
-          </div>
+          </FormField>
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setAddProductOpen(false)}
-              className="px-3 py-1.5 border rounded"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded"
-            >
+            </Button>
+            <Button variant="primary" type="submit">
               Save
-            </button>
+            </Button>
           </div>
         </form>
       </FormModal>
@@ -357,129 +468,112 @@ export default function Items() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              const isNewUnit =
-                (form.unit as HTMLSelectElement).value === UNIT_ADD_NEW;
-              const newUnitName = (
-                form.unit_name as HTMLInputElement | undefined
-              )?.value?.trim();
+              const els = form.elements as HTMLFormControlsCollection & {
+                name: HTMLInputElement;
+                code: HTMLInputElement;
+                unit: HTMLSelectElement;
+                unit_name?: HTMLInputElement;
+                current_stock: HTMLInputElement;
+                reorder_level: HTMLInputElement;
+              };
+              const isNewUnit = els.unit.value === UNIT_ADD_NEW;
+              const newUnitName = els.unit_name?.value?.trim();
               updateItem.mutate({
                 id: editing.id,
                 item: {
-                  name: (form.name as HTMLInputElement).value,
-                  code: (form.code as HTMLInputElement).value || undefined,
-                  unit: isNewUnit
-                    ? editing.unit
-                    : (form.unit as HTMLSelectElement).value,
-                  current_stock: Number(
-                    (form.current_stock as HTMLInputElement).value
-                  ),
+                  name: els.name.value,
+                  code: els.code.value || undefined,
+                  unit: isNewUnit ? editing.unit : els.unit.value,
+                  current_stock: Number(els.current_stock.value),
                   reorder_level:
-                    Number((form.reorder_level as HTMLInputElement).value) ||
-                    undefined,
+                    Number(els.reorder_level.value) || undefined,
                 },
                 newUnitName: isNewUnit ? newUnitName : undefined,
               });
             }}
           >
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
+            <FormField label="Name" required>
               <input
                 name="name"
                 defaultValue={editing.name}
                 required
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Code
-              </label>
+            </FormField>
+            <FormField label="Code">
               <input
                 name="code"
                 defaultValue={editing.code ?? ""}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Unit
-              </label>
+            </FormField>
+            <FormField
+              label="Unit"
+              required
+              extra={
+                editUnitSelect === UNIT_ADD_NEW ? (
+                  <FormField label="Unit name" required>
+                    <input
+                      name="unit_name"
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      placeholder="e.g. packets, tins, bags"
+                      required={editUnitSelect === UNIT_ADD_NEW}
+                    />
+                  </FormField>
+                ) : undefined
+              }
+            >
               <select
                 name="unit"
                 value={editUnitSelect || editing.unit}
                 onChange={(e) => setEditUnitSelect(e.target.value)}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2"
                 required
               >
                 <option value="">Select unit</option>
-                {(
-                  units.some((u) => u.name === editing.unit)
-                    ? units
-                    : [
-                        { id: -1, name: editing.unit, created_at: "" },
-                        ...units,
-                      ]
+                {(units.some((u) => u.name === editing.unit)
+                  ? units
+                  : [{ id: -1, name: editing.unit, created_at: "" }, ...units]
                 ).map((u) => (
-                  <option key={u.id >= 0 ? u.id : `unit-${u.name}`} value={u.name}>
+                  <option
+                    key={u.id >= 0 ? u.id : `unit-${u.name}`}
+                    value={u.name}
+                  >
                     {u.name}
                   </option>
                 ))}
                 <option value={UNIT_ADD_NEW}>Add new…</option>
               </select>
-              {editUnitSelect === UNIT_ADD_NEW && (
-                <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit name *
-                  </label>
-                  <input
-                    name="unit_name"
-                    className="w-full border rounded px-3 py-2"
-                    placeholder="e.g. packets, tins, bags"
-                    required={editUnitSelect === UNIT_ADD_NEW}
-                  />
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Current Stock
-              </label>
+            </FormField>
+            <FormField label="Current Stock">
               <input
                 name="current_stock"
                 type="number"
                 min="0"
                 defaultValue={editing.current_stock}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reorder Level
-              </label>
+            </FormField>
+            <FormField label="Reorder Level">
               <input
                 name="reorder_level"
                 type="number"
                 min="0"
                 defaultValue={editing.reorder_level ?? ""}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
-            </div>
+            </FormField>
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setEditing(null)}
-                className="px-3 py-1.5 border rounded"
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-blue-600 text-white rounded"
-              >
+              </Button>
+              <Button variant="primary" type="submit">
                 Update
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -499,16 +593,16 @@ export default function Items() {
             e.preventDefault();
             if (!addStockItem) return;
             const qty = Number((e.target as HTMLFormElement).quantity.value);
-            if (qty <= 0) return alert("Quantity must be positive.");
+            if (qty <= 0) {
+              toast.error("Quantity must be positive.");
+              return;
+            }
             addStock.mutate({ id: addStockItem.id, quantity: qty });
           }}
         >
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product
-            </label>
+          <FormField label="Product">
             <select
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
               value={addStockItem?.id ?? ""}
               onChange={(e) =>
                 setAddStockItem(
@@ -520,38 +614,32 @@ export default function Items() {
               <option value="">Select product</option>
               {items.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.name} ({i.current_stock} {i.unit})
+                  {i.name} ({formatDecimal(i.current_stock)} {i.unit})
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity to add
-            </label>
+          </FormField>
+          <FormField label="Quantity to add">
             <input
               name="quantity"
               type="number"
               min="0.01"
               step="any"
               required
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
-          </div>
+          </FormField>
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setAddStockOpen(false)}
-              className="px-3 py-1.5 border rounded"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded"
-            >
+            </Button>
+            <Button variant="primary" type="submit">
               Add
-            </button>
+            </Button>
           </div>
         </form>
       </FormModal>
@@ -570,16 +658,16 @@ export default function Items() {
             e.preventDefault();
             if (!reduceStockItem) return;
             const qty = Number((e.target as HTMLFormElement).quantity.value);
-            if (qty <= 0) return alert("Quantity must be positive.");
+            if (qty <= 0) {
+              toast.error("Quantity must be positive.");
+              return;
+            }
             reduceStock.mutate({ id: reduceStockItem.id, quantity: qty });
           }}
         >
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product
-            </label>
+          <FormField label="Product">
             <select
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
               value={reduceStockItem?.id ?? ""}
               onChange={(e) =>
                 setReduceStockItem(
@@ -591,41 +679,85 @@ export default function Items() {
               <option value="">Select product</option>
               {items.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.name} ({i.current_stock} {i.unit})
+                  {i.name} ({formatDecimal(i.current_stock)} {i.unit})
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity to deduct
-            </label>
+          </FormField>
+          <FormField label="Quantity to deduct">
             <input
               name="quantity"
               type="number"
               min="0.01"
               step="any"
               required
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
-          </div>
+          </FormField>
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setReduceStockOpen(false)}
-              className="px-3 py-1.5 border rounded"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded"
-            >
+            </Button>
+            <Button variant="primary" type="submit">
               Reduce
-            </button>
+            </Button>
           </div>
         </form>
       </FormModal>
+
+      {printData && (
+        <div
+          className="app-print-container items-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          aria-hidden
+        >
+          <header className="items-print-header mb-4 border-b border-gray-200 pb-3">
+            <p className="items-print-app-name text-sm font-semibold text-gray-900">
+              Godown Stock Lite
+            </p>
+            <p className="items-print-report text-xs text-gray-600">
+              Products & Stock
+            </p>
+            <p className="items-print-datetime mt-1 text-xs text-gray-500">
+              {new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </header>
+          <table className="items-print-table w-full border-collapse text-xs">
+            <thead>
+              <tr className="items-print-thead">
+                {printData.columns.map((col) => (
+                  <th
+                    key={col}
+                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {printData.rows.map((row) => (
+                <tr key={row[0]} className="items-print-tbody-tr">
+                  {row.map((cell, ci) => (
+                    <td
+                      key={`${row[0]}-${printData.columns[ci]}`}
+                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default function Tooltip({ content, children, delay = 200 }: Props) {
     placement: "top",
     middleware: [
       offset(10),
-      arrow({ element: arrowRef }),
+      arrow({ element: arrowRef }), // eslint-disable-line react-hooks/refs -- floating-ui reads ref in layout effect
       flip(),
       shift({ padding: 8 }),
     ],
@@ -69,15 +69,18 @@ export default function Tooltip({ content, children, delay = 200 }: Props) {
   }
 
   const mergedProps = {
-      ...(typeof children.props === "object" && children.props !== null
-        ? children.props
-        : {}),
-      ref: refs.setReference,
-      ...getReferenceProps(),
-    };
+    ...(typeof children.props === "object" && children.props !== null
+      ? children.props
+      : {}),
+    ref: refs.setReference,
+    ...getReferenceProps(),
+  };
   return (
     <>
-      {cloneElement(children, mergedProps as React.Attributes & Record<string, unknown>)}
+      {cloneElement(
+        children,
+        mergedProps as React.Attributes & Record<string, unknown>
+      )}
       <FloatingPortal>
         {isOpen && (
           <div
