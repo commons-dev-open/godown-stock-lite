@@ -410,15 +410,55 @@ export default function AddLendModal({
                   Total Deposits: ₹{mahajanBalance.totalDeposits.toFixed(2)}
                 </p>
                 <p className="font-medium">
-                  Balance (Lend - Deposit): ₹
-                  {mahajanBalance.balance.toFixed(2)}
+                  Balance (Lend - Deposit):{" "}
+                  <span
+                    className={
+                      mahajanBalance.balance >= 0
+                        ? "text-amber-700"
+                        : "text-green-700"
+                    }
+                  >
+                    ₹{Math.abs(mahajanBalance.balance).toFixed(2)}
+                    {mahajanBalance.balance > 0 && (
+                      <span className="ml-1 text-gray-500 font-normal">
+                        (you owe them)
+                      </span>
+                    )}
+                    {mahajanBalance.balance < 0 && (
+                      <span className="ml-1 text-gray-500 font-normal">
+                        (they owe you)
+                      </span>
+                    )}
+                  </span>
                 </p>
-                <p className="font-medium text-amber-700">
-                  After this lend: ₹
-                  {(
-                    mahajanBalance.balance +
-                    confirmPayload.lines.reduce((s, l) => s + l.amount, 0)
-                  ).toFixed(2)}
+                <p className="font-medium">
+                  After this lend:{" "}
+                  {(() => {
+                    const balanceAfter =
+                      mahajanBalance.balance +
+                      confirmPayload.lines.reduce((s, l) => s + l.amount, 0);
+                    return (
+                      <span
+                        className={
+                          balanceAfter >= 0
+                            ? "text-amber-700"
+                            : "text-green-700"
+                        }
+                      >
+                        ₹{Math.abs(balanceAfter).toFixed(2)}
+                        {balanceAfter > 0 && (
+                          <span className="ml-1 text-gray-500 font-normal">
+                            (you owe them)
+                          </span>
+                        )}
+                        {balanceAfter < 0 && (
+                          <span className="ml-1 text-gray-500 font-normal">
+                            (they owe you)
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </p>
               </div>
             ) : null}

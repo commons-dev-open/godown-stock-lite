@@ -129,16 +129,20 @@ export default function Transactions() {
     };
   } | null>(null);
   const [confirmEditPurchaseOpen, setConfirmEditPurchaseOpen] = useState(false);
-  const [confirmEditPurchasePayload, setConfirmEditPurchasePayload] =
-    useState<{
-      record: PurchaseRow;
-      newValues: {
-        transaction_date: string;
-        quantity: number;
-        amount: number;
-        notes: string | null;
-      };
-    } | null>(null);
+  const [confirmEditPurchasePayload, setConfirmEditPurchasePayload] = useState<{
+    record: PurchaseRow;
+    newValues: {
+      transaction_date: string;
+      quantity: number;
+      amount: number;
+      notes: string | null;
+    };
+  } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
+    type: "lend" | "deposit" | "cash_purchase";
+    row: LedgerRow;
+  } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [lendFormDate, setLendFormDate] = useState(todayISO());
   const [depositFormDate, setDepositFormDate] = useState(todayISO());
@@ -156,14 +160,48 @@ export default function Transactions() {
   useEffect(() => {
     if (editingLend) setEditLendDate(editingLend.transaction_date);
   }, [editingLend]);
+  const [editLendProductId, setEditLendProductId] = useState<number | null>(
+    null
+  );
+  const [editLendMahajanId, setEditLendMahajanId] = useState<number | "">("");
+  const [editLendQuantity, setEditLendQuantity] = useState<number>(0);
+  const [editLendAmount, setEditLendAmount] = useState<number>(0);
+  const [editLendNotes, setEditLendNotes] = useState("");
+  useEffect(() => {
+    if (editingLend) {
+      setEditLendProductId(editingLend.product_id ?? null);
+      setEditLendMahajanId(editingLend.mahajan_id);
+      setEditLendQuantity(editingLend.quantity ?? 0);
+      setEditLendAmount(editingLend.amount);
+      setEditLendNotes(editingLend.notes ?? "");
+    }
+  }, [editingLend]);
   useEffect(() => {
     if (editingDeposit) setEditDepositDate(editingDeposit.transaction_date);
+  }, [editingDeposit]);
+  const [editDepositAmount, setEditDepositAmount] = useState<number>(0);
+  const [editDepositNotes, setEditDepositNotes] = useState("");
+  useEffect(() => {
+    if (editingDeposit) {
+      setEditDepositAmount(editingDeposit.amount);
+      setEditDepositNotes(editingDeposit.notes ?? "");
+    }
   }, [editingDeposit]);
   useEffect(() => {
     if (purchaseAddOpen) setPurchaseFormDate(todayISO());
   }, [purchaseAddOpen]);
   useEffect(() => {
     if (editingPurchase) setEditPurchaseDate(editingPurchase.transaction_date);
+  }, [editingPurchase]);
+  const [editPurchaseQuantity, setEditPurchaseQuantity] = useState<number>(0);
+  const [editPurchaseAmount, setEditPurchaseAmount] = useState<number>(0);
+  const [editPurchaseNotes, setEditPurchaseNotes] = useState("");
+  useEffect(() => {
+    if (editingPurchase) {
+      setEditPurchaseQuantity(editingPurchase.quantity);
+      setEditPurchaseAmount(editingPurchase.amount);
+      setEditPurchaseNotes(editingPurchase.notes ?? "");
+    }
   }, [editingPurchase]);
 
   const { data: mahajans = [] } = useQuery({
@@ -219,7 +257,26 @@ export default function Transactions() {
     useQuery({
       queryKey: ["mahajanBalance", editReviewMahajanId],
       queryFn: () => api.getMahajanBalance(editReviewMahajanId!),
-      enabled: !!editReviewMahajanId && (confirmEditLendOpen || confirmEditDepositOpen),
+      enabled:
+        !!editReviewMahajanId &&
+        (confirmEditLendOpen || confirmEditDepositOpen),
+    });
+
+  const deleteReviewMahajanId =
+    deleteConfirmOpen &&
+    deleteConfirmPayload &&
+    (deleteConfirmPayload.type === "lend" ||
+      deleteConfirmPayload.type === "deposit")
+      ? deleteConfirmPayload.row.mahajan_id
+      : null;
+  const { data: deleteReviewBalance, isFetching: deleteReviewBalanceLoading } =
+    useQuery({
+      queryKey: ["mahajanBalance", deleteReviewMahajanId],
+      queryFn: () => api.getMahajanBalance(deleteReviewMahajanId!),
+      enabled:
+        !!deleteReviewMahajanId &&
+        deleteConfirmOpen &&
+        deleteConfirmPayload != null,
     });
 
   const createLendBatch = useMutation({
@@ -704,10 +761,14 @@ export default function Transactions() {
                             else setEditingPurchase(toPurchaseRecord(row));
                           }}
                           onDelete={() => {
-                            if (row.type === "lend") deleteLend.mutate(row.id);
-                            else if (row.type === "deposit")
-                              deleteDeposit.mutate(row.id);
-                            else deletePurchase.mutate(row.id);
+                            setDeleteConfirmPayload({
+                              type: row.type as
+                                | "lend"
+                                | "deposit"
+                                | "cash_purchase",
+                              row,
+                            });
+                            setDeleteConfirmOpen(true);
                           }}
                         />
                       </tr>
@@ -1024,14 +1085,55 @@ export default function Transactions() {
                   Total Deposits: ₹{mahajanBalance.totalDeposits.toFixed(2)}
                 </p>
                 <p className="font-medium">
-                  Balance (Lend - Deposit): ₹{mahajanBalance.balance.toFixed(2)}
+                  Balance (Lend - Deposit):{" "}
+                  <span
+                    className={
+                      mahajanBalance.balance >= 0
+                        ? "text-amber-700"
+                        : "text-green-700"
+                    }
+                  >
+                    ₹{Math.abs(mahajanBalance.balance).toFixed(2)}
+                    {mahajanBalance.balance > 0 && (
+                      <span className="ml-1 text-gray-500 font-normal">
+                        (you owe them)
+                      </span>
+                    )}
+                    {mahajanBalance.balance < 0 && (
+                      <span className="ml-1 text-gray-500 font-normal">
+                        (they owe you)
+                      </span>
+                    )}
+                  </span>
                 </p>
-                <p className="font-medium text-amber-700">
-                  After this lend: ₹
-                  {(
-                    mahajanBalance.balance +
-                    confirmPayload.lines.reduce((s, l) => s + l.amount, 0)
-                  ).toFixed(2)}
+                <p className="font-medium">
+                  After this lend:{" "}
+                  {(() => {
+                    const balanceAfter =
+                      mahajanBalance.balance +
+                      confirmPayload.lines.reduce((s, l) => s + l.amount, 0);
+                    return (
+                      <span
+                        className={
+                          balanceAfter >= 0
+                            ? "text-amber-700"
+                            : "text-green-700"
+                        }
+                      >
+                        ₹{Math.abs(balanceAfter).toFixed(2)}
+                        {balanceAfter > 0 && (
+                          <span className="ml-1 text-gray-500 font-normal">
+                            (you owe them)
+                          </span>
+                        )}
+                        {balanceAfter < 0 && (
+                          <span className="ml-1 text-gray-500 font-normal">
+                            (they owe you)
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </p>
               </div>
             ) : null}
@@ -1170,25 +1272,14 @@ export default function Transactions() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              const form = e.target as HTMLFormElement;
-              const mahajanId = Number(
-                (form.mahajan_id as HTMLSelectElement).value
-              );
-              const productId = (form.product_id as HTMLSelectElement)?.value
-                ? Number((form.product_id as HTMLSelectElement).value)
-                : null;
+              const mahajanId =
+                editLendMahajanId === "" ? 0 : Number(editLendMahajanId);
+              const productId = editLendProductId;
               const item = productId
                 ? itemList.find((i) => i.id === productId)
                 : undefined;
               if (!editLendDate || !mahajanId) return;
               const mahajan = mahajanList.find((m) => m.id === mahajanId);
-              const newQty =
-                Number((form.quantity as HTMLInputElement).value) || 0;
-              const newAmount = Number(
-                (form.amount as HTMLInputElement).value
-              );
-              const newNotes =
-                (form.notes as HTMLInputElement).value?.trim() || null;
               setConfirmEditLendPayload({
                 record: editingLend,
                 newValues: {
@@ -1196,11 +1287,10 @@ export default function Transactions() {
                   mahajanName: mahajan?.name ?? "",
                   transaction_date: editLendDate,
                   product_id: productId || null,
-                  product_name:
-                    item?.name ?? editingLend.product_name ?? null,
-                  quantity: newQty,
-                  amount: newAmount,
-                  notes: newNotes || null,
+                  product_name: item?.name ?? editingLend.product_name ?? null,
+                  quantity: editLendQuantity,
+                  amount: editLendAmount,
+                  notes: editLendNotes.trim() || null,
                 },
               });
               setConfirmEditLendOpen(true);
@@ -1214,7 +1304,12 @@ export default function Transactions() {
                 name="mahajan_id"
                 required
                 className="w-full border rounded px-3 py-2"
-                defaultValue={editingLend.mahajan_id}
+                value={editLendMahajanId}
+                onChange={(e) =>
+                  setEditLendMahajanId(
+                    e.target.value ? Number(e.target.value) : ""
+                  )
+                }
               >
                 <option value="">Select</option>
                 {mahajanList.map((m) => (
@@ -1241,7 +1336,12 @@ export default function Transactions() {
               <select
                 name="product_id"
                 className="w-full border rounded px-3 py-2"
-                defaultValue={editingLend.product_id ?? ""}
+                value={editLendProductId ?? ""}
+                onChange={(e) =>
+                  setEditLendProductId(
+                    e.target.value ? Number(e.target.value) : null
+                  )
+                }
               >
                 <option value="">—</option>
                 {itemList.map((i) => (
@@ -1254,6 +1354,12 @@ export default function Transactions() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Quantity
+                {((): string => {
+                  const it = (itemList as Item[]).find(
+                    (i) => i.id === editLendProductId
+                  );
+                  return it?.unit ? ` (${it.unit})` : "";
+                })()}
               </label>
               <input
                 name="quantity"
@@ -1261,7 +1367,10 @@ export default function Transactions() {
                 inputMode="numeric"
                 min="0"
                 step="1"
-                defaultValue={editingLend.quantity ?? 0}
+                value={editLendQuantity}
+                onChange={(e) =>
+                  setEditLendQuantity(Number(e.target.value) || 0)
+                }
                 className="w-full border rounded px-3 py-2"
               />
             </div>
@@ -1275,7 +1384,10 @@ export default function Transactions() {
                 inputMode="decimal"
                 min="0"
                 step="0.01"
-                defaultValue={editingLend.amount}
+                value={editLendAmount}
+                onChange={(e) =>
+                  setEditLendAmount(Number(e.target.value) || 0)
+                }
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -1286,7 +1398,8 @@ export default function Transactions() {
               </label>
               <input
                 name="notes"
-                defaultValue={editingLend.notes ?? ""}
+                value={editLendNotes}
+                onChange={(e) => setEditLendNotes(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               />
             </div>
@@ -1398,31 +1511,41 @@ export default function Transactions() {
             </div>
             <div className="rounded border border-amber-100 bg-amber-50 p-3 space-y-2 text-sm">
               <p className="font-medium text-amber-900">Impact after update</p>
-              <p className="text-gray-700">
-                <strong>Stock:</strong>{" "}
-                {confirmEditLendPayload.record.product_id != null ? (
-                  (() => {
-                    const item = (
-                      items as { id: number; current_stock: number }[]
-                    ).find(
-                      (i) => i.id === confirmEditLendPayload!.record.product_id!
-                    );
-                    const oldStock = item?.current_stock ?? 0;
-                    const qtyDelta =
-                      confirmEditLendPayload.newValues.quantity -
-                      (confirmEditLendPayload.record.quantity ?? 0);
-                    const newStock = oldStock + qtyDelta;
-                    return (
-                      <>
-                        Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
-                        {qtyDelta} → <strong>{newStock}</strong> after update
-                      </>
-                    );
-                  })()
-                ) : (
-                  "Product changed; stock impact applies to new product."
-                )}
-              </p>
+              {(() => {
+                const qtyDelta =
+                  confirmEditLendPayload.newValues.quantity -
+                  (confirmEditLendPayload.record.quantity ?? 0);
+                if (
+                  confirmEditLendPayload.record.product_id != null &&
+                  qtyDelta === 0
+                )
+                  return null;
+                return (
+                  <p className="text-gray-700">
+                    <strong>Stock:</strong>{" "}
+                    {confirmEditLendPayload.record.product_id != null ? (
+                      (() => {
+                        const item = (
+                          items as { id: number; current_stock: number }[]
+                        ).find(
+                          (i) =>
+                            i.id === confirmEditLendPayload!.record.product_id!
+                        );
+                        const oldStock = item?.current_stock ?? 0;
+                        const newStock = oldStock + qtyDelta;
+                        return (
+                          <>
+                            Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
+                            {qtyDelta} → <strong>{newStock}</strong> after update
+                          </>
+                        );
+                      })()
+                    ) : (
+                      "Product changed; stock impact applies to new product."
+                    )}
+                  </p>
+                );
+              })()}
               {editReviewBalanceLoading ? (
                 <p className="text-gray-500">Loading balance…</p>
               ) : editReviewBalance != null ? (
@@ -1430,22 +1553,62 @@ export default function Transactions() {
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
                     {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {editReviewBalance.totalDeposits.toFixed(2)} → Balance ₹
-                    {editReviewBalance.balance.toFixed(2)}
+                    {editReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                    <span
+                      className={
+                        editReviewBalance.balance >= 0
+                          ? "font-medium text-amber-800"
+                          : "font-medium text-green-800"
+                      }
+                    >
+                      ₹{Math.abs(editReviewBalance.balance).toFixed(2)}
+                      {editReviewBalance.balance > 0 && (
+                        <span className="ml-1 text-gray-500 font-normal">
+                          (you owe them)
+                        </span>
+                      )}
+                      {editReviewBalance.balance < 0 && (
+                        <span className="ml-1 text-gray-500 font-normal">
+                          (they owe you)
+                        </span>
+                      )}
+                    </span>
                   </p>
-                  <p className="font-medium text-amber-800">
-                    After this update: Total Lends will change by ₹
-                    {(
-                      confirmEditLendPayload.newValues.amount -
-                      confirmEditLendPayload.record.amount
-                    ).toFixed(2)}{" "}
-                    → Balance will be ₹
-                    {(
-                      editReviewBalance.balance -
-                      confirmEditLendPayload.record.amount +
-                      confirmEditLendPayload.newValues.amount
-                    ).toFixed(2)}
-                  </p>
+                  {confirmEditLendPayload.newValues.amount -
+                    confirmEditLendPayload.record.amount !== 0 &&
+                    (() => {
+                      const balanceAfter =
+                        editReviewBalance.balance -
+                        confirmEditLendPayload.record.amount +
+                        confirmEditLendPayload.newValues.amount;
+                      return (
+                        <p
+                          className={
+                            balanceAfter >= 0
+                              ? "font-medium text-amber-800"
+                              : "font-medium text-green-800"
+                          }
+                        >
+                          After this update: Total Lends will change by ₹
+                          {(
+                            confirmEditLendPayload.newValues.amount -
+                            confirmEditLendPayload.record.amount
+                          ).toFixed(2)}{" "}
+                          → Balance will be ₹
+                          {Math.abs(balanceAfter).toFixed(2)}
+                          {balanceAfter > 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (you owe them)
+                            </span>
+                          )}
+                          {balanceAfter < 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (they owe you)
+                            </span>
+                          )}
+                        </p>
+                      );
+                    })()}
                 </div>
               ) : null}
             </div>
@@ -1472,10 +1635,12 @@ export default function Transactions() {
                         confirmEditLendPayload.newValues.transaction_date,
                       product_id: confirmEditLendPayload.newValues.product_id,
                       product_name:
-                        confirmEditLendPayload.newValues.product_name ?? undefined,
+                        confirmEditLendPayload.newValues.product_name ??
+                        undefined,
                       quantity: confirmEditLendPayload.newValues.quantity,
                       amount: confirmEditLendPayload.newValues.amount,
-                      notes: confirmEditLendPayload.newValues.notes ?? undefined,
+                      notes:
+                        confirmEditLendPayload.newValues.notes ?? undefined,
                     },
                   });
                   setConfirmEditLendOpen(false);
@@ -1506,17 +1671,13 @@ export default function Transactions() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              const form = e.target as HTMLFormElement;
               if (!editDepositDate) return;
-              const newAmount = Number((form.amount as HTMLInputElement).value);
-              const newNotes =
-                (form.notes as HTMLInputElement).value?.trim() || null;
               setConfirmEditDepositPayload({
                 record: editingDeposit,
                 newValues: {
                   transaction_date: editDepositDate,
-                  amount: newAmount,
-                  notes: newNotes,
+                  amount: editDepositAmount,
+                  notes: editDepositNotes.trim() || null,
                 },
               });
               setConfirmEditDepositOpen(true);
@@ -1542,7 +1703,10 @@ export default function Transactions() {
                 inputMode="decimal"
                 min="0"
                 step="0.01"
-                defaultValue={editingDeposit.amount}
+                value={editDepositAmount}
+                onChange={(e) =>
+                  setEditDepositAmount(Number(e.target.value) || 0)
+                }
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -1553,7 +1717,8 @@ export default function Transactions() {
               </label>
               <input
                 name="notes"
-                defaultValue={editingDeposit.notes ?? ""}
+                value={editDepositNotes}
+                onChange={(e) => setEditDepositNotes(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               />
             </div>
@@ -1643,22 +1808,62 @@ export default function Transactions() {
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
                     {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
-                    {editReviewBalance.totalDeposits.toFixed(2)} → Balance ₹
-                    {editReviewBalance.balance.toFixed(2)}
+                    {editReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                    <span
+                      className={
+                        editReviewBalance.balance >= 0
+                          ? "font-medium text-amber-800"
+                          : "font-medium text-green-800"
+                      }
+                    >
+                      ₹{Math.abs(editReviewBalance.balance).toFixed(2)}
+                      {editReviewBalance.balance > 0 && (
+                        <span className="ml-1 text-gray-500 font-normal">
+                          (you owe them)
+                        </span>
+                      )}
+                      {editReviewBalance.balance < 0 && (
+                        <span className="ml-1 text-gray-500 font-normal">
+                          (they owe you)
+                        </span>
+                      )}
+                    </span>
                   </p>
-                  <p className="font-medium text-green-800">
-                    After this update: Total Deposits will change by ₹
-                    {(
-                      confirmEditDepositPayload.newValues.amount -
-                      confirmEditDepositPayload.record.amount
-                    ).toFixed(2)}{" "}
-                    → Balance will be ₹
-                    {(
-                      editReviewBalance.balance +
-                      confirmEditDepositPayload.record.amount -
-                      confirmEditDepositPayload.newValues.amount
-                    ).toFixed(2)}
-                  </p>
+                  {confirmEditDepositPayload.newValues.amount -
+                    confirmEditDepositPayload.record.amount !== 0 &&
+                    (() => {
+                      const balanceAfter =
+                        editReviewBalance.balance +
+                        confirmEditDepositPayload.record.amount -
+                        confirmEditDepositPayload.newValues.amount;
+                      return (
+                        <p
+                          className={
+                            balanceAfter >= 0
+                              ? "font-medium text-amber-800"
+                              : "font-medium text-green-800"
+                          }
+                        >
+                          After this update: Total Deposits will change by ₹
+                          {(
+                            confirmEditDepositPayload.newValues.amount -
+                            confirmEditDepositPayload.record.amount
+                          ).toFixed(2)}{" "}
+                          → Balance will be ₹
+                          {Math.abs(balanceAfter).toFixed(2)}
+                          {balanceAfter > 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (you owe them)
+                            </span>
+                          )}
+                          {balanceAfter < 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (they owe you)
+                            </span>
+                          )}
+                        </p>
+                      );
+                    })()}
                 </div>
               ) : null}
             </div>
@@ -2028,21 +2233,14 @@ export default function Transactions() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              const form = e.target as HTMLFormElement;
               if (!editPurchaseDate) return;
-              const newQty = Number(
-                (form.quantity as HTMLInputElement).value
-              );
-              const newAmount = Number((form.amount as HTMLInputElement).value);
-              const newNotes =
-                (form.notes as HTMLInputElement).value?.trim() || null;
               setConfirmEditPurchasePayload({
                 record: editingPurchase,
                 newValues: {
                   transaction_date: editPurchaseDate,
-                  quantity: newQty,
-                  amount: newAmount,
-                  notes: newNotes,
+                  quantity: editPurchaseQuantity,
+                  amount: editPurchaseAmount,
+                  notes: editPurchaseNotes.trim() || null,
                 },
               });
               setConfirmEditPurchaseOpen(true);
@@ -2072,6 +2270,12 @@ export default function Transactions() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Quantity *
+                {((): string => {
+                  const it = (itemList as Item[]).find(
+                    (i) => i.id === editingPurchase.product_id
+                  );
+                  return it?.unit ? ` (${it.unit})` : "";
+                })()}
               </label>
               <input
                 name="quantity"
@@ -2079,7 +2283,10 @@ export default function Transactions() {
                 inputMode="numeric"
                 min="0"
                 step="1"
-                defaultValue={editingPurchase.quantity}
+                value={editPurchaseQuantity}
+                onChange={(e) =>
+                  setEditPurchaseQuantity(Number(e.target.value) || 0)
+                }
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -2094,7 +2301,10 @@ export default function Transactions() {
                 inputMode="decimal"
                 min="0"
                 step="0.01"
-                defaultValue={editingPurchase.amount}
+                value={editPurchaseAmount}
+                onChange={(e) =>
+                  setEditPurchaseAmount(Number(e.target.value) || 0)
+                }
                 required
                 className="w-full border rounded px-3 py-2"
               />
@@ -2105,7 +2315,8 @@ export default function Transactions() {
               </label>
               <input
                 name="notes"
-                defaultValue={editingPurchase.notes ?? ""}
+                value={editPurchaseNotes}
+                onChange={(e) => setEditPurchaseNotes(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               />
             </div>
@@ -2203,32 +2414,27 @@ export default function Transactions() {
             </div>
             <div className="rounded border border-blue-100 bg-blue-50 p-3 space-y-2 text-sm">
               <p className="font-medium text-blue-900">Impact after update</p>
-              <p className="text-gray-700">
-                <strong>Stock:</strong>{" "}
-                {confirmEditPurchasePayload.record.product_id != null ? (
-                  (() => {
-                    const item = (
-                      items as { id: number; current_stock: number }[]
-                    ).find(
-                      (i) =>
-                        i.id === confirmEditPurchasePayload!.record.product_id!
-                    );
-                    const oldStock = item?.current_stock ?? 0;
-                    const qtyDelta =
-                      confirmEditPurchasePayload.newValues.quantity -
-                      confirmEditPurchasePayload.record.quantity;
-                    const newStock = oldStock + qtyDelta;
-                    return (
-                      <>
-                        Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
-                        {qtyDelta} → <strong>{newStock}</strong> after update
-                      </>
-                    );
-                  })()
-                ) : (
-                  "—"
-                )}
-              </p>
+              {(() => {
+                const qtyDelta =
+                  confirmEditPurchasePayload.newValues.quantity -
+                  confirmEditPurchasePayload.record.quantity;
+                if (qtyDelta === 0) return null;
+                const item = (
+                  items as { id: number; current_stock: number }[]
+                ).find(
+                  (i) =>
+                    i.id === confirmEditPurchasePayload!.record.product_id!
+                );
+                const oldStock = item?.current_stock ?? 0;
+                const newStock = oldStock + qtyDelta;
+                return (
+                  <p className="text-gray-700">
+                    <strong>Stock:</strong> Current stock {oldStock} →{" "}
+                    {qtyDelta >= 0 ? "+" : ""}
+                    {qtyDelta} → <strong>{newStock}</strong> after update
+                  </p>
+                );
+              })()}
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -2264,6 +2470,246 @@ export default function Transactions() {
                 className="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-50"
               >
                 {updatePurchase.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </div>
+          </div>
+        )}
+      </FormModal>
+
+      <FormModal
+        title="Review & Delete"
+        open={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteConfirmPayload(null);
+        }}
+        maxWidth="max-w-2xl"
+      >
+        {deleteConfirmPayload && (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-700">
+              You are about to delete this transaction. Summary:
+            </p>
+            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-left p-2">Field</th>
+                    <th className="text-left p-2">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Type</td>
+                    <td className="p-2">
+                      <TransactionTypeBadge
+                        type={deleteConfirmPayload.type}
+                      />
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Date</td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        deleteConfirmPayload.row.transaction_date
+                      )}
+                    </td>
+                  </tr>
+                  {(deleteConfirmPayload.type === "lend" ||
+                    deleteConfirmPayload.type === "cash_purchase") && (
+                    <>
+                      {deleteConfirmPayload.type === "lend" && (
+                        <tr className="border-b">
+                          <td className="p-2 font-medium">Mahajan</td>
+                          <td className="p-2">
+                            {deleteConfirmPayload.row.mahajan_name ?? "—"}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="border-b">
+                        <td className="p-2 font-medium">Product</td>
+                        <td className="p-2">
+                          {deleteConfirmPayload.row.product_name ?? "—"}
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="p-2 font-medium">Quantity</td>
+                        <td className="p-2">
+                          {deleteConfirmPayload.row.quantity ?? "—"}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Amount (₹)</td>
+                    <td className="p-2">
+                      {deleteConfirmPayload.row.amount.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Notes</td>
+                    <td className="p-2">
+                      {deleteConfirmPayload.row.notes ?? "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div
+              className={`rounded border p-3 space-y-2 text-sm ${
+                deleteConfirmPayload.type === "lend"
+                  ? "border-amber-100 bg-amber-50"
+                  : deleteConfirmPayload.type === "deposit"
+                    ? "border-green-100 bg-green-50"
+                    : "border-blue-100 bg-blue-50"
+              }`}
+            >
+              <p
+                className={`font-medium ${
+                  deleteConfirmPayload.type === "lend"
+                    ? "text-amber-900"
+                    : deleteConfirmPayload.type === "deposit"
+                      ? "text-green-900"
+                      : "text-blue-900"
+                }`}
+              >
+                Impact after delete
+              </p>
+              {(deleteConfirmPayload.type === "lend" ||
+                deleteConfirmPayload.type === "cash_purchase") &&
+                deleteConfirmPayload.row.product_id != null && (
+                  <p className="text-gray-700">
+                    <strong>Stock:</strong>{" "}
+                    {(() => {
+                      const item = (
+                        items as { id: number; current_stock: number }[]
+                      ).find(
+                        (i) =>
+                          i.id === deleteConfirmPayload!.row.product_id!
+                      );
+                      const oldStock = item?.current_stock ?? 0;
+                      const qty = deleteConfirmPayload.row.quantity ?? 0;
+                      const newStock = oldStock - qty;
+                      return (
+                        <>
+                          Current stock {oldStock} → −{qty} →{" "}
+                          <strong>{newStock}</strong> after delete
+                        </>
+                      );
+                    })()}
+                  </p>
+                )}
+              {(deleteConfirmPayload.type === "lend" ||
+                deleteConfirmPayload.type === "deposit") && (
+                <>
+                  {deleteReviewBalanceLoading ? (
+                    <p className="text-gray-500">Loading balance…</p>
+                  ) : deleteReviewBalance != null ? (
+                    <div className="space-y-1 text-gray-700">
+                      <p>
+                        <strong>Mahajan balance:</strong> Total Lends ₹
+                        {deleteReviewBalance.totalLends.toFixed(2)}, Total
+                        Deposits ₹
+                        {deleteReviewBalance.totalDeposits.toFixed(2)} →{" "}
+                        <span
+                          className={
+                            deleteReviewBalance.balance >= 0
+                              ? "font-medium text-amber-800"
+                              : "font-medium text-green-800"
+                          }
+                        >
+                          ₹
+                          {Math.abs(
+                            deleteReviewBalance.balance
+                          ).toFixed(2)}
+                          {deleteReviewBalance.balance > 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (you owe them)
+                            </span>
+                          )}
+                          {deleteReviewBalance.balance < 0 && (
+                            <span className="ml-1 text-gray-500 font-normal">
+                              (they owe you)
+                            </span>
+                          )}
+                        </span>
+                      </p>
+                      {(() => {
+                        const balanceAfter =
+                          deleteConfirmPayload.type === "lend"
+                            ? deleteReviewBalance.balance -
+                              deleteConfirmPayload.row.amount
+                            : deleteReviewBalance.balance +
+                              deleteConfirmPayload.row.amount;
+                        return (
+                          <p
+                            className={
+                              balanceAfter >= 0
+                                ? "font-medium text-amber-800"
+                                : "font-medium text-green-800"
+                            }
+                          >
+                            After this delete:{" "}
+                            {deleteConfirmPayload.type === "lend"
+                              ? "Total Lends"
+                              : "Total Deposits"}{" "}
+                            will decrease by ₹
+                            {deleteConfirmPayload.row.amount.toFixed(2)} →
+                            Balance will be ₹
+                            {Math.abs(balanceAfter).toFixed(2)}
+                            {balanceAfter > 0 && (
+                              <span className="ml-1 text-gray-500 font-normal">
+                                (you owe them)
+                              </span>
+                            )}
+                            {balanceAfter < 0 && (
+                              <span className="ml-1 text-gray-500 font-normal">
+                                (they owe you)
+                              </span>
+                            )}
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!deleteConfirmPayload) return;
+                  if (deleteConfirmPayload.type === "lend")
+                    deleteLend.mutate(deleteConfirmPayload.row.id);
+                  else if (deleteConfirmPayload.type === "deposit")
+                    deleteDeposit.mutate(deleteConfirmPayload.row.id);
+                  else deletePurchase.mutate(deleteConfirmPayload.row.id);
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+                disabled={
+                  deleteLend.isPending ||
+                  deleteDeposit.isPending ||
+                  deletePurchase.isPending
+                }
+                className="px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"
+              >
+                {deleteLend.isPending ||
+                deleteDeposit.isPending ||
+                deletePurchase.isPending
+                  ? "Deleting…"
+                  : "Confirm Delete"}
               </button>
             </div>
           </div>
