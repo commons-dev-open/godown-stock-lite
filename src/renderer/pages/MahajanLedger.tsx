@@ -9,6 +9,8 @@ import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import TransactionTypeBadge from "../components/TransactionTypeBadge";
 import LedgerRowActions from "../components/LedgerRowActions";
+import AddLendModal from "../components/AddLendModal";
+import AddDepositModal from "../components/AddDepositModal";
 import { formatDateForView, formatDateForForm } from "../lib/date";
 import type {
   LedgerRow,
@@ -33,6 +35,8 @@ export default function MahajanLedger() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [lendModalOpen, setLendModalOpen] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [editLendDate, setEditLendDate] = useState("");
   const [editDepositDate, setEditDepositDate] = useState("");
 
@@ -187,17 +191,35 @@ export default function MahajanLedger() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          ← Back
-        </button>
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Ledger: {mahajan?.name ?? `ID ${id}`}
-        </h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ← Back
+          </button>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Ledger: {mahajan?.name ?? `ID ${id}`}
+          </h1>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setLendModalOpen(true)}
+            className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
+          >
+            AddLend
+          </button>
+          <button
+            type="button"
+            onClick={() => setDepositModalOpen(true)}
+            className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
+          >
+            Deposit
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
@@ -537,6 +559,18 @@ export default function MahajanLedger() {
           </form>
         )}
       </FormModal>
+
+      <AddLendModal
+        open={lendModalOpen}
+        onClose={() => setLendModalOpen(false)}
+        fixedMahajanId={id}
+        fixedMahajanName={mahajan?.name}
+      />
+      <AddDepositModal
+        open={depositModalOpen}
+        onClose={() => setDepositModalOpen(false)}
+        fixedMahajanId={id}
+      />
 
       <FormModal
         title="Edit Deposit"
