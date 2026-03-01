@@ -14,7 +14,16 @@ npm run dist
 - **macOS:** `release/mac/Godown Stock Lite-1.0.0.dmg` (or similar).
 - **Windows:** `release/Godown Stock Lite Setup 1.0.0.exe` (NSIS installer).
 
-Build on the target OS (build on Mac → `.dmg`; build on Windows → `.exe`), or use CI (e.g. GitHub Actions) to produce both.
+Build on the target OS (build on Mac → `.dmg`; build on Windows → `.exe`), or use **GitHub Actions** to produce both for free (see below).
+
+### Building both with GitHub Actions (free)
+
+This repo includes `.github/workflows/build-release.yml`, which builds macOS and Windows installers on GitHub’s runners (free for public repos; private repos get 2,000 min/month).
+
+1. **Trigger on version tag:** Push a tag like `v1.0.0` → workflow runs and builds both platforms.
+2. **Trigger manually:** Actions → “Build release (macOS + Windows)” → “Run workflow”.
+
+When the run finishes, open the run → **Artifacts** and download `mac-installer` (`.dmg`) and `windows-installer` (`.exe`). Copy those to your USB or shared folder for offline delivery.
 
 ## 2. Deliver to the customer
 
