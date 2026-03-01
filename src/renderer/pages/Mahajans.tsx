@@ -33,6 +33,7 @@ import {
   getPrintTableBody,
   type MahajanSummaryForExport,
 } from "../lib/exportMahajans";
+import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
@@ -52,6 +53,11 @@ function totalBalanceClass(total: number): string {
 export default function Mahajans() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+  const appName = getAppDisplayName(settings);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Mahajan | null>(null);
   const [page, setPage] = useState(1);
@@ -236,7 +242,7 @@ export default function Mahajans() {
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    exportMahajansToPdf(data, summary, balances);
+    exportMahajansToPdf(data, summary, balances, appName);
     toast.success("Exported as PDF.");
   }
 
@@ -687,9 +693,7 @@ export default function Mahajans() {
           aria-hidden
         >
           <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">
-              Godown Stock Lite
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{appName}</p>
             <p className="text-xs text-gray-600">Mahajans</p>
             {printData.summary != null && (
               <div className="mt-2 space-y-1 text-xs">

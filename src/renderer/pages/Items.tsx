@@ -27,6 +27,7 @@ import {
   exportItemsToPdf,
   getPrintTableBody,
 } from "../lib/exportItems";
+import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
@@ -96,6 +97,12 @@ export default function Items() {
     getReferenceProps: getExportRefProps,
     getFloatingProps: getExportFloatingProps,
   } = useInteractions([exportClick, exportDismiss]);
+
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+  const appName = getAppDisplayName(settings);
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
@@ -246,7 +253,7 @@ export default function Items() {
       toast.error("No data to export.");
       return;
     }
-    exportItemsToPdf(allItems);
+    exportItemsToPdf(allItems, appName);
     toast.success("Exported as PDF.");
   }
 
@@ -1020,7 +1027,7 @@ export default function Items() {
         >
           <header className="items-print-header mb-4 border-b border-gray-200 pb-3">
             <p className="items-print-app-name text-sm font-semibold text-gray-900">
-              Godown Stock Lite
+              {appName}
             </p>
             <p className="items-print-report text-xs text-gray-600">
               Products & Stock

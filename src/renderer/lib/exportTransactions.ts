@@ -8,6 +8,7 @@ import {
   csvPrefixRowsForFilters,
   type AppliedFilter,
 } from "./exportUtils";
+import { DEFAULT_APP_NAME, MAX_DISPLAY_NAME_LEN } from "./displayName";
 
 export type TransactionExportRow = {
   type: string;
@@ -50,17 +51,22 @@ export function exportTransactionsToCsv(
   );
 }
 
-const APP_NAME = "Godown Stock Lite";
+function resolveAppName(appDisplayName?: string): string {
+  const raw = appDisplayName?.trim().slice(0, MAX_DISPLAY_NAME_LEN);
+  return raw || DEFAULT_APP_NAME;
+}
 
 export function exportTransactionsToPdf(
   rows: TransactionExportRow[],
-  appliedFilters?: AppliedFilter[]
+  appliedFilters?: AppliedFilter[],
+  appDisplayName?: string
 ): void {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const now = new Date();
+  const appName = resolveAppName(appDisplayName);
   let y = 10;
   doc.setFontSize(11);
-  doc.text(APP_NAME, 14, y);
+  doc.text(appName, 14, y);
   y += 6;
   doc.setFontSize(10);
   doc.text("Transactions", 14, y);

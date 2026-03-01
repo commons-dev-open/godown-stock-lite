@@ -14,6 +14,8 @@ const SETTING_KEYS = {
   owner_phone: "Phone",
 } as const;
 
+const DISPLAY_NAME_MAX = 25;
+
 export default function Settings() {
   const queryClient = useQueryClient();
   const api = getElectron();
@@ -29,6 +31,7 @@ export default function Settings() {
     for (const key of Object.keys(SETTING_KEYS)) {
       initial[key] = settings[key] ?? "";
     }
+    initial.displayName = settings.displayName ?? "";
     setForm(initial); // eslint-disable-line react-hooks/set-state-in-effect -- sync server settings to form when loaded
   }, [settings]);
 
@@ -41,7 +44,11 @@ export default function Settings() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSettingsMutation.mutate(form);
+    const payload = { ...form };
+    if (typeof payload.displayName === "string") {
+      payload.displayName = payload.displayName.trim().slice(0, DISPLAY_NAME_MAX);
+    }
+    setSettingsMutation.mutate(payload);
   };
 
   return (
@@ -77,7 +84,28 @@ export default function Settings() {
 
         <section className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Appearance</h2>
-          <div className="flex items-center gap-3">
+          <div className="space-y-4">
+            <FormField
+              label="App display name"
+              extra={
+                <p className="text-xs text-gray-500">
+                  Shown in header, PDFs and print (max {DISPLAY_NAME_MAX}{" "}
+                  characters). Leave blank for default.
+                </p>
+              }
+            >
+              <input
+                value={form.displayName ?? ""}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, displayName: e.target.value }))
+                }
+                maxLength={DISPLAY_NAME_MAX}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="Godown Stock Lite"
+              />
+            </FormField>
+          </div>
+          <div className="mt-4 flex items-center gap-3">
             <span className="text-sm text-gray-700">Theme (Dark / Light)</span>
             <span className="text-sm text-gray-500 italic">Coming soon</span>
           </div>

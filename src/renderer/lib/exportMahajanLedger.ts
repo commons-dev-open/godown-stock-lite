@@ -9,6 +9,7 @@ import {
   csvPrefixRowsForFilters,
   type AppliedFilter,
 } from "./exportUtils";
+import { DEFAULT_APP_NAME, MAX_DISPLAY_NAME_LEN } from "./displayName";
 import type { LedgerRow } from "../../shared/types";
 
 export interface MahajanBalanceForExport {
@@ -41,7 +42,10 @@ export function exportMahajanLedgerToCsv(
   downloadCsv(header, dataRows, `mahajan-ledger-${safeName}-${date}.csv`, prefixRows);
 }
 
-const APP_NAME = "Godown Stock Lite";
+function resolveAppName(appDisplayName?: string): string {
+  const raw = appDisplayName?.trim().slice(0, MAX_DISPLAY_NAME_LEN);
+  return raw || DEFAULT_APP_NAME;
+}
 // jsPDF default font does not support ₹ (U+20B9); use "Rs." so PDF renders correctly
 const PDF_RUPEE = "Rs. ";
 
@@ -49,13 +53,15 @@ export function exportMahajanLedgerToPdf(
   rows: LedgerRow[],
   mahajanName: string,
   balance: MahajanBalanceForExport | null,
-  appliedFilters?: AppliedFilter[]
+  appliedFilters?: AppliedFilter[],
+  appDisplayName?: string
 ): void {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const now = new Date();
+  const appName = resolveAppName(appDisplayName);
   let y = 10;
   doc.setFontSize(11);
-  doc.text(APP_NAME, 14, y);
+  doc.text(appName, 14, y);
   y += 6;
   doc.setFontSize(10);
   doc.text("Mahajan Ledger", 14, y);

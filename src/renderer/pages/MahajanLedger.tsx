@@ -32,6 +32,7 @@ import {
   getPrintTableBody,
   type MahajanBalanceForExport,
 } from "../lib/exportMahajanLedger";
+import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
@@ -56,6 +57,11 @@ export default function MahajanLedger() {
   const navigate = useNavigate();
   const api = getElectron();
   const queryClient = useQueryClient();
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+  const appName = getAppDisplayName(settings);
   const id = Number(mahajanId);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
@@ -348,7 +354,8 @@ export default function MahajanLedger() {
       filteredLedger,
       mahajanLabel,
       balance ?? null,
-      appliedFilters
+      appliedFilters,
+      appName
     );
     toast.success("Exported as PDF.");
   }
@@ -1491,9 +1498,7 @@ export default function MahajanLedger() {
           aria-hidden
         >
           <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">
-              Godown Stock Lite
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{appName}</p>
             <p className="text-xs text-gray-600">Mahajan Ledger</p>
             <p className="text-xs text-gray-700">
               Mahajan: {printData.mahajanName}

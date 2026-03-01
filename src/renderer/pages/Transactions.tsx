@@ -32,6 +32,7 @@ import {
   getPrintTableBody,
   type TransactionExportRow,
 } from "../lib/exportTransactions";
+import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
@@ -102,6 +103,11 @@ function amountColorClass(type: string): string {
 export default function Transactions() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+  const appName = getAppDisplayName(settings);
   const [lendOpen, setLendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
@@ -603,7 +609,7 @@ export default function Transactions() {
       toast.error("No data to export.");
       return;
     }
-    exportTransactionsToPdf(data, appliedFilters);
+    exportTransactionsToPdf(data, appliedFilters, appName);
     toast.success("Exported as PDF.");
   }
 
@@ -2943,9 +2949,7 @@ export default function Transactions() {
           aria-hidden
         >
           <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">
-              Godown Stock Lite
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{appName}</p>
             <p className="text-xs text-gray-600">Transactions</p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (

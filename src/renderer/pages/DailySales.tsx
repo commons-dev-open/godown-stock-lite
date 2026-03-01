@@ -27,6 +27,7 @@ import {
   exportDailySalesToPdf,
   getPrintTableBody,
 } from "../lib/exportDailySales";
+import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
   ArrowDownTrayIcon,
@@ -42,6 +43,11 @@ import { formatDecimal } from "../../shared/numbers";
 export default function DailySales() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+  const appName = getAppDisplayName(settings);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<DailySale | null>(null);
   const [page, setPage] = useState(1);
@@ -179,7 +185,7 @@ export default function DailySales() {
       toast.error("No data to export.");
       return;
     }
-    exportDailySalesToPdf(data, appliedFilters);
+    exportDailySalesToPdf(data, appliedFilters, appName);
     toast.success("Exported as PDF.");
   }
 
@@ -567,9 +573,7 @@ export default function DailySales() {
           aria-hidden
         >
           <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">
-              Godown Stock Lite
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{appName}</p>
             <p className="text-xs text-gray-600">Daily Sales</p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
