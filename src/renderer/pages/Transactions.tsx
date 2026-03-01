@@ -60,6 +60,13 @@ const emptyPurchaseLine = (): PurchaseLine => ({
   amount: 0,
 });
 
+function amountColorClass(type: string): string {
+  if (type === "lend") return "text-amber-600";
+  if (type === "deposit") return "text-green-600";
+  if (type === "cash_purchase") return "text-blue-600";
+  return "text-gray-900";
+}
+
 export default function Transactions() {
   const queryClient = useQueryClient();
   const api = getElectron();
@@ -98,6 +105,40 @@ export default function Transactions() {
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([
     emptyPurchaseLine(),
   ]);
+  const [confirmEditLendOpen, setConfirmEditLendOpen] = useState(false);
+  const [confirmEditLendPayload, setConfirmEditLendPayload] = useState<{
+    record: MahajanLend;
+    newValues: {
+      mahajan_id: number;
+      mahajanName: string;
+      transaction_date: string;
+      product_id: number | null;
+      product_name: string | null;
+      quantity: number;
+      amount: number;
+      notes: string | null;
+    };
+  } | null>(null);
+  const [confirmEditDepositOpen, setConfirmEditDepositOpen] = useState(false);
+  const [confirmEditDepositPayload, setConfirmEditDepositPayload] = useState<{
+    record: MahajanDeposit;
+    newValues: {
+      transaction_date: string;
+      amount: number;
+      notes: string | null;
+    };
+  } | null>(null);
+  const [confirmEditPurchaseOpen, setConfirmEditPurchaseOpen] = useState(false);
+  const [confirmEditPurchasePayload, setConfirmEditPurchasePayload] =
+    useState<{
+      record: PurchaseRow;
+      newValues: {
+        transaction_date: string;
+        quantity: number;
+        amount: number;
+        notes: string | null;
+      };
+    } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [lendFormDate, setLendFormDate] = useState(todayISO());
   const [depositFormDate, setDepositFormDate] = useState(todayISO());
@@ -167,6 +208,19 @@ export default function Transactions() {
     queryFn: () => api.getMahajanBalance(confirmPayload!.mahajan_id),
     enabled: confirmLendOpen && !!confirmPayload?.mahajan_id,
   });
+
+  const editReviewMahajanId =
+    confirmEditLendOpen && confirmEditLendPayload
+      ? confirmEditLendPayload.newValues.mahajan_id
+      : confirmEditDepositOpen && confirmEditDepositPayload
+        ? confirmEditDepositPayload.record.mahajan_id
+        : null;
+  const { data: editReviewBalance, isFetching: editReviewBalanceLoading } =
+    useQuery({
+      queryKey: ["mahajanBalance", editReviewMahajanId],
+      queryFn: () => api.getMahajanBalance(editReviewMahajanId!),
+      enabled: !!editReviewMahajanId && (confirmEditLendOpen || confirmEditDepositOpen),
+    });
 
   const createLendBatch = useMutation({
     mutationFn: (payload: {
@@ -627,7 +681,9 @@ export default function Transactions() {
                             return "—";
                           })()}
                         </td>
-                        <td className="px-4 py-2 text-sm text-right font-medium text-gray-900">
+                        <td
+                          className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass(row.type)}`}
+                        >
                           ₹{row.amount.toFixed(2)}
                         </td>
                         <td
@@ -766,102 +822,109 @@ export default function Transactions() {
                 + Add product
               </button>
             </div>
-            {lendLines.map((line, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Product
-                  </label>
-                  <select
-                    name={`product_id_${idx}`}
-                    required={idx === 0}
-                    value={line.product_id || ""}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      const item = itemList.find((i) => i.id === id);
-                      setLendLines((prev) => {
-                        const next = [...prev];
-                        next[idx] = {
-                          ...next[idx],
-                          product_id: id,
-                          product_name: item?.name ?? "",
-                        };
-                        return next;
-                      });
-                    }}
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  >
-                    <option value="">—</option>
-                    {itemList.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Qty
-                  </label>
-                  <input
-                    name={`quantity_${idx}`}
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    value={line.quantity || ""}
-                    onChange={(e) =>
-                      setLendLines((prev) => {
-                        const n = [...prev];
-                        n[idx] = {
-                          ...n[idx],
-                          quantity: Number(e.target.value) || 0,
-                        };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-0.5">
-                    Amount
-                  </label>
-                  <input
-                    name={`amount_${idx}`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.01"
-                    value={line.amount || ""}
-                    onChange={(e) =>
-                      setLendLines((prev) => {
-                        const n = [...prev];
-                        n[idx] = {
-                          ...n[idx],
-                          amount: Number(e.target.value) || 0,
-                        };
-                        return n;
-                      })
-                    }
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2 flex items-end">
-                  {lendLines.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLendLines((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                      className="text-red-600 hover:text-red-700 text-sm py-1.5"
+            {lendLines.map((line, idx) => {
+              const selectedItem = line.product_id
+                ? (items as Item[]).find((i) => i.id === line.product_id)
+                : undefined;
+              return (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Product
+                    </label>
+                    <select
+                      name={`product_id_${idx}`}
+                      required={idx === 0}
+                      value={line.product_id || ""}
+                      onChange={(e) => {
+                        const id = Number(e.target.value);
+                        const item = itemList.find((i) => i.id === id);
+                        setLendLines((prev) => {
+                          const next = [...prev];
+                          next[idx] = {
+                            ...next[idx],
+                            product_id: id,
+                            product_name: item?.name ?? "",
+                          };
+                          return next;
+                        });
+                      }}
+                      className="w-full border rounded px-2 py-1.5 text-sm"
                     >
-                      Remove
-                    </button>
-                  ) : null}
+                      <option value="">—</option>
+                      {itemList.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Qty{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
+                    </label>
+                    <input
+                      name={`quantity_${idx}`}
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      step="1"
+                      value={line.quantity || ""}
+                      onChange={(e) =>
+                        setLendLines((prev) => {
+                          const n = [...prev];
+                          n[idx] = {
+                            ...n[idx],
+                            quantity: Number(e.target.value) || 0,
+                          };
+                          return n;
+                        })
+                      }
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-gray-500 mb-0.5">
+                      Amount
+                    </label>
+                    <input
+                      name={`amount_${idx}`}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={line.amount || ""}
+                      onChange={(e) =>
+                        setLendLines((prev) => {
+                          const n = [...prev];
+                          n[idx] = {
+                            ...n[idx],
+                            amount: Number(e.target.value) || 0,
+                          };
+                          return n;
+                        })
+                      }
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-end">
+                    {lendLines.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLendLines((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="text-red-600 hover:text-red-700 text-sm py-1.5"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1094,8 +1157,12 @@ export default function Transactions() {
 
       <FormModal
         title="Edit Lend"
-        open={!!editingLend}
-        onClose={() => setEditingLend(null)}
+        open={!!editingLend && !confirmEditLendOpen}
+        onClose={() => {
+          setEditingLend(null);
+          setConfirmEditLendOpen(false);
+          setConfirmEditLendPayload(null);
+        }}
         maxWidth="max-w-3xl"
       >
         {editingLend && (
@@ -1104,30 +1171,39 @@ export default function Transactions() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
+              const mahajanId = Number(
+                (form.mahajan_id as HTMLSelectElement).value
+              );
               const productId = (form.product_id as HTMLSelectElement)?.value
                 ? Number((form.product_id as HTMLSelectElement).value)
                 : null;
               const item = productId
                 ? itemList.find((i) => i.id === productId)
                 : undefined;
-              if (!editLendDate) return;
-              updateLend.mutate({
-                id: editingLend.id,
-                l: {
-                  mahajan_id: Number(
-                    (form.mahajan_id as HTMLSelectElement).value
-                  ),
+              if (!editLendDate || !mahajanId) return;
+              const mahajan = mahajanList.find((m) => m.id === mahajanId);
+              const newQty =
+                Number((form.quantity as HTMLInputElement).value) || 0;
+              const newAmount = Number(
+                (form.amount as HTMLInputElement).value
+              );
+              const newNotes =
+                (form.notes as HTMLInputElement).value?.trim() || null;
+              setConfirmEditLendPayload({
+                record: editingLend,
+                newValues: {
+                  mahajan_id: mahajanId,
+                  mahajanName: mahajan?.name ?? "",
                   transaction_date: editLendDate,
                   product_id: productId || null,
                   product_name:
-                    item?.name ?? editingLend.product_name ?? undefined,
-                  quantity:
-                    Number((form.quantity as HTMLInputElement).value) || 0,
-                  amount: Number((form.amount as HTMLInputElement).value),
-                  notes:
-                    (form.notes as HTMLInputElement).value?.trim() || undefined,
+                    item?.name ?? editingLend.product_name ?? null,
+                  quantity: newQty,
+                  amount: newAmount,
+                  notes: newNotes || null,
                 },
               });
+              setConfirmEditLendOpen(true);
             }}
           >
             <div>
@@ -1226,7 +1302,7 @@ export default function Transactions() {
                 type="submit"
                 className="px-3 py-1.5 bg-amber-600 text-white rounded"
               >
-                Update
+                Review &amp; Update
               </button>
             </div>
           </form>
@@ -1234,9 +1310,196 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
+        title="Review & Update Lend"
+        open={confirmEditLendOpen}
+        onClose={() => {
+          setConfirmEditLendOpen(false);
+          setConfirmEditLendPayload(null);
+        }}
+        maxWidth="max-w-3xl"
+      >
+        {confirmEditLendPayload && (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-700">
+              Summary of changes
+            </p>
+            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-left p-2">Field</th>
+                    <th className="text-left p-2">Current</th>
+                    <th className="text-left p-2">After update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Date</td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditLendPayload.record.transaction_date
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditLendPayload.newValues.transaction_date
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Mahajan</td>
+                    <td className="p-2">
+                      {mahajanList.find(
+                        (m) => m.id === confirmEditLendPayload.record.mahajan_id
+                      )?.name ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.newValues.mahajanName}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Product</td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.record.product_name ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.newValues.product_name ?? "—"}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Quantity</td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.record.quantity ?? 0}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.newValues.quantity}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Amount (₹)</td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.record.amount.toFixed(2)}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.newValues.amount.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Notes</td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.record.notes ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditLendPayload.newValues.notes ?? "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded border border-amber-100 bg-amber-50 p-3 space-y-2 text-sm">
+              <p className="font-medium text-amber-900">Impact after update</p>
+              <p className="text-gray-700">
+                <strong>Stock:</strong>{" "}
+                {confirmEditLendPayload.record.product_id != null ? (
+                  (() => {
+                    const item = (
+                      items as { id: number; current_stock: number }[]
+                    ).find(
+                      (i) => i.id === confirmEditLendPayload!.record.product_id!
+                    );
+                    const oldStock = item?.current_stock ?? 0;
+                    const qtyDelta =
+                      confirmEditLendPayload.newValues.quantity -
+                      (confirmEditLendPayload.record.quantity ?? 0);
+                    const newStock = oldStock + qtyDelta;
+                    return (
+                      <>
+                        Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
+                        {qtyDelta} → <strong>{newStock}</strong> after update
+                      </>
+                    );
+                  })()
+                ) : (
+                  "Product changed; stock impact applies to new product."
+                )}
+              </p>
+              {editReviewBalanceLoading ? (
+                <p className="text-gray-500">Loading balance…</p>
+              ) : editReviewBalance != null ? (
+                <div className="space-y-1 text-gray-700">
+                  <p>
+                    <strong>Mahajan balance:</strong> Total Lends ₹
+                    {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
+                    {editReviewBalance.totalDeposits.toFixed(2)} → Balance ₹
+                    {editReviewBalance.balance.toFixed(2)}
+                  </p>
+                  <p className="font-medium text-amber-800">
+                    After this update: Total Lends will change by ₹
+                    {(
+                      confirmEditLendPayload.newValues.amount -
+                      confirmEditLendPayload.record.amount
+                    ).toFixed(2)}{" "}
+                    → Balance will be ₹
+                    {(
+                      editReviewBalance.balance -
+                      confirmEditLendPayload.record.amount +
+                      confirmEditLendPayload.newValues.amount
+                    ).toFixed(2)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEditLendOpen(false);
+                  setConfirmEditLendPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmEditLendPayload) return;
+                  updateLend.mutate({
+                    id: confirmEditLendPayload.record.id,
+                    l: {
+                      mahajan_id: confirmEditLendPayload.newValues.mahajan_id,
+                      transaction_date:
+                        confirmEditLendPayload.newValues.transaction_date,
+                      product_id: confirmEditLendPayload.newValues.product_id,
+                      product_name:
+                        confirmEditLendPayload.newValues.product_name ?? undefined,
+                      quantity: confirmEditLendPayload.newValues.quantity,
+                      amount: confirmEditLendPayload.newValues.amount,
+                      notes: confirmEditLendPayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditLendOpen(false);
+                  setConfirmEditLendPayload(null);
+                  setEditingLend(null);
+                }}
+                disabled={updateLend.isPending}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
+              >
+                {updateLend.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </div>
+          </div>
+        )}
+      </FormModal>
+
+      <FormModal
         title="Edit Deposit"
-        open={!!editingDeposit}
-        onClose={() => setEditingDeposit(null)}
+        open={!!editingDeposit && !confirmEditDepositOpen}
+        onClose={() => {
+          setEditingDeposit(null);
+          setConfirmEditDepositOpen(false);
+          setConfirmEditDepositPayload(null);
+        }}
       >
         {editingDeposit && (
           <form
@@ -1245,14 +1508,18 @@ export default function Transactions() {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
               if (!editDepositDate) return;
-              updateDeposit.mutate({
-                id: editingDeposit.id,
-                d: {
+              const newAmount = Number((form.amount as HTMLInputElement).value);
+              const newNotes =
+                (form.notes as HTMLInputElement).value?.trim() || null;
+              setConfirmEditDepositPayload({
+                record: editingDeposit,
+                newValues: {
                   transaction_date: editDepositDate,
-                  amount: Number((form.amount as HTMLInputElement).value),
-                  notes: (form.notes as HTMLInputElement).value || undefined,
+                  amount: newAmount,
+                  notes: newNotes,
                 },
               });
+              setConfirmEditDepositOpen(true);
             }}
           >
             <div>
@@ -1302,10 +1569,135 @@ export default function Transactions() {
                 type="submit"
                 className="px-3 py-1.5 bg-green-600 text-white rounded"
               >
-                Update
+                Review &amp; Update
               </button>
             </div>
           </form>
+        )}
+      </FormModal>
+
+      <FormModal
+        title="Review & Update Deposit"
+        open={confirmEditDepositOpen}
+        onClose={() => {
+          setConfirmEditDepositOpen(false);
+          setConfirmEditDepositPayload(null);
+        }}
+        maxWidth="max-w-lg"
+      >
+        {confirmEditDepositPayload && (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-700">
+              Summary of changes
+            </p>
+            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-left p-2">Field</th>
+                    <th className="text-left p-2">Current</th>
+                    <th className="text-left p-2">After update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Date</td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditDepositPayload.record.transaction_date
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditDepositPayload.newValues.transaction_date
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Amount (₹)</td>
+                    <td className="p-2">
+                      {confirmEditDepositPayload.record.amount.toFixed(2)}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditDepositPayload.newValues.amount.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Notes</td>
+                    <td className="p-2">
+                      {confirmEditDepositPayload.record.notes ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditDepositPayload.newValues.notes ?? "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded border border-green-100 bg-green-50 p-3 space-y-2 text-sm">
+              <p className="font-medium text-green-900">Impact after update</p>
+              {editReviewBalanceLoading ? (
+                <p className="text-gray-500">Loading balance…</p>
+              ) : editReviewBalance != null ? (
+                <div className="space-y-1 text-gray-700">
+                  <p>
+                    <strong>Mahajan balance:</strong> Total Lends ₹
+                    {editReviewBalance.totalLends.toFixed(2)}, Total Deposits ₹
+                    {editReviewBalance.totalDeposits.toFixed(2)} → Balance ₹
+                    {editReviewBalance.balance.toFixed(2)}
+                  </p>
+                  <p className="font-medium text-green-800">
+                    After this update: Total Deposits will change by ₹
+                    {(
+                      confirmEditDepositPayload.newValues.amount -
+                      confirmEditDepositPayload.record.amount
+                    ).toFixed(2)}{" "}
+                    → Balance will be ₹
+                    {(
+                      editReviewBalance.balance +
+                      confirmEditDepositPayload.record.amount -
+                      confirmEditDepositPayload.newValues.amount
+                    ).toFixed(2)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEditDepositOpen(false);
+                  setConfirmEditDepositPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmEditDepositPayload) return;
+                  updateDeposit.mutate({
+                    id: confirmEditDepositPayload.record.id,
+                    d: {
+                      transaction_date:
+                        confirmEditDepositPayload.newValues.transaction_date,
+                      amount: confirmEditDepositPayload.newValues.amount,
+                      notes:
+                        confirmEditDepositPayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditDepositOpen(false);
+                  setConfirmEditDepositPayload(null);
+                  setEditingDeposit(null);
+                }}
+                disabled={updateDeposit.isPending}
+                className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
+              >
+                {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </div>
+          </div>
         )}
       </FormModal>
 
@@ -1624,8 +2016,12 @@ export default function Transactions() {
 
       <FormModal
         title="Edit Cash purchase"
-        open={!!editingPurchase}
-        onClose={() => setEditingPurchase(null)}
+        open={!!editingPurchase && !confirmEditPurchaseOpen}
+        onClose={() => {
+          setEditingPurchase(null);
+          setConfirmEditPurchaseOpen(false);
+          setConfirmEditPurchasePayload(null);
+        }}
       >
         {editingPurchase && (
           <form
@@ -1634,15 +2030,22 @@ export default function Transactions() {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
               if (!editPurchaseDate) return;
-              updatePurchase.mutate({
-                id: editingPurchase.id,
-                p: {
+              const newQty = Number(
+                (form.quantity as HTMLInputElement).value
+              );
+              const newAmount = Number((form.amount as HTMLInputElement).value);
+              const newNotes =
+                (form.notes as HTMLInputElement).value?.trim() || null;
+              setConfirmEditPurchasePayload({
+                record: editingPurchase,
+                newValues: {
                   transaction_date: editPurchaseDate,
-                  quantity: Number((form.quantity as HTMLInputElement).value),
-                  amount: Number((form.amount as HTMLInputElement).value),
-                  notes: (form.notes as HTMLInputElement).value || undefined,
+                  quantity: newQty,
+                  amount: newAmount,
+                  notes: newNotes,
                 },
               });
+              setConfirmEditPurchaseOpen(true);
             }}
           >
             <div>
@@ -1718,10 +2121,152 @@ export default function Transactions() {
                 type="submit"
                 className="px-3 py-1.5 bg-blue-600 text-white rounded"
               >
-                Update
+                Review &amp; Update
               </button>
             </div>
           </form>
+        )}
+      </FormModal>
+
+      <FormModal
+        title="Review & Update Cash purchase"
+        open={confirmEditPurchaseOpen}
+        onClose={() => {
+          setConfirmEditPurchaseOpen(false);
+          setConfirmEditPurchasePayload(null);
+        }}
+        maxWidth="max-w-lg"
+      >
+        {confirmEditPurchasePayload && (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-700">
+              Summary of changes
+            </p>
+            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-left p-2">Field</th>
+                    <th className="text-left p-2">Current</th>
+                    <th className="text-left p-2">After update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Date</td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditPurchasePayload.record.transaction_date
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {formatDateForView(
+                        confirmEditPurchasePayload.newValues.transaction_date
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Product</td>
+                    <td className="p-2" colSpan={2}>
+                      {confirmEditPurchasePayload.record.product_name ?? "—"}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Quantity</td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.record.quantity}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.newValues.quantity}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Amount (₹)</td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.record.amount.toFixed(2)}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.newValues.amount.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="p-2 font-medium">Notes</td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.record.notes ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      {confirmEditPurchasePayload.newValues.notes ?? "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded border border-blue-100 bg-blue-50 p-3 space-y-2 text-sm">
+              <p className="font-medium text-blue-900">Impact after update</p>
+              <p className="text-gray-700">
+                <strong>Stock:</strong>{" "}
+                {confirmEditPurchasePayload.record.product_id != null ? (
+                  (() => {
+                    const item = (
+                      items as { id: number; current_stock: number }[]
+                    ).find(
+                      (i) =>
+                        i.id === confirmEditPurchasePayload!.record.product_id!
+                    );
+                    const oldStock = item?.current_stock ?? 0;
+                    const qtyDelta =
+                      confirmEditPurchasePayload.newValues.quantity -
+                      confirmEditPurchasePayload.record.quantity;
+                    const newStock = oldStock + qtyDelta;
+                    return (
+                      <>
+                        Current stock {oldStock} → {qtyDelta >= 0 ? "+" : ""}
+                        {qtyDelta} → <strong>{newStock}</strong> after update
+                      </>
+                    );
+                  })()
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEditPurchaseOpen(false);
+                  setConfirmEditPurchasePayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmEditPurchasePayload) return;
+                  updatePurchase.mutate({
+                    id: confirmEditPurchasePayload.record.id,
+                    p: {
+                      transaction_date:
+                        confirmEditPurchasePayload.newValues.transaction_date,
+                      quantity: confirmEditPurchasePayload.newValues.quantity,
+                      amount: confirmEditPurchasePayload.newValues.amount,
+                      notes:
+                        confirmEditPurchasePayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditPurchaseOpen(false);
+                  setConfirmEditPurchasePayload(null);
+                  setEditingPurchase(null);
+                }}
+                disabled={updatePurchase.isPending}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-50"
+              >
+                {updatePurchase.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </div>
+          </div>
         )}
       </FormModal>
     </div>

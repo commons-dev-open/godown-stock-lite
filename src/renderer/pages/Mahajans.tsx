@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
@@ -15,6 +15,10 @@ export default function Mahajans() {
   const [editing, setEditing] = useState<Mahajan | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [balances, setBalances] = useState<Record<number, number>>({});
+  const [loadingBalanceId, setLoadingBalanceId] = useState<number | null>(null);
+  const [autoShowBalance, setAutoShowBalance] = useState(false);
+  const [loadingBalancesPage, setLoadingBalancesPage] = useState(false);
 
   const { data: pageResult, isLoading } = useQuery({
     queryKey: ["mahajansPage", search, page],
@@ -30,6 +34,38 @@ export default function Mahajans() {
   });
   const mahajansPage = pageResult?.data ?? [];
   const totalMahajans = pageResult?.total ?? 0;
+
+  async function loadBalance(mahajanId: number) {
+    setLoadingBalanceId(mahajanId);
+    try {
+      const result = (await api.getMahajanBalance(mahajanId)) as {
+        balance: number;
+      };
+      setBalances((prev) => ({ ...prev, [mahajanId]: result.balance }));
+    } finally {
+      setLoadingBalanceId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!autoShowBalance || mahajansPage.length === 0) return;
+    setLoadingBalancesPage(true);
+    Promise.all(
+      mahajansPage.map((r) =>
+        (api.getMahajanBalance(r.id) as Promise<{ balance: number }>).then(
+          (res) => ({ id: r.id, balance: res.balance })
+        )
+      )
+    )
+      .then((results) => {
+        setBalances((prev) => {
+          const next = { ...prev };
+          for (const { id, balance } of results) next[id] = balance;
+          return next;
+        });
+      })
+      .finally(() => setLoadingBalancesPage(false));
+  }, [autoShowBalance, mahajansPage]);
 
   const createMahajan = useMutation({
     mutationFn: (m: {
@@ -105,6 +141,17 @@ export default function Mahajans() {
               Clear filters
             </button>
           )}
+          <label className="flex items-center gap-2 shrink-0 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoShowBalance}
+              onChange={(e) => setAutoShowBalance(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">
+              Calculate and show balance
+            </span>
+          </label>
         </div>
       </div>
 
@@ -122,6 +169,48 @@ export default function Mahajans() {
                 { key: "name", label: "Name" },
                 { key: "address", label: "Address" },
                 { key: "phone", label: "Phone" },
+                {
+                  key: "balance",
+                  label: "Balance (Lend − Deposit)",
+                  render: (row) => {
+                    const bal = balances[row.id];
+                    if (bal !== undefined) {
+                      let colorClass = "text-gray-500";
+                      if (bal > 0) colorClass = "text-red-600 font-medium";
+                      else if (bal < 0)
+                        colorClass = "text-green-600 font-medium";
+                      let hint = "";
+                      if (bal > 0) hint = " (you owe)";
+                      else if (bal < 0) hint = " (they owe)";
+                      return (
+                        <span className={colorClass}>
+                          ₹{Math.abs(bal).toFixed(2)}
+                          {hint && (
+                            <span className="text-gray-500 font-normal">
+                              {hint}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    }
+                    if (autoShowBalance && loadingBalancesPage) {
+                      return (
+                        <span className="text-gray-400 text-sm">Loading…</span>
+                      );
+                    }
+                    const loading = loadingBalanceId === row.id;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => loadBalance(row.id)}
+                        disabled={loading}
+                        className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? "Loading…" : "View balance"}
+                      </button>
+                    );
+                  },
+                },
                 {
                   key: "id",
                   label: "Details",
@@ -165,11 +254,14 @@ export default function Mahajans() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
+            const get = (n: string) =>
+              (form.elements.namedItem(n) as HTMLInputElement | null)?.value ??
+              "";
             createMahajan.mutate({
-              name: (form.name as HTMLInputElement).value,
-              address: (form.address as HTMLInputElement).value || undefined,
-              phone: (form.phone as HTMLInputElement).value || undefined,
-              gstin: (form.gstin as HTMLInputElement).value || undefined,
+              name: get("name"),
+              address: get("address") || undefined,
+              phone: get("phone") || undefined,
+              gstin: get("gstin") || undefined,
             });
           }}
         >
@@ -230,14 +322,16 @@ export default function Mahajans() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
+              const get = (n: string) =>
+                (form.elements.namedItem(n) as HTMLInputElement | null)
+                  ?.value ?? "";
               updateMahajan.mutate({
                 id: editing.id,
                 m: {
-                  name: (form.name as HTMLInputElement).value,
-                  address:
-                    (form.address as HTMLInputElement).value || undefined,
-                  phone: (form.phone as HTMLInputElement).value || undefined,
-                  gstin: (form.gstin as HTMLInputElement).value || undefined,
+                  name: get("name"),
+                  address: get("address") || undefined,
+                  phone: get("phone") || undefined,
+                  gstin: get("gstin") || undefined,
                 },
               });
             }}

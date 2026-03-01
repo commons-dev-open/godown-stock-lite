@@ -157,9 +157,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("units:create", (_, name: string) => {
     const trimmed = typeof name === "string" ? name.trim() : "";
     if (!trimmed) throw new Error("Unit name is required.");
-    db()
-      .prepare("INSERT OR IGNORE INTO units (name) VALUES (?)")
-      .run(trimmed);
+    db().prepare("INSERT OR IGNORE INTO units (name) VALUES (?)").run(trimmed);
     return trimmed;
   });
 
