@@ -5,12 +5,15 @@ const electronAPI = {
   getItems: () => ipcRenderer.invoke("items:getAll"),
   getItemsPage: (opts: { search?: string; page?: number; limit?: number }) =>
     ipcRenderer.invoke("items:getPage", opts),
+  getItemById: (id: number) => ipcRenderer.invoke("items:getById", id),
   createItem: (item: {
     name: string;
     code?: string;
     unit: string;
-    current_stock: number;
+    retail_primary_unit?: string | null;
+    current_stock?: number;
     reorder_level?: number;
+    other_units?: { unit: string; sort_order?: number }[];
   }) => ipcRenderer.invoke("items:create", item),
   updateItem: (
     id: number,
@@ -18,8 +21,10 @@ const electronAPI = {
       name?: string;
       code?: string;
       unit?: string;
+      retail_primary_unit?: string | null;
       current_stock?: number;
       reorder_level?: number;
+      other_units?: { unit: string; sort_order?: number }[];
     }
   ) => ipcRenderer.invoke("items:update", id, item),
   deleteItem: (id: number) => ipcRenderer.invoke("items:delete", id),
@@ -29,7 +34,76 @@ const electronAPI = {
     ipcRenderer.invoke("items:reduceStock", id, quantity),
 
   getUnits: () => ipcRenderer.invoke("units:getAll"),
-  createUnit: (name: string) => ipcRenderer.invoke("units:create", name),
+  createUnit: (
+    nameOrPayload: string | { name: string; symbol?: string | null }
+  ) => ipcRenderer.invoke("units:create", nameOrPayload),
+  updateUnit: (
+    id: number,
+    payload: { name?: string; symbol?: string | null }
+  ) => ipcRenderer.invoke("units:update", id, payload),
+  deleteUnit: (id: number) => ipcRenderer.invoke("units:delete", id),
+
+  getInvoiceUnits: () => ipcRenderer.invoke("invoiceUnits:getAll"),
+  createInvoiceUnit: (payload: {
+    name: string;
+    symbol?: string | null;
+    sort_order?: number;
+  }) => ipcRenderer.invoke("invoiceUnits:create", payload),
+  updateInvoiceUnit: (
+    id: number,
+    payload: { name?: string; symbol?: string | null; sort_order?: number }
+  ) => ipcRenderer.invoke("invoiceUnits:update", id, payload),
+  deleteInvoiceUnit: (id: number) =>
+    ipcRenderer.invoke("invoiceUnits:delete", id),
+
+  getSettings: () => ipcRenderer.invoke("settings:getAll"),
+  getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
+  setSetting: (key: string, value: string) =>
+    ipcRenderer.invoke("settings:set", key, value),
+  setSettings: (obj: Record<string, string>) =>
+    ipcRenderer.invoke("settings:setBulk", obj),
+
+  getInvoices: () => ipcRenderer.invoke("invoices:getAll"),
+  getInvoicesPage: (opts: {
+    search?: string;
+    page?: number;
+    limit?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => ipcRenderer.invoke("invoices:getPage", opts),
+  getInvoiceById: (id: number) => ipcRenderer.invoke("invoices:getById", id),
+  createInvoice: (payload: {
+    invoice_number?: string | null;
+    customer_name?: string | null;
+    customer_address?: string | null;
+    invoice_date: string;
+    notes?: string | null;
+    lines: {
+      product_id: number;
+      product_name: string;
+      quantity: number;
+      unit: string;
+      price: number;
+    }[];
+  }) => ipcRenderer.invoke("invoices:create", payload),
+  updateInvoice: (
+    id: number,
+    payload: {
+      invoice_number?: string | null;
+      customer_name?: string | null;
+      customer_address?: string | null;
+      invoice_date?: string;
+      notes?: string | null;
+      lines: {
+        product_id: number;
+        product_name: string;
+        quantity: number;
+        unit: string;
+        price: number;
+      }[];
+    }
+  ) => ipcRenderer.invoke("invoices:update", id, payload),
+  deleteInvoice: (id: number) => ipcRenderer.invoke("invoices:delete", id),
 
   // Mahajans
   getMahajans: () => ipcRenderer.invoke("mahajans:getAll"),

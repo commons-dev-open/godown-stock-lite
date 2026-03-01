@@ -14,6 +14,19 @@ export function registerIpcHandlers(): void {
     return db().prepare("SELECT * FROM items ORDER BY name").all();
   });
 
+  ipcMain.handle("items:getById", (_, id: number) => {
+    const item = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
+      | Record<string, unknown>
+      | undefined;
+    if (!item) throw new Error("Item not found");
+    const otherUnits = db()
+      .prepare(
+        "SELECT id, unit, sort_order FROM item_other_units WHERE item_id = ? ORDER BY sort_order, unit"
+      )
+      .all(id) as { id: number; unit: string; sort_order: number }[];
+    return { ...item, other_units: otherUnits };
+  });
+
   ipcMain.handle(
     "items:getPage",
     (_, opts: { search?: string; page?: number; limit?: number }) => {
@@ -53,22 +66,39 @@ export function registerIpcHandlers(): void {
         name: string;
         code?: string;
         unit: string;
+        retail_primary_unit?: string | null;
         current_stock?: number;
         reorder_level?: number;
+        other_units?: { unit: string; sort_order?: number }[];
       }
     ) => {
       const result = db()
         .prepare(
-          "INSERT INTO items (name, code, unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?)"
+          "INSERT INTO items (name, code, unit, retail_primary_unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?)"
         )
         .run(
           item.name,
           item.code ?? null,
           item.unit || "pcs",
+          item.retail_primary_unit ?? null,
           roundDecimal(item.current_stock ?? 0),
           item.reorder_level != null ? roundDecimal(item.reorder_level) : null
         );
-      return result.lastInsertRowid;
+      const itemId = result.lastInsertRowid as number;
+      const otherUnits = item.other_units ?? [];
+      if (otherUnits.length > 0) {
+        const insertOther = db().prepare(
+          "INSERT INTO item_other_units (item_id, unit, sort_order) VALUES (?, ?, ?)"
+        );
+        for (const ou of otherUnits) {
+          insertOther.run(
+            itemId,
+            ou.unit,
+            typeof ou.sort_order === "number" ? ou.sort_order : 0
+          );
+        }
+      }
+      return itemId;
     }
   );
 
@@ -81,8 +111,10 @@ export function registerIpcHandlers(): void {
         name?: string;
         code?: string;
         unit?: string;
+        retail_primary_unit?: string | null;
         current_stock?: number;
         reorder_level?: number;
+        other_units?: { unit: string; sort_order?: number }[];
       }
     ) => {
       const row = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
@@ -90,6 +122,7 @@ export function registerIpcHandlers(): void {
             name: string;
             code: string | null;
             unit: string;
+            retail_primary_unit: string | null;
             current_stock: number;
             reorder_level: number | null;
           }
@@ -97,12 +130,15 @@ export function registerIpcHandlers(): void {
       if (!row) throw new Error("Item not found");
       db()
         .prepare(
-          "UPDATE items SET name = ?, code = ?, unit = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE items SET name = ?, code = ?, unit = ?, retail_primary_unit = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           item.name ?? row.name,
           item.code !== undefined ? item.code : row.code,
           item.unit ?? row.unit,
+          item.retail_primary_unit !== undefined
+            ? item.retail_primary_unit
+            : row.retail_primary_unit,
           roundDecimal(item.current_stock ?? row.current_stock),
           item.reorder_level !== undefined
             ? item.reorder_level != null
@@ -111,6 +147,20 @@ export function registerIpcHandlers(): void {
             : row.reorder_level,
           id
         );
+      db().prepare("DELETE FROM item_other_units WHERE item_id = ?").run(id);
+      const otherUnits = item.other_units ?? [];
+      if (otherUnits.length > 0) {
+        const insertOther = db().prepare(
+          "INSERT INTO item_other_units (item_id, unit, sort_order) VALUES (?, ?, ?)"
+        );
+        for (const ou of otherUnits) {
+          insertOther.run(
+            id,
+            ou.unit,
+            typeof ou.sort_order === "number" ? ou.sort_order : 0
+          );
+        }
+      }
       return id;
     }
   );
@@ -157,11 +207,392 @@ export function registerIpcHandlers(): void {
     return db().prepare("SELECT * FROM units ORDER BY name").all();
   });
 
-  ipcMain.handle("units:create", (_, name: string) => {
-    const trimmed = typeof name === "string" ? name.trim() : "";
-    if (!trimmed) throw new Error("Unit name is required.");
-    db().prepare("INSERT OR IGNORE INTO units (name) VALUES (?)").run(trimmed);
-    return trimmed;
+  ipcMain.handle(
+    "units:create",
+    (_, nameOrPayload: string | { name: string; symbol?: string | null }) => {
+      let name: string;
+      let symbol: string | null = null;
+      if (typeof nameOrPayload === "string") {
+        name = nameOrPayload.trim();
+      } else {
+        name =
+          typeof nameOrPayload?.name === "string"
+            ? nameOrPayload.name.trim()
+            : "";
+        symbol =
+          typeof nameOrPayload?.symbol === "string"
+            ? nameOrPayload.symbol.trim() || null
+            : null;
+      }
+      if (!name) throw new Error("Unit name is required.");
+      db()
+        .prepare("INSERT OR IGNORE INTO units (name, symbol) VALUES (?, ?)")
+        .run(name, symbol);
+      return name;
+    }
+  );
+
+  ipcMain.handle(
+    "units:update",
+    (_, id: number, payload: { name?: string; symbol?: string | null }) => {
+      const row = db().prepare("SELECT * FROM units WHERE id = ?").get(id) as
+        | { name: string; symbol: string | null }
+        | undefined;
+      if (!row) throw new Error("Unit not found");
+      const name =
+        typeof payload?.name === "string" ? payload.name.trim() : row.name;
+      if (!name) throw new Error("Unit name is required.");
+      const symbol =
+        payload?.symbol !== undefined
+          ? (typeof payload.symbol === "string"
+              ? payload.symbol.trim()
+              : null) || null
+          : row.symbol;
+      db()
+        .prepare("UPDATE units SET name = ?, symbol = ? WHERE id = ?")
+        .run(name, symbol, id);
+      return id;
+    }
+  );
+
+  ipcMain.handle("units:delete", (_, id: number) => {
+    const row = db()
+      .prepare("SELECT id, name FROM units WHERE id = ?")
+      .get(id) as { id: number; name: string } | undefined;
+    if (!row) throw new Error("Unit not found");
+    const used = db()
+      .prepare("SELECT 1 FROM items WHERE unit = ? LIMIT 1")
+      .get(row.name) as { "1": number } | undefined;
+    if (used)
+      throw new Error("Cannot delete unit: one or more products use it.");
+    db().prepare("DELETE FROM units WHERE id = ?").run(id);
+    return id;
+  });
+
+  // ---- Invoice units ----
+  ipcMain.handle("invoiceUnits:getAll", () => {
+    return db()
+      .prepare("SELECT * FROM invoice_units ORDER BY sort_order ASC, name ASC")
+      .all();
+  });
+
+  ipcMain.handle(
+    "invoiceUnits:create",
+    (
+      _,
+      payload: { name: string; symbol?: string | null; sort_order?: number }
+    ) => {
+      const name = typeof payload?.name === "string" ? payload.name.trim() : "";
+      if (!name) throw new Error("Invoice unit name is required.");
+      const symbol =
+        typeof payload?.symbol === "string"
+          ? payload.symbol.trim() || null
+          : null;
+      const sortOrder =
+        typeof payload?.sort_order === "number" &&
+        Number.isFinite(payload.sort_order)
+          ? payload.sort_order
+          : 999;
+      const result = db()
+        .prepare(
+          "INSERT INTO invoice_units (name, symbol, sort_order) VALUES (?, ?, ?)"
+        )
+        .run(name, symbol, sortOrder);
+      return result.lastInsertRowid as number;
+    }
+  );
+
+  ipcMain.handle(
+    "invoiceUnits:update",
+    (
+      _,
+      id: number,
+      payload: { name?: string; symbol?: string | null; sort_order?: number }
+    ) => {
+      const row = db()
+        .prepare("SELECT * FROM invoice_units WHERE id = ?")
+        .get(id) as
+        | { name: string; symbol: string | null; sort_order: number }
+        | undefined;
+      if (!row) throw new Error("Invoice unit not found");
+      const name =
+        typeof payload?.name === "string" ? payload.name.trim() : row.name;
+      if (!name) throw new Error("Invoice unit name is required.");
+      const symbol =
+        payload?.symbol !== undefined
+          ? (typeof payload.symbol === "string"
+              ? payload.symbol.trim()
+              : null) || null
+          : row.symbol;
+      const sortOrder =
+        typeof payload?.sort_order === "number" &&
+        Number.isFinite(payload.sort_order)
+          ? payload.sort_order
+          : row.sort_order;
+      db()
+        .prepare(
+          "UPDATE invoice_units SET name = ?, symbol = ?, sort_order = ? WHERE id = ?"
+        )
+        .run(name, symbol, sortOrder, id);
+      return id;
+    }
+  );
+
+  ipcMain.handle("invoiceUnits:delete", (_, id: number) => {
+    const row = db()
+      .prepare("SELECT id FROM invoice_units WHERE id = ?")
+      .get(id);
+    if (!row) throw new Error("Invoice unit not found");
+    db().prepare("DELETE FROM invoice_units WHERE id = ?").run(id);
+    return id;
+  });
+
+  // ---- Settings ----
+  ipcMain.handle("settings:getAll", () => {
+    const rows = db().prepare("SELECT key, value FROM settings").all() as {
+      key: string;
+      value: string | null;
+    }[];
+    const out: Record<string, string> = {};
+    for (const r of rows) {
+      out[r.key] = r.value ?? "";
+    }
+    return out;
+  });
+
+  ipcMain.handle("settings:get", (_, key: string) => {
+    const row = db()
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .get(key) as { value: string | null } | undefined;
+    return row?.value ?? "";
+  });
+
+  ipcMain.handle("settings:set", (_, key: string, value: string) => {
+    const k = typeof key === "string" ? key.trim() : "";
+    if (!k) throw new Error("Settings key is required.");
+    db()
+      .prepare(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+      )
+      .run(k, value == null ? "" : String(value));
+    return;
+  });
+
+  ipcMain.handle("settings:setBulk", (_, obj: Record<string, string>) => {
+    if (obj == null || typeof obj !== "object") return;
+    const stmt = db().prepare(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    );
+    for (const [key, value] of Object.entries(obj)) {
+      const k = typeof key === "string" ? key.trim() : "";
+      if (k) stmt.run(k, value == null ? "" : String(value));
+    }
+  });
+
+  // ---- Invoices ----
+  ipcMain.handle("invoices:getAll", () => {
+    return db()
+      .prepare("SELECT * FROM invoices ORDER BY invoice_date DESC, id DESC")
+      .all();
+  });
+
+  ipcMain.handle(
+    "invoices:getPage",
+    (
+      _,
+      opts: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        dateFrom?: string;
+        dateTo?: string;
+      }
+    ) => {
+      const search = typeof opts?.search === "string" ? opts.search.trim() : "";
+      const page = Math.max(1, opts?.page ?? 1);
+      const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
+      const offset = (page - 1) * limit;
+      const dateFrom = opts?.dateFrom ?? null;
+      const dateTo = opts?.dateTo ?? null;
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+      if (search) {
+        conditions.push(
+          "(invoice_number LIKE ? OR customer_name LIKE ? OR customer_address LIKE ?)"
+        );
+        const like = `%${search}%`;
+        params.push(like, like, like);
+      }
+      if (dateFrom) {
+        conditions.push("invoice_date >= ?");
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        conditions.push("invoice_date <= ?");
+        params.push(dateTo);
+      }
+      const where =
+        conditions.length > 0 ? " WHERE " + conditions.join(" AND ") : "";
+      const countRow = db()
+        .prepare(`SELECT COUNT(*) AS total FROM invoices${where}`)
+        .get(...params) as { total: number };
+      const rows = db()
+        .prepare(
+          `SELECT *, (SELECT COALESCE(SUM(amount), 0) FROM invoice_lines WHERE invoice_id = invoices.id) AS total FROM invoices${where} ORDER BY invoice_date DESC, id DESC LIMIT ? OFFSET ?`
+        )
+        .all(...params, limit, offset);
+      return { data: rows, total: countRow.total };
+    }
+  );
+
+  ipcMain.handle("invoices:getById", (_, id: number) => {
+    const invoice = db()
+      .prepare("SELECT * FROM invoices WHERE id = ?")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!invoice) throw new Error("Invoice not found");
+    const lines = db()
+      .prepare("SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY id")
+      .all(id);
+    return { ...invoice, lines };
+  });
+
+  ipcMain.handle(
+    "invoices:create",
+    (
+      _,
+      payload: {
+        invoice_number?: string | null;
+        customer_name?: string | null;
+        customer_address?: string | null;
+        invoice_date: string;
+        notes?: string | null;
+        lines: {
+          product_id: number;
+          product_name: string;
+          quantity: number;
+          unit: string;
+          price: number;
+          amount: number;
+          price_entered_as: "per_unit" | "total";
+        }[];
+      }
+    ) => {
+      if (!payload.lines?.length)
+        throw new Error("At least one line is required.");
+      const year = payload.invoice_date.slice(0, 4);
+      const prefix = `INV-${year}-`;
+      const prefixLen = prefix.length;
+      const maxSeq = db()
+        .prepare(
+          "SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, ?) AS INTEGER)), 0) AS n FROM invoices WHERE invoice_number LIKE ?"
+        )
+        .get(prefixLen + 1, prefix + "%") as { n: number } | undefined;
+      const nextSeq = (maxSeq?.n ?? 0) + 1;
+      const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, "0")}`;
+      const run = db().transaction(() => {
+        const r = db()
+          .prepare(
+            "INSERT INTO invoices (invoice_number, customer_name, customer_address, invoice_date, notes) VALUES (?, ?, ?, ?, ?)"
+          )
+          .run(
+            invoiceNumber,
+            payload.customer_name ?? null,
+            payload.customer_address ?? null,
+            payload.invoice_date,
+            payload.notes ?? null
+          );
+        const invoiceId = r.lastInsertRowid as number;
+        const stmt = db().prepare(
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        for (const line of payload.lines) {
+          stmt.run(
+            invoiceId,
+            line.product_id,
+            line.product_name ?? null,
+            roundDecimal(line.quantity),
+            line.unit,
+            roundDecimal(line.price),
+            roundDecimal(line.amount),
+            line.price_entered_as ?? "per_unit"
+          );
+        }
+        return invoiceId;
+      });
+      return run();
+    }
+  );
+
+  ipcMain.handle(
+    "invoices:update",
+    (
+      _,
+      id: number,
+      payload: {
+        invoice_number?: string | null;
+        customer_name?: string | null;
+        customer_address?: string | null;
+        invoice_date?: string;
+        notes?: string | null;
+        lines: {
+          product_id: number;
+          product_name: string;
+          quantity: number;
+          unit: string;
+          price: number;
+          amount: number;
+          price_entered_as: "per_unit" | "total";
+        }[];
+      }
+    ) => {
+      const existing = db()
+        .prepare("SELECT * FROM invoices WHERE id = ?")
+        .get(id) as { invoice_date: string } | undefined;
+      if (!existing) throw new Error("Invoice not found");
+      if (!payload.lines?.length)
+        throw new Error("At least one line is required.");
+      db().transaction(() => {
+        db()
+          .prepare(
+            "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, invoice_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+          )
+          .run(
+            payload.invoice_number ?? null,
+            payload.customer_name ?? null,
+            payload.customer_address ?? null,
+            payload.invoice_date ?? existing.invoice_date,
+            payload.notes ?? null,
+            id
+          );
+        db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
+        const stmt = db().prepare(
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        for (const line of payload.lines) {
+          stmt.run(
+            id,
+            line.product_id,
+            line.product_name ?? null,
+            roundDecimal(line.quantity),
+            line.unit,
+            roundDecimal(line.price),
+            roundDecimal(line.amount),
+            line.price_entered_as ?? "per_unit"
+          );
+        }
+      })();
+      return id;
+    }
+  );
+
+  ipcMain.handle("invoices:delete", (_, id: number) => {
+    const existing = db()
+      .prepare("SELECT id FROM invoices WHERE id = ?")
+      .get(id);
+    if (!existing) throw new Error("Invoice not found");
+    db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
+    db().prepare("DELETE FROM invoices WHERE id = ?").run(id);
+    return id;
   });
 
   // ---- Mahajans ----

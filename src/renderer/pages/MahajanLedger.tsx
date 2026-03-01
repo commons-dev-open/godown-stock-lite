@@ -311,7 +311,8 @@ export default function MahajanLedger() {
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
     if (filterType !== "all") list.push({ label: "Type", value: filterType });
-    if (filterDateFrom) list.push({ label: "Date From", value: filterDateFrom });
+    if (filterDateFrom)
+      list.push({ label: "Date From", value: filterDateFrom });
     if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
     return list;
   }, [filterType, filterDateFrom, filterDateTo]);
@@ -394,7 +395,7 @@ export default function MahajanLedger() {
           <FloatingPortal>
             {exportOpen && (
               <div
-                ref={exportRefs.setFloating}
+                ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                 style={exportFloatingStyles}
                 {...getExportFloatingProps()}
                 className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
@@ -1478,16 +1479,17 @@ export default function MahajanLedger() {
             <p className="text-xs text-gray-700">
               Mahajan: {printData.mahajanName}
             </p>
-            {printData.filterDetails != null && printData.filterDetails.length > 0 && (
-              <div className="mt-2 space-y-0.5 text-xs">
-                <p className="font-medium text-gray-700">Applied filters</p>
-                {printData.filterDetails.map((f) => (
-                  <p key={f.label} className="text-gray-600">
-                    {f.label}: {f.value}
-                  </p>
-                ))}
-              </div>
-            )}
+            {printData.filterDetails != null &&
+              printData.filterDetails.length > 0 && (
+                <div className="mt-2 space-y-0.5 text-xs">
+                  <p className="font-medium text-gray-700">Applied filters</p>
+                  {printData.filterDetails.map((f) => (
+                    <p key={f.label} className="text-gray-600">
+                      {f.label}: {f.value}
+                    </p>
+                  ))}
+                </div>
+              )}
             {printData.balance != null && (
               <div className="mt-2 space-y-1 text-xs">
                 <p className="text-gray-700">

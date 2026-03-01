@@ -47,21 +47,26 @@ export default function DailySales() {
     filterDetails?: { label: string; value: string }[];
   } | null>(null);
 
-  const { refs: exportRefs, floatingStyles: exportFloatingStyles, context: exportContext } =
-    useFloating({
-      open: exportOpen,
-      onOpenChange: setExportOpen,
-      placement: "bottom-end",
-      middleware: [offset(4), flip(), shift({ padding: 8 })],
-      whileElementsMounted: autoUpdate,
-    });
+  const {
+    refs: exportRefs,
+    floatingStyles: exportFloatingStyles,
+    context: exportContext,
+  } = useFloating({
+    open: exportOpen,
+    onOpenChange: setExportOpen,
+    placement: "bottom-end",
+    middleware: [offset(4), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
   const exportClick = useClick(exportContext);
   const exportDismiss = useDismiss(exportContext, {
     escapeKey: true,
     outsidePress: true,
   });
-  const { getReferenceProps: getExportRefProps, getFloatingProps: getExportFloatingProps } =
-    useInteractions([exportClick, exportDismiss]);
+  const {
+    getReferenceProps: getExportRefProps,
+    getFloatingProps: getExportFloatingProps,
+  } = useInteractions([exportClick, exportDismiss]);
 
   useEffect(() => {
     if (addOpen) queueMicrotask(() => setAddSaleDate(todayISO()));
@@ -204,7 +209,7 @@ export default function DailySales() {
             <FloatingPortal>
               {exportOpen && (
                 <div
-                  ref={exportRefs.setFloating}
+                  ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
                   className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"

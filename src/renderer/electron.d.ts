@@ -5,12 +5,26 @@ export interface ElectronAPI {
     page?: number;
     limit?: number;
   }) => Promise<{ data: unknown[]; total: number }>;
+  getItemById: (id: number) => Promise<{
+    id: number;
+    name: string;
+    code: string | null;
+    unit: string;
+    retail_primary_unit: string | null;
+    current_stock: number;
+    reorder_level: number | null;
+    created_at: string;
+    updated_at: string;
+    other_units: { id: number; unit: string; sort_order: number }[];
+  }>;
   createItem: (item: {
     name: string;
     code?: string;
     unit: string;
+    retail_primary_unit?: string | null;
     current_stock?: number;
     reorder_level?: number;
+    other_units?: { unit: string; sort_order?: number }[];
   }) => Promise<number>;
   updateItem: (
     id: number,
@@ -18,15 +32,94 @@ export interface ElectronAPI {
       name?: string;
       code?: string;
       unit?: string;
+      retail_primary_unit?: string | null;
       current_stock?: number;
       reorder_level?: number;
+      other_units?: { unit: string; sort_order?: number }[];
     }
   ) => Promise<number>;
   deleteItem: (id: number) => Promise<number>;
   addStock: (id: number, quantity: number) => Promise<number>;
   reduceStock: (id: number, quantity: number) => Promise<number>;
-  getUnits: () => Promise<{ id: number; name: string; created_at: string }[]>;
-  createUnit: (name: string) => Promise<string>;
+  getUnits: () => Promise<
+    { id: number; name: string; symbol: string | null; created_at: string }[]
+  >;
+  createUnit: (
+    nameOrPayload: string | { name: string; symbol?: string | null }
+  ) => Promise<string>;
+  updateUnit: (
+    id: number,
+    payload: { name?: string; symbol?: string | null }
+  ) => Promise<number>;
+  deleteUnit: (id: number) => Promise<number>;
+  getInvoiceUnits: () => Promise<
+    {
+      id: number;
+      name: string;
+      symbol: string | null;
+      sort_order: number;
+      created_at: string;
+    }[]
+  >;
+  createInvoiceUnit: (payload: {
+    name: string;
+    symbol?: string | null;
+    sort_order?: number;
+  }) => Promise<number>;
+  updateInvoiceUnit: (
+    id: number,
+    payload: { name?: string; symbol?: string | null; sort_order?: number }
+  ) => Promise<number>;
+  deleteInvoiceUnit: (id: number) => Promise<number>;
+  getSettings: () => Promise<Record<string, string>>;
+  getSetting: (key: string) => Promise<string>;
+  setSetting: (key: string, value: string) => Promise<void>;
+  setSettings: (obj: Record<string, string>) => Promise<void>;
+  getInvoices: () => Promise<unknown[]>;
+  getInvoicesPage: (opts: {
+    search?: string;
+    page?: number;
+    limit?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => Promise<{ data: unknown[]; total: number }>;
+  getInvoiceById: (id: number) => Promise<unknown>;
+  createInvoice: (payload: {
+    invoice_number?: string | null;
+    customer_name?: string | null;
+    customer_address?: string | null;
+    invoice_date: string;
+    notes?: string | null;
+    lines: {
+      product_id: number;
+      product_name: string;
+      quantity: number;
+      unit: string;
+      price: number;
+      amount: number;
+      price_entered_as: "per_unit" | "total";
+    }[];
+  }) => Promise<number>;
+  updateInvoice: (
+    id: number,
+    payload: {
+      invoice_number?: string | null;
+      customer_name?: string | null;
+      customer_address?: string | null;
+      invoice_date?: string;
+      notes?: string | null;
+      lines: {
+        product_id: number;
+        product_name: string;
+        quantity: number;
+        unit: string;
+        price: number;
+        amount: number;
+        price_entered_as: "per_unit" | "total";
+      }[];
+    }
+  ) => Promise<number>;
+  deleteInvoice: (id: number) => Promise<number>;
   getMahajans: () => Promise<unknown[]>;
   getMahajansPage: (opts: {
     search?: string;

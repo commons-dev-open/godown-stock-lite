@@ -8,6 +8,9 @@ const navItems = [
   { to: "/transactions", label: "Transactions" },
   { to: "/sales", label: "Daily Sales" },
   { to: "/reports", label: "Reports" },
+  { to: "/invoices", label: "Invoices" },
+  { to: "/units", label: "Units" },
+  { to: "/settings", label: "Settings" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

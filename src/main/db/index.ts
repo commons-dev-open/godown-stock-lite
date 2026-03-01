@@ -45,6 +45,96 @@ function migrateUnitsFromItems(database: Database.Database): void {
   }
 }
 
+function migrateUnitsAddSymbol(database: Database.Database): void {
+  try {
+    const tableInfo = database.prepare("PRAGMA table_info(units)").all() as {
+      name: string;
+    }[];
+    if (tableInfo.some((c) => c.name === "symbol")) return;
+    database.exec("ALTER TABLE units ADD COLUMN symbol TEXT");
+  } catch {
+    // ignore
+  }
+}
+
+const DEFAULT_INVOICE_UNITS = [
+  { name: "gram", symbol: "g", sort_order: 0 },
+  { name: "g", symbol: "g", sort_order: 1 },
+  { name: "kg", symbol: "kg", sort_order: 2 },
+  { name: "L", symbol: "L", sort_order: 3 },
+  { name: "Liter", symbol: "L", sort_order: 4 },
+  { name: "ml", symbol: "ml", sort_order: 5 },
+  { name: "pcs", symbol: "pcs", sort_order: 6 },
+  { name: "box", symbol: null, sort_order: 7 },
+  { name: "packet", symbol: null, sort_order: 8 },
+];
+
+function migrateItemsAddRetailPrimaryUnit(database: Database.Database): void {
+  try {
+    const tableInfo = database.prepare("PRAGMA table_info(items)").all() as {
+      name: string;
+    }[];
+    if (tableInfo.some((c) => c.name === "retail_primary_unit")) return;
+    database.exec("ALTER TABLE items ADD COLUMN retail_primary_unit TEXT");
+  } catch {
+    // ignore
+  }
+}
+
+function migrateInvoiceUnits(database: Database.Database): void {
+  try {
+    const exists = database
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='invoice_units'"
+      )
+      .get();
+    if (!exists) return;
+    const count = database
+      .prepare("SELECT COUNT(*) AS c FROM invoice_units")
+      .get() as { c: number };
+    if (count.c > 0) return;
+    const stmt = database.prepare(
+      "INSERT OR IGNORE INTO invoice_units (name, symbol, sort_order) VALUES (?, ?, ?)"
+    );
+    for (const u of DEFAULT_INVOICE_UNITS) {
+      stmt.run(u.name, u.symbol, u.sort_order);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Add invoice_lines.amount (line total as truth); backfill from quantity * price. */
+function migrateInvoiceLinesAmount(database: Database.Database): void {
+  try {
+    const tableInfo = database
+      .prepare("PRAGMA table_info(invoice_lines)")
+      .all() as { name: string }[];
+    if (tableInfo.some((c) => c.name === "amount")) return;
+    database.exec(
+      "ALTER TABLE invoice_lines ADD COLUMN amount REAL NOT NULL DEFAULT 0"
+    );
+    database.exec("UPDATE invoice_lines SET amount = quantity * price");
+  } catch {
+    // ignore
+  }
+}
+
+/** Add invoice_lines.price_entered_as ('per_unit' | 'total'). */
+function migrateInvoiceLinesPriceEnteredAs(database: Database.Database): void {
+  try {
+    const tableInfo = database
+      .prepare("PRAGMA table_info(invoice_lines)")
+      .all() as { name: string }[];
+    if (tableInfo.some((c) => c.name === "price_entered_as")) return;
+    database.exec(
+      "ALTER TABLE invoice_lines ADD COLUMN price_entered_as TEXT NOT NULL DEFAULT 'per_unit'"
+    );
+  } catch {
+    // ignore
+  }
+}
+
 function migrateSchema(database: Database.Database): void {
   const hasOldLends = database
     .prepare(
@@ -83,8 +173,13 @@ export function getDb(): Database.Database {
     db = new Database(dbPath);
     createSchema(db);
     migrateUnitsFromItems(db);
+    migrateUnitsAddSymbol(db);
     migratePurchaseToCashPurchase(db);
     migrateSchema(db);
+    migrateItemsAddRetailPrimaryUnit(db);
+    migrateInvoiceUnits(db);
+    migrateInvoiceLinesAmount(db);
+    migrateInvoiceLinesPriceEnteredAs(db);
     seedIfEmpty(db);
   }
   return db;

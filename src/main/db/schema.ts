@@ -7,6 +7,15 @@ export function createSchema(db: DbLike): void {
     CREATE TABLE IF NOT EXISTS units (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
+      symbol TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS invoice_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      symbol TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 999,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -15,10 +24,19 @@ export function createSchema(db: DbLike): void {
       name TEXT NOT NULL,
       code TEXT,
       unit TEXT NOT NULL DEFAULT 'pcs',
+      retail_primary_unit TEXT,
       current_stock REAL NOT NULL DEFAULT 0,
       reorder_level REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS item_other_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      unit TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS mahajans (
@@ -61,6 +79,35 @@ export function createSchema(db: DbLike): void {
       year INTEGER PRIMARY KEY,
       amount REAL NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT UNIQUE,
+      customer_name TEXT,
+      customer_address TEXT,
+      invoice_date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS invoice_lines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      product_id INTEGER REFERENCES items(id),
+      product_name TEXT,
+      quantity REAL NOT NULL,
+      unit TEXT NOT NULL,
+      price REAL NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      price_entered_as TEXT NOT NULL DEFAULT 'per_unit' CHECK(price_entered_as IN ('per_unit', 'total')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 }

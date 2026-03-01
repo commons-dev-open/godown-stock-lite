@@ -528,20 +528,17 @@ export default function Transactions() {
     const list: { label: string; value: string }[] = [];
     if (filterMahajanId !== "") {
       const m = mahajanList.find((x) => x.id === filterMahajanId);
-      list.push({ label: "Mahajan", value: m?.name ?? String(filterMahajanId) });
+      list.push({
+        label: "Mahajan",
+        value: m?.name ?? String(filterMahajanId),
+      });
     }
-    if (filterType !== "all")
-      list.push({ label: "Type", value: filterType });
-    if (filterDateFrom) list.push({ label: "Date From", value: filterDateFrom });
+    if (filterType !== "all") list.push({ label: "Type", value: filterType });
+    if (filterDateFrom)
+      list.push({ label: "Date From", value: filterDateFrom });
     if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
     return list;
-  }, [
-    filterMahajanId,
-    filterType,
-    filterDateFrom,
-    filterDateTo,
-    mahajanList,
-  ]);
+  }, [filterMahajanId, filterType, filterDateFrom, filterDateTo, mahajanList]);
 
   async function getExportData(): Promise<TransactionExportRow[]> {
     const result = (await api.getMahajanLedgerPage({
@@ -683,7 +680,7 @@ export default function Transactions() {
             <FloatingPortal>
               {exportOpen && (
                 <div
-                  ref={exportRefs.setFloating}
+                  ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
                   className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"

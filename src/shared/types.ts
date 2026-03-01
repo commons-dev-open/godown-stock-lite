@@ -1,7 +1,22 @@
 export interface Unit {
   id: number;
   name: string;
+  symbol: string | null;
   created_at: string;
+}
+
+export interface InvoiceUnit {
+  id: number;
+  name: string;
+  symbol: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ItemOtherUnit {
+  id?: number;
+  unit: string;
+  sort_order: number;
 }
 
 export interface Item {
@@ -9,6 +24,7 @@ export interface Item {
   name: string;
   code: string | null;
   unit: string;
+  retail_primary_unit: string | null;
   current_stock: number;
   reorder_level: number | null;
   created_at: string;
@@ -76,4 +92,33 @@ export interface LedgerRow {
   description: string;
   amount: number;
   id: number;
+}
+
+export interface Invoice {
+  id: number;
+  invoice_number: string | null;
+  customer_name: string | null;
+  customer_address: string | null;
+  invoice_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PriceEnteredAs = "per_unit" | "total";
+
+export interface InvoiceLine {
+  id: number;
+  invoice_id: number;
+  product_id: number | null;
+  product_name: string | null;
+  quantity: number;
+  unit: string;
+  /** Unit price (for display). When user entered total, this is amount/quantity. */
+  price: number;
+  /** Line total in currency. This is the source of truth for the line amount. */
+  amount: number;
+  /** Whether the user entered price per unit or total for this line. Defaults to 'per_unit' for older rows. */
+  price_entered_as?: PriceEnteredAs;
+  created_at: string;
 }

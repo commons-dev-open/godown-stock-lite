@@ -315,22 +315,205 @@ function randomDate(from: string, to: string): string {
 const TXN_START = "2025-01-01";
 const TXN_END = "2026-03-01";
 
+// Godown unit name → symbol (for display). Empty = use full name.
+const UNIT_SYMBOLS: Record<string, string | null> = {
+  bags: null,
+  kg: "kg",
+  tins: null,
+  cartons: null,
+  boxes: null,
+  bottles: null,
+  strips: null,
+  pcs: "pcs",
+  packs: null,
+  packets: null,
+  jars: null,
+  pouches: null,
+  cups: null,
+};
+
 function seedUnits(db: Database.Database): void {
   const unitNames = [...new Set(ITEM_TEMPLATES.map((i) => i.unit))].sort();
   const insertUnit = db.prepare(
-    "INSERT OR IGNORE INTO units (name) VALUES (?)"
+    "INSERT OR IGNORE INTO units (name, symbol) VALUES (?, ?)"
   );
   for (const name of unitNames) {
-    insertUnit.run(name);
+    insertUnit.run(name, UNIT_SYMBOLS[name] ?? null);
   }
+}
+
+// Invoice (selling) units: small units first for dropdown.
+const INVOICE_UNITS: {
+  name: string;
+  symbol: string | null;
+  sort_order: number;
+}[] = [
+  { name: "gram", symbol: "g", sort_order: 0 },
+  { name: "kilogram", symbol: "kg", sort_order: 2 },
+  { name: "liter", symbol: "L", sort_order: 4 },
+  { name: "ml", symbol: "ml", sort_order: 5 },
+  { name: "pcs", symbol: "pcs", sort_order: 6 },
+  { name: "box", symbol: null, sort_order: 7 },
+  { name: "packet", symbol: "pack", sort_order: 8 },
+  { name: "bags", symbol: null, sort_order: 9 },
+  { name: "cartons", symbol: null, sort_order: 10 },
+  { name: "tins", symbol: null, sort_order: 11 },
+  { name: "bottles", symbol: null, sort_order: 12 },
+  { name: "jars", symbol: null, sort_order: 13 },
+];
+
+function seedInvoiceUnits(db: Database.Database): void {
+  try {
+    const insert = db.prepare(
+      "INSERT OR IGNORE INTO invoice_units (name, symbol, sort_order) VALUES (?, ?, ?)"
+    );
+    for (const u of INVOICE_UNITS) {
+      insert.run(u.name, u.symbol, u.sort_order);
+    }
+  } catch {
+    // Table may not exist if schema order differs
+  }
+}
+
+function retailPrimaryFromGodownUnit(godownUnit: string): string | null {
+  const m: Record<string, string> = {
+    bags: "kg",
+    kg: "kg",
+    tins: "L",
+    bottles: "L",
+    cartons: "pcs",
+    boxes: "pcs",
+    pcs: "pcs",
+    jars: "pcs",
+    packets: "pcs",
+    pouches: "pcs",
+    strips: "pcs",
+  };
+  return m[godownUnit] ?? null;
 }
 
 function seedItems(db: Database.Database): void {
   const insertItem = db.prepare(
-    "INSERT INTO items (name, code, unit, current_stock, reorder_level) VALUES (?, ?, ?, 0, ?)"
+    "INSERT INTO items (name, code, unit, retail_primary_unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, 0, ?)"
+  );
+  const insertOtherUnit = db.prepare(
+    "INSERT INTO item_other_units (item_id, unit, sort_order) VALUES (?, ?, ?)"
   );
   for (const item of ITEM_TEMPLATES) {
-    insertItem.run(item.name, item.code, item.unit, item.reorder);
+    const retailPrimary = retailPrimaryFromGodownUnit(item.unit);
+    const result = insertItem.run(
+      item.name,
+      item.code,
+      item.unit,
+      retailPrimary,
+      item.reorder
+    );
+    const itemId = (result as { lastInsertRowid: number }).lastInsertRowid;
+    if (retailPrimary && retailPrimary !== item.unit && itemId) {
+      insertOtherUnit.run(itemId, retailPrimary, 0);
+    }
+  }
+}
+
+function seedSettings(db: Database.Database): void {
+  try {
+    const set = db.prepare(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    );
+    set.run("company_name", "Shree Krishna Traders");
+    set.run(
+      "company_address",
+      "12, Netaji Subhas Road, Burrabazar, Kolkata - 700001, West Bengal"
+    );
+    set.run("gstin", "19AABCS1234N1ZN");
+    set.run("owner_name", "Rajesh Kumar");
+    set.run("owner_phone", "9830123456");
+  } catch {
+    // settings table may not exist
+  }
+}
+
+type ItemWithUnit = { id: number; name: string; sell_unit: string };
+
+function seedInvoices(db: Database.Database, _itemRows: ItemRow[]): void {
+  try {
+    const itemsWithUnit = db
+      .prepare(
+        "SELECT id, name, COALESCE(retail_primary_unit, unit) AS sell_unit FROM items"
+      )
+      .all() as ItemWithUnit[];
+    if (itemsWithUnit.length === 0) return;
+    const insertInv = db.prepare(
+      "INSERT INTO invoices (invoice_number, customer_name, customer_address, invoice_date, notes) VALUES (?, ?, ?, ?, ?)"
+    );
+    const insertLine = db.prepare(
+      "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    const customers = [
+      {
+        name: "Bharat General Store",
+        address: "45, Gariahat Road, Kolkata - 700068",
+      },
+      {
+        name: "Maa Kali Kirana",
+        address: "Block D, Salt Lake, Kolkata - 700091",
+      },
+      {
+        name: "New Market Provision Store",
+        address: "Lindsay Street, Kolkata - 700087",
+      },
+      {
+        name: "Subham Traders",
+        address: "Howrah Station Road, Howrah - 711101",
+      },
+      { name: "Sagar Wholesale", address: "Burdwan Road, Durgapur - 713206" },
+    ];
+    const dates = [
+      "2025-11-15",
+      "2025-12-01",
+      "2025-12-18",
+      "2026-01-10",
+      "2026-02-05",
+    ];
+    const invoiceNumbers = [
+      "INV-2025-0001",
+      "INV-2025-0002",
+      "INV-2025-0003",
+      "INV-2026-0001",
+      "INV-2026-0002",
+    ];
+    for (let i = 0; i < 5; i++) {
+      const invResult = insertInv.run(
+        invoiceNumbers[i],
+        customers[i].name,
+        customers[i].address,
+        dates[i],
+        i === 2 ? "Festival order" : null
+      );
+      const invId = (invResult as { lastInsertRowid: number }).lastInsertRowid;
+      const numLines = randomInt(2, 5);
+      const used = new Set<number>();
+      for (let L = 0; L < numLines; L++) {
+        const item = pick(itemsWithUnit);
+        if (used.has(item.id)) continue;
+        used.add(item.id);
+        const qty = randomInt(1, 50);
+        const price = Math.round(randomInt(20, 400) * 100) / 100;
+        const amount = Math.round(qty * price * 100) / 100;
+        insertLine.run(
+          invId,
+          item.id,
+          item.name,
+          qty,
+          item.sell_unit || "pcs",
+          price,
+          amount,
+          "per_unit"
+        );
+      }
+    }
+  } catch {
+    // invoices / invoice_lines may not exist
   }
 }
 
@@ -489,7 +672,9 @@ function seedOpeningBalance(db: Database.Database): void {
 
 export function seedBulk(db: Database.Database): void {
   seedUnits(db);
+  seedInvoiceUnits(db);
   seedItems(db);
+  seedSettings(db);
   const mahajanIds = seedMahajans(db);
   const itemRows = db.prepare("SELECT id, name FROM items").all() as ItemRow[];
   const lendAmountByMahajan = seedLends(db, mahajanIds, itemRows);
@@ -497,4 +682,5 @@ export function seedBulk(db: Database.Database): void {
   seedPurchases(db, itemRows);
   seedDailySales(db);
   seedOpeningBalance(db);
+  seedInvoices(db, itemRows);
 }
