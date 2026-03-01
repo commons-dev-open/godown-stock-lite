@@ -35,6 +35,16 @@ function migratePurchaseToCashPurchase(database: Database.Database): void {
   `);
 }
 
+function migrateUnitsFromItems(database: Database.Database): void {
+  try {
+    database.exec(
+      "INSERT OR IGNORE INTO units (name) SELECT DISTINCT unit FROM items WHERE unit IS NOT NULL AND trim(unit) != ''"
+    );
+  } catch {
+    // units table may not exist on first run before schema
+  }
+}
+
 function migrateSchema(database: Database.Database): void {
   const hasOldLends = database
     .prepare(
@@ -72,6 +82,7 @@ export function getDb(): Database.Database {
     const dbPath = path.join(userDataPath, "godown.db");
     db = new Database(dbPath);
     createSchema(db);
+    migrateUnitsFromItems(db);
     migratePurchaseToCashPurchase(db);
     migrateSchema(db);
     seedIfEmpty(db);

@@ -82,21 +82,39 @@ export default function Mahajans() {
             Add Mahajan
           </button>
         </div>
-        <input
-          type="search"
-          placeholder="Search by name, address, or phone…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-72"
-        />
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+          <input
+            type="search"
+            placeholder="Search by name, address, or phone…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0 w-72 max-w-full"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
           <TableLoader />
+        ) : mahajansPage.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No records match the filters.
+          </div>
         ) : (
           <>
             <DataTable<Mahajan>

@@ -6,3 +6,33 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* Scrollable table: only body scrolls, sticky header (and optional footer) */
+@layer components {
+  .table-scroll-wrap {
+    @apply overflow-auto rounded-lg border border-gray-200 bg-white;
+    max-height: min(50vh, 400px);
+  }
+  @media (min-width: 640px) {
+    .table-scroll-wrap {
+      max-height: calc(100vh - 260px);
+    }
+  }
+  @media (min-width: 1024px) {
+    .table-scroll-wrap {
+      max-height: calc(100vh - 220px);
+    }
+  }
+  .table-scroll-wrap thead th {
+    @apply sticky top-0 z-10 border-b border-gray-200 bg-gray-50;
+  }
+  /* Use class sticky-header-white on th for white header background */
+  .table-scroll-wrap thead th.sticky-header-white {
+    background-color: #fff;
+  }
+  .table-scroll-wrap tfoot th,
+  .table-scroll-wrap tfoot td {
+    @apply sticky bottom-0 z-10 border-t border-gray-200;
+    background-color: #fff;
+  }
+}

@@ -25,6 +25,8 @@ export interface ElectronAPI {
   deleteItem: (id: number) => Promise<number>;
   addStock: (id: number, quantity: number) => Promise<number>;
   reduceStock: (id: number, quantity: number) => Promise<number>;
+  getUnits: () => Promise<{ id: number; name: string; created_at: string }[]>;
+  createUnit: (name: string) => Promise<string>;
   getMahajans: () => Promise<unknown[]>;
   getMahajansPage: (opts: {
     search?: string;

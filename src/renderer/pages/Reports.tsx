@@ -57,22 +57,34 @@ export default function Reports() {
         <p className="text-sm text-gray-500 mb-2">
           Select a date to see 7 days of entries (descending from that date).
         </p>
-        <div className="flex gap-2 items-center mb-4">
-          <DateInput
-            value={weeklyDate}
-            onChange={setWeeklyDate}
-            className="border rounded px-3 py-1.5 w-[10rem]"
-          />
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+            Date
+            <DateInput
+              value={weeklyDate}
+              onChange={setWeeklyDate}
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+            />
+          </label>
+          {weeklyDate && (
+            <button
+              type="button"
+              onClick={() => setWeeklyDate("")}
+              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Clear
+            </button>
+          )}
         </div>
         {weeklyDate && (
           <>
             {weeklyLoading ? (
               <TableLoader />
             ) : (
-            <div className="overflow-x-auto">
+            <div className="table-scroll-wrap overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b">
+                <tr className="border-b bg-gray-50">
                   <th className="text-left py-2">Date</th>
                   <th className="text-right py-2">Sale</th>
                   <th className="text-right py-2">Cash in Hand</th>
@@ -118,18 +130,35 @@ export default function Reports() {
         <p className="text-sm text-gray-500 mb-2">
           Enter date range to get total sale and expenditure.
         </p>
-        <div className="flex gap-2 items-center mb-4">
-          <DateInput
-            value={totalFrom}
-            onChange={setTotalFrom}
-            className="border rounded px-3 py-1.5 w-[10rem]"
-          />
-          <span className="text-gray-500">to</span>
-          <DateInput
-            value={totalTo}
-            onChange={setTotalTo}
-            className="border rounded px-3 py-1.5 w-[10rem]"
-          />
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+            From
+            <DateInput
+              value={totalFrom}
+              onChange={setTotalFrom}
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+            />
+          </label>
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+            To
+            <DateInput
+              value={totalTo}
+              onChange={setTotalTo}
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+            />
+          </label>
+          {(totalFrom || totalTo) && (
+            <button
+              type="button"
+              onClick={() => {
+                setTotalFrom("");
+                setTotalTo("");
+              }}
+              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
         {totalSaleResult && (
           <div className="text-sm">

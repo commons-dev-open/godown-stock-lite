@@ -7,7 +7,7 @@ export function registerIpcHandlers(): void {
     return getDb();
   }
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 30;
 
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {
@@ -149,6 +149,20 @@ export function registerIpcHandlers(): void {
     return id;
   });
 
+  // ---- Units ----
+  ipcMain.handle("units:getAll", () => {
+    return db().prepare("SELECT * FROM units ORDER BY name").all();
+  });
+
+  ipcMain.handle("units:create", (_, name: string) => {
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (!trimmed) throw new Error("Unit name is required.");
+    db()
+      .prepare("INSERT OR IGNORE INTO units (name) VALUES (?)")
+      .run(trimmed);
+    return trimmed;
+  });
+
   // ---- Mahajans ----
   ipcMain.handle("mahajans:getAll", () => {
     return db().prepare("SELECT * FROM mahajans ORDER BY name").all();
@@ -254,7 +268,8 @@ export function registerIpcHandlers(): void {
     if (mahajanId != null) {
       return db()
         .prepare(
-          base + " AND u.mahajan_id = ? ORDER BY u.transaction_date DESC, u.id DESC"
+          base +
+            " AND u.mahajan_id = ? ORDER BY u.transaction_date DESC, u.id DESC"
         )
         .all(mahajanId);
     }

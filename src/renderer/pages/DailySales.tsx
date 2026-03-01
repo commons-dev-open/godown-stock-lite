@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
@@ -7,7 +7,7 @@ import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
-import { todayISO, formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
+import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import type { DailySale } from "../../shared/types";
 
 export default function DailySales() {
@@ -18,6 +18,15 @@ export default function DailySales() {
   const [page, setPage] = useState(1);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [addSaleDate, setAddSaleDate] = useState(todayISO());
+  const [editSaleDate, setEditSaleDate] = useState("");
+
+  useEffect(() => {
+    if (addOpen) setAddSaleDate(todayISO());
+  }, [addOpen]);
+  useEffect(() => {
+    if (editing) setEditSaleDate(editing.sale_date);
+  }, [editing]);
 
   const { data: pageResult, isLoading } = useQuery({
     queryKey: [
@@ -94,8 +103,8 @@ export default function DailySales() {
             Add Sale
           </button>
         </div>
-        <div className="flex gap-4 items-center">
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
             From
             <DateInput
               value={fromDate}
@@ -103,10 +112,10 @@ export default function DailySales() {
                 setFromDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
             />
           </label>
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
             To
             <DateInput
               value={toDate}
@@ -114,15 +123,32 @@ export default function DailySales() {
                 setToDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm w-[10rem]"
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
             />
           </label>
+          {(fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+                setPage(1);
+              }}
+              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
           <TableLoader />
+        ) : sales.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No records match the filters.
+          </div>
         ) : (
           <>
             <DataTable<DailySale>
@@ -158,7 +184,7 @@ export default function DailySales() {
                 if (globalThis.confirm("Delete this sale?"))
                   deleteSale.mutate(row.id);
               }}
-              emptyMessage="No sales yet. Click Add Sale."
+              emptyMessage="No sales yet. Click Add Sale or adjust filters."
             />
             <Pagination
               page={page}
@@ -180,14 +206,9 @@ export default function DailySales() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const saleDate = parseFormDate(
-                (form.sale_date as HTMLInputElement).value
-              );
-              if (!saleDate) {
-                return;
-              }
+            if (!addSaleDate) return;
               createSale.mutate({
-                sale_date: saleDate,
+                sale_date: addSaleDate,
               sale_amount: Number((form.sale_amount as HTMLInputElement).value),
               cash_in_hand: Number(
                 (form.cash_in_hand as HTMLInputElement).value
@@ -203,13 +224,10 @@ export default function DailySales() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Date * (dd/mm/yyyy)
             </label>
-            <input
-              name="sale_date"
-              type="text"
-              defaultValue={formatDateForForm(todayISO())}
-              placeholder="dd/mm/yyyy"
-              required
-              className="w-full border rounded px-3 py-2"
+            <DateInput
+              value={addSaleDate}
+              onChange={setAddSaleDate}
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
           <div>
@@ -286,14 +304,11 @@ export default function DailySales() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              const saleDate = parseFormDate(
-                  (form.sale_date as HTMLInputElement).value
-                );
-                if (!saleDate) return;
+              if (!editSaleDate) return;
                 updateSale.mutate({
                   id: editing.id,
                   s: {
-                    sale_date: saleDate,
+                    sale_date: editSaleDate,
                   sale_amount: Number(
                     (form.sale_amount as HTMLInputElement).value
                   ),
@@ -313,13 +328,10 @@ export default function DailySales() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="sale_date"
-                type="text"
-                defaultValue={formatDateForForm(editing.sale_date)}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editSaleDate}
+                onChange={setEditSaleDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>

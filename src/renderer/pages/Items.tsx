@@ -5,7 +5,9 @@ import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
-import type { Item } from "../../shared/types";
+import type { Item, Unit } from "../../shared/types";
+
+const UNIT_ADD_NEW = "__new__";
 
 export default function Items() {
   const queryClient = useQueryClient();
@@ -18,6 +20,13 @@ export default function Items() {
   const [reduceStockItem, setReduceStockItem] = useState<Item | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [addUnitSelect, setAddUnitSelect] = useState<string>("");
+  const [editUnitSelect, setEditUnitSelect] = useState<string>("");
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => api.getUnits() as Promise<Unit[]>,
+  });
 
   const { data: items = [] } = useQuery({
     queryKey: ["items"],
@@ -40,31 +49,50 @@ export default function Items() {
   const totalItems = pageResult?.total ?? 0;
 
   const createItem = useMutation({
-    mutationFn: (item: {
+    mutationFn: async (payload: {
       name: string;
       code?: string;
       unit: string;
+      newUnitName?: string;
       current_stock?: number;
       reorder_level?: number;
-    }) => api.createItem(item),
+    }) => {
+      let unit = payload.unit;
+      if (payload.newUnitName?.trim()) {
+        unit = await api.createUnit(payload.newUnitName.trim());
+      }
+      return api.createItem({
+        name: payload.name,
+        code: payload.code,
+        unit,
+        current_stock: payload.current_stock,
+        reorder_level: payload.reorder_level,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["units"] });
       setAddProductOpen(false);
     },
   });
 
   const updateItem = useMutation({
-    mutationFn: ({
-      id,
-      item,
-    }: {
+    mutationFn: async (payload: {
       id: number;
       item: Parameters<typeof api.updateItem>[1];
-    }) => api.updateItem(id, item),
+      newUnitName?: string;
+    }) => {
+      let unit = payload.item.unit;
+      if (payload.newUnitName?.trim()) {
+        unit = await api.createUnit(payload.newUnitName.trim());
+      }
+      return api.updateItem(payload.id, { ...payload.item, unit });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["units"] });
       setEditing(null);
     },
   });
@@ -133,7 +161,7 @@ export default function Items() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
           <input
             type="search"
             placeholder="Search by name or code…"
@@ -142,14 +170,30 @@ export default function Items() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm w-64"
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0 w-64 max-w-full"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+              className="shrink-0 text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">
         {isLoading ? (
           <TableLoader />
+        ) : itemsPage.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No records match the filters.
+          </div>
         ) : (
           <>
             <DataTable<Item>
@@ -181,17 +225,26 @@ export default function Items() {
       <FormModal
         title="Add Product"
         open={addProductOpen}
-        onClose={() => setAddProductOpen(false)}
+        onClose={() => {
+          setAddProductOpen(false);
+          setAddUnitSelect("");
+        }}
       >
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
+            const isNewUnit =
+              (form.unit as HTMLSelectElement).value === UNIT_ADD_NEW;
+            const newUnitName = (
+              form.unit_name as HTMLInputElement | undefined
+            )?.value?.trim();
             createItem.mutate({
               name: (form.name as HTMLInputElement).value,
               code: (form.code as HTMLInputElement).value || undefined,
-              unit: (form.unit as HTMLInputElement).value || "pcs",
+              unit: isNewUnit ? "" : (form.unit as HTMLSelectElement).value,
+              newUnitName: isNewUnit ? newUnitName : undefined,
               current_stock:
                 Number((form.current_stock as HTMLInputElement).value) || 0,
               reorder_level:
@@ -218,13 +271,36 @@ export default function Items() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit (e.g. packets, tin, bags)
+              Unit
             </label>
-            <input
+            <select
               name="unit"
-              defaultValue="pcs"
+              value={addUnitSelect}
+              onChange={(e) => setAddUnitSelect(e.target.value)}
               className="w-full border rounded px-3 py-2"
-            />
+              required
+            >
+              <option value="">Select unit</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.name}>
+                  {u.name}
+                </option>
+              ))}
+              <option value={UNIT_ADD_NEW}>Add new…</option>
+            </select>
+            {addUnitSelect === UNIT_ADD_NEW && (
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Unit name *
+                </label>
+                <input
+                  name="unit_name"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="e.g. packets, tins, bags"
+                  required={addUnitSelect === UNIT_ADD_NEW}
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -270,7 +346,10 @@ export default function Items() {
       <FormModal
         title="Edit Product"
         open={!!editing}
-        onClose={() => setEditing(null)}
+        onClose={() => {
+          setEditing(null);
+          setEditUnitSelect("");
+        }}
       >
         {editing && (
           <form
@@ -278,12 +357,19 @@ export default function Items() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
+              const isNewUnit =
+                (form.unit as HTMLSelectElement).value === UNIT_ADD_NEW;
+              const newUnitName = (
+                form.unit_name as HTMLInputElement | undefined
+              )?.value?.trim();
               updateItem.mutate({
                 id: editing.id,
                 item: {
                   name: (form.name as HTMLInputElement).value,
                   code: (form.code as HTMLInputElement).value || undefined,
-                  unit: (form.unit as HTMLInputElement).value,
+                  unit: isNewUnit
+                    ? editing.unit
+                    : (form.unit as HTMLSelectElement).value,
                   current_stock: Number(
                     (form.current_stock as HTMLInputElement).value
                   ),
@@ -291,6 +377,7 @@ export default function Items() {
                     Number((form.reorder_level as HTMLInputElement).value) ||
                     undefined,
                 },
+                newUnitName: isNewUnit ? newUnitName : undefined,
               });
             }}
           >
@@ -319,11 +406,41 @@ export default function Items() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Unit
               </label>
-              <input
+              <select
                 name="unit"
-                defaultValue={editing.unit}
+                value={editUnitSelect || editing.unit}
+                onChange={(e) => setEditUnitSelect(e.target.value)}
                 className="w-full border rounded px-3 py-2"
-              />
+                required
+              >
+                <option value="">Select unit</option>
+                {(
+                  units.some((u) => u.name === editing.unit)
+                    ? units
+                    : [
+                        { id: -1, name: editing.unit, created_at: "" },
+                        ...units,
+                      ]
+                ).map((u) => (
+                  <option key={u.id >= 0 ? u.id : `unit-${u.name}`} value={u.name}>
+                    {u.name}
+                  </option>
+                ))}
+                <option value={UNIT_ADD_NEW}>Add new…</option>
+              </select>
+              {editUnitSelect === UNIT_ADD_NEW && (
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit name *
+                  </label>
+                  <input
+                    name="unit_name"
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="e.g. packets, tins, bags"
+                    required={editUnitSelect === UNIT_ADD_NEW}
+                  />
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

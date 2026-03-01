@@ -29,7 +29,7 @@ export default function DataTable<T extends { id: number }>({
     );
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="table-scroll-wrap overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>

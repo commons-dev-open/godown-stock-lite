@@ -315,6 +315,18 @@ function randomDate(from: string, to: string): string {
 const TXN_START = "2025-01-01";
 const TXN_END = "2026-03-01";
 
+function seedUnits(db: Database.Database): void {
+  const unitNames = [
+    ...new Set(ITEM_TEMPLATES.map((i) => i.unit)),
+  ].sort();
+  const insertUnit = db.prepare(
+    "INSERT OR IGNORE INTO units (name) VALUES (?)"
+  );
+  for (const name of unitNames) {
+    insertUnit.run(name);
+  }
+}
+
 function seedItems(db: Database.Database): void {
   const insertItem = db.prepare(
     "INSERT INTO items (name, code, unit, current_stock, reorder_level) VALUES (?, ?, ?, 0, ?)"
@@ -471,6 +483,7 @@ function seedOpeningBalance(db: Database.Database): void {
 }
 
 export function seedBulk(db: Database.Database): void {
+  seedUnits(db);
   seedItems(db);
   const mahajanIds = seedMahajans(db);
   const itemRows = db.prepare("SELECT id, name FROM items").all() as ItemRow[];

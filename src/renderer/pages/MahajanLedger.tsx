@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
 import FormModal from "../components/FormModal";
+import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import TransactionTypeBadge from "../components/TransactionTypeBadge";
 import LedgerRowActions from "../components/LedgerRowActions";
-import { formatDateForView, formatDateForForm, parseFormDate } from "../lib/date";
+import { formatDateForView, formatDateForForm } from "../lib/date";
 import type {
   LedgerRow,
   MahajanLend,
@@ -26,6 +27,21 @@ export default function MahajanLedger() {
   const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
     null
   );
+  const [filterType, setFilterType] = useState<"all" | "lend" | "deposit">(
+    "all"
+  );
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [editLendDate, setEditLendDate] = useState("");
+  const [editDepositDate, setEditDepositDate] = useState("");
+
+  useEffect(() => {
+    if (editingLend) setEditLendDate(editingLend.transaction_date);
+  }, [editingLend]);
+  useEffect(() => {
+    if (editingDeposit) setEditDepositDate(editingDeposit.transaction_date);
+  }, [editingDeposit]);
 
   const { data: mahajans = [] } = useQuery({
     queryKey: ["mahajans"],
@@ -148,6 +164,25 @@ export default function MahajanLedger() {
   const getDepositRecord = (row: LedgerRow): MahajanDeposit | undefined =>
     deposits.find((d) => d.id === row.id);
 
+  const filteredLedger = useMemo(() => {
+    return ledger.filter((row) => {
+      if (filterType !== "all" && row.type !== filterType) return false;
+      if (filterDateFrom && row.transaction_date < filterDateFrom) return false;
+      if (filterDateTo && row.transaction_date > filterDateTo) return false;
+      return true;
+    });
+  }, [ledger, filterType, filterDateFrom, filterDateTo]);
+
+  const handleFilterChange = (updates: {
+    type?: "all" | "lend" | "deposit";
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    if (updates.type !== undefined) setFilterType(updates.type);
+    if (updates.dateFrom !== undefined) setFilterDateFrom(updates.dateFrom);
+    if (updates.dateTo !== undefined) setFilterDateTo(updates.dateTo);
+  };
+
   if (!id) return <div className="text-gray-500">Invalid Mahajan</div>;
 
   return (
@@ -164,9 +199,100 @@ export default function MahajanLedger() {
           Ledger: {mahajan?.name ?? `ID ${id}`}
         </h1>
       </div>
-      <p className="text-sm text-gray-500 mb-4">
-        Lends and deposits date wise.
-      </p>
+
+      <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
+        <select
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
+          value={filterType}
+          onChange={(e) =>
+            handleFilterChange({
+              type: e.target.value as "all" | "lend" | "deposit",
+            })
+          }
+        >
+          <option value="all">All (Lend + Deposit)</option>
+          <option value="lend">Lend only</option>
+          <option value="deposit">Deposit only</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setMoreFiltersOpen(true)}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+        >
+          More filters
+          {(filterDateFrom || filterDateTo) && (
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+              1
+            </span>
+          )}
+        </button>
+      </div>
+
+      {moreFiltersOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMoreFiltersOpen(false)}
+            aria-hidden
+          />
+          <div className="relative bg-white rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">More filters</h2>
+              <button
+                type="button"
+                onClick={() => setMoreFiltersOpen(false)}
+                className="text-gray-500 hover:text-gray-700 p-1"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <label
+                htmlFor="mahajan-ledger-date-from"
+                className="flex flex-col gap-1.5 text-sm text-gray-600"
+              >
+                From date
+                <DateInput
+                  id="mahajan-ledger-date-from"
+                  value={filterDateFrom}
+                  onChange={(v) => handleFilterChange({ dateFrom: v })}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                />
+              </label>
+              <label
+                htmlFor="mahajan-ledger-date-to"
+                className="flex flex-col gap-1.5 text-sm text-gray-600"
+              >
+                To date
+                <DateInput
+                  id="mahajan-ledger-date-to"
+                  value={filterDateTo}
+                  onChange={(v) => handleFilterChange({ dateTo: v })}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                />
+              </label>
+              {(filterType !== "all" || filterDateFrom || filterDateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleFilterChange({
+                      type: "all",
+                      dateFrom: "",
+                      dateTo: "",
+                    });
+                    setMoreFiltersOpen(false);
+                  }}
+                  className="text-sm text-gray-600 hover:text-gray-900 underline self-start"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {balanceLoading && (
         <p className="text-sm text-gray-500 mb-4">Loading balance…</p>
       )}
@@ -214,78 +340,81 @@ export default function MahajanLedger() {
           </div>
         </div>
       )}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        {isLoading ? (
-          <TableLoader />
-        ) : (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
-                Date
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
-                Type
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
-                Description
-              </th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
-                Amount
-              </th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {ledger.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                  No transactions yet.
-                </td>
-              </tr>
-            ) : (
-              ledger.map((row) => (
-                <tr key={`${row.type}-${row.id}`} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-sm text-gray-900">
-                    <Tooltip content={formatDateForForm(row.transaction_date)}>
-                      <span>{formatDateForView(row.transaction_date)}</span>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-2 text-sm">
-                    <TransactionTypeBadge type={row.type} />
-                  </td>
-                  <td className="px-4 py-2 text-sm text-gray-900">
-                    {row.description}
-                  </td>
-                  <td className="px-4 py-2 text-sm text-right font-medium">
-                    {row.amount.toFixed(2)}
-                  </td>
-                  <LedgerRowActions
-                    type={row.type}
-                    onEdit={() => {
-                      if (row.type === "lend") {
-                        const rec = getLendRecord(row);
-                        if (rec) setEditingLend(rec);
-                        else toast.error("Lend record not found");
-                      } else {
-                        const rec = getDepositRecord(row);
-                        if (rec) setEditingDeposit(rec);
-                        else toast.error("Deposit record not found");
-                      }
-                    }}
-                    onDelete={() => {
-                      if (row.type === "lend") deleteLend.mutate(row.id);
-                      else deleteDeposit.mutate(row.id);
-                    }}
-                  />
+      <div className="rounded-lg border border-gray-200 bg-white">
+        <div className="table-scroll-wrap overflow-x-auto">
+          {isLoading ? (
+            <TableLoader />
+          ) : filteredLedger.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No records match the filters.
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                    Date
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                    Type
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                    Description
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                    Amount
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                    Actions
+                  </th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        )}
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredLedger.map((row) => (
+                  <tr
+                    key={`${row.type}-${row.id}`}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      <Tooltip
+                        content={formatDateForForm(row.transaction_date)}
+                      >
+                        <span>{formatDateForView(row.transaction_date)}</span>
+                      </Tooltip>
+                    </td>
+                    <td className="px-4 py-2 text-sm">
+                      <TransactionTypeBadge type={row.type} />
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      {row.description}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-right font-medium">
+                      {row.amount.toFixed(2)}
+                    </td>
+                    <LedgerRowActions
+                      type={row.type}
+                      onEdit={() => {
+                        if (row.type === "lend") {
+                          const rec = getLendRecord(row);
+                          if (rec) setEditingLend(rec);
+                          else toast.error("Lend record not found");
+                        } else {
+                          const rec = getDepositRecord(row);
+                          if (rec) setEditingDeposit(rec);
+                          else toast.error("Deposit record not found");
+                        }
+                      }}
+                      onDelete={() => {
+                        if (row.type === "lend") deleteLend.mutate(row.id);
+                        else deleteDeposit.mutate(row.id);
+                      }}
+                    />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       <FormModal
@@ -306,15 +435,12 @@ export default function MahajanLedger() {
               const item = productId
                 ? itemList.find((i) => i.id === productId)
                 : undefined;
-              const transaction_date = parseFormDate(
-                (form.transaction_date as HTMLInputElement).value
-              );
-              if (!transaction_date) return;
+              if (!editLendDate) return;
               updateLend.mutate({
                 id: editingLend.id,
                 l: {
                   mahajan_id: id,
-                  transaction_date,
+                  transaction_date: editLendDate,
                   product_id: productId || null,
                   product_name:
                     item?.name ?? editingLend.product_name ?? undefined,
@@ -331,13 +457,10 @@ export default function MahajanLedger() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="transaction_date"
-                type="text"
-                defaultValue={formatDateForForm(editingLend.transaction_date)}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editLendDate}
+                onChange={setEditLendDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>
@@ -426,14 +549,11 @@ export default function MahajanLedger() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              const transaction_date = parseFormDate(
-                (form.transaction_date as HTMLInputElement).value
-              );
-              if (!transaction_date) return;
+              if (!editDepositDate) return;
               updateDeposit.mutate({
                 id: editingDeposit.id,
                 d: {
-                  transaction_date,
+                  transaction_date: editDepositDate,
                   amount: Number((form.amount as HTMLInputElement).value),
                   notes: (form.notes as HTMLInputElement).value || undefined,
                 },
@@ -444,15 +564,10 @@ export default function MahajanLedger() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="transaction_date"
-                type="text"
-                defaultValue={formatDateForForm(
-                  editingDeposit.transaction_date
-                )}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editDepositDate}
+                onChange={setEditDepositDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>

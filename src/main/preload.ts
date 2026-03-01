@@ -28,6 +28,9 @@ const electronAPI = {
   reduceStock: (id: number, quantity: number) =>
     ipcRenderer.invoke("items:reduceStock", id, quantity),
 
+  getUnits: () => ipcRenderer.invoke("units:getAll"),
+  createUnit: (name: string) => ipcRenderer.invoke("units:create", name),
+
   // Mahajans
   getMahajans: () => ipcRenderer.invoke("mahajans:getAll"),
   getMahajansPage: (opts: { search?: string; page?: number; limit?: number }) =>

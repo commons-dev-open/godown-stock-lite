@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -12,12 +12,7 @@ import TransactionTypeBadge, {
   type TransactionType,
 } from "../components/TransactionTypeBadge";
 import LedgerRowActions from "../components/LedgerRowActions";
-import {
-  todayISO,
-  formatDateForView,
-  formatDateForForm,
-  parseFormDate,
-} from "../lib/date";
+import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import type {
   Item,
   MahajanLend,
@@ -103,6 +98,32 @@ export default function Transactions() {
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([
     emptyPurchaseLine(),
   ]);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [lendFormDate, setLendFormDate] = useState(todayISO());
+  const [depositFormDate, setDepositFormDate] = useState(todayISO());
+  const [editLendDate, setEditLendDate] = useState("");
+  const [editDepositDate, setEditDepositDate] = useState("");
+  const [purchaseFormDate, setPurchaseFormDate] = useState(todayISO());
+  const [editPurchaseDate, setEditPurchaseDate] = useState("");
+
+  useEffect(() => {
+    if (lendOpen) setLendFormDate(todayISO());
+  }, [lendOpen]);
+  useEffect(() => {
+    if (depositOpen) setDepositFormDate(todayISO());
+  }, [depositOpen]);
+  useEffect(() => {
+    if (editingLend) setEditLendDate(editingLend.transaction_date);
+  }, [editingLend]);
+  useEffect(() => {
+    if (editingDeposit) setEditDepositDate(editingDeposit.transaction_date);
+  }, [editingDeposit]);
+  useEffect(() => {
+    if (purchaseAddOpen) setPurchaseFormDate(todayISO());
+  }, [purchaseAddOpen]);
+  useEffect(() => {
+    if (editingPurchase) setEditPurchaseDate(editingPurchase.transaction_date);
+  }, [editingPurchase]);
 
   const { data: mahajans = [] } = useQuery({
     queryKey: ["mahajans"],
@@ -389,27 +410,9 @@ export default function Transactions() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <span className="text-sm font-medium text-gray-700">Filters:</span>
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
           <select
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
-            value={filterMahajanId}
-            onChange={(e) =>
-              handleFilterChange({
-                mahajanId: e.target.value ? Number(e.target.value) : "",
-              })
-            }
-            disabled={filterType === "cash_purchase"}
-          >
-            <option value="">All Mahajans</option>
-            {mahajanList.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
             value={filterType}
             onChange={(e) =>
               handleFilterChange({
@@ -426,42 +429,105 @@ export default function Transactions() {
             <option value="deposit">Deposit only</option>
             <option value="cash_purchase">Cash purchase only</option>
           </select>
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
-            From
-            <DateInput
-              value={filterDateFrom}
-              onChange={(v) => handleFilterChange({ dateFrom: v })}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-[10rem]"
-            />
-          </label>
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
-            To
-            <DateInput
-              value={filterDateTo}
-              onChange={(v) => handleFilterChange({ dateTo: v })}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-[10rem]"
-            />
-          </label>
-          {(filterMahajanId !== "" ||
-            filterType !== "all" ||
-            filterDateFrom ||
-            filterDateTo) && (
-            <button
-              type="button"
-              onClick={() =>
-                handleFilterChange({
-                  mahajanId: "",
-                  type: "all",
-                  dateFrom: "",
-                  dateTo: "",
-                })
-              }
-              className="text-sm text-gray-600 hover:text-gray-900 underline"
-            >
-              Clear filters
-            </button>
-          )}
+          <select
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
+            value={filterMahajanId}
+            onChange={(e) =>
+              handleFilterChange({
+                mahajanId: e.target.value ? Number(e.target.value) : "",
+              })
+            }
+            disabled={filterType === "cash_purchase"}
+          >
+            <option value="">All Mahajans</option>
+            {mahajanList.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setMoreFiltersOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+          >
+            More filters
+            {(filterDateFrom || filterDateTo) && (
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                1
+              </span>
+            )}
+          </button>
         </div>
+
+        {moreFiltersOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setMoreFiltersOpen(false)}
+              aria-hidden
+            />
+            <div className="relative bg-white rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">More filters</h2>
+                <button
+                  type="button"
+                  onClick={() => setMoreFiltersOpen(false)}
+                  className="text-gray-500 hover:text-gray-700 p-1"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex flex-col gap-4">
+                <label
+                  htmlFor="more-filters-date-from"
+                  className="flex flex-col gap-1.5 text-sm text-gray-600"
+                >
+                  From date
+                  <DateInput
+                    id="more-filters-date-from"
+                    value={filterDateFrom}
+                    onChange={(v) => handleFilterChange({ dateFrom: v })}
+                    className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                  />
+                </label>
+                <label
+                  htmlFor="more-filters-date-to"
+                  className="flex flex-col gap-1.5 text-sm text-gray-600"
+                >
+                  To date
+                  <DateInput
+                    id="more-filters-date-to"
+                    value={filterDateTo}
+                    onChange={(v) => handleFilterChange({ dateTo: v })}
+                    className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                  />
+                </label>
+                {(filterMahajanId !== "" ||
+                  filterType !== "all" ||
+                  filterDateFrom ||
+                  filterDateTo) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleFilterChange({
+                        mahajanId: "",
+                        type: "all",
+                        dateFrom: "",
+                        dateTo: "",
+                      });
+                      setMoreFiltersOpen(false);
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-900 underline self-start"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-lg border border-gray-200 bg-white">
           {ledgerLoading ? (
@@ -472,7 +538,7 @@ export default function Transactions() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="table-scroll-wrap overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -512,7 +578,9 @@ export default function Transactions() {
                         className="hover:bg-gray-50"
                       >
                         <td className="px-4 py-2 text-sm">
-                          <TransactionTypeBadge type={row.type as TransactionType} />
+                          <TransactionTypeBadge
+                            type={row.type as TransactionType}
+                          />
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900">
                           <Tooltip
@@ -525,7 +593,7 @@ export default function Transactions() {
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
                           {row.mahajan_id == null ? (
-                            row.mahajan_name ?? "—"
+                            (row.mahajan_name ?? "—")
                           ) : (
                             <Link
                               to={`/mahajans/ledger/${row.mahajan_id}`}
@@ -569,7 +637,9 @@ export default function Transactions() {
                           {row.notes ?? "—"}
                         </td>
                         <LedgerRowActions
-                          type={row.type as "lend" | "deposit" | "cash_purchase"}
+                          type={
+                            row.type as "lend" | "deposit" | "cash_purchase"
+                          }
                           onEdit={() => {
                             if (row.type === "lend")
                               setEditingLend(toLendRecord(row));
@@ -617,10 +687,7 @@ export default function Transactions() {
             const mahajanId = Number(
               (form.mahajan_id as HTMLSelectElement).value
             );
-            const transaction_date = parseFormDate(
-              (form.transaction_date as HTMLInputElement).value
-            );
-            if (!transaction_date) return;
+            if (!lendFormDate) return;
             const notes = (form.notes as HTMLInputElement).value?.trim() || "";
             const lines: LendLine[] = lendLines
               .map((_, idx) => {
@@ -652,7 +719,7 @@ export default function Transactions() {
             setConfirmPayload({
               mahajan_id: mahajanId,
               mahajanName: mahajan?.name ?? "",
-              transaction_date,
+              transaction_date: lendFormDate,
               notes,
               lines,
             });
@@ -680,13 +747,10 @@ export default function Transactions() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Date * (dd/mm/yyyy)
             </label>
-            <input
-              name="transaction_date"
-              type="text"
-              defaultValue={formatDateForForm(todayISO())}
-              placeholder="dd/mm/yyyy"
-              required
-              className="w-full border rounded px-3 py-2"
+            <DateInput
+              value={lendFormDate}
+              onChange={setLendFormDate}
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
           <div className="border rounded p-2 space-y-2">
@@ -847,7 +911,7 @@ export default function Transactions() {
                 </span>
               </Tooltip>
             </p>
-            <div className="overflow-auto max-h-60">
+            <div className="table-scroll-wrap overflow-auto max-h-60">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b bg-gray-50">
@@ -954,13 +1018,10 @@ export default function Transactions() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const transaction_date = parseFormDate(
-              (form.transaction_date as HTMLInputElement).value
-            );
-            if (!transaction_date) return;
+            if (!depositFormDate) return;
             createDeposit.mutate({
               mahajan_id: Number((form.mahajan_id as HTMLSelectElement).value),
-              transaction_date,
+              transaction_date: depositFormDate,
               amount: Number((form.amount as HTMLInputElement).value),
               notes: (form.notes as HTMLInputElement).value || undefined,
             });
@@ -987,13 +1048,10 @@ export default function Transactions() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Date * (dd/mm/yyyy)
             </label>
-            <input
-              name="transaction_date"
-              type="text"
-              defaultValue={formatDateForForm(todayISO())}
-              placeholder="dd/mm/yyyy"
-              required
-              className="w-full border rounded px-3 py-2"
+            <DateInput
+              value={depositFormDate}
+              onChange={setDepositFormDate}
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
           <div>
@@ -1052,17 +1110,14 @@ export default function Transactions() {
               const item = productId
                 ? itemList.find((i) => i.id === productId)
                 : undefined;
-              const transaction_date = parseFormDate(
-                (form.transaction_date as HTMLInputElement).value
-              );
-              if (!transaction_date) return;
+              if (!editLendDate) return;
               updateLend.mutate({
                 id: editingLend.id,
                 l: {
                   mahajan_id: Number(
                     (form.mahajan_id as HTMLSelectElement).value
                   ),
-                  transaction_date,
+                  transaction_date: editLendDate,
                   product_id: productId || null,
                   product_name:
                     item?.name ?? editingLend.product_name ?? undefined,
@@ -1097,13 +1152,10 @@ export default function Transactions() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="transaction_date"
-                type="text"
-                defaultValue={formatDateForForm(editingLend.transaction_date)}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editLendDate}
+                onChange={setEditLendDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>
@@ -1192,14 +1244,11 @@ export default function Transactions() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              const transaction_date = parseFormDate(
-                (form.transaction_date as HTMLInputElement).value
-              );
-              if (!transaction_date) return;
+              if (!editDepositDate) return;
               updateDeposit.mutate({
                 id: editingDeposit.id,
                 d: {
-                  transaction_date,
+                  transaction_date: editDepositDate,
                   amount: Number((form.amount as HTMLInputElement).value),
                   notes: (form.notes as HTMLInputElement).value || undefined,
                 },
@@ -1210,13 +1259,10 @@ export default function Transactions() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="transaction_date"
-                type="text"
-                defaultValue={formatDateForForm(editingDeposit.transaction_date)}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editDepositDate}
+                onChange={setEditDepositDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>
@@ -1277,10 +1323,7 @@ export default function Transactions() {
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const transaction_date = parseFormDate(
-              (form.transaction_date as HTMLInputElement).value
-            );
-            if (!transaction_date) return;
+            if (!purchaseFormDate) return;
             const notes = (form.notes as HTMLInputElement).value?.trim() || "";
             const lines: PurchaseLine[] = purchaseLines
               .map((_, idx) => {
@@ -1317,7 +1360,7 @@ export default function Transactions() {
               return;
             }
             setConfirmPurchasePayload({
-              transaction_date,
+              transaction_date: purchaseFormDate,
               notes,
               lines,
             });
@@ -1328,13 +1371,10 @@ export default function Transactions() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Date * (dd/mm/yyyy)
             </label>
-            <input
-              name="transaction_date"
-              type="text"
-              defaultValue={formatDateForForm(todayISO())}
-              placeholder="dd/mm/yyyy"
-              required
-              className="w-full border rounded px-3 py-2"
+            <DateInput
+              value={purchaseFormDate}
+              onChange={setPurchaseFormDate}
+              className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </div>
           <div className="border rounded p-2 space-y-2">
@@ -1503,7 +1543,7 @@ export default function Transactions() {
                 ? ` — ${confirmPurchasePayload.notes}`
                 : ""}
             </p>
-            <div className="overflow-auto max-h-60">
+            <div className="table-scroll-wrap overflow-auto max-h-60">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b bg-gray-50">
@@ -1564,8 +1604,7 @@ export default function Transactions() {
                 onClick={() => {
                   createPurchaseBatch.mutate({
                     transaction_date: confirmPurchasePayload.transaction_date,
-                    notes:
-                      confirmPurchasePayload.notes || undefined,
+                    notes: confirmPurchasePayload.notes || undefined,
                     lines: confirmPurchasePayload.lines.map((l) => ({
                       product_id: l.product_id,
                       quantity: l.quantity,
@@ -1594,14 +1633,11 @@ export default function Transactions() {
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
-              const transaction_date = parseFormDate(
-                (form.transaction_date as HTMLInputElement).value
-              );
-              if (!transaction_date) return;
+              if (!editPurchaseDate) return;
               updatePurchase.mutate({
                 id: editingPurchase.id,
                 p: {
-                  transaction_date,
+                  transaction_date: editPurchaseDate,
                   quantity: Number((form.quantity as HTMLInputElement).value),
                   amount: Number((form.amount as HTMLInputElement).value),
                   notes: (form.notes as HTMLInputElement).value || undefined,
@@ -1613,13 +1649,10 @@ export default function Transactions() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date * (dd/mm/yyyy)
               </label>
-              <input
-                name="transaction_date"
-                type="text"
-                defaultValue={formatDateForForm(editingPurchase.transaction_date)}
-                placeholder="dd/mm/yyyy"
-                required
-                className="w-full border rounded px-3 py-2"
+              <DateInput
+                value={editPurchaseDate}
+                onChange={setEditPurchaseDate}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>
