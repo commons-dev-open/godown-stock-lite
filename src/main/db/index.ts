@@ -166,10 +166,21 @@ function migrateSchema(database: Database.Database): void {
   `);
 }
 
+export function getDbPath(): string {
+  const userDataPath = app.getPath("userData");
+  return path.join(userDataPath, "godown.db");
+}
+
+export function closeDb(): void {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
 export function getDb(): Database.Database {
   if (!db) {
-    const userDataPath = app.getPath("userData");
-    const dbPath = path.join(userDataPath, "godown.db");
+    const dbPath = getDbPath();
     db = new Database(dbPath);
     createSchema(db);
     migrateUnitsFromItems(db);

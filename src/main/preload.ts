@@ -276,6 +276,19 @@ const electronAPI = {
     ipcRenderer.invoke("reports:setOpeningBalance", year, amount),
   getProfitLoss: (year: number, closingBalance: number) =>
     ipcRenderer.invoke("reports:getProfitLoss", year, closingBalance),
+
+  // Database danger zone (Settings)
+  getDbPath: () => ipcRenderer.invoke("db:getPath") as Promise<string>,
+  clearDbTables: () => ipcRenderer.invoke("db:clearTables") as Promise<void>,
+  clearEntireDb: () => ipcRenderer.invoke("db:clearEntireDb") as Promise<void>,
+  exportDb: () =>
+    ipcRenderer.invoke("db:exportDb") as Promise<
+      { canceled: true } | { canceled: false; path: string }
+    >,
+  importDb: () =>
+    ipcRenderer.invoke("db:importDb") as Promise<
+      { canceled: true } | { canceled: false }
+    >,
 };
 
 contextBridge.exposeInMainWorld("electron", electronAPI);

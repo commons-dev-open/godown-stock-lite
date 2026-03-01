@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
-import { ipcMain } from "electron";
+import fs from "fs";
+import type { OpenDialogOptions } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
 import { roundDecimal } from "../../shared/numbers";
-import { getDb } from "./index";
+import { closeDb, getDb, getDbPath } from "./index";
 
 export function registerIpcHandlers(): void {
   function db() {
@@ -1550,4 +1552,71 @@ export function registerIpcHandlers(): void {
       };
     }
   );
+
+  // ---- Database danger zone (Settings) ----
+  ipcMain.handle("db:getPath", () => getDbPath());
+
+  ipcMain.handle("db:clearTables", () => {
+    const database = db();
+    const tables = [
+      "invoice_lines",
+      "invoices",
+      "transactions",
+      "daily_sales",
+      "opening_balance",
+      "item_other_units",
+      "items",
+      "mahajans",
+      "units",
+      "invoice_units",
+      "settings",
+    ];
+    for (const table of tables) {
+      database.prepare(`DELETE FROM ${table}`).run();
+    }
+    database.prepare("VACUUM").run();
+  });
+
+  ipcMain.handle("db:clearEntireDb", () => {
+    closeDb();
+    const path = getDbPath();
+    if (fs.existsSync(path)) {
+      fs.unlinkSync(path);
+    }
+    getDb(); // recreate and seed
+  });
+
+  ipcMain.handle("db:exportDb", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
+    const opts = {
+      title: "Export database",
+      defaultPath: "godown-export.db",
+      filters: [{ name: "SQLite database", extensions: ["db"] }],
+    };
+    const result = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+    if (result.canceled || !result.filePath) return { canceled: true };
+    const dest = result.filePath;
+    closeDb();
+    const src = getDbPath();
+    fs.copyFileSync(src, dest);
+    getDb();
+    return { canceled: false, path: dest };
+  });
+
+  ipcMain.handle("db:importDb", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
+    const opts: OpenDialogOptions = {
+      title: "Import database",
+      filters: [{ name: "SQLite database", extensions: ["db"] }],
+      properties: ["openFile"],
+    };
+    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+    if (result.canceled || result.filePaths.length === 0) return { canceled: true };
+    const src = result.filePaths[0];
+    closeDb();
+    const dest = getDbPath();
+    fs.copyFileSync(src, dest);
+    getDb();
+    return { canceled: false };
+  });
 }

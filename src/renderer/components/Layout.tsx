@@ -6,13 +6,13 @@ import { getAppDisplayName } from "../lib/displayName";
 
 const navItems = [
   { to: "/", label: "Home" },
+  { to: "/units", label: "Units" },
   { to: "/stock", label: "Products & Stock" },
   { to: "/mahajans", label: "Mahajans" },
   { to: "/transactions", label: "Transactions" },
   { to: "/sales", label: "Daily Sales" },
-  { to: "/reports", label: "Reports" },
   { to: "/invoices", label: "Invoices" },
-  { to: "/units", label: "Units" },
+  { to: "/reports", label: "Reports" },
   { to: "/settings", label: "Settings" },
 ];
 

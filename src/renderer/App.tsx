@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Items from "./pages/Items";
 import Mahajans from "./pages/Mahajans";
@@ -13,7 +13,7 @@ import Invoices from "./pages/Invoices";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -31,6 +31,6 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </Layout>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

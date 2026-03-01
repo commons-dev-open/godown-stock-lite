@@ -275,6 +275,14 @@ export interface ElectronAPI {
     closingBalance: number;
     profitLoss: number;
   }>;
+
+  getDbPath: () => Promise<string>;
+  clearDbTables: () => Promise<void>;
+  clearEntireDb: () => Promise<void>;
+  exportDb: () => Promise<
+    { canceled: true } | { canceled: false; path: string }
+  >;
+  importDb: () => Promise<{ canceled: true } | { canceled: false }>;
 }
 
 declare global {
