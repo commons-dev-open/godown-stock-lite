@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
@@ -183,6 +184,9 @@ export default function Invoices() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [printData, setPrintData] = useState<InvoiceWithLines | null>(null);
+  const [deleteConfirmInvoiceId, setDeleteConfirmInvoiceId] = useState<
+    number | null
+  >(null);
 
   const { data: items = [] } = useQuery({
     queryKey: ["items"],
@@ -271,13 +275,6 @@ export default function Invoices() {
     [api]
   );
 
-  const handleDelete = useCallback(
-    (id: number) => {
-      if (globalThis.confirm("Delete this invoice?")) deleteInvoice.mutate(id);
-    },
-    [deleteInvoice]
-  );
-
   const tableColumns = useMemo(
     () => [
       {
@@ -324,7 +321,7 @@ export default function Invoices() {
               type="button"
               className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
               title="Delete"
-              onClick={() => handleDelete(r.id)}
+              onClick={() => setDeleteConfirmInvoiceId(r.id)}
               aria-label="Delete invoice"
             >
               <TrashIcon className="w-5 h-5" />
@@ -333,7 +330,7 @@ export default function Invoices() {
         ),
       },
     ],
-    [fetchAndView, fetchAndEdit, handleDelete]
+    [fetchAndView, fetchAndEdit]
   );
 
   useEffect(() => {
@@ -402,6 +399,19 @@ export default function Invoices() {
           />
         </>
       )}
+
+      <ConfirmModal
+        open={deleteConfirmInvoiceId != null}
+        onClose={() => setDeleteConfirmInvoiceId(null)}
+        title="Delete invoice"
+        message="Delete this invoice?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmInvoiceId != null)
+            deleteInvoice.mutate(deleteConfirmInvoiceId);
+        }}
+      />
 
       {/* Create Invoice modal */}
       <InvoiceFormModal

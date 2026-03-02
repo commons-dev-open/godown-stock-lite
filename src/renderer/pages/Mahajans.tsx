@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
@@ -74,6 +75,8 @@ export default function Mahajans() {
     rows: string[][];
     summary: MahajanSummaryForExport | null;
   } | null>(null);
+  const [deleteConfirmMahajan, setDeleteConfirmMahajan] =
+    useState<Mahajan | null>(null);
 
   const {
     refs: exportRefs,
@@ -536,12 +539,7 @@ export default function Mahajans() {
               ]}
               data={mahajansPage}
               onEdit={setEditing}
-              onDelete={(row) => {
-                if (
-                  globalThis.confirm("Delete this Mahajan? Balance must be 0.")
-                )
-                  deleteMahajan.mutate(row.id);
-              }}
+              onDelete={(row) => setDeleteConfirmMahajan(row)}
               emptyMessage="No Mahajans yet. Click Add Mahajan."
             />
             <Pagination
@@ -553,6 +551,19 @@ export default function Mahajans() {
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={deleteConfirmMahajan != null}
+        onClose={() => setDeleteConfirmMahajan(null)}
+        title="Delete Mahajan"
+        message="Delete this Mahajan? Balance must be 0."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmMahajan)
+            deleteMahajan.mutate(deleteConfirmMahajan.id);
+        }}
+      />
 
       <FormModal
         title="Add Mahajan"

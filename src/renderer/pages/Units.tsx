@@ -10,6 +10,7 @@ import {
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
@@ -27,6 +28,11 @@ export default function Units() {
   const [invoiceEditing, setInvoiceEditing] = useState<InvoiceUnit | null>(
     null
   );
+  const [deleteConfirmUnit, setDeleteConfirmUnit] = useState<Unit | null>(
+    null
+  );
+  const [deleteConfirmInvoiceUnit, setDeleteConfirmInvoiceUnit] =
+    useState<InvoiceUnit | null>(null);
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
@@ -159,15 +165,7 @@ export default function Units() {
             ]}
             data={units}
             onEdit={(row) => setStockEditing(row)}
-            onDelete={(row) => {
-              if (
-                globalThis.confirm(
-                  "Delete this unit? Products using it will be blocked."
-                )
-              ) {
-                deleteUnit.mutate(row.id);
-              }
-            }}
+            onDelete={(row) => setDeleteConfirmUnit(row)}
             emptyMessage="No stock units. Add one to get started."
           />
         </div>
@@ -193,15 +191,35 @@ export default function Units() {
             ]}
             data={invoiceUnits}
             onEdit={(row) => setInvoiceEditing(row)}
-            onDelete={(row) => {
-              if (globalThis.confirm("Delete this invoice unit?")) {
-                deleteInvoiceUnit.mutate(row.id);
-              }
-            }}
+            onDelete={(row) => setDeleteConfirmInvoiceUnit(row)}
             emptyMessage="No invoice units. Add one to get started."
           />
         </div>
       )}
+
+      <ConfirmModal
+        open={deleteConfirmUnit != null}
+        onClose={() => setDeleteConfirmUnit(null)}
+        title="Delete stock unit"
+        message="Delete this unit? Products using it will be blocked."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmUnit) deleteUnit.mutate(deleteConfirmUnit.id);
+        }}
+      />
+      <ConfirmModal
+        open={deleteConfirmInvoiceUnit != null}
+        onClose={() => setDeleteConfirmInvoiceUnit(null)}
+        title="Delete invoice unit"
+        message="Delete this invoice unit?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmInvoiceUnit)
+            deleteInvoiceUnit.mutate(deleteConfirmInvoiceUnit.id);
+        }}
+      />
 
       {/* Stock unit – Add */}
       <FormModal

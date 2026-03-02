@@ -14,6 +14,7 @@ import {
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
@@ -79,6 +80,7 @@ export default function Items() {
   const [importUnitsTarget, setImportUnitsTarget] = useState<
     "add" | "edit" | null
   >(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<Item | null>(null);
   const [importProductId, setImportProductId] = useState<string>("");
 
   const {
@@ -418,10 +420,7 @@ export default function Items() {
                   })) ?? []
                 );
               }}
-              onDelete={(row) => {
-                if (globalThis.confirm("Delete this product? Stock must be 0."))
-                  deleteItem.mutate(row.id);
-              }}
+              onDelete={(row) => setDeleteConfirmItem(row)}
               emptyMessage="No products yet. Click Add Product."
             />
             <Pagination
@@ -433,6 +432,18 @@ export default function Items() {
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={deleteConfirmItem != null}
+        onClose={() => setDeleteConfirmItem(null)}
+        title="Delete product"
+        message="Delete this product? Stock must be 0."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmItem) deleteItem.mutate(deleteConfirmItem.id);
+        }}
+      />
 
       <FormModal
         title="Add Product"

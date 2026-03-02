@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
+import ConfirmModal from "../components/ConfirmModal";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
 import TableLoader from "../components/TableLoader";
@@ -61,6 +62,8 @@ export default function DailySales() {
     rows: string[][];
     filterDetails?: { label: string; value: string }[];
   } | null>(null);
+  const [deleteConfirmSale, setDeleteConfirmSale] =
+    useState<DailySale | null>(null);
 
   const {
     refs: exportRefs,
@@ -345,10 +348,7 @@ export default function DailySales() {
               ]}
               data={sales}
               onEdit={setEditing}
-              onDelete={(row) => {
-                if (globalThis.confirm("Delete this sale?"))
-                  deleteSale.mutate(row.id);
-              }}
+              onDelete={(row) => setDeleteConfirmSale(row)}
               emptyMessage="No sales yet. Click Add Sale or adjust filters."
             />
             <Pagination
@@ -360,6 +360,18 @@ export default function DailySales() {
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={deleteConfirmSale != null}
+        onClose={() => setDeleteConfirmSale(null)}
+        title="Delete sale"
+        message="Delete this sale?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteConfirmSale) deleteSale.mutate(deleteConfirmSale.id);
+        }}
+      />
 
       <FormModal
         title="Add Sale"
