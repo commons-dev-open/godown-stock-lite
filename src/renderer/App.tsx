@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import TrialGuard from "./components/TrialGuard";
 import Items from "./pages/Items";
 import Mahajans from "./pages/Mahajans";
 import MahajanLedger from "./pages/MahajanLedger";
@@ -14,6 +15,7 @@ import Invoices from "./pages/Invoices";
 export default function App() {
   return (
     <HashRouter>
+      <TrialGuard />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />

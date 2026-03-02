@@ -1,0 +1,66 @@
+name: Build Trial release
+
+on:
+  workflow_dispatch:
+    inputs:
+      trial_expiry:
+        description: 'Trial end (ISO date-time, e.g. 2025-04-15T23:59:59 or 2025-04-15T23:59:59.000Z). Leave empty for 3 days from build (end of day).'
+        required: false
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact_name: mac
+          - os: windows-latest
+            artifact_name: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Trial app
+        env:
+          TRIAL_MODE: 'true'
+          TRIAL_END: ${{ inputs.trial_expiry }}
+        run: npm run build
+
+      - name: Build installer (electron-builder)
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          if [ -n "${{ secrets.GH_TOKEN }}" ]; then
+            npx electron-builder
+          else
+            npx electron-builder --publish never
+          fi
+
+      - name: Upload macOS Trial artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-trial-installer
+          path: |
+            release/*.dmg
+            release/mac/*.dmg
+
+      - name: Upload Windows Trial artifact
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-trial-installer
+          path: release/*.exe

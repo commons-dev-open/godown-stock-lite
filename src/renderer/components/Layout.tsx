@@ -3,6 +3,8 @@ import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import { getAppDisplayName } from "../lib/displayName";
+import { TRIAL_MODE } from "shared/buildConfig";
+import TrialTimer from "./TrialTimer";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -24,7 +26,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const appName = getAppDisplayName(settings);
 
   useEffect(() => {
-    document.title = appName;
+    document.title = TRIAL_MODE ? `${appName} (Trial)` : appName;
   }, [appName]);
 
   const navClass = ({ isActive }: Readonly<{ isActive: boolean }>) =>
@@ -45,7 +47,22 @@ export default function Layout({ children }: { children: ReactNode }) {
           >
             ← Back
           </button> */}
-          <h1 className="text-base font-semibold text-gray-900">{appName}</h1>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base font-semibold text-gray-900">
+                {appName}
+              </h1>
+              {TRIAL_MODE && (
+                <span
+                  className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+                  title="This is a trial version. Full version will be provided after payment."
+                >
+                  Trial
+                </span>
+              )}
+            </div>
+            {TRIAL_MODE && <TrialTimer />}
+          </div>
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
           <ul className="space-y-0.5">

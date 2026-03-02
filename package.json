@@ -9,7 +9,9 @@
     "dev:electron": "wait-on http://localhost:5173 && cross-env ELECTRON_DEV=true electron .",
     "db:clean": "node scripts/clean-db.mjs",
     "dev:fresh": "npm run db:clean && npm run dev",
+    "prebuild": "node scripts/write-build-config.mjs",
     "build": "npm run build:main && npm run build:renderer",
+    "build:trial": "cross-env TRIAL_MODE=true npm run build",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "start": "electron .",
@@ -56,6 +58,7 @@
   "build": {
     "appId": "com.godown.stock.lite",
     "productName": "Godown Stock Lite",
+    "publish": "github",
     "directories": {
       "output": "release"
     },
