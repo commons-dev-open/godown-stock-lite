@@ -334,11 +334,18 @@ const UNIT_SYMBOLS: Record<string, string | null> = {
 
 function seedUnits(db: Database.Database): void {
   const unitNames = [...new Set(ITEM_TEMPLATES.map((i) => i.unit))].sort();
+  // Deduplicate by symbol so we don't insert repeated short units.
+  const seenSymbols = new Set<string>();
   const insertUnit = db.prepare(
     "INSERT OR IGNORE INTO units (name, symbol) VALUES (?, ?)"
   );
   for (const name of unitNames) {
-    insertUnit.run(name, UNIT_SYMBOLS[name] ?? null);
+    const symbol = UNIT_SYMBOLS[name] ?? null;
+    if (symbol != null && symbol !== "") {
+      if (seenSymbols.has(symbol)) continue;
+      seenSymbols.add(symbol);
+    }
+    insertUnit.run(name, symbol);
   }
 }
 
@@ -364,10 +371,18 @@ const INVOICE_UNITS: {
 
 function seedInvoiceUnits(db: Database.Database): void {
   try {
+    // Deduplicate by symbol so we don't insert repeated short units (e.g. same symbol twice).
+    const seenSymbols = new Set<string>();
+    const deduped = INVOICE_UNITS.filter((u) => {
+      if (u.symbol == null || u.symbol === "") return true;
+      if (seenSymbols.has(u.symbol)) return false;
+      seenSymbols.add(u.symbol);
+      return true;
+    });
     const insert = db.prepare(
       "INSERT OR IGNORE INTO invoice_units (name, symbol, sort_order) VALUES (?, ?, ?)"
     );
-    for (const u of INVOICE_UNITS) {
+    for (const u of deduped) {
       insert.run(u.name, u.symbol, u.sort_order);
     }
   } catch {
@@ -420,14 +435,11 @@ function seedSettings(db: Database.Database): void {
     const set = db.prepare(
       "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
     );
-    set.run("company_name", "Shree Krishna Traders");
-    set.run(
-      "company_address",
-      "12, Netaji Subhas Road, Burrabazar, Kolkata - 700001, West Bengal"
-    );
-    set.run("gstin", "19AABCS1234N1ZN");
-    set.run("owner_name", "Rajesh Kumar");
-    set.run("owner_phone", "9830123456");
+    set.run("company_name", "Shree Laxmi Bhandar");
+    set.run("company_address", "Galsi, Purba Bardhaman, West Bengal - 713406");
+    set.run("gstin", "");
+    set.run("owner_name", "Sanjoy Mallick");
+    set.run("owner_phone", "7001453833");
   } catch {
     // settings table may not exist
   }

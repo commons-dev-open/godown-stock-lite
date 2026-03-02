@@ -4,6 +4,6 @@
  * Trial: TRIAL_MODE=true npm run build
  * Trial with end: TRIAL_MODE=true TRIAL_END=2025-04-15T23:59:59 npm run build
  */
-export const TRIAL_MODE = true;
+export const TRIAL_MODE = false;
 /** ISO date-time string when trial ends (e.g. "2025-04-15T23:59:59.000Z"). Empty when not trial. */
 export const TRIAL_END_ISO = "2026-03-02T09:34:59";

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import fs from "node:fs";
 import { app } from "electron";
 import path from "path";
 import { createSchema } from "./schema";
@@ -57,12 +58,11 @@ function migrateUnitsAddSymbol(database: Database.Database): void {
   }
 }
 
+// One entry per symbol; names match seedBulk so seed won't add duplicate-symbol rows.
 const DEFAULT_INVOICE_UNITS = [
   { name: "gram", symbol: "g", sort_order: 0 },
-  { name: "g", symbol: "g", sort_order: 1 },
-  { name: "kg", symbol: "kg", sort_order: 2 },
-  { name: "L", symbol: "L", sort_order: 3 },
-  { name: "Liter", symbol: "L", sort_order: 4 },
+  { name: "kilogram", symbol: "kg", sort_order: 2 },
+  { name: "liter", symbol: "L", sort_order: 4 },
   { name: "ml", symbol: "ml", sort_order: 5 },
   { name: "pcs", symbol: "pcs", sort_order: 6 },
   { name: "box", symbol: null, sort_order: 7 },
@@ -171,6 +171,11 @@ export function getDbPath(): string {
   return path.join(userDataPath, "godown.db");
 }
 
+/** Path to a flag file: when present, we skip auto-seed on next getDb() (user cleared data). */
+export function getSkipSeedFlagPath(): string {
+  return path.join(app.getPath("userData"), "skip-seed.flag");
+}
+
 export function closeDb(): void {
   if (db) {
     db.close();
@@ -191,7 +196,12 @@ export function getDb(): Database.Database {
     migrateInvoiceUnits(db);
     migrateInvoiceLinesAmount(db);
     migrateInvoiceLinesPriceEnteredAs(db);
-    seedIfEmpty(db);
+    const skipSeedPath = getSkipSeedFlagPath();
+    if (fs.existsSync(skipSeedPath)) {
+      fs.unlinkSync(skipSeedPath);
+    } else {
+      seedIfEmpty(db);
+    }
   }
   return db;
 }

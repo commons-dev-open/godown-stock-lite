@@ -4,7 +4,7 @@ import type { OpenDialogOptions } from "electron";
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
 import { roundDecimal } from "../../shared/numbers";
-import { closeDb, getDb, getDbPath } from "./index";
+import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
 
 export function registerIpcHandlers(): void {
   function db() {
@@ -17,16 +17,30 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("items:getById", (_, id: number) => {
-    const item = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
-      | Record<string, unknown>
+    const row = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
+      | {
+          id: number;
+          name: string;
+          code: string | null;
+          unit: string;
+          retail_primary_unit: string | null;
+          current_stock: number;
+          reorder_level: number | null;
+          created_at: string;
+          updated_at: string;
+        }
       | undefined;
-    if (!item) throw new Error("Item not found");
+    if (!row) throw new Error("Item not found");
     const otherUnits = db()
       .prepare(
         "SELECT id, unit, sort_order FROM item_other_units WHERE item_id = ? ORDER BY sort_order, unit"
       )
       .all(id) as { id: number; unit: string; sort_order: number }[];
-    return { ...item, other_units: otherUnits };
+    return {
+      ...row,
+      retail_primary_unit: row.retail_primary_unit ?? null,
+      other_units: otherUnits,
+    };
   });
 
   ipcMain.handle(
@@ -1575,15 +1589,17 @@ export function registerIpcHandlers(): void {
       database.prepare(`DELETE FROM ${table}`).run();
     }
     database.prepare("VACUUM").run();
+    fs.writeFileSync(getSkipSeedFlagPath(), "");
   });
 
   ipcMain.handle("db:clearEntireDb", () => {
     closeDb();
-    const path = getDbPath();
-    if (fs.existsSync(path)) {
-      fs.unlinkSync(path);
+    const dbFilePath = getDbPath();
+    if (fs.existsSync(dbFilePath)) {
+      fs.unlinkSync(dbFilePath);
     }
-    getDb(); // recreate and seed
+    fs.writeFileSync(getSkipSeedFlagPath(), "");
+    getDb(); // recreate without re-seeding
   });
 
   ipcMain.handle("db:exportDb", async (event) => {

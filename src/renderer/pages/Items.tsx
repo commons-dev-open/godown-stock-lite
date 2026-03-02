@@ -76,6 +76,11 @@ export default function Items() {
     columns: string[];
     rows: string[][];
   } | null>(null);
+  const [importUnitsPopupOpen, setImportUnitsPopupOpen] = useState(false);
+  const [importUnitsTarget, setImportUnitsTarget] = useState<
+    "add" | "edit" | null
+  >(null);
+  const [importProductId, setImportProductId] = useState<string>("");
 
   const {
     refs: exportRefs,
@@ -438,6 +443,9 @@ export default function Items() {
           setAddUnitSelect("");
           setAddRetailPrimary("");
           setAddOtherUnits([]);
+          setImportUnitsPopupOpen(false);
+          setImportUnitsTarget(null);
+          setImportProductId("");
         }}
         maxWidth="max-w-lg"
       >
@@ -461,7 +469,7 @@ export default function Items() {
               code: els.code.value || undefined,
               unit: isNewUnit ? "" : els.unit.value,
               newUnitName: isNewUnit ? newUnitName : undefined,
-              retail_primary_unit: addRetailPrimary || undefined,
+              retail_primary_unit: addRetailPrimary || null,
               other_units: addOtherUnits.length > 0 ? addOtherUnits : undefined,
               current_stock: Number(els.current_stock.value) || 0,
               reorder_level: Number(els.reorder_level.value) || undefined,
@@ -481,134 +489,130 @@ export default function Items() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </FormField>
-          <FormField
-            label="Unit"
-            required
-            extra={
-              addUnitSelect === UNIT_ADD_NEW ? (
-                <FormField label="Unit name" required>
-                  <input
-                    name="unit_name"
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    placeholder="e.g. packets, tins, bags"
-                    required={addUnitSelect === UNIT_ADD_NEW}
-                  />
-                </FormField>
-              ) : undefined
-            }
-          >
-            <select
-              name="unit"
-              value={addUnitSelect}
-              onChange={(e) => setAddUnitSelect(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              required
-            >
-              <option value="">Select unit</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.name}>
-                  {(u.symbol && u.symbol.trim()) || u.name}
-                </option>
-              ))}
-              <option value={UNIT_ADD_NEW}>Add new…</option>
-            </select>
-          </FormField>
-          <FormField label="Retail primary unit (optional)">
-            <select
-              value={addRetailPrimary}
-              onChange={(e) => setAddRetailPrimary(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">None</option>
-              {invoiceUnits.map((u) => (
-                <option key={u.id} value={u.name}>
-                  {(u.symbol && u.symbol.trim()) || u.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <div>
-            <div className="flex items-center justify-between mb-1">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2">
               <span className="block text-sm font-medium text-gray-700">
-                Other units (optional)
+                Units
               </span>
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() =>
-                  setAddOtherUnits((prev) => [
-                    ...prev,
-                    { unit: "", sort_order: prev.length },
-                  ])
-                }
+                onClick={() => {
+                  setImportUnitsTarget("add");
+                  setImportProductId("");
+                  setImportUnitsPopupOpen(true);
+                }}
               >
-                <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Add unit
+                <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                Import units from an existing product
               </Button>
             </div>
-            {addOtherUnits.map((ou, idx) => (
-              <div key={idx} className="flex gap-2 items-center mt-2">
+            <div className="border-t border-gray-200 pt-3">
+              <span className="block text-sm text-gray-500 mb-2">
+                Or set units manually
+              </span>
+              <FormField
+                label="Primary stock unit"
+                required
+                extra={
+                  addUnitSelect === UNIT_ADD_NEW ? (
+                    <FormField label="Unit name" required>
+                      <input
+                        name="unit_name"
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                        placeholder="e.g. packets, tins, bags"
+                        required={addUnitSelect === UNIT_ADD_NEW}
+                      />
+                    </FormField>
+                  ) : undefined
+                }
+              >
                 <select
-                  value={ou.unit}
-                  onChange={(e) =>
-                    setAddOtherUnits((prev) =>
-                      prev.map((p, i) =>
-                        i === idx ? { ...p, unit: e.target.value } : p
-                      )
-                    )
-                  }
-                  className="flex-1 border border-gray-300 rounded px-3 py-2"
+                  name="unit"
+                  value={addUnitSelect}
+                  onChange={(e) => setAddUnitSelect(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  required
                 >
                   <option value="">Select unit</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.name}>
+                      {(u.symbol && u.symbol.trim()) || u.name}
+                    </option>
+                  ))}
+                  <option value={UNIT_ADD_NEW}>Add new…</option>
+                </select>
+              </FormField>
+              <FormField label="Retail primary unit (optional)">
+                <select
+                  value={addRetailPrimary}
+                  onChange={(e) => setAddRetailPrimary(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">None</option>
                   {invoiceUnits.map((u) => (
                     <option key={u.id} value={u.name}>
                       {(u.symbol && u.symbol.trim()) || u.name}
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAddOtherUnits((prev) => prev.filter((_, i) => i !== idx))
-                  }
-                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                  title="Remove"
-                  aria-label="Remove"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
+              </FormField>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="block text-sm font-medium text-gray-700">
+                    Other units (optional)
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setAddOtherUnits((prev) => [
+                        ...prev,
+                        { unit: "", sort_order: prev.length },
+                      ])
+                    }
+                  >
+                    <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                    Add unit
+                  </Button>
+                </div>
+                {addOtherUnits.map((ou, idx) => (
+                  <div key={idx} className="flex gap-2 items-center mt-2">
+                    <select
+                      value={ou.unit}
+                      onChange={(e) =>
+                        setAddOtherUnits((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, unit: e.target.value } : p
+                          )
+                        )
+                      }
+                      className="flex-1 border border-gray-300 rounded px-3 py-2"
+                    >
+                      <option value="">Select unit</option>
+                      {invoiceUnits.map((u) => (
+                        <option key={u.id} value={u.name}>
+                          {(u.symbol && u.symbol.trim()) || u.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAddOtherUnits((prev) =>
+                          prev.filter((_, i) => i !== idx)
+                        )
+                      }
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Remove"
+                      aria-label="Remove"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1">
-              Import units from product
-            </span>
-            <select
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                if (!id) return;
-                api.getItemById(id).then((item: ItemWithUnits) => {
-                  setAddUnitSelect(item.unit);
-                  setAddRetailPrimary(item.retail_primary_unit ?? "");
-                  setAddOtherUnits(
-                    (item.other_units ?? []).map((o) => ({
-                      unit: o.unit,
-                      sort_order: o.sort_order ?? 0,
-                    }))
-                  );
-                });
-                e.target.value = "";
-              }}
-            >
-              <option value="">Select a product to copy units…</option>
-              {items.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name}
-                </option>
-              ))}
-            </select>
+            </div>
           </div>
           <FormField label="Current Stock">
             <input
@@ -645,6 +649,89 @@ export default function Items() {
       </FormModal>
 
       <FormModal
+        title="Import units from product"
+        open={importUnitsPopupOpen}
+        onClose={() => {
+          setImportUnitsPopupOpen(false);
+          setImportUnitsTarget(null);
+          setImportProductId("");
+        }}
+        maxWidth="max-w-sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => {
+                setImportUnitsPopupOpen(false);
+                setImportUnitsTarget(null);
+                setImportProductId("");
+              }}
+            >
+              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              disabled={!importProductId}
+              onClick={() => {
+                const id = Number(importProductId);
+                if (!id) return;
+                api.getItemById(id).then((item: ItemWithUnits) => {
+                  const retailPrimary =
+                    item.retail_primary_unit != null
+                      ? String(item.retail_primary_unit)
+                      : "";
+                  const payload = {
+                    unit: item.unit,
+                    retailPrimary,
+                    otherUnits: (item.other_units ?? []).map((o) => ({
+                      unit: o.unit,
+                      sort_order: o.sort_order ?? 0,
+                    })),
+                  };
+                  if (importUnitsTarget === "add") {
+                    setAddUnitSelect(payload.unit);
+                    setAddRetailPrimary(payload.retailPrimary);
+                    setAddOtherUnits(payload.otherUnits);
+                  } else {
+                    setEditUnitSelect(payload.unit);
+                    setEditRetailPrimary(payload.retailPrimary);
+                    setEditOtherUnits(payload.otherUnits);
+                  }
+                  setImportUnitsPopupOpen(false);
+                  setImportUnitsTarget(null);
+                  setImportProductId("");
+                });
+              }}
+            >
+              <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Import
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Product">
+          <select
+            value={importProductId}
+            onChange={(e) => setImportProductId(e.target.value)}
+            className="w-full border border-gray-300 rounded px-3 py-2"
+          >
+            <option value="">Select a product to copy units…</option>
+            {(importUnitsTarget === "edit" && editing
+              ? items.filter((i) => i.id !== editing.id)
+              : items
+            ).map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      </FormModal>
+
+      <FormModal
         title="Edit Product"
         open={!!editing}
         onClose={() => {
@@ -652,6 +739,9 @@ export default function Items() {
           setEditUnitSelect("");
           setEditRetailPrimary("");
           setEditOtherUnits([]);
+          setImportUnitsPopupOpen(false);
+          setImportUnitsTarget(null);
+          setImportProductId("");
         }}
         maxWidth="max-w-lg"
       >
@@ -701,152 +791,147 @@ export default function Items() {
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </FormField>
-            <FormField
-              label="Unit"
-              required
-              extra={
-                editUnitSelect === UNIT_ADD_NEW ? (
-                  <FormField label="Unit name" required>
-                    <input
-                      name="unit_name"
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                      placeholder="e.g. packets, tins, bags"
-                      required={editUnitSelect === UNIT_ADD_NEW}
-                    />
-                  </FormField>
-                ) : undefined
-              }
-            >
-              <select
-                name="unit"
-                value={editUnitSelect || editing.unit}
-                onChange={(e) => setEditUnitSelect(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                required
-              >
-                <option value="">Select unit</option>
-                {(units.some((u) => u.name === editing.unit)
-                  ? units
-                  : [
-                      {
-                        id: -1,
-                        name: editing.unit,
-                        symbol: null,
-                        created_at: "",
-                      },
-                      ...units,
-                    ]
-                ).map((u) => (
-                  <option
-                    key={u.id >= 0 ? u.id : `unit-${u.name}`}
-                    value={u.name}
-                  >
-                    {(u.symbol && u.symbol.trim()) || u.name}
-                  </option>
-                ))}
-                <option value={UNIT_ADD_NEW}>Add new…</option>
-              </select>
-            </FormField>
-            <FormField label="Retail primary unit (optional)">
-              <select
-                value={editRetailPrimary}
-                onChange={(e) => setEditRetailPrimary(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="">None</option>
-                {invoiceUnits.map((u) => (
-                  <option key={u.id} value={u.name}>
-                    {(u.symbol && u.symbol.trim()) || u.name}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <div>
-              <div className="flex items-center justify-between mb-1">
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2">
                 <span className="block text-sm font-medium text-gray-700">
-                  Other units (optional)
+                  Units
                 </span>
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() =>
-                    setEditOtherUnits((prev) => [
-                      ...prev,
-                      { unit: "", sort_order: prev.length },
-                    ])
-                  }
+                  onClick={() => {
+                    setImportUnitsTarget("edit");
+                    setImportProductId("");
+                    setImportUnitsPopupOpen(true);
+                  }}
                 >
-                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                  Add unit
+                  <DocumentArrowDownIcon
+                    className="w-5 h-5 mr-1.5"
+                    aria-hidden
+                  />
+                  Import units from an existing product
                 </Button>
               </div>
-              {editOtherUnits.map((ou, idx) => (
-                <div key={idx} className="flex gap-2 items-center mt-2">
+              <div className="border-t border-gray-200 pt-3">
+                <span className="block text-sm text-gray-500 mb-2">
+                  Or set units manually
+                </span>
+                <FormField
+                  label="Unit"
+                  required
+                  extra={
+                    editUnitSelect === UNIT_ADD_NEW ? (
+                      <FormField label="Unit name" required>
+                        <input
+                          name="unit_name"
+                          className="w-full border border-gray-300 rounded px-3 py-2"
+                          placeholder="e.g. packets, tins, bags"
+                          required={editUnitSelect === UNIT_ADD_NEW}
+                        />
+                      </FormField>
+                    ) : undefined
+                  }
+                >
                   <select
-                    value={ou.unit}
-                    onChange={(e) =>
-                      setEditOtherUnits((prev) =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, unit: e.target.value } : p
-                        )
-                      )
-                    }
-                    className="flex-1 border border-gray-300 rounded px-3 py-2"
+                    name="unit"
+                    value={editUnitSelect || editing.unit}
+                    onChange={(e) => setEditUnitSelect(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
                   >
                     <option value="">Select unit</option>
+                    {(units.some((u) => u.name === editing.unit)
+                      ? units
+                      : [
+                          {
+                            id: -1,
+                            name: editing.unit,
+                            symbol: null,
+                            created_at: "",
+                          },
+                          ...units,
+                        ]
+                    ).map((u) => (
+                      <option
+                        key={u.id >= 0 ? u.id : `unit-${u.name}`}
+                        value={u.name}
+                      >
+                        {(u.symbol && u.symbol.trim()) || u.name}
+                      </option>
+                    ))}
+                    <option value={UNIT_ADD_NEW}>Add new…</option>
+                  </select>
+                </FormField>
+                <FormField label="Retail primary unit (optional)">
+                  <select
+                    value={editRetailPrimary}
+                    onChange={(e) => setEditRetailPrimary(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="">None</option>
                     {invoiceUnits.map((u) => (
                       <option key={u.id} value={u.name}>
                         {(u.symbol && u.symbol.trim()) || u.name}
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEditOtherUnits((prev) =>
-                        prev.filter((_, i) => i !== idx)
-                      )
-                    }
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Remove"
-                    aria-label="Remove"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-1">
-                Import units from product
-              </span>
-              <select
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                onChange={(e) => {
-                  const id = Number(e.target.value);
-                  if (!id || id === editing.id) return;
-                  api.getItemById(id).then((item: ItemWithUnits) => {
-                    setEditUnitSelect(item.unit);
-                    setEditRetailPrimary(item.retail_primary_unit ?? "");
-                    setEditOtherUnits(
-                      (item.other_units ?? []).map((o) => ({
-                        unit: o.unit,
-                        sort_order: o.sort_order ?? 0,
-                      }))
-                    );
-                  });
-                  e.target.value = "";
-                }}
-              >
-                <option value="">Select a product to copy units…</option>
-                {items
-                  .filter((i) => i.id !== editing.id)
-                  .map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
+                </FormField>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="block text-sm font-medium text-gray-700">
+                      Other units (optional)
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        setEditOtherUnits((prev) => [
+                          ...prev,
+                          { unit: "", sort_order: prev.length },
+                        ])
+                      }
+                    >
+                      <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                      Add unit
+                    </Button>
+                  </div>
+                  {editOtherUnits.map((ou, idx) => (
+                    <div key={idx} className="flex gap-2 items-center mt-2">
+                      <select
+                        value={ou.unit}
+                        onChange={(e) =>
+                          setEditOtherUnits((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, unit: e.target.value } : p
+                            )
+                          )
+                        }
+                        className="flex-1 border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">Select unit</option>
+                        {invoiceUnits.map((u) => (
+                          <option key={u.id} value={u.name}>
+                            {(u.symbol && u.symbol.trim()) || u.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditOtherUnits((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Remove"
+                        aria-label="Remove"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))}
-              </select>
+                </div>
+              </div>
             </div>
             <FormField label="Current Stock">
               <input

@@ -118,8 +118,6 @@ export default function Mahajans() {
   } = useQuery({
     queryKey: ["mahajanSummary"],
     queryFn: () => api.getMahajanSummary(),
-    enabled: false,
-    refetchOnMount: false,
   });
 
   const { data: allBalancesResult, isLoading: isLoadingAllBalances } = useQuery(
@@ -331,7 +329,7 @@ export default function Mahajans() {
           </div>
         </div>
 
-        {/* Summary strip above filter – load on demand via Get totals */}
+        {/* Summary strip – totals load on mount; "Fetch latest" to refresh */}
         <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
           {isLoadingSummary && (
             <div className="text-sm text-gray-500">Loading…</div>
