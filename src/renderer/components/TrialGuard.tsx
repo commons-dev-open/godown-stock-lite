@@ -74,6 +74,8 @@ export default function TrialGuard() {
             <li>Transactions & daily sales</li>
             <li>Easy data export and import</li>
             <li>Invoices & reports (Beta)</li>
+            <li>Bengali language support (Coming soon)</li>
+            <li>Light/Dark mode (Coming soon)</li>
             <li>Basic GST support (Coming soon)</li>
           </ul>
           <p className="text-sm">

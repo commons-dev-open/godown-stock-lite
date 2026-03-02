@@ -16,6 +16,7 @@ const navItems = [
   { to: "/invoices", label: "Invoices" },
   { to: "/reports", label: "Reports" },
   { to: "/settings", label: "Settings" },
+  { to: "/help", label: "Help" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

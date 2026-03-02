@@ -10,6 +10,7 @@ import Reports from "./pages/Reports";
 import Home from "./pages/Home";
 import Units from "./pages/Units";
 import Settings from "./pages/Settings";
+import Help from "./pages/Help";
 import Invoices from "./pages/Invoices";
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/units" element={<Units />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </Layout>
     </HashRouter>
