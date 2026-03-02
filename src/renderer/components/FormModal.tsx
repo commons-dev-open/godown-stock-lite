@@ -8,7 +8,7 @@ interface FormModalProps {
   children: ReactNode;
   /** Optional max-width class for the dialog (e.g. "max-w-2xl", "max-w-3xl"). Default: "max-w-md" */
   maxWidth?: string;
-  /** Optional footer (e.g. Cancel + Confirm buttons) */
+  /** Optional footer: action buttons only (no Cancel; header has close icon). Rendered as sticky footer. */
   footer?: ReactNode;
 }
 
@@ -47,7 +47,7 @@ export default function FormModal({
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
         {footer != null ? (
-          <div className="flex shrink-0 justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-lg">
+          <div className="sticky bottom-0 flex shrink-0 justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-lg">
             {footer}
           </div>
         ) : null}

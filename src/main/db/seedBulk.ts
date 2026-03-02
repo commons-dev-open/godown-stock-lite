@@ -440,6 +440,7 @@ function seedSettings(db: Database.Database): void {
     set.run("gstin", "");
     set.run("owner_name", "Sanjoy Mallick");
     set.run("owner_phone", "7001453833");
+    set.run("displayName", "Shree Laxmi Bhandar");
   } catch {
     // settings table may not exist
   }

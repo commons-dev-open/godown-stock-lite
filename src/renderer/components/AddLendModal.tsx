@@ -10,7 +10,6 @@ import {
   ClipboardDocumentCheckIcon,
   PlusIcon,
   TrashIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import Button from "./Button";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
@@ -178,8 +177,17 @@ export default function AddLendModal({
         open={open && !confirmLendOpen}
         onClose={handleClose}
         maxWidth="max-w-3xl"
+        footer={
+          <Button type="submit" form="add-lend-form" variant="amber">
+            <ClipboardDocumentCheckIcon
+              className="w-5 h-5 mr-1.5"
+              aria-hidden
+            />
+            Review &amp; confirm
+          </Button>
+        }
       >
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form id="add-lend-form" className="space-y-5" onSubmit={handleSubmit}>
           {fixedMahajanId == null && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -343,19 +351,6 @@ export default function AddLendModal({
               className="input-base w-full resize-y min-h-[4.5rem]"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-1 border-t border-gray-200">
-            <Button type="button" variant="secondary" onClick={handleClose}>
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button type="submit" variant="amber">
-              <ClipboardDocumentCheckIcon
-                className="w-5 h-5 mr-1.5"
-                aria-hidden
-              />
-              Review &amp; confirm
-            </Button>
-          </div>
         </form>
       </FormModal>
 
@@ -367,6 +362,41 @@ export default function AddLendModal({
           setConfirmPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          confirmPayload ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setConfirmLendOpen(false);
+                  setConfirmPayload(null);
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="amber"
+                onClick={() => {
+                  if (!confirmPayload) return;
+                  createLendBatch.mutate({
+                    mahajan_id: confirmPayload.mahajan_id,
+                    transaction_date: confirmPayload.transaction_date,
+                    notes: confirmPayload.notes || undefined,
+                    lines: confirmPayload.lines.map((l) => ({
+                      product_id: l.product_id,
+                      product_name: l.product_name,
+                      quantity: l.quantity,
+                      amount: l.amount,
+                    })),
+                  });
+                }}
+                disabled={createLendBatch.isPending}
+              >
+                {createLendBatch.isPending ? "Saving…" : "Confirm"}
+              </Button>
+            </>
+          ) : null
+        }
       >
         {confirmPayload && (
           <div className="space-y-4">
@@ -433,36 +463,6 @@ export default function AddLendModal({
               }
               balanceAfterLabel="After this lend:"
             />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setConfirmLendOpen(false);
-                  setConfirmPayload(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="amber"
-                onClick={() => {
-                  createLendBatch.mutate({
-                    mahajan_id: confirmPayload.mahajan_id,
-                    transaction_date: confirmPayload.transaction_date,
-                    notes: confirmPayload.notes || undefined,
-                    lines: confirmPayload.lines.map((l) => ({
-                      product_id: l.product_id,
-                      product_name: l.product_name,
-                      quantity: l.quantity,
-                      amount: l.amount,
-                    })),
-                  });
-                }}
-                disabled={createLendBatch.isPending}
-              >
-                {createLendBatch.isPending ? "Saving…" : "Confirm"}
-              </Button>
-            </div>
           </div>
         )}
       </FormModal>

@@ -365,8 +365,15 @@ export default function DailySales() {
         title="Add Sale"
         open={addOpen}
         onClose={() => setAddOpen(false)}
+        footer={
+          <Button type="submit" form="add-sale-form">
+            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Save
+          </Button>
+        }
       >
         <form
+          id="add-sale-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -440,20 +447,6 @@ export default function DailySales() {
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setAddOpen(false)}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button type="submit">
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Save
-            </Button>
-          </div>
         </form>
       </FormModal>
 
@@ -461,9 +454,18 @@ export default function DailySales() {
         title="Edit Sale"
         open={!!editing}
         onClose={() => setEditing(null)}
+        footer={
+          editing ? (
+            <Button type="submit" form="edit-sale-form">
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Update
+            </Button>
+          ) : null
+        }
       >
         {editing && (
           <form
+            id="edit-sale-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -548,20 +550,6 @@ export default function DailySales() {
                 defaultValue={editing.notes ?? ""}
                 className="w-full border rounded px-3 py-2"
               />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setEditing(null)}
-              >
-                <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Cancel
-              </Button>
-              <Button type="submit">
-                <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Update
-              </Button>
             </div>
           </form>
         )}

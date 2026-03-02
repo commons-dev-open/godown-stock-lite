@@ -63,8 +63,8 @@ export default function ConfirmDangerModal({
     >
       <p className="text-gray-700 mb-4">{message}</p>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span> to
-        continue
+        Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span>{" "}
+        to continue
       </label>
       <input
         type="text"

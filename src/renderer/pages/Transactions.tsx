@@ -2473,9 +2473,21 @@ export default function Transactions() {
           setConfirmEditPurchaseOpen(false);
           setConfirmEditPurchasePayload(null);
         }}
+        footer={
+          editingPurchase ? (
+            <Button
+              type="submit"
+              form="transactions-edit-purchase-form"
+              variant="primary"
+            >
+              Review &amp; Update
+            </Button>
+          ) : null
+        }
       >
         {editingPurchase && (
           <form
+            id="transactions-edit-purchase-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -2578,6 +2590,44 @@ export default function Transactions() {
           setConfirmEditPurchasePayload(null);
         }}
         maxWidth="max-w-lg"
+        footer={
+          confirmEditPurchasePayload ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setConfirmEditPurchaseOpen(false);
+                  setConfirmEditPurchasePayload(null);
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (!confirmEditPurchasePayload) return;
+                  updatePurchase.mutate({
+                    id: confirmEditPurchasePayload.record.id,
+                    p: {
+                      transaction_date:
+                        confirmEditPurchasePayload.newValues.transaction_date,
+                      quantity: confirmEditPurchasePayload.newValues.quantity,
+                      amount: confirmEditPurchasePayload.newValues.amount,
+                      notes:
+                        confirmEditPurchasePayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditPurchaseOpen(false);
+                  setConfirmEditPurchasePayload(null);
+                  setEditingPurchase(null);
+                }}
+                disabled={updatePurchase.isPending}
+              >
+                {updatePurchase.isPending ? "Updating…" : "Confirm Update"}
+              </Button>
+            </>
+          ) : null
+        }
       >
         {confirmEditPurchasePayload && (
           <div className="space-y-4">
@@ -2668,42 +2718,6 @@ export default function Transactions() {
                 );
               })()}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmEditPurchaseOpen(false);
-                  setConfirmEditPurchasePayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirmEditPurchasePayload) return;
-                  updatePurchase.mutate({
-                    id: confirmEditPurchasePayload.record.id,
-                    p: {
-                      transaction_date:
-                        confirmEditPurchasePayload.newValues.transaction_date,
-                      quantity: confirmEditPurchasePayload.newValues.quantity,
-                      amount: confirmEditPurchasePayload.newValues.amount,
-                      notes:
-                        confirmEditPurchasePayload.newValues.notes ?? undefined,
-                    },
-                  });
-                  setConfirmEditPurchaseOpen(false);
-                  setConfirmEditPurchasePayload(null);
-                  setEditingPurchase(null);
-                }}
-                disabled={updatePurchase.isPending}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-50"
-              >
-                {updatePurchase.isPending ? "Updating…" : "Confirm Update"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -2716,6 +2730,45 @@ export default function Transactions() {
           setDeleteConfirmPayload(null);
         }}
         maxWidth="max-w-2xl"
+        footer={
+          deleteConfirmPayload ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (!deleteConfirmPayload) return;
+                  if (deleteConfirmPayload.type === "lend")
+                    deleteLend.mutate(deleteConfirmPayload.row.id);
+                  else if (deleteConfirmPayload.type === "deposit")
+                    deleteDeposit.mutate(deleteConfirmPayload.row.id);
+                  else deletePurchase.mutate(deleteConfirmPayload.row.id);
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+                disabled={
+                  deleteLend.isPending ||
+                  deleteDeposit.isPending ||
+                  deletePurchase.isPending
+                }
+              >
+                {deleteLend.isPending ||
+                deleteDeposit.isPending ||
+                deletePurchase.isPending
+                  ? "Deleting…"
+                  : "Confirm Delete"}
+              </Button>
+            </>
+          ) : null
+        }
       >
         {deleteConfirmPayload && (
           <div className="space-y-4">
@@ -2901,43 +2954,6 @@ export default function Transactions() {
                   ) : null}
                 </>
               )}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteConfirmOpen(false);
-                  setDeleteConfirmPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!deleteConfirmPayload) return;
-                  if (deleteConfirmPayload.type === "lend")
-                    deleteLend.mutate(deleteConfirmPayload.row.id);
-                  else if (deleteConfirmPayload.type === "deposit")
-                    deleteDeposit.mutate(deleteConfirmPayload.row.id);
-                  else deletePurchase.mutate(deleteConfirmPayload.row.id);
-                  setDeleteConfirmOpen(false);
-                  setDeleteConfirmPayload(null);
-                }}
-                disabled={
-                  deleteLend.isPending ||
-                  deleteDeposit.isPending ||
-                  deletePurchase.isPending
-                }
-                className="px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"
-              >
-                {deleteLend.isPending ||
-                deleteDeposit.isPending ||
-                deletePurchase.isPending
-                  ? "Deleting…"
-                  : "Confirm Delete"}
-              </button>
             </div>
           </div>
         )}

@@ -209,33 +209,27 @@ export default function Units() {
         open={stockAddOpen}
         onClose={() => setStockAddOpen(false)}
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setStockAddOpen(false)}>
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const form = document.getElementById(
-                  "form-stock-add"
-                ) as HTMLFormElement;
-                if (!form) return;
-                const els = form.elements as unknown as {
-                  name: HTMLInputElement;
-                  symbol: HTMLInputElement;
-                };
-                const name = els.name?.value?.trim();
-                if (!name) return;
-                createUnit.mutate({
-                  name,
-                  symbol: els.symbol?.value?.trim() || undefined,
-                });
-              }}
-            >
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add
-            </Button>
-          </>
+          <Button
+            onClick={() => {
+              const form = document.getElementById(
+                "form-stock-add"
+              ) as HTMLFormElement;
+              if (!form) return;
+              const els = form.elements as unknown as {
+                name: HTMLInputElement;
+                symbol: HTMLInputElement;
+              };
+              const name = els.name?.value?.trim();
+              if (!name) return;
+              createUnit.mutate({
+                name,
+                symbol: els.symbol?.value?.trim() || undefined,
+              });
+            }}
+          >
+            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Add
+          </Button>
         }
       >
         <form
@@ -279,34 +273,28 @@ export default function Units() {
         open={!!stockEditing}
         onClose={() => setStockEditing(null)}
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setStockEditing(null)}>
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const form = document.getElementById(
-                  "form-stock-edit"
-                ) as HTMLFormElement;
-                if (!form || !stockEditing) return;
-                const els = form.elements as unknown as {
-                  name: HTMLInputElement;
-                  symbol: HTMLInputElement;
-                };
-                const name = els.name?.value?.trim();
-                if (!name) return;
-                updateUnit.mutate({
-                  id: stockEditing.id,
-                  name,
-                  symbol: els.symbol?.value?.trim() || undefined,
-                });
-              }}
-            >
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Save
-            </Button>
-          </>
+          <Button
+            onClick={() => {
+              const form = document.getElementById(
+                "form-stock-edit"
+              ) as HTMLFormElement;
+              if (!form || !stockEditing) return;
+              const els = form.elements as unknown as {
+                name: HTMLInputElement;
+                symbol: HTMLInputElement;
+              };
+              const name = els.name?.value?.trim();
+              if (!name) return;
+              updateUnit.mutate({
+                id: stockEditing.id,
+                name,
+                symbol: els.symbol?.value?.trim() || undefined,
+              });
+            }}
+          >
+            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Save
+          </Button>
         }
       >
         {stockEditing && (
@@ -354,41 +342,32 @@ export default function Units() {
         open={invoiceAddOpen}
         onClose={() => setInvoiceAddOpen(false)}
         footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setInvoiceAddOpen(false)}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const form = document.getElementById(
-                  "form-invoice-add"
-                ) as HTMLFormElement;
-                if (!form) return;
-                const els = form.elements as unknown as {
-                  name: HTMLInputElement;
-                  symbol: HTMLInputElement;
-                  sort_order: HTMLInputElement;
-                };
-                const name = els.name?.value?.trim();
-                if (!name) return;
-                createInvoiceUnit.mutate({
-                  name,
-                  symbol: els.symbol?.value?.trim() || undefined,
-                  sort_order: Number.parseInt(
-                    els.sort_order?.value || "999",
-                    10
-                  ),
-                });
-              }}
-            >
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add
-            </Button>
-          </>
+          <Button
+            onClick={() => {
+              const form = document.getElementById(
+                "form-invoice-add"
+              ) as HTMLFormElement;
+              if (!form) return;
+              const els = form.elements as unknown as {
+                name: HTMLInputElement;
+                symbol: HTMLInputElement;
+                sort_order: HTMLInputElement;
+              };
+              const name = els.name?.value?.trim();
+              if (!name) return;
+              createInvoiceUnit.mutate({
+                name,
+                symbol: els.symbol?.value?.trim() || undefined,
+                sort_order: Number.parseInt(
+                  els.sort_order?.value || "999",
+                  10
+                ),
+              });
+            }}
+          >
+            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Add
+          </Button>
         }
       >
         <form
@@ -442,39 +421,33 @@ export default function Units() {
         open={!!invoiceEditing}
         onClose={() => setInvoiceEditing(null)}
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setInvoiceEditing(null)}>
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const form = document.getElementById(
-                  "form-invoice-edit"
-                ) as HTMLFormElement;
-                if (!form || !invoiceEditing) return;
-                const els = form.elements as unknown as {
-                  name: HTMLInputElement;
-                  symbol: HTMLInputElement;
-                  sort_order: HTMLInputElement;
-                };
-                const name = els.name?.value?.trim();
-                if (!name) return;
-                updateInvoiceUnit.mutate({
-                  id: invoiceEditing.id,
-                  name,
-                  symbol: els.symbol?.value?.trim() || undefined,
-                  sort_order: Number.parseInt(
-                    els.sort_order?.value || "999",
-                    10
-                  ),
-                });
-              }}
-            >
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Save
-            </Button>
-          </>
+          <Button
+            onClick={() => {
+              const form = document.getElementById(
+                "form-invoice-edit"
+              ) as HTMLFormElement;
+              if (!form || !invoiceEditing) return;
+              const els = form.elements as unknown as {
+                name: HTMLInputElement;
+                symbol: HTMLInputElement;
+                sort_order: HTMLInputElement;
+              };
+              const name = els.name?.value?.trim();
+              if (!name) return;
+              updateInvoiceUnit.mutate({
+                id: invoiceEditing.id,
+                name,
+                symbol: els.symbol?.value?.trim() || undefined,
+                sort_order: Number.parseInt(
+                  els.sort_order?.value || "999",
+                  10
+                ),
+              });
+            }}
+          >
+            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Save
+          </Button>
         }
       >
         {invoiceEditing && (

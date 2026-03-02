@@ -558,8 +558,14 @@ export default function Mahajans() {
         title="Add Mahajan"
         open={addOpen}
         onClose={() => setAddOpen(false)}
+        footer={
+          <Button variant="primary" type="submit" form="add-mahajan-form">
+            Save
+          </Button>
+        }
       >
         <form
+          id="add-mahajan-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -600,18 +606,6 @@ export default function Mahajans() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </FormField>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setAddOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              Save
-            </Button>
-          </div>
         </form>
       </FormModal>
 
@@ -619,9 +613,17 @@ export default function Mahajans() {
         title="Edit Mahajan"
         open={!!editing}
         onClose={() => setEditing(null)}
+        footer={
+          editing ? (
+            <Button variant="primary" type="submit" form="edit-mahajan-form">
+              Update
+            </Button>
+          ) : null
+        }
       >
         {editing && (
           <form
+            id="edit-mahajan-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -669,18 +671,6 @@ export default function Mahajans() {
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </FormField>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => setEditing(null)}
-              >
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit">
-                Update
-              </Button>
-            </div>
           </form>
         )}
       </FormModal>

@@ -38,7 +38,6 @@ import {
   PlusIcon,
   PrinterIcon,
   TrashIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import type {
   Item,
@@ -448,8 +447,15 @@ export default function Items() {
           setImportProductId("");
         }}
         maxWidth="max-w-lg"
+        footer={
+          <Button variant="primary" type="submit" form="add-product-form">
+            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Save
+          </Button>
+        }
       >
         <form
+          id="add-product-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -631,20 +637,6 @@ export default function Items() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </FormField>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setAddProductOpen(false)}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Save
-            </Button>
-          </div>
         </form>
       </FormModal>
 
@@ -658,58 +650,44 @@ export default function Items() {
         }}
         maxWidth="max-w-sm"
         footer={
-          <>
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => {
+          <Button
+            variant="primary"
+            type="button"
+            disabled={!importProductId}
+            onClick={() => {
+              const id = Number(importProductId);
+              if (!id) return;
+              api.getItemById(id).then((item: ItemWithUnits) => {
+                const retailPrimary =
+                  item.retail_primary_unit != null
+                    ? String(item.retail_primary_unit)
+                    : "";
+                const payload = {
+                  unit: item.unit,
+                  retailPrimary,
+                  otherUnits: (item.other_units ?? []).map((o) => ({
+                    unit: o.unit,
+                    sort_order: o.sort_order ?? 0,
+                  })),
+                };
+                if (importUnitsTarget === "add") {
+                  setAddUnitSelect(payload.unit);
+                  setAddRetailPrimary(payload.retailPrimary);
+                  setAddOtherUnits(payload.otherUnits);
+                } else {
+                  setEditUnitSelect(payload.unit);
+                  setEditRetailPrimary(payload.retailPrimary);
+                  setEditOtherUnits(payload.otherUnits);
+                }
                 setImportUnitsPopupOpen(false);
                 setImportUnitsTarget(null);
                 setImportProductId("");
-              }}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              type="button"
-              disabled={!importProductId}
-              onClick={() => {
-                const id = Number(importProductId);
-                if (!id) return;
-                api.getItemById(id).then((item: ItemWithUnits) => {
-                  const retailPrimary =
-                    item.retail_primary_unit != null
-                      ? String(item.retail_primary_unit)
-                      : "";
-                  const payload = {
-                    unit: item.unit,
-                    retailPrimary,
-                    otherUnits: (item.other_units ?? []).map((o) => ({
-                      unit: o.unit,
-                      sort_order: o.sort_order ?? 0,
-                    })),
-                  };
-                  if (importUnitsTarget === "add") {
-                    setAddUnitSelect(payload.unit);
-                    setAddRetailPrimary(payload.retailPrimary);
-                    setAddOtherUnits(payload.otherUnits);
-                  } else {
-                    setEditUnitSelect(payload.unit);
-                    setEditRetailPrimary(payload.retailPrimary);
-                    setEditOtherUnits(payload.otherUnits);
-                  }
-                  setImportUnitsPopupOpen(false);
-                  setImportUnitsTarget(null);
-                  setImportProductId("");
-                });
-              }}
-            >
-              <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Import
-            </Button>
-          </>
+              });
+            }}
+          >
+            <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Import
+          </Button>
         }
       >
         <FormField label="Product">
@@ -744,9 +722,18 @@ export default function Items() {
           setImportProductId("");
         }}
         maxWidth="max-w-lg"
+        footer={
+          editing ? (
+            <Button variant="primary" type="submit" form="edit-product-form">
+              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              Update
+            </Button>
+          ) : null
+        }
       >
         {editing && (
           <form
+            id="edit-product-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -951,20 +938,6 @@ export default function Items() {
                 className="w-full border border-gray-300 rounded px-3 py-2"
               />
             </FormField>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => setEditing(null)}
-              >
-                <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit">
-                <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Update
-              </Button>
-            </div>
           </form>
         )}
       </FormModal>
@@ -976,8 +949,15 @@ export default function Items() {
           setAddStockOpen(false);
           setAddStockItem(null);
         }}
+        footer={
+          <Button variant="primary" type="submit" form="add-stock-form">
+            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Add
+          </Button>
+        }
       >
         <form
+          id="add-stock-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -1020,20 +1000,6 @@ export default function Items() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </FormField>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setAddStockOpen(false)}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add
-            </Button>
-          </div>
         </form>
       </FormModal>
 
@@ -1044,8 +1010,15 @@ export default function Items() {
           setReduceStockOpen(false);
           setReduceStockItem(null);
         }}
+        footer={
+          <Button variant="primary" type="submit" form="reduce-stock-form">
+            <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            Reduce
+          </Button>
+        }
       >
         <form
+          id="reduce-stock-form"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -1088,20 +1061,6 @@ export default function Items() {
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
           </FormField>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setReduceStockOpen(false)}
-            >
-              <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Reduce
-            </Button>
-          </div>
         </form>
       </FormModal>
 

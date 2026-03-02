@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { CheckIcon } from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
 import DateInput from "./DateInput";
@@ -73,8 +73,23 @@ export default function AddDepositModal({
   };
 
   return (
-    <FormModal title="Add Deposit" open={open} onClose={onClose}>
-      <form className="space-y-3" onSubmit={handleSubmit}>
+    <FormModal
+      title="Add Deposit"
+      open={open}
+      onClose={onClose}
+      footer={
+        <Button
+          type="submit"
+          form="add-deposit-form"
+          variant="green"
+          disabled={createDeposit.isPending}
+        >
+          <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+          {createDeposit.isPending ? "Saving…" : "Save"}
+        </Button>
+      }
+    >
+      <form id="add-deposit-form" className="space-y-3" onSubmit={handleSubmit}>
         {fixedMahajanId == null && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -123,20 +138,6 @@ export default function AddDepositModal({
             Notes
           </label>
           <input name="notes" className="w-full border rounded px-3 py-2" />
-        </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            <XMarkIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="green"
-            disabled={createDeposit.isPending}
-          >
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            {createDeposit.isPending ? "Saving…" : "Save"}
-          </Button>
         </div>
       </form>
     </FormModal>

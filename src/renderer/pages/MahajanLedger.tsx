@@ -674,9 +674,21 @@ export default function MahajanLedger() {
           setConfirmEditLendPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          editingLend ? (
+            <button
+              type="submit"
+              form="edit-lend-form"
+              className="px-3 py-1.5 bg-amber-600 text-white rounded"
+            >
+              Review &amp; Update
+            </button>
+          ) : null
+        }
       >
         {editingLend && (
           <form
+            id="edit-lend-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -779,21 +791,6 @@ export default function MahajanLedger() {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingLend(null)}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-amber-600 text-white rounded"
-              >
-                Review &amp; Update
-              </button>
-            </div>
           </form>
         )}
       </FormModal>
@@ -806,6 +803,51 @@ export default function MahajanLedger() {
           setConfirmEditLendPayload(null);
         }}
         maxWidth="max-w-3xl"
+        footer={
+          confirmEditLendPayload ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEditLendOpen(false);
+                  setConfirmEditLendPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmEditLendPayload) return;
+                  updateLend.mutate({
+                    id: confirmEditLendPayload.record.id,
+                    l: {
+                      mahajan_id: id,
+                      transaction_date:
+                        confirmEditLendPayload.newValues.transaction_date,
+                      product_id: confirmEditLendPayload.newValues.product_id,
+                      product_name:
+                        confirmEditLendPayload.newValues.product_name ??
+                        undefined,
+                      quantity: confirmEditLendPayload.newValues.quantity,
+                      amount: confirmEditLendPayload.newValues.amount,
+                      notes:
+                        confirmEditLendPayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditLendOpen(false);
+                  setConfirmEditLendPayload(null);
+                  setEditingLend(null);
+                }}
+                disabled={updateLend.isPending}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
+              >
+                {updateLend.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </>
+          ) : null
+        }
       >
         {confirmEditLendPayload && (
           <div className="space-y-4">
@@ -979,47 +1021,6 @@ export default function MahajanLedger() {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmEditLendOpen(false);
-                  setConfirmEditLendPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirmEditLendPayload) return;
-                  updateLend.mutate({
-                    id: confirmEditLendPayload.record.id,
-                    l: {
-                      mahajan_id: id,
-                      transaction_date:
-                        confirmEditLendPayload.newValues.transaction_date,
-                      product_id: confirmEditLendPayload.newValues.product_id,
-                      product_name:
-                        confirmEditLendPayload.newValues.product_name ??
-                        undefined,
-                      quantity: confirmEditLendPayload.newValues.quantity,
-                      amount: confirmEditLendPayload.newValues.amount,
-                      notes:
-                        confirmEditLendPayload.newValues.notes ?? undefined,
-                    },
-                  });
-                  setConfirmEditLendOpen(false);
-                  setConfirmEditLendPayload(null);
-                  setEditingLend(null);
-                }}
-                disabled={updateLend.isPending}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
-              >
-                {updateLend.isPending ? "Updating…" : "Confirm Update"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -1044,9 +1045,21 @@ export default function MahajanLedger() {
           setConfirmEditDepositOpen(false);
           setConfirmEditDepositPayload(null);
         }}
+        footer={
+          editingDeposit ? (
+            <button
+              type="submit"
+              form="edit-deposit-form"
+              className="px-3 py-1.5 bg-green-600 text-white rounded"
+            >
+              Review &amp; Update
+            </button>
+          ) : null
+        }
       >
         {editingDeposit && (
           <form
+            id="edit-deposit-form"
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -1101,21 +1114,6 @@ export default function MahajanLedger() {
                 className="w-full border rounded px-3 py-2"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingDeposit(null)}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-green-600 text-white rounded"
-              >
-                Review &amp; Update
-              </button>
-            </div>
           </form>
         )}
       </FormModal>
@@ -1128,6 +1126,45 @@ export default function MahajanLedger() {
           setConfirmEditDepositPayload(null);
         }}
         maxWidth="max-w-lg"
+        footer={
+          confirmEditDepositPayload ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEditDepositOpen(false);
+                  setConfirmEditDepositPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmEditDepositPayload) return;
+                  updateDeposit.mutate({
+                    id: confirmEditDepositPayload.record.id,
+                    d: {
+                      transaction_date:
+                        confirmEditDepositPayload.newValues.transaction_date,
+                      amount: confirmEditDepositPayload.newValues.amount,
+                      notes:
+                        confirmEditDepositPayload.newValues.notes ?? undefined,
+                    },
+                  });
+                  setConfirmEditDepositOpen(false);
+                  setConfirmEditDepositPayload(null);
+                  setEditingDeposit(null);
+                }}
+                disabled={updateDeposit.isPending}
+                className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
+              >
+                {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
+              </button>
+            </>
+          ) : null
+        }
       >
         {confirmEditDepositPayload && (
           <div className="space-y-4">
@@ -1247,41 +1284,6 @@ export default function MahajanLedger() {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmEditDepositOpen(false);
-                  setConfirmEditDepositPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirmEditDepositPayload) return;
-                  updateDeposit.mutate({
-                    id: confirmEditDepositPayload.record.id,
-                    d: {
-                      transaction_date:
-                        confirmEditDepositPayload.newValues.transaction_date,
-                      amount: confirmEditDepositPayload.newValues.amount,
-                      notes:
-                        confirmEditDepositPayload.newValues.notes ?? undefined,
-                    },
-                  });
-                  setConfirmEditDepositOpen(false);
-                  setConfirmEditDepositPayload(null);
-                  setEditingDeposit(null);
-                }}
-                disabled={updateDeposit.isPending}
-                className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
-              >
-                {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
-              </button>
-            </div>
           </div>
         )}
       </FormModal>
@@ -1294,6 +1296,39 @@ export default function MahajanLedger() {
           setDeleteConfirmPayload(null);
         }}
         maxWidth="max-w-2xl"
+        footer={
+          deleteConfirmPayload ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+                className="px-3 py-1.5 border rounded"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!deleteConfirmPayload) return;
+                  if (deleteConfirmPayload.type === "lend")
+                    deleteLend.mutate(deleteConfirmPayload.row.id);
+                  else deleteDeposit.mutate(deleteConfirmPayload.row.id);
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmPayload(null);
+                }}
+                disabled={deleteLend.isPending || deleteDeposit.isPending}
+                className="px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"
+              >
+                {deleteLend.isPending || deleteDeposit.isPending
+                  ? "Deleting…"
+                  : "Confirm Delete"}
+              </button>
+            </>
+          ) : null
+        }
       >
         {deleteConfirmPayload && (
           <div className="space-y-4">
@@ -1458,35 +1493,6 @@ export default function MahajanLedger() {
                   })()}
                 </div>
               )}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteConfirmOpen(false);
-                  setDeleteConfirmPayload(null);
-                }}
-                className="px-3 py-1.5 border rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!deleteConfirmPayload) return;
-                  if (deleteConfirmPayload.type === "lend")
-                    deleteLend.mutate(deleteConfirmPayload.row.id);
-                  else deleteDeposit.mutate(deleteConfirmPayload.row.id);
-                  setDeleteConfirmOpen(false);
-                  setDeleteConfirmPayload(null);
-                }}
-                disabled={deleteLend.isPending || deleteDeposit.isPending}
-                className="px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"
-              >
-                {deleteLend.isPending || deleteDeposit.isPending
-                  ? "Deleting…"
-                  : "Confirm Delete"}
-              </button>
             </div>
           </div>
         )}
