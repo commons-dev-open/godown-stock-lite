@@ -40,6 +40,7 @@ jobs:
         run: npm run build
 
       - name: Build installer (electron-builder)
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
