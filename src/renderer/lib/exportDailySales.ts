@@ -11,12 +11,22 @@ import {
 import { DEFAULT_APP_NAME, MAX_DISPLAY_NAME_LEN } from "./displayName";
 import type { DailySale } from "../../shared/types";
 
-const COLUMNS = ["Date", "Sale Amount", "Cash in Hand", "Expenditure", "Notes"];
+const COLUMNS = [
+  "Date",
+  "Total Sale",
+  "Invoice Sales",
+  "Misc / Cash Sales",
+  "Cash in Hand",
+  "Expenditure",
+  "Notes",
+];
 
 function rowToCells(sale: DailySale): string[] {
   return [
     sale.sale_date,
     formatDecimal(sale.sale_amount),
+    formatDecimal(sale.invoice_sales ?? 0),
+    formatDecimal(sale.misc_sales ?? 0),
     formatDecimal(sale.cash_in_hand),
     formatDecimal(sale.expenditure_amount ?? 0),
     sale.notes ?? "",

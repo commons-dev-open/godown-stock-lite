@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useFloating,
@@ -34,6 +35,7 @@ import {
   ArrowDownTrayIcon,
   CheckIcon,
   DocumentArrowDownIcon,
+  DocumentTextIcon,
   PrinterIcon,
   PlusIcon,
   XMarkIcon,
@@ -44,6 +46,7 @@ import { formatDecimal } from "../../shared/numbers";
 export default function DailySales() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const location = useLocation();
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
@@ -87,6 +90,21 @@ export default function DailySales() {
   } = useInteractions([exportClick, exportDismiss]);
 
   useEffect(() => {
+    const state = location.state as
+      | { dateFrom?: string; dateTo?: string }
+      | null;
+    if (state?.dateFrom) setFromDate(state.dateFrom);
+    if (state?.dateTo) setToDate(state.dateTo);
+  }, [location.state]);
+
+  const { data: invoiceTotalForDate } = useQuery({
+    queryKey: ["invoiceTotalForDate", addSaleDate],
+    queryFn: () =>
+      api.getInvoiceTotalForDate(addSaleDate) as Promise<{ total: number }>,
+    enabled: addOpen && !!addSaleDate,
+  });
+
+  useEffect(() => {
     if (addOpen) queueMicrotask(() => setAddSaleDate(todayISO()));
   }, [addOpen]);
   useEffect(() => {
@@ -114,7 +132,7 @@ export default function DailySales() {
   const createSale = useMutation({
     mutationFn: (s: {
       sale_date: string;
-      sale_amount: number;
+      misc_sales?: number;
       cash_in_hand: number;
       expenditure_amount?: number;
       notes?: string;
@@ -134,7 +152,7 @@ export default function DailySales() {
       id: number;
       s: {
         sale_date?: string;
-        sale_amount?: number;
+        misc_sales?: number;
         cash_in_hand?: number;
         expenditure_amount?: number;
         notes?: string;
@@ -332,8 +350,18 @@ export default function DailySales() {
                 },
                 {
                   key: "sale_amount",
-                  label: "Sale Amount",
+                  label: "Total Sale",
                   render: (r) => formatDecimal(r.sale_amount),
+                },
+                {
+                  key: "invoice_sales",
+                  label: "Invoice Sales",
+                  render: (r) => formatDecimal(r.invoice_sales ?? 0),
+                },
+                {
+                  key: "misc_sales",
+                  label: "Misc / Cash Sales",
+                  render: (r) => formatDecimal(r.misc_sales ?? 0),
                 },
                 {
                   key: "cash_in_hand",
@@ -349,6 +377,17 @@ export default function DailySales() {
               data={sales}
               onEdit={setEditing}
               onDelete={(row) => setDeleteConfirmSale(row)}
+              extraActions={(row) => (
+                <Link
+                  to="/invoices"
+                  state={{ dateFrom: row.sale_date, dateTo: row.sale_date }}
+                  className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="View invoices for this date"
+                  aria-label="View invoices for this date"
+                >
+                  <DocumentTextIcon className="w-5 h-5" />
+                </Link>
+              )}
               emptyMessage="No sales yet. Click Add Sale or adjust filters."
             />
             <Pagination
@@ -393,7 +432,9 @@ export default function DailySales() {
             if (!addSaleDate) return;
             createSale.mutate({
               sale_date: addSaleDate,
-              sale_amount: Number((form.sale_amount as HTMLInputElement).value),
+              misc_sales: Number(
+                (form.misc_sales as HTMLInputElement).value || 0
+              ),
               cash_in_hand: Number(
                 (form.cash_in_hand as HTMLInputElement).value
               ),
@@ -413,24 +454,34 @@ export default function DailySales() {
               onChange={setAddSaleDate}
               className="w-full border border-gray-300 rounded px-3 py-2"
             />
+            {addSaleDate && (
+              <p className="mt-1 text-xs text-gray-500">
+                Invoice Sales for this date: ₹
+                {formatDecimal(invoiceTotalForDate?.total ?? 0)} (from invoices)
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sale Amount *
+              Misc / Cash Sales (without invoice)
             </label>
             <input
-              name="sale_amount"
+              name="misc_sales"
               type="number"
               min="0"
               step="0.01"
-              required
+              defaultValue="0"
               className="w-full border rounded px-3 py-2"
+              title="Sales not tied to an invoice (e.g. cash, small items)"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Cash in Hand *
             </label>
+            <p className="text-xs text-gray-500 mb-1">
+              Amount physically in your till at end of day
+            </p>
             <input
               name="cash_in_hand"
               type="number"
@@ -487,8 +538,8 @@ export default function DailySales() {
                 id: editing.id,
                 s: {
                   sale_date: editSaleDate,
-                  sale_amount: Number(
-                    (form.sale_amount as HTMLInputElement).value
+                  misc_sales: Number(
+                    (form.misc_sales as HTMLInputElement).value || 0
                   ),
                   cash_in_hand: Number(
                     (form.cash_in_hand as HTMLInputElement).value
@@ -514,22 +565,37 @@ export default function DailySales() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sale Amount *
+                Invoice Sales (read-only)
               </label>
               <input
-                name="sale_amount"
+                type="text"
+                value={formatDecimal(editing.invoice_sales ?? 0)}
+                readOnly
+                disabled
+                className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Misc / Cash Sales (without invoice) *
+              </label>
+              <input
+                name="misc_sales"
                 type="number"
                 min="0"
                 step="0.01"
-                defaultValue={editing.sale_amount}
-                required
+                defaultValue={editing.misc_sales ?? 0}
                 className="w-full border rounded px-3 py-2"
+                title="Sales not tied to an invoice (e.g. cash, small items)"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Cash in Hand *
               </label>
+              <p className="text-xs text-gray-500 mb-1">
+                Amount physically in your till at end of day
+              </p>
               <input
                 name="cash_in_hand"
                 type="number"

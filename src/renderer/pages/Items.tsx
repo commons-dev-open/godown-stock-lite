@@ -41,10 +41,10 @@ import {
   PrinterIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+import { computeProductUnits } from "../../shared/computeProductUnits";
 import type {
   Item,
   ItemOtherUnit,
-  InvoiceUnit,
   Unit,
   UnitConversion,
 } from "../../shared/types";
@@ -140,19 +140,13 @@ export default function Items() {
     queryFn: () => api.getUnits() as Promise<Unit[]>,
   });
 
-  const { data: invoiceUnits = [] } = useQuery({
-    queryKey: ["invoiceUnits"],
-    queryFn: () => api.getInvoiceUnits() as Promise<InvoiceUnit[]>,
-  });
-
   const { data: unitConversions = [] } = useQuery({
     queryKey: ["unitConversions"],
     queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
   });
 
   const findUnitMeta = (unitName: string) =>
-    units.find((x) => x.name === unitName) ??
-    invoiceUnits.find((x) => x.name === unitName);
+    units.find((x) => x.name === unitName);
 
   const unitDisplay = (unitName: string) => {
     const u = findUnitMeta(unitName);
@@ -164,122 +158,6 @@ export default function Items() {
     return u.name;
   };
 
-  const computeAllowedStockUnits = (
-    primaryUnit: string | null | undefined,
-    retailPrimaryUnit: string | null | undefined,
-    otherUnitsList: ItemOtherUnit[] | undefined,
-    itemConvRows: ConversionRow[]
-  ): string[] => {
-    const base = new Set<string>();
-    if (primaryUnit && primaryUnit.trim()) base.add(primaryUnit.trim());
-    if (retailPrimaryUnit && retailPrimaryUnit.trim())
-      base.add(retailPrimaryUnit.trim());
-    (otherUnitsList ?? []).forEach((ou) => {
-      if (ou.unit && ou.unit.trim()) base.add(ou.unit.trim());
-    });
-
-    if (base.size === 0) return [];
-
-    const graph = new Map<string, Set<string>>();
-    const weightedGraph = new Map<string, { to: string; ratio: number }[]>();
-
-    const ensureNode = (name: string) => {
-      if (!graph.has(name)) graph.set(name, new Set());
-      if (!weightedGraph.has(name)) weightedGraph.set(name, []);
-    };
-
-    const addEdge = (from: string, to: string, factor: number) => {
-      const a = from.trim();
-      const b = to.trim();
-      if (!a || !b) return;
-      ensureNode(a);
-      ensureNode(b);
-      graph.get(a)!.add(b);
-      graph.get(b)!.add(a);
-      if (Number.isFinite(factor) && factor > 0) {
-        // 1 from = factor to  => size(from) = factor * size(to)
-        // So when we know size(from), size(to) = size(from) / factor,
-        // and when we know size(to), size(from) = size(to) * factor.
-        weightedGraph.get(a)!.push({ to: b, ratio: 1 / factor });
-        weightedGraph.get(b)!.push({ to: a, ratio: factor });
-      }
-    };
-
-    for (const row of unitConversions) {
-      addEdge(row.from_unit, row.to_unit, row.factor);
-    }
-
-    const primary = primaryUnit?.trim();
-    if (primary) {
-      for (const row of itemConvRows) {
-        if (row.to_unit && row.to_unit.trim()) {
-          addEdge(primary, row.to_unit, row.factor);
-        }
-      }
-    }
-
-    const visited = new Set<string>();
-    const queue: string[] = [];
-    for (const u of base) {
-      visited.add(u);
-      queue.push(u);
-    }
-
-    while (queue.length > 0) {
-      const u = queue.shift()!;
-      const neighbors = graph.get(u);
-      if (!neighbors) continue;
-      for (const v of neighbors) {
-        if (!visited.has(v)) {
-          visited.add(v);
-          queue.push(v);
-        }
-      }
-    }
-
-    if (visited.size === 0) return [];
-
-    const sizes = new Map<string, number>();
-
-    const fillSizesFrom = (seed: string) => {
-      sizes.set(seed, 1);
-      const q: string[] = [seed];
-      while (q.length > 0) {
-        const u = q.shift()!;
-        const currentSize = sizes.get(u)!;
-        const neighbors = weightedGraph.get(u) ?? [];
-        for (const { to, ratio } of neighbors) {
-          if (!sizes.has(to) && Number.isFinite(ratio) && ratio > 0) {
-            sizes.set(to, currentSize * ratio);
-            q.push(to);
-          }
-        }
-      }
-    };
-
-    if (primary) fillSizesFrom(primary);
-    for (const u of visited) {
-      if (!sizes.has(u)) fillSizesFrom(u);
-    }
-
-    const sorted = Array.from(visited).sort((a, b) => {
-      const sa = sizes.get(a);
-      const sb = sizes.get(b);
-      if (sa != null && sb != null) {
-        // Larger size value means a "bigger" unit, so sort descending.
-        return sb - sa;
-      }
-      if (sa != null) return -1;
-      if (sb != null) return 1;
-      return a.localeCompare(b);
-    });
-
-    if (primary && sorted.includes(primary)) {
-      return [primary, ...sorted.filter((u) => u !== primary)];
-    }
-
-    return sorted;
-  };
 
   const { data: items = [] } = useQuery({
     queryKey: ["items"],
@@ -301,21 +179,29 @@ export default function Items() {
   const itemsPage = pageResult?.data ?? [];
   const totalItems = pageResult?.total ?? 0;
 
-  const addAllowedStockUnits = computeAllowedStockUnits(
-    addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
-    addRetailPrimary || null,
-    addOtherUnits,
-    addConversions
-  );
+  const addAllowedStockUnits = computeProductUnits({
+    primaryUnit:
+      addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
+    retailPrimaryUnit: addRetailPrimary || null,
+    otherUnits: addOtherUnits,
+    itemConversions: addConversions,
+    globalConversions: unitConversions,
+    sortDirection: "desc",
+    pinUnit:
+      addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
+  });
 
   const editAllowedStockUnits =
     editing != null
-      ? computeAllowedStockUnits(
-          (editUnitSelect || editing.unit) ?? null,
-          editRetailPrimary || null,
-          editOtherUnits,
-          editConversions
-        )
+      ? computeProductUnits({
+          primaryUnit: (editUnitSelect || editing.unit) ?? null,
+          retailPrimaryUnit: editRetailPrimary || null,
+          otherUnits: editOtherUnits,
+          itemConversions: editConversions,
+          globalConversions: unitConversions,
+          sortDirection: "desc",
+          pinUnit: (editUnitSelect || editing.unit) ?? null,
+        })
       : [];
 
   const createItem = useMutation({
@@ -815,7 +701,7 @@ export default function Items() {
                       className="w-full border border-gray-300 rounded px-3 py-2"
                     >
                       <option value="">None</option>
-                      {invoiceUnits.map((u) => (
+                      {units.map((u) => (
                         <option key={u.id} value={u.name}>
                           {unitDisplay(u.name)}
                         </option>
@@ -857,7 +743,7 @@ export default function Items() {
                         className="flex-1 border border-gray-300 rounded px-3 py-2"
                       >
                         <option value="">Select unit</option>
-                        {invoiceUnits.map((u) => (
+                        {units.map((u) => (
                           <option key={u.id} value={u.name}>
                             {unitDisplay(u.name)}
                           </option>
@@ -927,12 +813,8 @@ export default function Items() {
                         className="border border-gray-300 rounded px-3 py-2"
                       >
                         <option value="">Select unit</option>
-                        {[
-                          ...new Set([
-                            ...units.map((u) => u.name),
-                            ...invoiceUnits.map((u) => u.name),
-                          ]),
-                        ]
+                        {units
+                          .map((u) => u.name)
                           .sort()
                           .map((name) => (
                             <option key={name} value={name}>
@@ -1284,7 +1166,7 @@ export default function Items() {
                         className="w-full border border-gray-300 rounded px-3 py-2"
                       >
                         <option value="">None</option>
-                        {invoiceUnits.map((u) => (
+                        {units.map((u) => (
                           <option key={u.id} value={u.name}>
                             {unitDisplay(u.name)}
                           </option>
@@ -1326,7 +1208,7 @@ export default function Items() {
                           className="flex-1 border border-gray-300 rounded px-3 py-2"
                         >
                           <option value="">Select unit</option>
-                          {invoiceUnits.map((u) => (
+                          {units.map((u) => (
                             <option key={u.id} value={u.name}>
                               {unitDisplay(u.name)}
                             </option>
@@ -1398,12 +1280,8 @@ export default function Items() {
                           className="border border-gray-300 rounded px-3 py-2"
                         >
                           <option value="">Select unit</option>
-                          {[
-                            ...new Set([
-                              ...units.map((u) => u.name),
-                              ...invoiceUnits.map((u) => u.name),
-                            ]),
-                          ]
+                          {units
+                            .map((u) => u.name)
                             .sort()
                             .map((name) => (
                               <option key={name} value={name}>
@@ -1568,7 +1446,7 @@ export default function Items() {
                     <option value={addStockItem.unit}>
                       {unitDisplay(addStockItem.unit)}
                     </option>
-                    {invoiceUnits.map((u) => (
+                    {units.map((u) => (
                       <option key={u.id} value={u.name}>
                         {unitDisplay(u.name)}
                       </option>
@@ -1657,7 +1535,7 @@ export default function Items() {
                     <option value={reduceStockItem.unit}>
                       {unitDisplay(reduceStockItem.unit)}
                     </option>
-                    {invoiceUnits.map((u) => (
+                    {units.map((u) => (
                       <option key={u.id} value={u.name}>
                         {unitDisplay(u.name)}
                       </option>

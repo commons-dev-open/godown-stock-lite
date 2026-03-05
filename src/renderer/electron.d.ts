@@ -97,28 +97,6 @@ export interface ElectronAPI {
       created_at: string;
     }[]
   >;
-  getUnitsWithContext: () => Promise<
-    {
-      id: number;
-      name: string;
-      symbol: string | null;
-      unit_type_id: number | null;
-      unit_type_name: string | null;
-      created_at: string;
-      in_godown: number;
-      in_invoice: number;
-      invoice_sort_order: number | null;
-    }[]
-  >;
-  addUnitToContext: (
-    unitId: number,
-    context: "godown" | "invoice",
-    sortOrder?: number
-  ) => Promise<number>;
-  removeUnitFromContext: (
-    unitId: number,
-    context: "godown" | "invoice"
-  ) => Promise<number>;
   createUnit: (
     nameOrPayload:
       | string
@@ -133,10 +111,6 @@ export interface ElectronAPI {
     }
   ) => Promise<number>;
   deleteUnit: (id: number) => Promise<number>;
-  reorderUnits: (
-    context: "godown" | "invoice",
-    unitIds: number[]
-  ) => Promise<void>;
   getInvoiceUnits: () => Promise<
     {
       id: number;
@@ -144,19 +118,17 @@ export interface ElectronAPI {
       symbol: string | null;
       unit_type_id: number | null;
       unit_type_name: string | null;
-      sort_order: number;
       created_at: string;
     }[]
   >;
   createInvoiceUnit: (payload: {
     name: string;
     symbol?: string | null;
-    sort_order?: number;
     unit_type_id?: number | null;
   }) => Promise<number>;
   updateInvoiceUnit: (
     id: number,
-    payload: { name?: string; symbol?: string | null; sort_order?: number }
+    payload: { name?: string; symbol?: string | null }
   ) => Promise<number>;
   deleteInvoiceUnit: (id: number) => Promise<number>;
   getSettings: () => Promise<Record<string, string>>;
@@ -164,6 +136,7 @@ export interface ElectronAPI {
   setSetting: (key: string, value: string) => Promise<void>;
   setSettings: (obj: Record<string, string>) => Promise<void>;
   getInvoices: () => Promise<unknown[]>;
+  getInvoiceTotalForDate: (saleDate: string) => Promise<{ total: number }>;
   getInvoicesPage: (opts: {
     search?: string;
     page?: number;
@@ -288,7 +261,8 @@ export interface ElectronAPI {
   }) => Promise<{ data: unknown[]; total: number }>;
   createDailySale: (s: {
     sale_date: string;
-    sale_amount: number;
+    sale_amount?: number;
+    misc_sales?: number;
     cash_in_hand: number;
     expenditure_amount?: number;
     notes?: string;
@@ -298,6 +272,7 @@ export interface ElectronAPI {
     s: {
       sale_date?: string;
       sale_amount?: number;
+      misc_sales?: number;
       cash_in_hand?: number;
       expenditure_amount?: number;
       notes?: string;

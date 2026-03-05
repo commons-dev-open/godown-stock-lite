@@ -68,14 +68,6 @@ const electronAPI = {
   deleteUnitType: (id: number) => ipcRenderer.invoke("unitTypes:delete", id),
 
   getUnits: () => ipcRenderer.invoke("units:getAll"),
-  getUnitsWithContext: () => ipcRenderer.invoke("units:getAllWithContext"),
-  addUnitToContext: (
-    unitId: number,
-    context: "godown" | "invoice",
-    sortOrder?: number
-  ) => ipcRenderer.invoke("units:addToContext", unitId, context, sortOrder),
-  removeUnitFromContext: (unitId: number, context: "godown" | "invoice") =>
-    ipcRenderer.invoke("units:removeFromContext", unitId, context),
   createUnit: (
     nameOrPayload:
       | string
@@ -90,19 +82,16 @@ const electronAPI = {
     }
   ) => ipcRenderer.invoke("units:update", id, payload),
   deleteUnit: (id: number) => ipcRenderer.invoke("units:delete", id),
-  reorderUnits: (context: "godown" | "invoice", unitIds: number[]) =>
-    ipcRenderer.invoke("units:reorder", context, unitIds),
 
   getInvoiceUnits: () => ipcRenderer.invoke("invoiceUnits:getAll"),
   createInvoiceUnit: (payload: {
     name: string;
     symbol?: string | null;
-    sort_order?: number;
     unit_type_id?: number | null;
   }) => ipcRenderer.invoke("invoiceUnits:create", payload),
   updateInvoiceUnit: (
     id: number,
-    payload: { name?: string; symbol?: string | null; sort_order?: number }
+    payload: { name?: string; symbol?: string | null }
   ) => ipcRenderer.invoke("invoiceUnits:update", id, payload),
   deleteInvoiceUnit: (id: number) =>
     ipcRenderer.invoke("invoiceUnits:delete", id),
@@ -115,6 +104,10 @@ const electronAPI = {
     ipcRenderer.invoke("settings:setBulk", obj),
 
   getInvoices: () => ipcRenderer.invoke("invoices:getAll"),
+  getInvoiceTotalForDate: (saleDate: string) =>
+    ipcRenderer.invoke("invoices:getTotalForDate", saleDate) as Promise<{
+      total: number;
+    }>,
   getInvoicesPage: (opts: {
     search?: string;
     page?: number;
@@ -247,7 +240,8 @@ const electronAPI = {
   }) => ipcRenderer.invoke("dailySales:getPage", opts),
   createDailySale: (s: {
     sale_date: string;
-    sale_amount: number;
+    sale_amount?: number;
+    misc_sales?: number;
     cash_in_hand: number;
     expenditure_amount?: number;
     notes?: string;
@@ -257,6 +251,7 @@ const electronAPI = {
     s: {
       sale_date?: string;
       sale_amount?: number;
+      misc_sales?: number;
       cash_in_hand?: number;
       expenditure_amount?: number;
       notes?: string;

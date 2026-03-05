@@ -18,14 +18,6 @@ export function createSchema(db: DbLike): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS unit_sort_order (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      context TEXT NOT NULL,
-      unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
-      sort_order INTEGER NOT NULL,
-      UNIQUE(context, unit_id)
-    );
-
     CREATE TABLE IF NOT EXISTS items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -98,10 +90,12 @@ export function createSchema(db: DbLike): void {
 
     CREATE TABLE IF NOT EXISTS daily_sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sale_date TEXT NOT NULL,
+      sale_date TEXT NOT NULL UNIQUE,
       sale_amount REAL NOT NULL,
       cash_in_hand REAL NOT NULL,
       expenditure_amount REAL,
+      invoice_sales REAL NOT NULL DEFAULT 0,
+      misc_sales REAL NOT NULL DEFAULT 0,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -142,5 +136,7 @@ export function createSchema(db: DbLike): void {
       price_entered_as TEXT NOT NULL DEFAULT 'per_unit' CHECK(price_entered_as IN ('per_unit', 'total')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    DROP TABLE IF EXISTS unit_sort_order;
   `);
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
@@ -13,12 +14,15 @@ import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
+import { computeProductUnits } from "../../shared/computeProductUnits";
 import type {
   Invoice,
   InvoiceLine,
-  InvoiceUnit,
   Item,
+  Unit,
+  UnitConversion,
 } from "../../shared/types";
+import DateInput from "../components/DateInput";
 import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
@@ -41,7 +45,10 @@ type LineRow = {
   product_id: number;
   product_name: string;
   quantity: number;
+  /** Unit the quantity is measured in. */
   unit: string;
+  /** Unit the price is expressed per (only relevant when priceMode is "per_unit"). */
+  priceUnit: string;
   price: number;
   priceMode: PriceMode;
   /** When priceMode is "total", raw input so user can type freely. */
@@ -59,22 +66,67 @@ const DEFAULT_LINE_ROW: LineRow = {
   product_name: "",
   quantity: 0,
   unit: "",
+  priceUnit: "",
   price: 0,
   priceMode: "per_unit",
 };
 
-/** Payload line sent to API (no priceMode/totalInput). */
-type LinePayload = Omit<LineRow, "priceMode" | "totalInput"> & {
+/** Payload line sent to API (no priceMode/totalInput/priceUnit — UI-only fields). */
+type LinePayload = Omit<LineRow, "priceMode" | "totalInput" | "priceUnit"> & {
   amount: number;
   price_entered_as: PriceMode;
 };
 
 /** Resolve unit name to short display (symbol); falls back to name if no match. */
-function unitToShort(unitName: string, units: InvoiceUnit[]): string {
+function unitToShort(unitName: string, units: Unit[]): string {
   if (!unitName) return unitName;
   const u = units.find((x) => x.name === unitName);
   const short = u?.symbol?.trim();
   return short ?? unitName;
+}
+
+/**
+ * Returns the factor to convert 1 unit of `from` into `to` units.
+ * E.g. from="gram", to="kg" → 0.001
+ * Falls back to 1 if no path is found.
+ */
+function getConversionFactor(
+  from: string,
+  to: string,
+  primaryUnit: string | undefined,
+  itemConversions: { to_unit: string; factor: number }[],
+  globalConversions: UnitConversion[]
+): number {
+  if (!from || !to || from === to) return 1;
+  type Edge = { to: string; factor: number };
+  const graph = new Map<string, Edge[]>();
+  const addEdge = (a: string, b: string, f: number) => {
+    if (!a || !b || !Number.isFinite(f) || f <= 0) return;
+    if (!graph.has(a)) graph.set(a, []);
+    if (!graph.has(b)) graph.set(b, []);
+    graph.get(a)!.push({ to: b, factor: f });
+    graph.get(b)!.push({ to: a, factor: 1 / f });
+  };
+  for (const row of globalConversions)
+    addEdge(row.from_unit, row.to_unit, row.factor);
+  if (primaryUnit) {
+    for (const row of itemConversions)
+      addEdge(primaryUnit, row.to_unit, row.factor);
+  }
+  // BFS
+  const visited = new Map<string, number>();
+  visited.set(from, 1);
+  const queue = [from];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    for (const { to: next, factor } of graph.get(cur) ?? []) {
+      if (!visited.has(next)) {
+        visited.set(next, visited.get(cur)! * factor);
+        queue.push(next);
+      }
+    }
+  }
+  return visited.get(to) ?? 1;
 }
 
 /** Display value for line total input (Total mode). */
@@ -92,7 +144,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
 }: {
   invoice: InvoiceWithLines;
   isPrint?: boolean;
-  invoiceUnits?: InvoiceUnit[];
+  invoiceUnits?: Unit[];
 }) {
   const total = invoice.lines.reduce(
     (s, l) => s + (l.amount ?? l.quantity * l.price),
@@ -183,6 +235,18 @@ export default function Invoices() {
   const [viewing, setViewing] = useState<InvoiceWithLines | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const location = useLocation();
+
+  useEffect(() => {
+    const state = location.state as {
+      dateFrom?: string;
+      dateTo?: string;
+    } | null;
+    if (state?.dateFrom) setDateFrom(state.dateFrom);
+    if (state?.dateTo) setDateTo(state.dateTo);
+  }, [location.state]);
   const [printData, setPrintData] = useState<InvoiceWithLines | null>(null);
   const [deleteConfirmInvoiceId, setDeleteConfirmInvoiceId] = useState<
     number | null
@@ -197,14 +261,22 @@ export default function Invoices() {
     queryKey: ["itemsWithUnits"],
     queryFn: () =>
       api.getItemsWithUnits() as Promise<
-        (Item & { other_units: { unit: string; sort_order: number }[] })[]
+        (Item & {
+          other_units: { unit: string; sort_order: number }[];
+          item_unit_conversions: { to_unit: string; factor: number }[];
+        })[]
       >,
     enabled: createOpen || !!editing,
   });
 
-  const { data: invoiceUnits = [] } = useQuery({
-    queryKey: ["invoiceUnits"],
-    queryFn: () => api.getInvoiceUnits() as Promise<InvoiceUnit[]>,
+  const { data: allUnits = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => api.getUnits() as Promise<Unit[]>,
+  });
+
+  const { data: unitConversions = [] } = useQuery({
+    queryKey: ["unitConversions"],
+    queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
   });
 
   const { data: settings = {} } = useQuery({
@@ -213,10 +285,12 @@ export default function Invoices() {
   });
 
   const { data: pageResult, isLoading } = useQuery({
-    queryKey: ["invoicesPage", search, page],
+    queryKey: ["invoicesPage", search, dateFrom, dateTo, page],
     queryFn: () =>
       api.getInvoicesPage({
         search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         page,
         limit: PAGE_SIZE,
       }) as Promise<{ data: InvoiceRow[]; total: number }>,
@@ -235,6 +309,8 @@ export default function Invoices() {
     }) => api.createInvoice(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySales"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
       setCreateOpen(false);
     },
   });
@@ -256,6 +332,8 @@ export default function Invoices() {
     }) => api.updateInvoice(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySales"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
       setEditing(null);
     },
   });
@@ -264,6 +342,8 @@ export default function Invoices() {
     mutationFn: (id: number) => api.deleteInvoice(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySales"] });
+      queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
       setViewing(null);
     },
   });
@@ -383,6 +463,43 @@ export default function Invoices() {
         searchValue={search}
         onSearchChange={setSearch}
         placeholder="Search by invoice # or customer..."
+        hasActiveFilters={!!(search || dateFrom || dateTo)}
+        onClearFilters={
+          search || dateFrom || dateTo
+            ? () => {
+                setSearch("");
+                setDateFrom("");
+                setDateTo("");
+                setPage(1);
+              }
+            : undefined
+        }
+        rightContent={
+          <>
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+              From
+              <DateInput
+                value={dateFrom}
+                onChange={(v) => {
+                  setDateFrom(v);
+                  setPage(1);
+                }}
+                className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+              To
+              <DateInput
+                value={dateTo}
+                onChange={(v) => {
+                  setDateTo(v);
+                  setPage(1);
+                }}
+                className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              />
+            </label>
+          </>
+        }
       />
 
       {isLoading ? (
@@ -429,7 +546,8 @@ export default function Invoices() {
         title="Create Invoice"
         onClose={() => setCreateOpen(false)}
         items={itemsWithUnits ?? items}
-        invoiceUnits={invoiceUnits}
+        units={allUnits}
+        unitConversions={unitConversions}
         onSubmit={(payload, opts) =>
           createInvoice.mutate(payload, {
             onSuccess: (newId: number) => {
@@ -453,7 +571,8 @@ export default function Invoices() {
           invoice={editing}
           onClose={() => setEditing(null)}
           items={itemsWithUnits ?? items}
-          invoiceUnits={invoiceUnits}
+          units={allUnits}
+          unitConversions={unitConversions}
           onSubmit={(payload, opts) =>
             updateInvoice.mutate(
               { id: editing.id, payload },
@@ -480,7 +599,7 @@ export default function Invoices() {
           onClose={() => setViewing(null)}
           maxWidth="max-w-2xl"
           footer={
-            <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex w-full items-center justify-between gap-4 flex-wrap">
               <span className="font-medium text-gray-900">
                 Total: ₹
                 {formatDecimal(
@@ -490,7 +609,17 @@ export default function Invoices() {
                   )
                 )}
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <Link
+                  to="/sales"
+                  state={{
+                    dateFrom: viewing.invoice_date,
+                    dateTo: viewing.invoice_date,
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  View daily sale for this date
+                </Link>
                 <Button
                   type="button"
                   variant="secondary"
@@ -502,7 +631,7 @@ export default function Invoices() {
                         viewing,
                         viewing.lines,
                         settings,
-                        invoiceUnits
+                        allUnits
                       );
                       toast.success("Exported as PDF.");
                     } catch (err) {
@@ -528,7 +657,7 @@ export default function Invoices() {
             </div>
           }
         >
-          <ViewInvoiceContent invoice={viewing} invoiceUnits={invoiceUnits} />
+          <ViewInvoiceContent invoice={viewing} invoiceUnits={allUnits} />
         </FormModal>
       )}
 
@@ -558,7 +687,7 @@ export default function Invoices() {
           <ViewInvoiceContent
             invoice={printData}
             isPrint
-            invoiceUnits={invoiceUnits}
+            invoiceUnits={allUnits}
           />
         </div>
       )}
@@ -569,6 +698,7 @@ export default function Invoices() {
 type ItemWithUnits = Item & {
   other_units?: { unit: string; sort_order: number }[];
   retail_primary_unit?: string | null;
+  item_unit_conversions?: { to_unit: string; factor: number }[];
 };
 
 function InvoiceFormModal({
@@ -577,7 +707,8 @@ function InvoiceFormModal({
   onClose,
   invoice,
   items,
-  invoiceUnits,
+  units: allUnits,
+  unitConversions,
   onSubmit,
   isPending,
 }: Readonly<{
@@ -586,7 +717,8 @@ function InvoiceFormModal({
   onClose: () => void;
   invoice?: InvoiceWithLines | null;
   items: Item[] | ItemWithUnits[];
-  invoiceUnits: InvoiceUnit[];
+  units: Unit[];
+  unitConversions: UnitConversion[];
   onSubmit: (
     payload: {
       invoice_number?: string | null;
@@ -626,6 +758,7 @@ function InvoiceFormModal({
           product_name: l.product_name ?? "",
           quantity: l.quantity,
           unit: l.unit,
+          priceUnit: l.unit,
           price: l.price,
           amount,
           priceMode: priceEnteredAs,
@@ -640,42 +773,54 @@ function InvoiceFormModal({
   });
 
   const getUnitsForLine = useCallback(
-    (lineIdx: number): InvoiceUnit[] => {
+    (lineIdx: number): Unit[] => {
       const line = lines[lineIdx];
-      if (!line?.product_id) return invoiceUnits;
+      if (!line?.product_id) return [];
       const item = items.find((i) => i.id === line.product_id) as
         | ItemWithUnits
         | undefined;
-      if (!item) return invoiceUnits;
-      const primary = item.unit;
-      const retail =
-        item.retail_primary_unit != null && item.retail_primary_unit !== ""
-          ? item.retail_primary_unit
-          : null;
-      const others = item.other_units ?? [];
-      const productUnitNames = [primary];
-      if (retail && retail !== primary) productUnitNames.push(retail);
-      const sortedOthers = [...others].sort(
-        (a, b) => a.sort_order - b.sort_order
-      );
-      for (const o of sortedOthers) {
-        if (!productUnitNames.includes(o.unit)) productUnitNames.push(o.unit);
-      }
-      const productUnitsOrdered = productUnitNames
-        .map((name) => invoiceUnits.find((u) => u.name === name))
-        .filter((u): u is InvoiceUnit => u != null);
-      const rest = invoiceUnits.filter(
-        (u) => !productUnitNames.includes(u.name)
-      );
-      return [...productUnitsOrdered, ...rest];
+      if (!item) return [];
+
+      const unitNames = computeProductUnits({
+        primaryUnit: item.unit,
+        retailPrimaryUnit: item.retail_primary_unit,
+        otherUnits: item.other_units,
+        itemConversions: item.item_unit_conversions ?? [],
+        globalConversions: unitConversions,
+        sortDirection: "asc",
+        pinUnit: item.retail_primary_unit ?? item.unit,
+      });
+
+      return unitNames
+        .map((name) => allUnits.find((u) => u.name === name))
+        .filter((u): u is Unit => u != null);
     },
-    [items, invoiceUnits, lines]
+    [items, allUnits, unitConversions, lines]
+  );
+
+  const getLineConvFactor = useCallback(
+    (line: LineRow): number => {
+      if (!line.unit || !line.priceUnit || line.unit === line.priceUnit)
+        return 1;
+      const item = items.find((i) => i.id === line.product_id) as
+        | ItemWithUnits
+        | undefined;
+      return getConversionFactor(
+        line.unit,
+        line.priceUnit,
+        item?.unit,
+        item?.item_unit_conversions ?? [],
+        unitConversions
+      );
+    },
+    [items, unitConversions]
   );
 
   const handleProductChange = (idx: number, productId: number) => {
     const item = items.find((i) => i.id === productId) as
       | ItemWithUnits
       | undefined;
+    const defaultUnit = item?.retail_primary_unit ?? item?.unit ?? "";
     setLines((prev) =>
       prev.map((p, i) =>
         i === idx
@@ -683,7 +828,8 @@ function InvoiceFormModal({
               ...p,
               product_id: productId,
               product_name: item?.name ?? "",
-              unit: item?.retail_primary_unit ?? item?.unit ?? p.unit,
+              unit: defaultUnit,
+              priceUnit: defaultUnit,
             }
           : p
       )
@@ -718,8 +864,9 @@ function InvoiceFormModal({
           let amount: number;
           let price: number;
           if (l.priceMode === "per_unit") {
-            amount = roundDecimal(l.quantity * l.price, 2);
-            price = l.price;
+            const conv = getLineConvFactor(l);
+            amount = roundDecimal(l.quantity * conv * l.price, 2);
+            price = l.quantity > 0 ? roundDecimal(amount / l.quantity, 4) : 0;
           } else {
             amount = roundDecimal(
               (l.totalInput !== undefined && l.totalInput !== ""
@@ -747,15 +894,17 @@ function InvoiceFormModal({
   const formTotal = useMemo(() => {
     return lines.reduce((sum, l) => {
       if (l.product_id <= 0 || l.quantity <= 0) return sum;
-      if (l.priceMode === "per_unit")
-        return sum + (l.quantity || 0) * (l.price || 0);
+      if (l.priceMode === "per_unit") {
+        const factor = getLineConvFactor(l);
+        return sum + (l.quantity || 0) * factor * (l.price || 0);
+      }
       const amt =
         l.totalInput !== undefined && l.totalInput !== ""
           ? Number(l.totalInput)
           : (l.amount ?? (l.quantity || 0) * (l.price || 0));
       return sum + (amt || 0);
     }, 0);
-  }, [lines]);
+  }, [lines, getLineConvFactor]);
 
   return (
     <FormModal
@@ -851,7 +1000,7 @@ function InvoiceFormModal({
           <div className="min-w-0 overflow-x-auto">
             <div className="min-w-[36rem]">
               {lines.length > 0 && (
-                <div className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2">
+                <div className="grid grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2">
                   <span>Product</span>
                   <span>Qty</span>
                   <span>Unit</span>
@@ -865,7 +1014,7 @@ function InvoiceFormModal({
                 {lines.map((line, idx) => (
                   <div
                     key={line.id ?? line._key ?? idx}
-                    className="grid grid-cols-[12rem_6rem_6rem_7rem_1fr_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
+                    className="grid grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
                   >
                     <select
                       value={line.product_id || ""}
@@ -931,44 +1080,77 @@ function InvoiceFormModal({
                         </option>
                       ))}
                     </select>
-                    <select
-                      value={line.priceMode}
-                      onChange={(e) => {
-                        const mode = e.target.value as PriceMode;
-                        setLines((prev) =>
-                          prev.map((p, i) => {
-                            if (i !== idx) return p;
-                            if (mode === "total") {
-                              const lineAmt =
-                                p.amount ??
-                                (p.quantity > 0 ? p.quantity * p.price : 0);
-                              const totalInput =
-                                lineAmt > 0 ? formatDecimal(lineAmt) : "";
-                              return { ...p, priceMode: mode, totalInput };
+                    {(() => {
+                      const lineUnits = getUnitsForLine(idx);
+                      const typeValue =
+                        line.priceMode === "per_unit"
+                          ? line.priceUnit
+                          : "total";
+                      return (
+                        <select
+                          value={typeValue}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "total") {
+                              setLines((prev) =>
+                                prev.map((p, i) => {
+                                  if (i !== idx) return p;
+                                  const factor = getLineConvFactor(p);
+                                  const lineAmt =
+                                    p.amount ??
+                                    (p.quantity > 0
+                                      ? p.quantity * factor * p.price
+                                      : 0);
+                                  const totalInput =
+                                    lineAmt > 0 ? formatDecimal(lineAmt) : "";
+                                  return {
+                                    ...p,
+                                    priceMode: "total",
+                                    totalInput,
+                                  };
+                                })
+                              );
+                            } else {
+                              setLines((prev) =>
+                                prev.map((p, i) =>
+                                  i !== idx
+                                    ? p
+                                    : {
+                                        ...p,
+                                        priceMode: "per_unit",
+                                        priceUnit: val,
+                                        totalInput: undefined,
+                                      }
+                                )
+                              );
                             }
-                            return {
-                              ...p,
-                              priceMode: mode,
-                              totalInput: undefined,
-                            };
-                          })
-                        );
-                      }}
-                      className="input-base w-full text-sm min-w-0"
-                      title="Enter price per unit or total for this line"
-                      aria-label="Price type"
-                    >
-                      <option value="per_unit">
-                        Per {unitToShort(line.unit, invoiceUnits) || "unit"}
-                      </option>
-                      <option value="total">Total</option>
-                    </select>
+                          }}
+                          className="input-base w-full text-sm min-w-0"
+                          title="Enter price per unit or total for this line"
+                          aria-label="Price type"
+                        >
+                          {lineUnits.length > 0 ? (
+                            lineUnits.map((u) => (
+                              <option key={u.id} value={u.name}>
+                                Per {u?.symbol?.trim() || u.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option value={line.priceUnit || ""}>
+                              Per{" "}
+                              {unitToShort(line.priceUnit, allUnits) || "unit"}
+                            </option>
+                          )}
+                          <option value="total">Total</option>
+                        </select>
+                      );
+                    })()}
                     {line.priceMode === "per_unit" ? (
                       <>
                         <input
                           type="number"
                           min="0"
-                          step="0.01"
+                          step="0.5"
                           placeholder="0"
                           value={line.price || ""}
                           onChange={(e) =>
@@ -986,7 +1168,9 @@ function InvoiceFormModal({
                         <span className="text-xs text-gray-600 whitespace-nowrap">
                           ₹
                           {formatDecimal(
-                            (line.quantity || 0) * (line.price || 0)
+                            (line.quantity || 0) *
+                              getLineConvFactor(line) *
+                              (line.price || 0)
                           )}
                         </span>
                       </>
@@ -995,7 +1179,7 @@ function InvoiceFormModal({
                         <input
                           type="number"
                           min="0"
-                          step="0.01"
+                          step="0.5"
                           placeholder="0"
                           value={getLineTotalDisplay(line)}
                           onChange={(e) => {
@@ -1022,10 +1206,38 @@ function InvoiceFormModal({
                           title="Total amount for this line (quantity can be entered before or after)"
                           aria-label="Line total"
                         />
-                        {line.quantity > 0 && line.price > 0 ? (
+                        {line.quantity > 0 &&
+                        (line.totalInput
+                          ? Number(line.totalInput) > 0
+                          : (line.amount ?? 0) > 0) ? (
                           <span className="text-xs text-gray-600 whitespace-nowrap ml-2">
-                            ₹{formatDecimal(line.price)}/
-                            {unitToShort(line.unit, invoiceUnits) || "unit"}
+                            ₹
+                            {formatDecimal(
+                              (() => {
+                                const amt =
+                                  line.totalInput !== undefined &&
+                                  line.totalInput !== ""
+                                    ? Number(line.totalInput)
+                                    : line.amount ??
+                                      (line.quantity || 0) * (line.price || 0);
+                                const factor = getLineConvFactor(line);
+                                if (
+                                  factor > 0 &&
+                                  (line.quantity || 0) > 0 &&
+                                  line.priceUnit
+                                ) {
+                                  return amt / ((line.quantity || 0) * factor);
+                                }
+                                return line.price > 0
+                                  ? line.price
+                                  : amt / (line.quantity || 1);
+                              })()
+                            )}
+                            /
+                            {unitToShort(
+                              line.priceUnit || line.unit,
+                              allUnits
+                            ) || "unit"}
                           </span>
                         ) : (
                           <span aria-hidden="true" />

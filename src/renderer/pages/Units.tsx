@@ -3,17 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowsRightLeftIcon,
   CheckIcon,
-  CubeIcon,
-  DocumentTextIcon,
   ListBulletIcon,
   PlusIcon,
   TagIcon,
   TrashIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
-import SortableUnitTable from "../components/SortableUnitTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
@@ -22,7 +18,6 @@ import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import type {
   Unit,
   UnitType,
-  InvoiceUnit,
   UnitConversion,
 } from "../../shared/types";
 import {
@@ -31,43 +26,19 @@ import {
   isSeedUnitType,
 } from "../../shared/seedConstants";
 
-export type UnitWithContext = {
-  id: number;
-  name: string;
-  symbol: string | null;
-  unit_type_id: number | null;
-  unit_type_name: string | null;
-  created_at: string;
-  in_godown: number;
-  in_invoice: number;
-  invoice_sort_order: number | null;
-};
-
 export default function Units() {
   const queryClient = useQueryClient();
   const api = getElectron();
   const [activeSection, setActiveSection] = useState<
-    "all" | "types" | "stock" | "invoice" | "conversions"
+    "all" | "types" | "conversions"
   >("all");
   const [allAddOpen, setAllAddOpen] = useState(false);
-  const [allAddUseStock, setAllAddUseStock] = useState(true);
-  const [allAddUseInvoice, setAllAddUseInvoice] = useState(true);
-  const [allAddInvoiceSort, setAllAddInvoiceSort] = useState(999);
-  const [stockAddOpen, setStockAddOpen] = useState(false);
   const [stockEditing, setStockEditing] = useState<Unit | null>(null);
-  const [invoiceAddOpen, setInvoiceAddOpen] = useState(false);
-  const [invoiceEditing, setInvoiceEditing] = useState<InvoiceUnit | null>(
-    null
-  );
   const [deleteConfirmUnit, setDeleteConfirmUnit] = useState<Unit | null>(null);
-  const [deleteConfirmInvoiceUnit, setDeleteConfirmInvoiceUnit] =
-    useState<InvoiceUnit | null>(null);
   const [convAddOpen, setConvAddOpen] = useState(false);
   const [convEditing, setConvEditing] = useState<UnitConversion | null>(null);
   const [deleteConfirmConv, setDeleteConfirmConv] =
     useState<UnitConversion | null>(null);
-  const [deleteConfirmAllUnit, setDeleteConfirmAllUnit] =
-    useState<UnitWithContext | null>(null);
   const [typesAddOpen, setTypesAddOpen] = useState(false);
   const [typeEditing, setTypeEditing] = useState<UnitType | null>(null);
   const [deleteConfirmType, setDeleteConfirmType] = useState<UnitType | null>(
@@ -84,27 +55,14 @@ export default function Units() {
     queryFn: () => api.getUnits() as Promise<Unit[]>,
   });
 
-  const { data: unitsWithContext = [] } = useQuery({
-    queryKey: ["unitsWithContext"],
-    queryFn: () => api.getUnitsWithContext() as Promise<UnitWithContext[]>,
-  });
-
-  const { data: invoiceUnits = [] } = useQuery({
-    queryKey: ["invoiceUnits"],
-    queryFn: () => api.getInvoiceUnits() as Promise<InvoiceUnit[]>,
-  });
-
   const { data: unitConversions = [] } = useQuery({
     queryKey: ["unitConversions"],
     queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
   });
 
-  const allUnitNames = [
-    ...new Set([
-      ...units.map((u) => u.name),
-      ...invoiceUnits.map((u) => u.name),
-    ]),
-  ].sort((a, b) => a.localeCompare(b));
+  const allUnitNames = units
+    .map((u) => u.name)
+    .sort((a, b) => a.localeCompare(b));
 
   const createUnitType = useMutation({
     mutationFn: (name: string) => api.createUnitType(name),
@@ -139,7 +97,7 @@ export default function Units() {
     }) => api.createUnit(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["units"] });
-      setStockAddOpen(false);
+      setAllAddOpen(false);
     },
   });
 
@@ -157,7 +115,6 @@ export default function Units() {
     }) => api.updateUnit(id, { name, symbol, unit_type_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["units"] });
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
       setStockEditing(null);
     },
   });
@@ -166,124 +123,7 @@ export default function Units() {
     mutationFn: (id: number) => api.deleteUnit(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["units"] });
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
       setDeleteConfirmUnit(null);
-      setDeleteConfirmAllUnit(null);
-    },
-  });
-
-  const addUnitToContext = useMutation({
-    mutationFn: ({
-      unitId,
-      context,
-      sortOrder,
-    }: {
-      unitId: number;
-      context: "godown" | "invoice";
-      sortOrder?: number;
-    }) => api.addUnitToContext(unitId, context, sortOrder),
-    onSuccess: (_, { context }) => {
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
-      queryClient.invalidateQueries({
-        queryKey: [context === "godown" ? "units" : "invoiceUnits"],
-      });
-    },
-  });
-
-  const removeUnitFromContext = useMutationWithToast({
-    mutationFn: ({
-      unitId,
-      context,
-    }: {
-      unitId: number;
-      context: "godown" | "invoice";
-    }) => api.removeUnitFromContext(unitId, context),
-    onSuccess: (_, { context }) => {
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
-      queryClient.invalidateQueries({
-        queryKey: [context === "godown" ? "units" : "invoiceUnits"],
-      });
-    },
-  });
-
-  const createUnitFromAll = useMutation({
-    mutationFn: async (payload: {
-      name: string;
-      symbol?: string | null;
-      unit_type_id?: number | null;
-      useInStock: boolean;
-      useInInvoice: boolean;
-      invoiceSortOrder?: number;
-    }) => {
-      await api.createUnit({
-        name: payload.name,
-        symbol: payload.symbol,
-        unit_type_id: payload.unit_type_id,
-      });
-      const list = (await api.getUnitsWithContext()) as UnitWithContext[];
-      const unit = list.find((u) => u.name === payload.name);
-      if (!unit) throw new Error("Unit not found after create");
-      if (!payload.useInStock)
-        await api.removeUnitFromContext(unit.id, "godown");
-      if (!payload.useInInvoice)
-        await api.removeUnitFromContext(unit.id, "invoice");
-      if (
-        payload.useInInvoice &&
-        typeof payload.invoiceSortOrder === "number" &&
-        Number.isFinite(payload.invoiceSortOrder)
-      )
-        await api.updateInvoiceUnit(unit.id, {
-          sort_order: payload.invoiceSortOrder,
-        });
-      return unit.id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["units"] });
-      queryClient.invalidateQueries({ queryKey: ["invoiceUnits"] });
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
-      setAllAddOpen(false);
-      setAllAddUseStock(true);
-      setAllAddUseInvoice(true);
-      setAllAddInvoiceSort(999);
-    },
-  });
-
-  const createInvoiceUnit = useMutation({
-    mutationFn: (payload: {
-      name: string;
-      symbol?: string | null;
-      sort_order?: number;
-    }) => api.createInvoiceUnit(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoiceUnits"] });
-      setInvoiceAddOpen(false);
-    },
-  });
-
-  const updateInvoiceUnit = useMutation({
-    mutationFn: ({
-      id,
-      name,
-      symbol,
-      sort_order,
-    }: {
-      id: number;
-      name: string;
-      symbol?: string | null;
-      sort_order?: number;
-    }) => api.updateInvoiceUnit(id, { name, symbol, sort_order }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoiceUnits"] });
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
-      setInvoiceEditing(null);
-    },
-  });
-
-  const deleteInvoiceUnit = useMutationWithToast({
-    mutationFn: (id: number) => api.deleteInvoiceUnit(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoiceUnits"] });
-      queryClient.invalidateQueries({ queryKey: ["unitsWithContext"] });
     },
   });
 
@@ -325,25 +165,6 @@ export default function Units() {
     },
   });
 
-  const reorderUnits = useMutation({
-    mutationFn: ({
-      context,
-      unitIds,
-    }: {
-      context: "godown" | "invoice";
-      unitIds: number[];
-    }) => api.reorderUnits(context, unitIds),
-    onSuccess: (_, { context }) => {
-      queryClient.invalidateQueries({
-        queryKey: [context === "godown" ? "units" : "invoiceUnits"],
-      });
-    },
-  });
-
-  const handleReorder = (context: "godown" | "invoice", unitIds: number[]) => {
-    reorderUnits.mutate({ context, unitIds });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -377,30 +198,6 @@ export default function Units() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection("stock")}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
-            activeSection === "stock"
-              ? "bg-white border border-b-0 border-gray-200 text-gray-900"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          <CubeIcon className="w-4 h-4" aria-hidden />
-          Stock units (godown)
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection("invoice")}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
-            activeSection === "invoice"
-              ? "bg-white border border-b-0 border-gray-200 text-gray-900"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          <DocumentTextIcon className="w-4 h-4" aria-hidden />
-          Invoice units
-        </button>
-        <button
-          type="button"
           onClick={() => setActiveSection("conversions")}
           className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "conversions"
@@ -415,18 +212,13 @@ export default function Units() {
 
       {activeSection === "all" && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-4">
-            See every unit in one place. Add or remove units from Stock (godown)
-            and Invoice sections. Reorder within each section using the Stock /
-            Invoice tabs.
-          </p>
           <div className="flex justify-end mb-4">
             <Button onClick={() => setAllAddOpen(true)}>
               <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Add unit
             </Button>
           </div>
-          <DataTable<UnitWithContext>
+          <DataTable<Unit>
             columns={[
               { key: "name", label: "Name" },
               {
@@ -440,125 +232,22 @@ export default function Units() {
                 render: (r) => r.unit_type_name?.trim() || "—",
               },
               {
-                key: "in_godown",
-                label: "Stock (godown)",
-                render: (r) =>
-                  r.in_godown ? (
-                    <span className="inline-flex items-center rounded bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-0.5">
-                      Yes
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5">
-                      No
-                    </span>
-                  ),
-              },
-              {
-                key: "in_invoice",
-                label: "Invoice",
-                render: (r) =>
-                  r.in_invoice ? (
-                    <span className="inline-flex items-center rounded bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5">
-                      Yes
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5">
-                      No
-                    </span>
-                  ),
-              },
-              {
                 key: "actions",
                 label: "Actions",
                 render: (row) => (
-                  <div className="flex flex-wrap items-center gap-1">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="secondary"
                       type="button"
                       className="!py-1 !px-2 text-xs"
-                      onClick={() =>
-                        setStockEditing({
-                          id: row.id,
-                          name: row.name,
-                          symbol: row.symbol,
-                          unit_type_id: row.unit_type_id,
-                          unit_type_name: row.unit_type_name,
-                          created_at: row.created_at,
-                        })
-                      }
+                      onClick={() => setStockEditing(row)}
                     >
                       Edit
                     </Button>
-                    {row.in_godown ? (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        className="!py-1 !px-2 text-xs"
-                        onClick={() =>
-                          removeUnitFromContext.mutate({
-                            unitId: row.id,
-                            context: "godown",
-                          })
-                        }
-                        title="Remove from Stock (godown) list"
-                      >
-                        <XMarkIcon className="w-3.5 h-3.5 mr-0.5" />
-                        Stock
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        className="!py-1 !px-2 text-xs"
-                        onClick={() =>
-                          addUnitToContext.mutate({
-                            unitId: row.id,
-                            context: "godown",
-                          })
-                        }
-                        title="Add to Stock (godown) list"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5 mr-0.5" />
-                        Stock
-                      </Button>
-                    )}
-                    {row.in_invoice ? (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        className="!py-1 !px-2 text-xs"
-                        onClick={() =>
-                          removeUnitFromContext.mutate({
-                            unitId: row.id,
-                            context: "invoice",
-                          })
-                        }
-                        title="Remove from Invoice list"
-                      >
-                        <XMarkIcon className="w-3.5 h-3.5 mr-0.5" />
-                        Invoice
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        className="!py-1 !px-2 text-xs"
-                        onClick={() =>
-                          addUnitToContext.mutate({
-                            unitId: row.id,
-                            context: "invoice",
-                          })
-                        }
-                        title="Add to Invoice list"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5 mr-0.5" />
-                        Invoice
-                      </Button>
-                    )}
                     {!isSeedUnit(row.name) && (
                       <button
                         type="button"
-                        onClick={() => setDeleteConfirmAllUnit(row)}
+                        onClick={() => setDeleteConfirmUnit(row)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete unit"
                         aria-label="Delete unit"
@@ -570,7 +259,7 @@ export default function Units() {
                 ),
               },
             ]}
-            data={unitsWithContext}
+            data={units}
             emptyMessage="No units yet. Add one to get started."
           />
         </div>
@@ -631,48 +320,6 @@ export default function Units() {
         </div>
       )}
 
-      {activeSection === "stock" && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setStockAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add unit
-            </Button>
-          </div>
-          <SortableUnitTable
-            items={units}
-            context="godown"
-            onReorder={handleReorder}
-            onEdit={(row) => setStockEditing(row)}
-            onDelete={(row) => setDeleteConfirmUnit(row)}
-            canDelete={(row) => !isSeedUnit(row.name)}
-            emptyMessage="No stock units. Add one to get started."
-            showType
-          />
-        </div>
-      )}
-
-      {activeSection === "invoice" && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setInvoiceAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add unit
-            </Button>
-          </div>
-          <SortableUnitTable
-            items={invoiceUnits}
-            context="invoice"
-            onReorder={handleReorder}
-            onEdit={(row) => setInvoiceEditing(row as InvoiceUnit)}
-            onDelete={(row) => setDeleteConfirmInvoiceUnit(row as InvoiceUnit)}
-            canDelete={(row) => !isSeedUnit(row.name)}
-            emptyMessage="No invoice units. Add one to get started."
-            showType
-          />
-        </div>
-      )}
-
       {activeSection === "conversions" && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex justify-end mb-4">
@@ -704,35 +351,12 @@ export default function Units() {
       <ConfirmModal
         open={deleteConfirmUnit != null}
         onClose={() => setDeleteConfirmUnit(null)}
-        title="Delete stock unit"
-        message="Delete this unit? Products using it will be blocked."
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        onConfirm={() => {
-          if (deleteConfirmUnit) deleteUnit.mutate(deleteConfirmUnit.id);
-        }}
-      />
-      <ConfirmModal
-        open={deleteConfirmAllUnit != null}
-        onClose={() => setDeleteConfirmAllUnit(null)}
         title="Delete unit"
         message="Delete this unit? Products using it will be blocked."
         confirmLabel="Delete"
         confirmVariant="danger"
         onConfirm={() => {
-          if (deleteConfirmAllUnit) deleteUnit.mutate(deleteConfirmAllUnit.id);
-        }}
-      />
-      <ConfirmModal
-        open={deleteConfirmInvoiceUnit != null}
-        onClose={() => setDeleteConfirmInvoiceUnit(null)}
-        title="Delete invoice unit"
-        message="Delete this invoice unit?"
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        onConfirm={() => {
-          if (deleteConfirmInvoiceUnit)
-            deleteInvoiceUnit.mutate(deleteConfirmInvoiceUnit.id);
+          if (deleteConfirmUnit) deleteUnit.mutate(deleteConfirmUnit.id);
         }}
       />
       <ConfirmModal
@@ -850,16 +474,11 @@ export default function Units() {
         )}
       </FormModal>
 
-      {/* All units – Add */}
+      {/* Add unit */}
       <FormModal
         title="Add unit"
         open={allAddOpen}
-        onClose={() => {
-          setAllAddOpen(false);
-          setAllAddUseStock(true);
-          setAllAddUseInvoice(true);
-          setAllAddInvoiceSort(999);
-        }}
+        onClose={() => setAllAddOpen(false)}
         footer={
           <Button
             onClick={() => {
@@ -871,34 +490,24 @@ export default function Units() {
                 name: HTMLInputElement;
                 symbol: HTMLInputElement;
                 unit_type_id?: HTMLSelectElement;
-                invoice_sort: HTMLInputElement;
               };
               const name = els.name?.value?.trim();
               if (!name) return;
-              if (!allAddUseStock && !allAddUseInvoice) return;
               const typeEl = els.unit_type_id;
               const unitTypeId =
                 typeEl?.value === "" || typeEl?.value === undefined
                   ? undefined
                   : Number(typeEl?.value);
-              createUnitFromAll.mutate({
+              createUnit.mutate({
                 name,
                 symbol: els.symbol?.value?.trim() || undefined,
                 unit_type_id:
                   unitTypeId !== undefined && Number.isFinite(unitTypeId)
                     ? unitTypeId
                     : undefined,
-                useInStock: allAddUseStock,
-                useInInvoice: allAddUseInvoice,
-                invoiceSortOrder: allAddUseInvoice
-                  ? Number(els.invoice_sort?.value || "999")
-                  : undefined,
               });
             }}
-            disabled={
-              createUnitFromAll.isPending ||
-              (!allAddUseStock && !allAddUseInvoice)
-            }
+            disabled={createUnit.isPending}
           >
             <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
             Add
@@ -913,27 +522,20 @@ export default function Units() {
             const els = form.elements as unknown as {
               name: HTMLInputElement;
               symbol: HTMLInputElement;
-              invoice_sort: HTMLInputElement;
             };
             const name = els.name?.value?.trim();
             if (!name) return;
-            if (!allAddUseStock && !allAddUseInvoice) return;
             const typeEl = (els as { unit_type_id?: HTMLSelectElement })
               .unit_type_id;
             const unitTypeId =
               typeEl?.value === "" ? undefined : Number(typeEl?.value);
-            createUnitFromAll.mutate({
+            createUnit.mutate({
               name,
               symbol: els.symbol?.value?.trim() || undefined,
               unit_type_id:
                 unitTypeId !== undefined && Number.isFinite(unitTypeId)
                   ? unitTypeId
                   : undefined,
-              useInStock: allAddUseStock,
-              useInInvoice: allAddUseInvoice,
-              invoiceSortOrder: allAddUseInvoice
-                ? Number(els.invoice_sort?.value || "999")
-                : undefined,
             });
           }}
           className="space-y-4"
@@ -966,150 +568,12 @@ export default function Units() {
               ))}
             </select>
           </FormField>
-          <div className="space-y-2">
-            <span className="block text-sm font-medium text-gray-700">
-              Use in{" "}
-              <span className="text-gray-500 font-normal">
-                (pick at least one)
-              </span>
-            </span>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={allAddUseStock}
-                onChange={(e) => setAllAddUseStock(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">
-                Stock (godown) — for product stock and add/reduce stock
-              </span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={allAddUseInvoice}
-                onChange={(e) => setAllAddUseInvoice(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">
-                Invoice — for invoice lines and retail units
-              </span>
-            </label>
-          </div>
-          {allAddUseInvoice && (
-            <FormField label="Invoice sort order (lower = first in dropdown)">
-              <input
-                name="invoice_sort"
-                type="number"
-                value={allAddInvoiceSort}
-                onChange={(e) =>
-                  setAllAddInvoiceSort(Number(e.target.value) || 999)
-                }
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
-          )}
         </form>
       </FormModal>
 
-      {/* Stock unit – Add */}
+      {/* Edit unit */}
       <FormModal
-        title="Add stock unit"
-        open={stockAddOpen}
-        onClose={() => setStockAddOpen(false)}
-        footer={
-          <Button
-            onClick={() => {
-              const form = document.getElementById(
-                "form-stock-add"
-              ) as HTMLFormElement;
-              if (!form) return;
-              const els = form.elements as unknown as {
-                name: HTMLInputElement;
-                symbol: HTMLInputElement;
-                unit_type_id: HTMLSelectElement;
-              };
-              const name = els.name?.value?.trim();
-              if (!name) return;
-              const typeVal =
-                els.unit_type_id?.value === ""
-                  ? undefined
-                  : Number(els.unit_type_id?.value);
-              createUnit.mutate({
-                name,
-                symbol: els.symbol?.value?.trim() || undefined,
-                unit_type_id:
-                  typeVal !== undefined && Number.isFinite(typeVal)
-                    ? typeVal
-                    : undefined,
-              });
-            }}
-          >
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Add
-          </Button>
-        }
-      >
-        <form
-          id="form-stock-add"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const els = (e.target as HTMLFormElement).elements as unknown as {
-              name: HTMLInputElement;
-              symbol: HTMLInputElement;
-              unit_type_id: HTMLSelectElement;
-            };
-            const name = els.name?.value?.trim();
-            if (!name) return;
-            const typeVal =
-              els.unit_type_id?.value === ""
-                ? undefined
-                : Number(els.unit_type_id?.value);
-            createUnit.mutate({
-              name,
-              symbol: els.symbol?.value?.trim() || undefined,
-              unit_type_id:
-                typeVal !== undefined && Number.isFinite(typeVal)
-                  ? typeVal
-                  : undefined,
-            });
-          }}
-          className="space-y-4"
-        >
-          <FormField label="Name" required>
-            <input
-              name="name"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="e.g. bags, jars"
-              required
-            />
-          </FormField>
-          <FormField label="Symbol (optional)">
-            <input
-              name="symbol"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="e.g. g for gram; if empty, full name is used"
-            />
-          </FormField>
-          <FormField label="Type (optional)">
-            <select
-              name="unit_type_id"
-              className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
-            >
-              <option value="">—</option>
-              {unitTypes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </form>
-      </FormModal>
-
-      {/* Stock unit – Edit */}
-      <FormModal
-        title="Edit stock unit"
+        title="Edit unit"
         open={!!stockEditing}
         onClose={() => setStockEditing(null)}
         footer={
@@ -1203,162 +667,6 @@ export default function Units() {
                   </option>
                 ))}
               </select>
-            </FormField>
-          </form>
-        )}
-      </FormModal>
-
-      {/* Invoice unit – Add */}
-      <FormModal
-        title="Add invoice unit"
-        open={invoiceAddOpen}
-        onClose={() => setInvoiceAddOpen(false)}
-        footer={
-          <Button
-            onClick={() => {
-              const form = document.getElementById(
-                "form-invoice-add"
-              ) as HTMLFormElement;
-              if (!form) return;
-              const els = form.elements as unknown as {
-                name: HTMLInputElement;
-                symbol: HTMLInputElement;
-                sort_order: HTMLInputElement;
-              };
-              const name = els.name?.value?.trim();
-              if (!name) return;
-              createInvoiceUnit.mutate({
-                name,
-                symbol: els.symbol?.value?.trim() || undefined,
-                sort_order: Number.parseInt(els.sort_order?.value || "999", 10),
-              });
-            }}
-          >
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Add
-          </Button>
-        }
-      >
-        <form
-          id="form-invoice-add"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const els = (e.target as HTMLFormElement).elements as unknown as {
-              name: HTMLInputElement;
-              symbol: HTMLInputElement;
-              sort_order: HTMLInputElement;
-            };
-            const name = els.name?.value?.trim();
-            if (!name) return;
-            createInvoiceUnit.mutate({
-              name,
-              symbol: els.symbol?.value?.trim() || undefined,
-              sort_order: Number.parseInt(els.sort_order?.value || "999", 10),
-            });
-          }}
-          className="space-y-4"
-        >
-          <FormField label="Name" required>
-            <input
-              name="name"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="e.g. gram, kg, pcs"
-              required
-            />
-          </FormField>
-          <FormField label="Symbol (optional)">
-            <input
-              name="symbol"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="e.g. g, kg, L"
-            />
-          </FormField>
-          <FormField label="Sort order (lower = first in dropdown)">
-            <input
-              name="sort_order"
-              type="number"
-              defaultValue={999}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </FormField>
-        </form>
-      </FormModal>
-
-      {/* Invoice unit – Edit */}
-      <FormModal
-        title="Edit invoice unit"
-        open={!!invoiceEditing}
-        onClose={() => setInvoiceEditing(null)}
-        footer={
-          <Button
-            onClick={() => {
-              const form = document.getElementById(
-                "form-invoice-edit"
-              ) as HTMLFormElement;
-              if (!form || !invoiceEditing) return;
-              const els = form.elements as unknown as {
-                name: HTMLInputElement;
-                symbol: HTMLInputElement;
-                sort_order: HTMLInputElement;
-              };
-              const name = els.name?.value?.trim();
-              if (!name) return;
-              updateInvoiceUnit.mutate({
-                id: invoiceEditing.id,
-                name,
-                symbol: els.symbol?.value?.trim() || undefined,
-                sort_order: Number.parseInt(els.sort_order?.value || "999", 10),
-              });
-            }}
-          >
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Save
-          </Button>
-        }
-      >
-        {invoiceEditing && (
-          <form
-            id="form-invoice-edit"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const els = (e.target as HTMLFormElement).elements as unknown as {
-                name: HTMLInputElement;
-                symbol: HTMLInputElement;
-                sort_order: HTMLInputElement;
-              };
-              const name = els.name?.value?.trim();
-              if (!name) return;
-              updateInvoiceUnit.mutate({
-                id: invoiceEditing.id,
-                name,
-                symbol: els.symbol?.value?.trim() || undefined,
-                sort_order: Number.parseInt(els.sort_order?.value || "999", 10),
-              });
-            }}
-            className="space-y-4"
-          >
-            <FormField label="Name" required>
-              <input
-                name="name"
-                defaultValue={invoiceEditing.name}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                required
-              />
-            </FormField>
-            <FormField label="Symbol (optional)">
-              <input
-                name="symbol"
-                defaultValue={invoiceEditing.symbol ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
-            <FormField label="Sort order">
-              <input
-                name="sort_order"
-                type="number"
-                defaultValue={invoiceEditing.sort_order}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
             </FormField>
           </form>
         )}

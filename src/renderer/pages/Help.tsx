@@ -126,7 +126,7 @@ export default function Help() {
               "Products & Stock: Add products, track current stock, add or reduce stock.",
               "Mahajans: Manage mahajans (parties you take lend from and deposit to); view balance and ledger.",
               "Transactions: Record lend taken from mahajan, deposit to mahajan, and cash purchase.",
-              "Daily Sales: Log daily sale amount, cash in hand, and expenditure.",
+              "Daily Sales: Log daily summary (invoice sales auto from invoices, misc/cash sales, cash in hand, expenditure).",
               "Invoices: Create and edit customer invoices with line items.",
               "Reports: Weekly sale, total sale for a date range, and profit/loss.",
               "Settings: Company details, app display name, and database backup/restore.",
@@ -310,12 +310,24 @@ export default function Help() {
       </Section>
 
       <Section id="7-daily-sales" title="Daily Sales">
+        <SubSection title="How daily sales work">
+          <p>
+            Daily Sales track each day’s revenue and cash position.{" "}
+            <strong>Invoice Sales</strong> are filled automatically from invoices
+            for that date. Add <strong>Misc / Cash Sales</strong> for sales
+            without an invoice (e.g. walk-in cash, small items). Total Sale =
+            Invoice Sales + Misc Sales. <strong>Cash in Hand</strong> is the
+            amount physically in your till at end of day.{" "}
+            <strong>Expenditure</strong> is money spent that day.
+          </p>
+        </SubSection>
         <SubSection title="Adding a daily sale">
           <StepList
             steps={[
               "Go to Daily Sales and click “Add Sale”.",
-              "Enter Sale date, Sale amount, Cash in hand, and optionally Expenditure amount and Notes.",
-              "Save. The entry appears in the list.",
+              "Enter Sale date. If you have invoices for that date, their total is shown as Invoice Sales (read-only).",
+              "Enter Misc / Cash Sales (sales without an invoice), Cash in hand, and optionally Expenditure and Notes.",
+              "Save. The entry appears in the list. One entry per date; adding for an existing date updates that row.",
             ]}
           />
         </SubSection>
@@ -353,19 +365,26 @@ export default function Help() {
             copy. Invoice PDF uses your company details from Settings.
           </p>
         </SubSection>
+        <SubSection title="Invoices and Daily Sales">
+          <p>
+            When you create, edit, or delete an invoice, the Daily Sales for
+            that invoice date are updated automatically. Invoice totals for each
+            date appear as Invoice Sales on the Daily Sales page.
+          </p>
+        </SubSection>
       </Section>
 
       <Section id="9-reports" title="Reports">
         <SubSection title="Weekly Sale">
           <p className="mb-2">
             Select a date; the report shows 7 days of daily sales ending on that
-            date (descending). Columns: Date, Sale, Cash in Hand, Expenditure.
+            date (newest first). Data comes from Daily Sales entries.
           </p>
         </SubSection>
         <SubSection title="Total Sale">
           <p className="mb-2">
             Enter “From” and “To” dates to get the total sale amount and total
-            expenditure for that range (from daily sales entries).
+            expenditure for that range (from Daily Sales entries).
           </p>
         </SubSection>
         <SubSection title="Profit / Loss">

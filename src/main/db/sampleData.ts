@@ -80,7 +80,7 @@ export function populateSampleData(db: Database.Database): void {
         "INSERT INTO transactions (id, type, batch_uuid, mahajan_id, product_id, product_name, quantity, amount, transaction_date, notes, created_at, updated_at) VALUES (@id, @type, @batch_uuid, @mahajan_id, @product_id, @product_name, @quantity, @amount, @transaction_date, @notes, @created_at, @updated_at)"
       );
       const insertDailySale = db.prepare(
-        "INSERT INTO daily_sales (id, sale_date, sale_amount, cash_in_hand, expenditure_amount, notes, created_at, updated_at) VALUES (@id, @sale_date, @sale_amount, @cash_in_hand, @expenditure_amount, @notes, @created_at, @updated_at)"
+        "INSERT INTO daily_sales (id, sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes, created_at, updated_at) VALUES (@id, @sale_date, @sale_amount, @cash_in_hand, @expenditure_amount, COALESCE(@invoice_sales, 0), COALESCE(@misc_sales, @sale_amount, 0), @notes, @created_at, @updated_at)"
       );
       const insertOpeningBalance = db.prepare(
         "INSERT INTO opening_balance (year, amount, updated_at) VALUES (@year, @amount, @updated_at)"
@@ -347,7 +347,7 @@ export function populateSampleData(db: Database.Database): void {
     }
 
     const insertDailySale = db.prepare(
-      "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, notes) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
 
     const dailySales = [
@@ -408,6 +408,8 @@ export function populateSampleData(db: Database.Database): void {
         s.sale,
         s.cash,
         s.expenditure,
+        0,
+        s.sale,
         s.notes
       );
     }

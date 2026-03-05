@@ -34,6 +34,44 @@ function getItemUnitConversions(
     .all(itemId) as ItemConversionRow[];
 }
 
+/**
+ * Update daily_sales when invoice totals change.
+ * delta: positive to add, negative to subtract.
+ * Creates a row for sale_date if none exists.
+ */
+function upsertDailySalesForInvoice(
+  database: ReturnType<typeof getDb>,
+  saleDate: string,
+  delta: number
+): void {
+  const row = database
+    .prepare(
+      "SELECT id, invoice_sales, misc_sales FROM daily_sales WHERE sale_date = ? LIMIT 1"
+    )
+    .get(saleDate) as
+    | { id: number; invoice_sales: number; misc_sales: number }
+    | undefined;
+  if (row) {
+    const newInv = roundDecimal(
+      Math.max(0, (row.invoice_sales ?? 0) + delta)
+    );
+    const misc = row.misc_sales ?? 0;
+    const saleAmount = roundDecimal(newInv + misc);
+    database
+      .prepare(
+        "UPDATE daily_sales SET invoice_sales = ?, sale_amount = ?, updated_at = datetime('now') WHERE id = ?"
+      )
+      .run(newInv, saleAmount, row.id);
+  } else {
+    const invoiceSales = Math.max(0, roundDecimal(delta));
+    database
+      .prepare(
+        "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, invoice_sales, misc_sales) VALUES (?, ?, 0, ?, 0)"
+      )
+      .run(saleDate, invoiceSales, invoiceSales);
+  }
+}
+
 export function registerIpcHandlers(): void {
   function db() {
     return getDb();
@@ -69,10 +107,25 @@ export function registerIpcHandlers(): void {
       arr.push({ unit: ou.unit, sort_order: ou.sort_order });
       map.set(ou.item_id, arr);
     }
+    const conversionsByItem = db()
+      .prepare(
+        "SELECT item_id, to_unit, factor FROM item_unit_conversions ORDER BY item_id"
+      )
+      .all() as { item_id: number; to_unit: string; factor: number }[];
+    const convMap = new Map<
+      number,
+      { to_unit: string; factor: number }[]
+    >();
+    for (const c of conversionsByItem) {
+      const arr = convMap.get(c.item_id) ?? [];
+      arr.push({ to_unit: c.to_unit, factor: c.factor });
+      convMap.set(c.item_id, arr);
+    }
     return rows.map((row) => ({
       ...row,
       retail_primary_unit: row.retail_primary_unit ?? null,
       other_units: map.get(row.id) ?? [],
+      item_unit_conversions: convMap.get(row.id) ?? [],
     }));
   });
 
@@ -561,15 +614,14 @@ export function registerIpcHandlers(): void {
     return id;
   });
 
-  // ---- Units (single table + unit_sort_order by context) ----
+  // ---- Units ----
   ipcMain.handle("units:getAll", () => {
     return db()
       .prepare(
         `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, u.created_at
          FROM units u
          LEFT JOIN unit_types t ON t.id = u.unit_type_id
-         INNER JOIN unit_sort_order so ON so.unit_id = u.id AND so.context = 'godown'
-         ORDER BY so.sort_order ASC, u.name ASC`
+         ORDER BY u.name ASC`
       )
       .all();
   });
@@ -617,21 +669,6 @@ export function registerIpcHandlers(): void {
                 id: number;
               }
             ).id;
-      const maxOrder = db()
-        .prepare(
-          "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM unit_sort_order WHERE context = 'godown'"
-        )
-        .get() as { next: number };
-      db()
-        .prepare(
-          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('godown', ?, ?)"
-        )
-        .run(id, maxOrder.next);
-      db()
-        .prepare(
-          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('invoice', ?, 999)"
-        )
-        .run(id);
       return name;
     }
   );
@@ -699,95 +736,18 @@ export function registerIpcHandlers(): void {
         .get(row.name) as { "1": number } | undefined);
     if (used)
       throw new Error("Cannot delete unit: one or more products use it.");
-    db().prepare("DELETE FROM unit_sort_order WHERE unit_id = ?").run(id);
     db().prepare("DELETE FROM units WHERE id = ?").run(id);
     return id;
   });
 
-  ipcMain.handle(
-    "units:reorder",
-    (_, context: "godown" | "invoice", unitIds: number[]) => {
-      if (!Array.isArray(unitIds) || unitIds.length === 0) return;
-      const update = db().prepare(
-        "UPDATE unit_sort_order SET sort_order = ? WHERE context = ? AND unit_id = ?"
-      );
-      unitIds.forEach((unitId, index) => {
-        update.run(index, context, unitId);
-      });
-    }
-  );
-
-  ipcMain.handle("units:getAllWithContext", () => {
-    return db()
-      .prepare(
-        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, u.created_at,
-         EXISTS (SELECT 1 FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'godown') AS in_godown,
-         EXISTS (SELECT 1 FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'invoice') AS in_invoice,
-         (SELECT so.sort_order FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'invoice' LIMIT 1) AS invoice_sort_order
-         FROM units u
-         LEFT JOIN unit_types t ON t.id = u.unit_type_id
-         ORDER BY u.name ASC`
-      )
-      .all();
-  });
-
-  ipcMain.handle(
-    "units:addToContext",
-    (_, unitId: number, context: "godown" | "invoice", sortOrder?: number) => {
-      const row = db()
-        .prepare("SELECT id FROM units WHERE id = ?")
-        .get(unitId) as { id: number } | undefined;
-      if (!row) throw new Error("Unit not found");
-      const existing = db()
-        .prepare(
-          "SELECT 1 FROM unit_sort_order WHERE unit_id = ? AND context = ?"
-        )
-        .get(unitId, context);
-      if (existing) return unitId;
-      let order: number;
-      if (context === "godown") {
-        const max = db()
-          .prepare(
-            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM unit_sort_order WHERE context = 'godown'"
-          )
-          .get() as { next: number };
-        order = max.next;
-      } else {
-        order =
-          typeof sortOrder === "number" && Number.isFinite(sortOrder)
-            ? sortOrder
-            : 999;
-      }
-      db()
-        .prepare(
-          "INSERT INTO unit_sort_order (context, unit_id, sort_order) VALUES (?, ?, ?)"
-        )
-        .run(context, unitId, order);
-      return unitId;
-    }
-  );
-
-  ipcMain.handle(
-    "units:removeFromContext",
-    (_, unitId: number, context: "godown" | "invoice") => {
-      db()
-        .prepare(
-          "DELETE FROM unit_sort_order WHERE unit_id = ? AND context = ?"
-        )
-        .run(unitId, context);
-      return unitId;
-    }
-  );
-
-  // ---- Invoice units (same units table, context = invoice) ----
+  // ---- Invoice units (same units table) ----
   ipcMain.handle("invoiceUnits:getAll", () => {
     return db()
       .prepare(
-        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, so.sort_order, u.created_at
+        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, u.created_at
          FROM units u
          LEFT JOIN unit_types t ON t.id = u.unit_type_id
-         INNER JOIN unit_sort_order so ON so.unit_id = u.id AND so.context = 'invoice'
-         ORDER BY so.sort_order ASC, u.name ASC`
+         ORDER BY u.name ASC`
       )
       .all();
   });
@@ -799,7 +759,6 @@ export function registerIpcHandlers(): void {
       payload: {
         name: string;
         symbol?: string | null;
-        sort_order?: number;
         unit_type_id?: number | null;
       }
     ) => {
@@ -809,11 +768,6 @@ export function registerIpcHandlers(): void {
         typeof payload?.symbol === "string"
           ? payload.symbol.trim() || null
           : null;
-      const sortOrder =
-        typeof payload?.sort_order === "number" &&
-        Number.isFinite(payload.sort_order)
-          ? payload.sort_order
-          : 999;
       const unitTypeId =
         payload?.unit_type_id !== undefined &&
         typeof payload.unit_type_id === "number" &&
@@ -829,16 +783,6 @@ export function registerIpcHandlers(): void {
         .prepare("SELECT id FROM units WHERE name = ?")
         .get(name) as { id: number } | undefined;
       if (!row) throw new Error("Unit not found after insert");
-      db()
-        .prepare(
-          "INSERT INTO unit_sort_order (context, unit_id, sort_order) VALUES (?, ?, ?) ON CONFLICT(context, unit_id) DO UPDATE SET sort_order = excluded.sort_order"
-        )
-        .run("invoice", row.id, sortOrder);
-      db()
-        .prepare(
-          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('godown', ?, 999)"
-        )
-        .run(row.id);
       return row.id;
     }
   );
@@ -848,7 +792,7 @@ export function registerIpcHandlers(): void {
     (
       _,
       id: number,
-      payload: { name?: string; symbol?: string | null; sort_order?: number }
+      payload: { name?: string; symbol?: string | null }
     ) => {
       const row = db().prepare("SELECT * FROM units WHERE id = ?").get(id) as
         | { name: string; symbol: string | null }
@@ -866,16 +810,6 @@ export function registerIpcHandlers(): void {
       db()
         .prepare("UPDATE units SET name = ?, symbol = ? WHERE id = ?")
         .run(name, symbol, id);
-      if (
-        typeof payload?.sort_order === "number" &&
-        Number.isFinite(payload.sort_order)
-      ) {
-        db()
-          .prepare(
-            "UPDATE unit_sort_order SET sort_order = ? WHERE context = 'invoice' AND unit_id = ?"
-          )
-          .run(payload.sort_order, id);
-      }
       return id;
     }
   );
@@ -883,11 +817,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("invoiceUnits:delete", (_, id: number) => {
     const row = db().prepare("SELECT id FROM units WHERE id = ?").get(id);
     if (!row) throw new Error("Invoice unit not found");
-    db()
-      .prepare(
-        "DELETE FROM unit_sort_order WHERE context = 'invoice' AND unit_id = ?"
-      )
-      .run(id);
     return id;
   });
 
@@ -1096,6 +1025,16 @@ export function registerIpcHandlers(): void {
     }
   );
 
+  ipcMain.handle("invoices:getTotalForDate", (_, saleDate: string) => {
+    const row = db()
+      .prepare(
+        `SELECT COALESCE(SUM(l.amount), 0) AS total FROM invoice_lines l
+         JOIN invoices i ON i.id = l.invoice_id WHERE i.invoice_date = ?`
+      )
+      .get(saleDate) as { total: number } | undefined;
+    return { total: roundDecimal(row?.total ?? 0) };
+  });
+
   ipcMain.handle("invoices:getById", (_, id: number) => {
     const invoice = db()
       .prepare("SELECT * FROM invoices WHERE id = ?")
@@ -1245,6 +1184,9 @@ export function registerIpcHandlers(): void {
           }
         }
 
+        const invoiceTotal = payload.lines.reduce((s, l) => s + roundDecimal(l.amount), 0);
+        upsertDailySalesForInvoice(db(), payload.invoice_date, invoiceTotal);
+
         return invoiceId;
       });
       return run();
@@ -1279,6 +1221,13 @@ export function registerIpcHandlers(): void {
       if (!existing) throw new Error("Invoice not found");
       if (!payload.lines?.length)
         throw new Error("At least one line is required.");
+
+      const oldTotalRow = db()
+        .prepare(
+          "SELECT COALESCE(SUM(amount), 0) AS total FROM invoice_lines WHERE invoice_id = ?"
+        )
+        .get(id) as { total: number };
+      const oldTotal = roundDecimal(oldTotalRow?.total ?? 0);
 
       const existingLines = db()
         .prepare(
@@ -1437,6 +1386,14 @@ export function registerIpcHandlers(): void {
             }
           }
         }
+
+        const newTotal = payload.lines.reduce(
+          (s, l) => s + roundDecimal(l.amount),
+          0
+        );
+        const newDate = payload.invoice_date ?? existing.invoice_date;
+        upsertDailySalesForInvoice(db(), existing.invoice_date, -oldTotal);
+        upsertDailySalesForInvoice(db(), newDate, newTotal);
       })();
       return id;
     }
@@ -1444,9 +1401,16 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("invoices:delete", (_, id: number) => {
     const existing = db()
-      .prepare("SELECT id FROM invoices WHERE id = ?")
-      .get(id) as { id: number } | undefined;
+      .prepare("SELECT id, invoice_date FROM invoices WHERE id = ?")
+      .get(id) as { id: number; invoice_date: string } | undefined;
     if (!existing) throw new Error("Invoice not found");
+
+    const totalRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM invoice_lines WHERE invoice_id = ?"
+      )
+      .get(id) as { total: number };
+    const invTotal = roundDecimal(totalRow?.total ?? 0);
 
     const lines = db()
       .prepare(
@@ -1517,6 +1481,8 @@ export function registerIpcHandlers(): void {
           }
         }
       }
+
+      upsertDailySalesForInvoice(db(), existing.invoice_date, -invTotal);
 
       db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
       db().prepare("DELETE FROM invoices WHERE id = ?").run(id);
@@ -2061,26 +2027,62 @@ export function registerIpcHandlers(): void {
       _,
       s: {
         sale_date: string;
-        sale_amount: number;
+        sale_amount?: number;
+        misc_sales?: number;
         cash_in_hand: number;
         expenditure_amount?: number;
         notes?: string;
       }
     ) => {
+      const misc = roundDecimal(
+        s.misc_sales ?? s.sale_amount ?? 0
+      );
+      const invRow = db()
+        .prepare(
+          `SELECT COALESCE(SUM(l.amount), 0) AS total FROM invoice_lines l
+           JOIN invoices i ON i.id = l.invoice_id WHERE i.invoice_date = ?`
+        )
+        .get(s.sale_date) as { total: number } | undefined;
+      const invSales = roundDecimal(invRow?.total ?? 0);
+      const saleAmount = roundDecimal(invSales + misc);
+      const existing = db()
+        .prepare(
+          "SELECT id FROM daily_sales WHERE sale_date = ? LIMIT 1"
+        )
+        .get(s.sale_date) as { id: number } | undefined;
+      if (existing) {
+        db()
+          .prepare(
+            "UPDATE daily_sales SET misc_sales = ?, sale_amount = ?, cash_in_hand = ?, expenditure_amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+          )
+          .run(
+            misc,
+            saleAmount,
+            roundDecimal(s.cash_in_hand),
+            s.expenditure_amount != null
+              ? roundDecimal(s.expenditure_amount)
+              : null,
+            s.notes ?? null,
+            existing.id
+          );
+        return existing.id;
+      }
       const result = db()
         .prepare(
-          "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, notes) VALUES (?, ?, ?, ?, ?)"
+          "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           s.sale_date,
-          roundDecimal(s.sale_amount),
+          saleAmount,
           roundDecimal(s.cash_in_hand),
           s.expenditure_amount != null
             ? roundDecimal(s.expenditure_amount)
             : null,
+          invSales,
+          misc,
           s.notes ?? null
         );
-      return result.lastInsertRowid;
+      return result.lastInsertRowid as number;
     }
   );
 
@@ -2092,6 +2094,7 @@ export function registerIpcHandlers(): void {
       s: {
         sale_date?: string;
         sale_amount?: number;
+        misc_sales?: number;
         cash_in_hand?: number;
         expenditure_amount?: number;
         notes?: string;
@@ -2101,14 +2104,36 @@ export function registerIpcHandlers(): void {
         .prepare("SELECT * FROM daily_sales WHERE id = ?")
         .get(id) as Record<string, unknown> | undefined;
       if (!row) throw new Error("Sale not found");
+      const newDate = s.sale_date ?? (row.sale_date as string);
+      if (newDate !== (row.sale_date as string)) {
+        const existing = db()
+          .prepare(
+            "SELECT id FROM daily_sales WHERE sale_date = ? AND id != ? LIMIT 1"
+          )
+          .get(newDate, id);
+        if (existing) {
+          throw new Error("A daily sale already exists for this date.");
+        }
+      }
+      const invSales = roundDecimal((row.invoice_sales as number) ?? 0);
+      const misc =
+        s.misc_sales !== undefined
+          ? roundDecimal(s.misc_sales)
+          : s.sale_amount !== undefined
+            ? roundDecimal(s.sale_amount)
+            : roundDecimal((row.misc_sales as number) ?? 0);
+      const saleAmount = roundDecimal(invSales + misc);
       db()
         .prepare(
-          "UPDATE daily_sales SET sale_date = ?, sale_amount = ?, cash_in_hand = ?, expenditure_amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE daily_sales SET sale_date = ?, sale_amount = ?, misc_sales = ?, cash_in_hand = ?, expenditure_amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           s.sale_date ?? row.sale_date,
-          roundDecimal(s.sale_amount ?? (row.sale_amount as number)),
-          roundDecimal(s.cash_in_hand ?? (row.cash_in_hand as number)),
+          saleAmount,
+          misc,
+          roundDecimal(
+            s.cash_in_hand ?? (row.cash_in_hand as number)
+          ),
           s.expenditure_amount !== undefined
             ? s.expenditure_amount != null
               ? roundDecimal(s.expenditure_amount)
@@ -2498,7 +2523,6 @@ export function registerIpcHandlers(): void {
       "item_other_units",
       "items",
       "mahajans",
-      "unit_sort_order",
       "unit_conversions",
       "units",
       "unit_types",

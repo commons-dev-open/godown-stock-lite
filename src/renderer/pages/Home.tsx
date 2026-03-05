@@ -16,8 +16,8 @@ export default function Home() {
           to="/sales"
           className="p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow transition"
         >
-          <h2 className="font-medium text-gray-900">Add Sale</h2>
-          <p className="text-sm text-gray-500 mt-1">Daily sale entry</p>
+          <h2 className="font-medium text-gray-900">Daily Sales</h2>
+          <p className="text-sm text-gray-500 mt-1">Log daily summary</p>
         </Link>
         <Link
           to="/reports"

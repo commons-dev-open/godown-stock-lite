@@ -14,6 +14,8 @@ interface DataTableProps<T extends { id: number }> {
   onDelete?: (row: T) => void;
   /** When set, delete button is only shown when this returns true (e.g. to hide delete for system rows). */
   canDelete?: (row: T) => boolean;
+  /** Optional extra action buttons (e.g. link to related page) */
+  extraActions?: (row: T) => ReactNode;
   emptyMessage?: string;
   /** Optional class for the scroll wrapper (e.g. table-scroll-wrap--shorter) */
   scrollWrapClassName?: string;
@@ -25,6 +27,7 @@ export default function DataTable<T extends { id: number }>({
   onEdit,
   onDelete,
   canDelete,
+  extraActions,
   emptyMessage = "No data",
   scrollWrapClassName,
 }: DataTableProps<T>) {
@@ -52,8 +55,8 @@ export default function DataTable<T extends { id: number }>({
               >
                 {col.label}
               </th>
-            ))}
-            {(onEdit || onDelete) && (
+            )            )}
+            {(onEdit || onDelete || extraActions) && (
               <th className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase w-[1%]">
                 Actions
               </th>
@@ -70,9 +73,10 @@ export default function DataTable<T extends { id: number }>({
                     : String((row as Record<string, unknown>)[col.key] ?? "")}
                 </td>
               ))}
-              {(onEdit || onDelete) && (
+              {(onEdit || onDelete || extraActions) && (
                 <td className="px-2 py-2 text-right text-sm w-[1%]">
                   <span className="inline-flex items-center gap-0.5">
+                    {extraActions?.(row)}
                     {onEdit && (
                       <button
                         type="button"

@@ -21,15 +21,7 @@ export interface UnitConversion {
   created_at: string;
 }
 
-export interface InvoiceUnit {
-  id: number;
-  name: string;
-  symbol: string | null;
-  unit_type_id: number | null;
-  unit_type_name: string | null;
-  sort_order: number;
-  created_at: string;
-}
+export type InvoiceUnit = Unit;
 
 export interface ItemOtherUnit {
   id?: number;
@@ -88,6 +80,8 @@ export interface DailySale {
   id: number;
   sale_date: string;
   sale_amount: number;
+  invoice_sales: number;
+  misc_sales: number;
   cash_in_hand: number;
   expenditure_amount: number | null;
   notes: string | null;

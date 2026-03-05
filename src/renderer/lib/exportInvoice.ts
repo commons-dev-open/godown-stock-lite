@@ -7,7 +7,7 @@ import {
   formatDateForFile,
   sanitizeForFilename,
 } from "./exportUtils";
-import type { Invoice, InvoiceLine, InvoiceUnit } from "../../shared/types";
+import type { Invoice, InvoiceLine, Unit } from "../../shared/types";
 
 export type CompanySettings = Record<string, string>;
 
@@ -21,7 +21,7 @@ const MARGIN_MM = 8;
 const CONTENT_WIDTH_MM = PAGE_WIDTH_MM - 2 * MARGIN_MM;
 
 /** Resolve unit name to short display (symbol) for invoice. */
-function unitToShort(unitName: string, units: InvoiceUnit[]): string {
+function unitToShort(unitName: string, units: Unit[]): string {
   if (!unitName) return unitName;
   const u = units.find((x) => x.name === unitName);
   const short = u?.symbol?.trim();
@@ -32,7 +32,7 @@ export function exportInvoiceToPdf(
   invoice: Invoice,
   lines: InvoiceLine[],
   companySettings?: CompanySettings | null,
-  invoiceUnits: InvoiceUnit[] = []
+  invoiceUnits: Unit[] = []
 ): void {
   const doc = new jsPDF({
     orientation: "portrait",

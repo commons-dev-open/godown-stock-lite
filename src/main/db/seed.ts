@@ -29,60 +29,6 @@ const UNITS: { name: string; symbol: string | null; unit_type: string }[] = [
   { name: "quintal", symbol: "q", unit_type: "Mass" },
 ];
 
-// Godown context: order for stock/items.
-const GODOWN_SORT_ORDER = [
-  "bags",
-  "boxes",
-  "bottles",
-  "cartons",
-  "cups",
-  "dozen",
-  "gram",
-  "gross",
-  "jars",
-  "kilogram",
-  "liter",
-  "ml",
-  "gallon",
-  "quart",
-  "pint",
-  "fluid_ounce",
-  "packets",
-  "pieces",
-  "pouches",
-  "quintal",
-  "strips",
-  "tins",
-  "tonne",
-];
-
-// Invoice context: small/retail units first for dropdown.
-const INVOICE_SORT_ORDER = [
-  "gram",
-  "kilogram",
-  "ml",
-  "liter",
-  "gallon",
-  "quart",
-  "pint",
-  "fluid_ounce",
-  "pcs",
-  "dozen",
-  "packets",
-  "boxes",
-  "bottles",
-  "bags",
-  "cartons",
-  "tins",
-  "jars",
-  "pouches",
-  "strips",
-  "cups",
-  "gross",
-  "quintal",
-  "tonne",
-];
-
 // One row per pair; unitConversion.ts derives the reverse (quantity / factor).
 // 1 from_unit = factor × to_unit (e.g. 1 kg = 1000 g).
 const CONVERSIONS: { from_unit: string; to_unit: string; factor: number }[] = [
@@ -120,23 +66,6 @@ function seedUnits(db: Database.Database): void {
   }
 }
 
-function seedUnitSortOrder(db: Database.Database): void {
-  const getUnitId = db.prepare("SELECT id FROM units WHERE name = ?");
-  const insertSort = db.prepare(
-    "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES (?, ?, ?)"
-  );
-
-  GODOWN_SORT_ORDER.forEach((name, index) => {
-    const row = getUnitId.get(name) as { id: number } | undefined;
-    if (row) insertSort.run("godown", row.id, index);
-  });
-
-  INVOICE_SORT_ORDER.forEach((name, index) => {
-    const row = getUnitId.get(name) as { id: number } | undefined;
-    if (row) insertSort.run("invoice", row.id, index);
-  });
-}
-
 function seedUnitConversions(db: Database.Database): void {
   try {
     const insert = db.prepare(
@@ -151,7 +80,7 @@ function seedUnitConversions(db: Database.Database): void {
 }
 
 /**
- * On fresh DB setup: insert units, godown/invoice sort order, and standard conversions.
+ * On fresh DB setup: insert units and standard conversions.
  */
 export function seedIfEmpty(db: Database.Database): void {
   const unitCount = (
@@ -159,7 +88,6 @@ export function seedIfEmpty(db: Database.Database): void {
   ).c;
   if (unitCount === 0) {
     seedUnits(db);
-    seedUnitSortOrder(db);
     seedUnitConversions(db);
   }
 }
