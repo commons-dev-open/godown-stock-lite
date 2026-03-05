@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
@@ -193,6 +193,15 @@ export default function Invoices() {
     queryFn: () => api.getItems() as Promise<Item[]>,
   });
 
+  const { data: itemsWithUnits } = useQuery({
+    queryKey: ["itemsWithUnits"],
+    queryFn: () =>
+      api.getItemsWithUnits() as Promise<
+        (Item & { other_units: { unit: string; sort_order: number }[] })[]
+      >,
+    enabled: createOpen || !!editing,
+  });
+
   const { data: invoiceUnits = [] } = useQuery({
     queryKey: ["invoiceUnits"],
     queryFn: () => api.getInvoiceUnits() as Promise<InvoiceUnit[]>,
@@ -215,7 +224,7 @@ export default function Invoices() {
   const invoicesPage = pageResult?.data ?? [];
   const totalInvoices = pageResult?.total ?? 0;
 
-  const createInvoice = useMutation({
+  const createInvoice = useMutationWithToast({
     mutationFn: (payload: {
       invoice_number?: string | null;
       customer_name?: string | null;
@@ -230,7 +239,7 @@ export default function Invoices() {
     },
   });
 
-  const updateInvoice = useMutation({
+  const updateInvoice = useMutationWithToast({
     mutationFn: ({
       id,
       payload,
@@ -419,7 +428,7 @@ export default function Invoices() {
         open={createOpen}
         title="Create Invoice"
         onClose={() => setCreateOpen(false)}
-        items={items}
+        items={itemsWithUnits ?? items}
         invoiceUnits={invoiceUnits}
         onSubmit={(payload, opts) =>
           createInvoice.mutate(payload, {
@@ -443,7 +452,7 @@ export default function Invoices() {
           title="Edit Invoice"
           invoice={editing}
           onClose={() => setEditing(null)}
-          items={items}
+          items={itemsWithUnits ?? items}
           invoiceUnits={invoiceUnits}
           onSubmit={(payload, opts) =>
             updateInvoice.mutate(
@@ -557,6 +566,11 @@ export default function Invoices() {
   );
 }
 
+type ItemWithUnits = Item & {
+  other_units?: { unit: string; sort_order: number }[];
+  retail_primary_unit?: string | null;
+};
+
 function InvoiceFormModal({
   open,
   title,
@@ -571,7 +585,7 @@ function InvoiceFormModal({
   title: string;
   onClose: () => void;
   invoice?: InvoiceWithLines | null;
-  items: Item[];
+  items: Item[] | ItemWithUnits[];
   invoiceUnits: InvoiceUnit[];
   onSubmit: (
     payload: {
@@ -625,8 +639,43 @@ function InvoiceFormModal({
     return [{ ...DEFAULT_LINE_ROW }];
   });
 
+  const getUnitsForLine = useCallback(
+    (lineIdx: number): InvoiceUnit[] => {
+      const line = lines[lineIdx];
+      if (!line?.product_id) return invoiceUnits;
+      const item = items.find((i) => i.id === line.product_id) as
+        | ItemWithUnits
+        | undefined;
+      if (!item) return invoiceUnits;
+      const primary = item.unit;
+      const retail =
+        item.retail_primary_unit != null && item.retail_primary_unit !== ""
+          ? item.retail_primary_unit
+          : null;
+      const others = item.other_units ?? [];
+      const productUnitNames = [primary];
+      if (retail && retail !== primary) productUnitNames.push(retail);
+      const sortedOthers = [...others].sort(
+        (a, b) => a.sort_order - b.sort_order
+      );
+      for (const o of sortedOthers) {
+        if (!productUnitNames.includes(o.unit)) productUnitNames.push(o.unit);
+      }
+      const productUnitsOrdered = productUnitNames
+        .map((name) => invoiceUnits.find((u) => u.name === name))
+        .filter((u): u is InvoiceUnit => u != null);
+      const rest = invoiceUnits.filter(
+        (u) => !productUnitNames.includes(u.name)
+      );
+      return [...productUnitsOrdered, ...rest];
+    },
+    [items, invoiceUnits, lines]
+  );
+
   const handleProductChange = (idx: number, productId: number) => {
-    const item = items.find((i) => i.id === productId);
+    const item = items.find((i) => i.id === productId) as
+      | ItemWithUnits
+      | undefined;
     setLines((prev) =>
       prev.map((p, i) =>
         i === idx
@@ -634,9 +683,7 @@ function InvoiceFormModal({
               ...p,
               product_id: productId,
               product_name: item?.name ?? "",
-              unit:
-                (item as Item & { retail_primary_unit?: string | null })
-                  ?.retail_primary_unit ?? p.unit,
+              unit: item?.retail_primary_unit ?? item?.unit ?? p.unit,
             }
           : p
       )
@@ -878,7 +925,7 @@ function InvoiceFormModal({
                       aria-label="Unit"
                     >
                       <option value="">—</option>
-                      {invoiceUnits.map((u) => (
+                      {getUnitsForLine(idx).map((u) => (
                         <option key={u.id} value={u.name}>
                           {(u.symbol && u.symbol.trim()) || u.name}
                         </option>

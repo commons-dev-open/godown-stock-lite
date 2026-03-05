@@ -10,6 +10,8 @@ interface FormModalProps {
   maxWidth?: string;
   /** Optional footer: action buttons only (no Cancel; header has close icon). Rendered as sticky footer. */
   footer?: ReactNode;
+  /** When true, uses higher z-index so this modal appears above another open modal (e.g. nested dialogs). */
+  stackAbove?: boolean;
 }
 
 export default function FormModal({
@@ -19,10 +21,13 @@ export default function FormModal({
   children,
   maxWidth = "max-w-md",
   footer,
+  stackAbove = false,
 }: FormModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className={`fixed inset-0 flex items-center justify-center ${stackAbove ? "z-[60]" : "z-50"}`}
+    >
       <div
         className="absolute inset-0 z-0 bg-black/50"
         onClick={onClose}

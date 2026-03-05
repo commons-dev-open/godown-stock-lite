@@ -4,19 +4,26 @@ interface DbLike {
 
 export function createSchema(db: DbLike): void {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS unit_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS units (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       symbol TEXT,
+      unit_type_id INTEGER REFERENCES unit_types(id),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS invoice_units (
+    CREATE TABLE IF NOT EXISTS unit_sort_order (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      symbol TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 999,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      context TEXT NOT NULL,
+      unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL,
+      UNIQUE(context, unit_id)
     );
 
     CREATE TABLE IF NOT EXISTS items (
@@ -24,6 +31,9 @@ export function createSchema(db: DbLike): void {
       name TEXT NOT NULL,
       code TEXT,
       unit TEXT NOT NULL DEFAULT 'pcs',
+      unit_id INTEGER REFERENCES units(id),
+      reference_unit TEXT,
+      quantity_per_primary REAL,
       retail_primary_unit TEXT,
       current_stock REAL NOT NULL DEFAULT 0,
       reorder_level REAL,
@@ -35,8 +45,30 @@ export function createSchema(db: DbLike): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
       unit TEXT NOT NULL,
+      unit_id INTEGER REFERENCES units(id),
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS unit_conversions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_unit TEXT NOT NULL,
+      to_unit TEXT NOT NULL,
+      from_unit_id INTEGER REFERENCES units(id),
+      to_unit_id INTEGER REFERENCES units(id),
+      factor REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(from_unit, to_unit)
+    );
+
+    CREATE TABLE IF NOT EXISTS item_unit_conversions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      to_unit TEXT NOT NULL,
+      to_unit_id INTEGER REFERENCES units(id),
+      factor REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(item_id, to_unit)
     );
 
     CREATE TABLE IF NOT EXISTS mahajans (
@@ -104,6 +136,7 @@ export function createSchema(db: DbLike): void {
       product_name TEXT,
       quantity REAL NOT NULL,
       unit TEXT NOT NULL,
+      unit_id INTEGER REFERENCES units(id),
       price REAL NOT NULL,
       amount REAL NOT NULL DEFAULT 0,
       price_entered_as TEXT NOT NULL DEFAULT 'per_unit' CHECK(price_entered_as IN ('per_unit', 'total')),

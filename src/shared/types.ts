@@ -1,7 +1,23 @@
+export interface UnitType {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
 export interface Unit {
   id: number;
   name: string;
   symbol: string | null;
+  unit_type_id: number | null;
+  unit_type_name: string | null;
+  created_at: string;
+}
+
+export interface UnitConversion {
+  id: number;
+  from_unit: string;
+  to_unit: string;
+  factor: number;
   created_at: string;
 }
 
@@ -9,6 +25,8 @@ export interface InvoiceUnit {
   id: number;
   name: string;
   symbol: string | null;
+  unit_type_id: number | null;
+  unit_type_name: string | null;
   sort_order: number;
   created_at: string;
 }
@@ -24,6 +42,8 @@ export interface Item {
   name: string;
   code: string | null;
   unit: string;
+  reference_unit: string | null;
+  quantity_per_primary: number | null;
   retail_primary_unit: string | null;
   current_stock: number;
   reorder_level: number | null;

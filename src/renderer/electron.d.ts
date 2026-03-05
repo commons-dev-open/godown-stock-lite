@@ -1,5 +1,6 @@
 export interface ElectronAPI {
   getItems: () => Promise<unknown[]>;
+  getItemsWithUnits: () => Promise<unknown[]>;
   getItemsPage: (opts: {
     search?: string;
     page?: number;
@@ -10,21 +11,29 @@ export interface ElectronAPI {
     name: string;
     code: string | null;
     unit: string;
+    reference_unit: string | null;
+    quantity_per_primary: number | null;
     retail_primary_unit: string | null;
     current_stock: number;
     reorder_level: number | null;
     created_at: string;
     updated_at: string;
     other_units: { id: number; unit: string; sort_order: number }[];
+    item_unit_conversions: { to_unit: string; factor: number }[];
   }>;
   createItem: (item: {
     name: string;
     code?: string;
     unit: string;
+    reference_unit?: string | null;
+    quantity_per_primary?: number | null;
     retail_primary_unit?: string | null;
     current_stock?: number;
+    current_stock_value?: number;
+    current_stock_unit?: string;
     reorder_level?: number;
     other_units?: { unit: string; sort_order?: number }[];
+    conversions?: { to_unit: string; factor: number }[];
   }) => Promise<number>;
   updateItem: (
     id: number,
@@ -32,31 +41,109 @@ export interface ElectronAPI {
       name?: string;
       code?: string;
       unit?: string;
+      reference_unit?: string | null;
+      quantity_per_primary?: number | null;
       retail_primary_unit?: string | null;
       current_stock?: number;
+      current_stock_value?: number;
+      current_stock_unit?: string;
       reorder_level?: number;
       other_units?: { unit: string; sort_order?: number }[];
+      conversions?: { to_unit: string; factor: number }[];
     }
   ) => Promise<number>;
   deleteItem: (id: number) => Promise<number>;
-  addStock: (id: number, quantity: number) => Promise<number>;
-  reduceStock: (id: number, quantity: number) => Promise<number>;
-  getUnits: () => Promise<
-    { id: number; name: string; symbol: string | null; created_at: string }[]
+  addStock: (
+    id: number,
+    quantityOrPayload: number | { quantity: number; unit: string }
+  ) => Promise<number>;
+  reduceStock: (
+    id: number,
+    quantityOrPayload: number | { quantity: number; unit: string }
+  ) => Promise<number>;
+  getUnitConversions: () => Promise<
+    {
+      id: number;
+      from_unit: string;
+      to_unit: string;
+      factor: number;
+      created_at: string;
+    }[]
   >;
+  createUnitConversion: (payload: {
+    from_unit: string;
+    to_unit: string;
+    factor: number;
+  }) => Promise<number>;
+  updateUnitConversion: (
+    id: number,
+    payload: { from_unit?: string; to_unit?: string; factor?: number }
+  ) => Promise<number>;
+  deleteUnitConversion: (id: number) => Promise<number>;
+  getUnitTypes: () => Promise<
+    { id: number; name: string; created_at: string }[]
+  >;
+  createUnitType: (name: string) => Promise<number>;
+  updateUnitType: (id: number, payload: { name?: string }) => Promise<number>;
+  deleteUnitType: (id: number) => Promise<number>;
+
+  getUnits: () => Promise<
+    {
+      id: number;
+      name: string;
+      symbol: string | null;
+      unit_type_id: number | null;
+      unit_type_name: string | null;
+      created_at: string;
+    }[]
+  >;
+  getUnitsWithContext: () => Promise<
+    {
+      id: number;
+      name: string;
+      symbol: string | null;
+      unit_type_id: number | null;
+      unit_type_name: string | null;
+      created_at: string;
+      in_godown: number;
+      in_invoice: number;
+      invoice_sort_order: number | null;
+    }[]
+  >;
+  addUnitToContext: (
+    unitId: number,
+    context: "godown" | "invoice",
+    sortOrder?: number
+  ) => Promise<number>;
+  removeUnitFromContext: (
+    unitId: number,
+    context: "godown" | "invoice"
+  ) => Promise<number>;
   createUnit: (
-    nameOrPayload: string | { name: string; symbol?: string | null }
+    nameOrPayload:
+      | string
+      | { name: string; symbol?: string | null; unit_type_id?: number | null }
   ) => Promise<string>;
   updateUnit: (
     id: number,
-    payload: { name?: string; symbol?: string | null }
+    payload: {
+      name?: string;
+      symbol?: string | null;
+      unit_type_id?: number | null;
+    }
   ) => Promise<number>;
   deleteUnit: (id: number) => Promise<number>;
+  reorderUnits: (
+    context: "godown" | "invoice",
+    unitIds: number[]
+  ) => Promise<void>;
   getInvoiceUnits: () => Promise<
     {
       id: number;
       name: string;
       symbol: string | null;
+      unit_type_id: number | null;
+      unit_type_name: string | null;
       sort_order: number;
       created_at: string;
     }[]
@@ -65,6 +152,7 @@ export interface ElectronAPI {
     name: string;
     symbol?: string | null;
     sort_order?: number;
+    unit_type_id?: number | null;
   }) => Promise<number>;
   updateInvoiceUnit: (
     id: number,
@@ -279,6 +367,7 @@ export interface ElectronAPI {
   getDbPath: () => Promise<string>;
   clearDbTables: () => Promise<void>;
   clearEntireDb: () => Promise<void>;
+  populateSampleData: () => Promise<void>;
   exportDb: () => Promise<
     { canceled: true } | { canceled: false; path: string }
   >;

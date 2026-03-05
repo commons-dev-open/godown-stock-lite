@@ -12,6 +12,8 @@ interface DataTableProps<T extends { id: number }> {
   data: T[];
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
+  /** When set, delete button is only shown when this returns true (e.g. to hide delete for system rows). */
+  canDelete?: (row: T) => boolean;
   emptyMessage?: string;
   /** Optional class for the scroll wrapper (e.g. table-scroll-wrap--shorter) */
   scrollWrapClassName?: string;
@@ -22,6 +24,7 @@ export default function DataTable<T extends { id: number }>({
   data,
   onEdit,
   onDelete,
+  canDelete,
   emptyMessage = "No data",
   scrollWrapClassName,
 }: DataTableProps<T>) {
@@ -81,17 +84,18 @@ export default function DataTable<T extends { id: number }>({
                         <PencilSquareIcon className="w-5 h-5" />
                       </button>
                     )}
-                    {onDelete && (
-                      <button
-                        type="button"
-                        onClick={() => onDelete(row)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
-                    )}
+                    {onDelete &&
+                      (canDelete === undefined || canDelete(row)) && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(row)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Delete"
+                          aria-label="Delete"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
                   </span>
                 </td>
               )}

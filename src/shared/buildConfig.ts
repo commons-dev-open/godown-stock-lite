@@ -7,4 +7,4 @@
  */
 export const TRIAL_MODE = false;
 /** ISO date-time string when trial ends (e.g. "2025-04-15T23:59:59.000Z"). Empty when not trial. */
-export const TRIAL_END_ISO = "2026-03-02T12:23:59";
+export const TRIAL_END_ISO = "";

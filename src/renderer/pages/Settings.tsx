@@ -13,6 +13,7 @@ type DangerAction =
   | "import"
   | "clearTables"
   | "clearEntireDb"
+  | "populateSampleData"
   | null;
 
 const DANGER_CONFIG: Record<
@@ -38,6 +39,11 @@ const DANGER_CONFIG: Record<
     title: "Reset database",
     message:
       "The database file will be deleted and a brand‑new empty database will be created. Use this for a complete fresh start. All your data—items, mahajans, invoices, everything—will be gone forever. Export a backup first if you might need to refer to this data later. This cannot be undone.",
+  },
+  populateSampleData: {
+    title: "Fill with sample data",
+    message:
+      "This will insert a small set of realistic sample items, mahajans, invoices, transactions, and daily sales into an empty database so you can explore the app. It only runs when there is no existing business data; if you’ve already started using the app, nothing will be changed.",
   },
 };
 
@@ -110,6 +116,15 @@ export default function Settings() {
     },
   });
 
+  const populateSampleDataMutation = useMutationWithToast({
+    mutationFn: () => api.populateSampleData(),
+    onSuccess: () => {
+      setDangerAction(null);
+      queryClient.invalidateQueries();
+      toast.success("Sample data populated into empty tables.");
+    },
+  });
+
   const runDangerAction = () => {
     if (dangerAction === null) return;
     const action = dangerAction;
@@ -134,12 +149,17 @@ export default function Settings() {
       case "clearEntireDb":
         clearEntireDbMutation.mutate();
         break;
+      case "populateSampleData":
+        populateSampleDataMutation.mutate();
+        break;
     }
   };
 
   const isConfirming =
     (dangerAction === "clearTables" && clearTablesMutation.isPending) ||
-    (dangerAction === "clearEntireDb" && clearEntireDbMutation.isPending);
+    (dangerAction === "clearEntireDb" && clearEntireDbMutation.isPending) ||
+    (dangerAction === "populateSampleData" &&
+      populateSampleDataMutation.isPending);
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -252,6 +272,17 @@ export default function Settings() {
             title="Delete the database file and create a new empty one"
           >
             {clearEntireDbMutation.isPending ? "Resetting…" : "Reset database"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setDangerAction("populateSampleData")}
+            disabled={populateSampleDataMutation.isPending}
+            title="Fill all main tables with realistic sample data (only when empty)"
+          >
+            {populateSampleDataMutation.isPending
+              ? "Filling sample data…"
+              : "Fill with sample data"}
           </Button>
         </div>
 

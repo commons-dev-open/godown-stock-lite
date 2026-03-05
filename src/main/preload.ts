@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 const electronAPI = {
   // Items
   getItems: () => ipcRenderer.invoke("items:getAll"),
+  getItemsWithUnits: () => ipcRenderer.invoke("items:getAllWithUnits"),
   getItemsPage: (opts: { search?: string; page?: number; limit?: number }) =>
     ipcRenderer.invoke("items:getPage", opts),
   getItemById: (id: number) => ipcRenderer.invoke("items:getById", id),
@@ -10,10 +11,15 @@ const electronAPI = {
     name: string;
     code?: string;
     unit: string;
+    reference_unit?: string | null;
+    quantity_per_primary?: number | null;
     retail_primary_unit?: string | null;
     current_stock?: number;
+    current_stock_value?: number;
+    current_stock_unit?: string;
     reorder_level?: number;
     other_units?: { unit: string; sort_order?: number }[];
+    conversions?: { to_unit: string; factor: number }[];
   }) => ipcRenderer.invoke("items:create", item),
   updateItem: (
     id: number,
@@ -21,33 +27,78 @@ const electronAPI = {
       name?: string;
       code?: string;
       unit?: string;
+      reference_unit?: string | null;
+      quantity_per_primary?: number | null;
       retail_primary_unit?: string | null;
       current_stock?: number;
+      current_stock_value?: number;
+      current_stock_unit?: string;
       reorder_level?: number;
       other_units?: { unit: string; sort_order?: number }[];
+      conversions?: { to_unit: string; factor: number }[];
     }
   ) => ipcRenderer.invoke("items:update", id, item),
   deleteItem: (id: number) => ipcRenderer.invoke("items:delete", id),
-  addStock: (id: number, quantity: number) =>
-    ipcRenderer.invoke("items:addStock", id, quantity),
-  reduceStock: (id: number, quantity: number) =>
-    ipcRenderer.invoke("items:reduceStock", id, quantity),
+  addStock: (
+    id: number,
+    quantityOrPayload: number | { quantity: number; unit: string }
+  ) => ipcRenderer.invoke("items:addStock", id, quantityOrPayload),
+  reduceStock: (
+    id: number,
+    quantityOrPayload: number | { quantity: number; unit: string }
+  ) => ipcRenderer.invoke("items:reduceStock", id, quantityOrPayload),
+  getUnitConversions: () => ipcRenderer.invoke("unitConversions:getAll"),
+  createUnitConversion: (payload: {
+    from_unit: string;
+    to_unit: string;
+    factor: number;
+  }) => ipcRenderer.invoke("unitConversions:create", payload),
+  updateUnitConversion: (
+    id: number,
+    payload: { from_unit?: string; to_unit?: string; factor?: number }
+  ) => ipcRenderer.invoke("unitConversions:update", id, payload),
+  deleteUnitConversion: (id: number) =>
+    ipcRenderer.invoke("unitConversions:delete", id),
+
+  getUnitTypes: () => ipcRenderer.invoke("unitTypes:getAll"),
+  createUnitType: (name: string) =>
+    ipcRenderer.invoke("unitTypes:create", name),
+  updateUnitType: (id: number, payload: { name?: string }) =>
+    ipcRenderer.invoke("unitTypes:update", id, payload),
+  deleteUnitType: (id: number) => ipcRenderer.invoke("unitTypes:delete", id),
 
   getUnits: () => ipcRenderer.invoke("units:getAll"),
+  getUnitsWithContext: () => ipcRenderer.invoke("units:getAllWithContext"),
+  addUnitToContext: (
+    unitId: number,
+    context: "godown" | "invoice",
+    sortOrder?: number
+  ) => ipcRenderer.invoke("units:addToContext", unitId, context, sortOrder),
+  removeUnitFromContext: (unitId: number, context: "godown" | "invoice") =>
+    ipcRenderer.invoke("units:removeFromContext", unitId, context),
   createUnit: (
-    nameOrPayload: string | { name: string; symbol?: string | null }
+    nameOrPayload:
+      | string
+      | { name: string; symbol?: string | null; unit_type_id?: number | null }
   ) => ipcRenderer.invoke("units:create", nameOrPayload),
   updateUnit: (
     id: number,
-    payload: { name?: string; symbol?: string | null }
+    payload: {
+      name?: string;
+      symbol?: string | null;
+      unit_type_id?: number | null;
+    }
   ) => ipcRenderer.invoke("units:update", id, payload),
   deleteUnit: (id: number) => ipcRenderer.invoke("units:delete", id),
+  reorderUnits: (context: "godown" | "invoice", unitIds: number[]) =>
+    ipcRenderer.invoke("units:reorder", context, unitIds),
 
   getInvoiceUnits: () => ipcRenderer.invoke("invoiceUnits:getAll"),
   createInvoiceUnit: (payload: {
     name: string;
     symbol?: string | null;
     sort_order?: number;
+    unit_type_id?: number | null;
   }) => ipcRenderer.invoke("invoiceUnits:create", payload),
   updateInvoiceUnit: (
     id: number,
@@ -281,6 +332,8 @@ const electronAPI = {
   getDbPath: () => ipcRenderer.invoke("db:getPath") as Promise<string>,
   clearDbTables: () => ipcRenderer.invoke("db:clearTables") as Promise<void>,
   clearEntireDb: () => ipcRenderer.invoke("db:clearEntireDb") as Promise<void>,
+  populateSampleData: () =>
+    ipcRenderer.invoke("db:populateSampleData") as Promise<void>,
   exportDb: () =>
     ipcRenderer.invoke("db:exportDb") as Promise<
       { canceled: true } | { canceled: false; path: string }

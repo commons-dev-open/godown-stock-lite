@@ -11,6 +11,7 @@ import {
   useInteractions,
   FloatingPortal,
 } from "@floating-ui/react";
+import { Link } from "react-router-dom";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
@@ -45,6 +46,7 @@ import type {
   ItemOtherUnit,
   InvoiceUnit,
   Unit,
+  UnitConversion,
 } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
@@ -52,7 +54,10 @@ const UNIT_ADD_NEW = "__new__";
 
 type ItemWithUnits = Item & {
   other_units?: { id?: number; unit: string; sort_order: number }[];
+  item_unit_conversions?: { to_unit: string; factor: number }[];
 };
+
+type ConversionRow = { to_unit: string; factor: number };
 
 export default function Items() {
   const queryClient = useQueryClient();
@@ -69,8 +74,28 @@ export default function Items() {
   const [editUnitSelect, setEditUnitSelect] = useState<string>("");
   const [addRetailPrimary, setAddRetailPrimary] = useState<string>("");
   const [addOtherUnits, setAddOtherUnits] = useState<ItemOtherUnit[]>([]);
+  const [addStockUnit, setAddStockUnit] = useState<string>("");
+  const [addConversions, setAddConversions] = useState<ConversionRow[]>([
+    { to_unit: "", factor: 0 },
+  ]);
   const [editRetailPrimary, setEditRetailPrimary] = useState<string>("");
   const [editOtherUnits, setEditOtherUnits] = useState<ItemOtherUnit[]>([]);
+  const [editStockUnit, setEditStockUnit] = useState<string>("");
+  const [editConversions, setEditConversions] = useState<ConversionRow[]>([
+    { to_unit: "", factor: 0 },
+  ]);
+  const [addStockUnitModal, setAddStockUnitModal] = useState<string>("");
+  const [reduceStockUnitModal, setReduceStockUnitModal] = useState<string>("");
+  useEffect(() => {
+    if (addProductOpen) setAddStockUnit(addUnitSelect);
+  }, [addProductOpen, addUnitSelect]);
+  useEffect(() => {
+    if (addStockOpen && addStockItem) setAddStockUnitModal(addStockItem.unit);
+  }, [addStockOpen, addStockItem]);
+  useEffect(() => {
+    if (reduceStockOpen && reduceStockItem)
+      setReduceStockUnitModal(reduceStockItem.unit);
+  }, [reduceStockOpen, reduceStockItem]);
   const [exportOpen, setExportOpen] = useState(false);
   const [printData, setPrintData] = useState<{
     columns: string[];
@@ -120,9 +145,140 @@ export default function Items() {
     queryFn: () => api.getInvoiceUnits() as Promise<InvoiceUnit[]>,
   });
 
+  const { data: unitConversions = [] } = useQuery({
+    queryKey: ["unitConversions"],
+    queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
+  });
+
+  const findUnitMeta = (unitName: string) =>
+    units.find((x) => x.name === unitName) ??
+    invoiceUnits.find((x) => x.name === unitName);
+
   const unitDisplay = (unitName: string) => {
-    const u = units.find((x) => x.name === unitName);
-    return (u?.symbol && u.symbol.trim()) || unitName;
+    const u = findUnitMeta(unitName);
+    if (!u) return unitName;
+    const symbol = u.symbol?.trim();
+    if (symbol) {
+      return `${u.name} (${symbol})`;
+    }
+    return u.name;
+  };
+
+  const computeAllowedStockUnits = (
+    primaryUnit: string | null | undefined,
+    retailPrimaryUnit: string | null | undefined,
+    otherUnitsList: ItemOtherUnit[] | undefined,
+    itemConvRows: ConversionRow[]
+  ): string[] => {
+    const base = new Set<string>();
+    if (primaryUnit && primaryUnit.trim()) base.add(primaryUnit.trim());
+    if (retailPrimaryUnit && retailPrimaryUnit.trim())
+      base.add(retailPrimaryUnit.trim());
+    (otherUnitsList ?? []).forEach((ou) => {
+      if (ou.unit && ou.unit.trim()) base.add(ou.unit.trim());
+    });
+
+    if (base.size === 0) return [];
+
+    const graph = new Map<string, Set<string>>();
+    const weightedGraph = new Map<string, { to: string; ratio: number }[]>();
+
+    const ensureNode = (name: string) => {
+      if (!graph.has(name)) graph.set(name, new Set());
+      if (!weightedGraph.has(name)) weightedGraph.set(name, []);
+    };
+
+    const addEdge = (from: string, to: string, factor: number) => {
+      const a = from.trim();
+      const b = to.trim();
+      if (!a || !b) return;
+      ensureNode(a);
+      ensureNode(b);
+      graph.get(a)!.add(b);
+      graph.get(b)!.add(a);
+      if (Number.isFinite(factor) && factor > 0) {
+        // 1 from = factor to  => size(from) = factor * size(to)
+        // So when we know size(from), size(to) = size(from) / factor,
+        // and when we know size(to), size(from) = size(to) * factor.
+        weightedGraph.get(a)!.push({ to: b, ratio: 1 / factor });
+        weightedGraph.get(b)!.push({ to: a, ratio: factor });
+      }
+    };
+
+    for (const row of unitConversions) {
+      addEdge(row.from_unit, row.to_unit, row.factor);
+    }
+
+    const primary = primaryUnit?.trim();
+    if (primary) {
+      for (const row of itemConvRows) {
+        if (row.to_unit && row.to_unit.trim()) {
+          addEdge(primary, row.to_unit, row.factor);
+        }
+      }
+    }
+
+    const visited = new Set<string>();
+    const queue: string[] = [];
+    for (const u of base) {
+      visited.add(u);
+      queue.push(u);
+    }
+
+    while (queue.length > 0) {
+      const u = queue.shift()!;
+      const neighbors = graph.get(u);
+      if (!neighbors) continue;
+      for (const v of neighbors) {
+        if (!visited.has(v)) {
+          visited.add(v);
+          queue.push(v);
+        }
+      }
+    }
+
+    if (visited.size === 0) return [];
+
+    const sizes = new Map<string, number>();
+
+    const fillSizesFrom = (seed: string) => {
+      sizes.set(seed, 1);
+      const q: string[] = [seed];
+      while (q.length > 0) {
+        const u = q.shift()!;
+        const currentSize = sizes.get(u)!;
+        const neighbors = weightedGraph.get(u) ?? [];
+        for (const { to, ratio } of neighbors) {
+          if (!sizes.has(to) && Number.isFinite(ratio) && ratio > 0) {
+            sizes.set(to, currentSize * ratio);
+            q.push(to);
+          }
+        }
+      }
+    };
+
+    if (primary) fillSizesFrom(primary);
+    for (const u of visited) {
+      if (!sizes.has(u)) fillSizesFrom(u);
+    }
+
+    const sorted = Array.from(visited).sort((a, b) => {
+      const sa = sizes.get(a);
+      const sb = sizes.get(b);
+      if (sa != null && sb != null) {
+        // Larger size value means a "bigger" unit, so sort descending.
+        return sb - sa;
+      }
+      if (sa != null) return -1;
+      if (sb != null) return 1;
+      return a.localeCompare(b);
+    });
+
+    if (primary && sorted.includes(primary)) {
+      return [primary, ...sorted.filter((u) => u !== primary)];
+    }
+
+    return sorted;
   };
 
   const { data: items = [] } = useQuery({
@@ -145,6 +301,23 @@ export default function Items() {
   const itemsPage = pageResult?.data ?? [];
   const totalItems = pageResult?.total ?? 0;
 
+  const addAllowedStockUnits = computeAllowedStockUnits(
+    addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
+    addRetailPrimary || null,
+    addOtherUnits,
+    addConversions
+  );
+
+  const editAllowedStockUnits =
+    editing != null
+      ? computeAllowedStockUnits(
+          (editUnitSelect || editing.unit) ?? null,
+          editRetailPrimary || null,
+          editOtherUnits,
+          editConversions
+        )
+      : [];
+
   const createItem = useMutation({
     mutationFn: async (payload: {
       name: string;
@@ -154,6 +327,9 @@ export default function Items() {
       retail_primary_unit?: string | null;
       other_units?: ItemOtherUnit[];
       current_stock?: number;
+      current_stock_value?: number;
+      current_stock_unit?: string;
+      conversions?: { to_unit: string; factor: number }[];
       reorder_level?: number;
     }) => {
       let unit = payload.unit;
@@ -167,6 +343,9 @@ export default function Items() {
         retail_primary_unit: payload.retail_primary_unit ?? null,
         other_units: payload.other_units,
         current_stock: payload.current_stock,
+        current_stock_value: payload.current_stock_value,
+        current_stock_unit: payload.current_stock_unit,
+        conversions: payload.conversions,
         reorder_level: payload.reorder_level,
       });
     },
@@ -212,8 +391,15 @@ export default function Items() {
   });
 
   const addStock = useMutationWithToast({
-    mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
-      api.addStock(id, quantity),
+    mutationFn: ({
+      id,
+      quantity,
+      unit,
+    }: {
+      id: number;
+      quantity: number;
+      unit?: string;
+    }) => api.addStock(id, unit ? { quantity, unit } : quantity),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
@@ -223,8 +409,15 @@ export default function Items() {
   });
 
   const reduceStock = useMutationWithToast({
-    mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
-      api.reduceStock(id, quantity),
+    mutationFn: ({
+      id,
+      quantity,
+      unit,
+    }: {
+      id: number;
+      quantity: number;
+      unit?: string;
+    }) => api.reduceStock(id, unit ? { quantity, unit } : quantity),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
@@ -393,10 +586,7 @@ export default function Items() {
                 {
                   key: "unit",
                   label: "Unit",
-                  render: (r) => {
-                    const u = units.find((x) => x.name === r.unit);
-                    return (u?.symbol && u.symbol.trim()) || r.unit;
-                  },
+                  render: (r) => unitDisplay(r.unit),
                 },
                 {
                   key: "reorder_level",
@@ -413,6 +603,19 @@ export default function Items() {
                 setEditing(full);
                 setEditUnitSelect(full.unit);
                 setEditRetailPrimary(full.retail_primary_unit ?? "");
+                setEditStockUnit(full.unit);
+                setEditConversions(
+                  (full as ItemWithUnits).item_unit_conversions?.length
+                    ? (full as ItemWithUnits).item_unit_conversions!
+                    : full.reference_unit
+                      ? [
+                          {
+                            to_unit: full.reference_unit,
+                            factor: full.quantity_per_primary ?? 0,
+                          },
+                        ]
+                      : [{ to_unit: "", factor: 0 }]
+                );
                 setEditOtherUnits(
                   full.other_units?.map((o) => ({
                     unit: o.unit,
@@ -453,11 +656,12 @@ export default function Items() {
           setAddUnitSelect("");
           setAddRetailPrimary("");
           setAddOtherUnits([]);
+          setAddConversions([{ to_unit: "", factor: 0 }]);
           setImportUnitsPopupOpen(false);
           setImportUnitsTarget(null);
           setImportProductId("");
         }}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-3xl"
         footer={
           <Button variant="primary" type="submit" form="add-product-form">
             <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
@@ -467,7 +671,7 @@ export default function Items() {
       >
         <form
           id="add-product-form"
-          className="space-y-3"
+          className="space-y-6"
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
@@ -481,36 +685,63 @@ export default function Items() {
             };
             const isNewUnit = els.unit.value === UNIT_ADD_NEW;
             const newUnitName = els.unit_name?.value?.trim();
+            const primaryUnit = isNewUnit ? "" : els.unit.value;
+            const stockVal = Number(els.current_stock.value) || 0;
+            const stockUnit = addStockUnit || primaryUnit;
+            const conversions = addConversions
+              .filter((c) => c.to_unit.trim() && Number(c.factor) > 0)
+              .map((c) => ({
+                to_unit: c.to_unit.trim(),
+                factor: Number(c.factor),
+              }));
             createItem.mutate({
               name: els.name.value,
               code: els.code.value || undefined,
-              unit: isNewUnit ? "" : els.unit.value,
+              unit: primaryUnit,
               newUnitName: isNewUnit ? newUnitName : undefined,
               retail_primary_unit: addRetailPrimary || null,
               other_units: addOtherUnits.length > 0 ? addOtherUnits : undefined,
-              current_stock: Number(els.current_stock.value) || 0,
+              current_stock: stockUnit === primaryUnit ? stockVal : undefined,
+              current_stock_value:
+                stockUnit !== primaryUnit ? stockVal : undefined,
+              current_stock_unit:
+                stockUnit && stockUnit !== primaryUnit ? stockUnit : undefined,
+              conversions: conversions.length > 0 ? conversions : undefined,
               reorder_level: Number(els.reorder_level.value) || undefined,
             });
           }}
         >
-          <FormField label="Name" required>
-            <input
-              name="name"
-              required
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </FormField>
-          <FormField label="Code">
-            <input
-              name="code"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </FormField>
-          <div className="space-y-3">
-            <div className="flex flex-col gap-2">
-              <span className="block text-sm font-medium text-gray-700">
-                Units
-              </span>
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Basic details
+            </h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <FormField label="Name" required>
+                <input
+                  name="name"
+                  required
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </FormField>
+              <FormField label="Code">
+                <input
+                  name="code"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </FormField>
+            </div>
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Units & conversions
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Choose how you buy, store and sell this product.
+                </p>
+              </div>
               <Button
                 type="button"
                 variant="secondary"
@@ -521,133 +752,273 @@ export default function Items() {
                 }}
               >
                 <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                Import units from an existing product
+                Import from product
               </Button>
             </div>
-            <div className="border-t border-gray-200 pt-3">
-              <span className="block text-sm text-gray-500 mb-2">
-                Or set units manually
-              </span>
-              <FormField
-                label="Primary stock unit"
-                required
-                extra={
-                  addUnitSelect === UNIT_ADD_NEW ? (
-                    <FormField label="Unit name" required>
+
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500">
+                Don't see your unit?{" "}
+                <Link
+                  to="/units"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Manage all units
+                </Link>{" "}
+                — add to Stock (godown) or Invoice and return here.
+              </p>
+              <div className="border-t border-gray-200 pt-3">
+                <span className="mb-2 block text-sm text-gray-500">
+                  Primary stock unit and optional retail/other units.
+                </span>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <FormField
+                    label="Primary stock unit"
+                    required
+                    extra={
+                      addUnitSelect === UNIT_ADD_NEW ? (
+                        <FormField label="Unit name" required>
+                          <input
+                            name="unit_name"
+                            className="w-full border border-gray-300 rounded px-3 py-2"
+                            placeholder="e.g. packets, tins, bags"
+                            required={addUnitSelect === UNIT_ADD_NEW}
+                          />
+                        </FormField>
+                      ) : undefined
+                    }
+                  >
+                    <select
+                      name="unit"
+                      value={addUnitSelect}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setAddUnitSelect(v);
+                        setAddStockUnit(v);
+                      }}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      required
+                    >
+                      <option value="">Select unit</option>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.name}>
+                          {unitDisplay(u.name)}
+                        </option>
+                      ))}
+                      <option value={UNIT_ADD_NEW}>Add new…</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Retail primary unit (optional)">
+                    <select
+                      value={addRetailPrimary}
+                      onChange={(e) => setAddRetailPrimary(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    >
+                      <option value="">None</option>
+                      {invoiceUnits.map((u) => (
+                        <option key={u.id} value={u.name}>
+                          {unitDisplay(u.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="block text-sm font-medium text-gray-700">
+                      Other units (optional)
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        setAddOtherUnits((prev) => [
+                          ...prev,
+                          { unit: "", sort_order: prev.length },
+                        ])
+                      }
+                    >
+                      <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                      Add unit
+                    </Button>
+                  </div>
+                  {addOtherUnits.map((ou, idx) => (
+                    <div key={idx} className="mt-2 flex items-center gap-2">
+                      <select
+                        value={ou.unit}
+                        onChange={(e) =>
+                          setAddOtherUnits((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, unit: e.target.value } : p
+                            )
+                          )
+                        }
+                        className="flex-1 border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">Select unit</option>
+                        {invoiceUnits.map((u) => (
+                          <option key={u.id} value={u.name}>
+                            {unitDisplay(u.name)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAddOtherUnits((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                        title="Remove"
+                        aria-label="Remove"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <FormField label="Conversion (optional)">
+                <p className="mb-2 text-sm text-gray-500">
+                  e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
+                  multiple rows for several units.
+                </p>
+                <div className="space-y-2">
+                  {addConversions.map((row, idx) => (
+                    <div
+                      key={idx}
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      <span className="text-gray-600">
+                        1 {addUnitSelect || "—"} =
+                      </span>
                       <input
-                        name="unit_name"
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                        placeholder="e.g. packets, tins, bags"
-                        required={addUnitSelect === UNIT_ADD_NEW}
+                        type="number"
+                        min="0.0001"
+                        step="any"
+                        placeholder="e.g. 25"
+                        value={row.factor || ""}
+                        onChange={(e) =>
+                          setAddConversions((prev) =>
+                            prev.map((p, i) =>
+                              i === idx
+                                ? {
+                                    ...p,
+                                    factor: Number(e.target.value) || 0,
+                                  }
+                                : p
+                            )
+                          )
+                        }
+                        className="w-24 border border-gray-300 rounded px-3 py-2"
                       />
-                    </FormField>
-                  ) : undefined
-                }
-              >
-                <select
-                  name="unit"
-                  value={addUnitSelect}
-                  onChange={(e) => setAddUnitSelect(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  required
-                >
-                  <option value="">Select unit</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.name}>
-                      {(u.symbol && u.symbol.trim()) || u.name}
-                    </option>
+                      <select
+                        value={row.to_unit}
+                        onChange={(e) =>
+                          setAddConversions((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, to_unit: e.target.value } : p
+                            )
+                          )
+                        }
+                        className="border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">Select unit</option>
+                        {[
+                          ...new Set([
+                            ...units.map((u) => u.name),
+                            ...invoiceUnits.map((u) => u.name),
+                          ]),
+                        ]
+                          .sort()
+                          .map((name) => (
+                            <option key={name} value={name}>
+                              {unitDisplay(name)}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAddConversions((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                        title="Remove"
+                        aria-label="Remove"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))}
-                  <option value={UNIT_ADD_NEW}>Add new…</option>
-                </select>
-              </FormField>
-              <FormField label="Retail primary unit (optional)">
-                <select
-                  value={addRetailPrimary}
-                  onChange={(e) => setAddRetailPrimary(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">None</option>
-                  {invoiceUnits.map((u) => (
-                    <option key={u.id} value={u.name}>
-                      {(u.symbol && u.symbol.trim()) || u.name}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="block text-sm font-medium text-gray-700">
-                    Other units (optional)
-                  </span>
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="ghost"
                     onClick={() =>
-                      setAddOtherUnits((prev) => [
+                      setAddConversions((prev) => [
                         ...prev,
-                        { unit: "", sort_order: prev.length },
+                        { to_unit: "", factor: 0 },
                       ])
                     }
                   >
                     <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                    Add unit
+                    Add row
                   </Button>
                 </div>
-                {addOtherUnits.map((ou, idx) => (
-                  <div key={idx} className="flex gap-2 items-center mt-2">
-                    <select
-                      value={ou.unit}
-                      onChange={(e) =>
-                        setAddOtherUnits((prev) =>
-                          prev.map((p, i) =>
-                            i === idx ? { ...p, unit: e.target.value } : p
-                          )
-                        )
-                      }
-                      className="flex-1 border border-gray-300 rounded px-3 py-2"
-                    >
-                      <option value="">Select unit</option>
-                      {invoiceUnits.map((u) => (
-                        <option key={u.id} value={u.name}>
-                          {(u.symbol && u.symbol.trim()) || u.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAddOtherUnits((prev) =>
-                          prev.filter((_, i) => i !== idx)
-                        )
-                      }
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Remove"
-                      aria-label="Remove"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              </FormField>
             </div>
-          </div>
-          <FormField label="Current Stock">
-            <input
-              name="current_stock"
-              type="number"
-              min="0"
-              defaultValue="0"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </FormField>
-          <FormField label="Reorder Level">
-            <input
-              name="reorder_level"
-              type="number"
-              min="0"
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </FormField>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Stock & reorder
+            </h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <FormField label="Current Stock">
+                <div className="flex gap-2">
+                  <input
+                    name="current_stock"
+                    type="number"
+                    min="0"
+                    step="any"
+                    defaultValue="0"
+                    className="flex-1 border border-gray-300 rounded px-3 py-2"
+                  />
+                  <select
+                    value={addStockUnit}
+                    onChange={(e) => setAddStockUnit(e.target.value)}
+                    className="w-32 border border-gray-300 rounded px-3 py-2"
+                  >
+                    {addAllowedStockUnits.length === 0 ? (
+                      <option value="">
+                        {addUnitSelect && addUnitSelect !== UNIT_ADD_NEW
+                          ? unitDisplay(addUnitSelect)
+                          : "Select unit"}
+                      </option>
+                    ) : (
+                      addAllowedStockUnits.map((name) => (
+                        <option key={name} value={name}>
+                          {unitDisplay(name)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </FormField>
+              <FormField label="Reorder Level">
+                <input
+                  name="reorder_level"
+                  type="number"
+                  min="0"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </FormField>
+            </div>
+          </section>
         </form>
       </FormModal>
 
@@ -660,6 +1031,7 @@ export default function Items() {
           setImportProductId("");
         }}
         maxWidth="max-w-sm"
+        stackAbove
         footer={
           <Button
             variant="primary"
@@ -727,12 +1099,14 @@ export default function Items() {
           setEditing(null);
           setEditUnitSelect("");
           setEditRetailPrimary("");
+          setEditStockUnit("");
+          setEditConversions([{ to_unit: "", factor: 0 }]);
           setEditOtherUnits([]);
           setImportUnitsPopupOpen(false);
           setImportUnitsTarget(null);
           setImportProductId("");
         }}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-3xl"
         footer={
           editing ? (
             <Button variant="primary" type="submit" form="edit-product-form">
@@ -745,7 +1119,7 @@ export default function Items() {
         {editing && (
           <form
             id="edit-product-form"
-            className="space-y-3"
+            className="space-y-6"
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
@@ -759,14 +1133,31 @@ export default function Items() {
               };
               const isNewUnit = els.unit.value === UNIT_ADD_NEW;
               const newUnitName = els.unit_name?.value?.trim();
+              const primaryUnit = isNewUnit ? editing.unit : els.unit.value;
+              const stockVal = Number(els.current_stock.value);
+              const stockUnit = editStockUnit || primaryUnit;
+              const conversions = editConversions
+                .filter((c) => c.to_unit.trim() && Number(c.factor) > 0)
+                .map((c) => ({
+                  to_unit: c.to_unit.trim(),
+                  factor: Number(c.factor),
+                }));
               updateItem.mutate({
                 id: editing.id,
                 item: {
                   name: els.name.value,
                   code: els.code.value || undefined,
-                  unit: isNewUnit ? editing.unit : els.unit.value,
+                  unit: primaryUnit,
                   retail_primary_unit: editRetailPrimary || null,
-                  current_stock: Number(els.current_stock.value),
+                  conversions: conversions.length > 0 ? conversions : undefined,
+                  current_stock:
+                    stockUnit === primaryUnit ? stockVal : undefined,
+                  current_stock_value:
+                    stockUnit !== primaryUnit ? stockVal : undefined,
+                  current_stock_unit:
+                    stockUnit && stockUnit !== primaryUnit
+                      ? stockUnit
+                      : undefined,
                   reorder_level: Number(els.reorder_level.value) || undefined,
                 },
                 newUnitName: isNewUnit ? newUnitName : undefined,
@@ -774,26 +1165,39 @@ export default function Items() {
               });
             }}
           >
-            <FormField label="Name" required>
-              <input
-                name="name"
-                defaultValue={editing.name}
-                required
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
-            <FormField label="Code">
-              <input
-                name="code"
-                defaultValue={editing.code ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
-            <div className="space-y-3">
-              <div className="flex flex-col gap-2">
-                <span className="block text-sm font-medium text-gray-700">
-                  Units
-                </span>
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Basic details
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="Name" required>
+                  <input
+                    name="name"
+                    defaultValue={editing.name}
+                    required
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </FormField>
+                <FormField label="Code">
+                  <input
+                    name="code"
+                    defaultValue={editing.code ?? ""}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </FormField>
+              </div>
+            </section>
+
+            <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Units & conversions
+                  </h3>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Update how you buy, store and sell this product.
+                  </p>
+                </div>
                 <Button
                   type="button"
                   variant="secondary"
@@ -807,148 +1211,284 @@ export default function Items() {
                     className="w-5 h-5 mr-1.5"
                     aria-hidden
                   />
-                  Import units from an existing product
+                  Import from product
                 </Button>
               </div>
-              <div className="border-t border-gray-200 pt-3">
-                <span className="block text-sm text-gray-500 mb-2">
-                  Or set units manually
-                </span>
-                <FormField
-                  label="Unit"
-                  required
-                  extra={
-                    editUnitSelect === UNIT_ADD_NEW ? (
-                      <FormField label="Unit name" required>
-                        <input
-                          name="unit_name"
-                          className="w-full border border-gray-300 rounded px-3 py-2"
-                          placeholder="e.g. packets, tins, bags"
-                          required={editUnitSelect === UNIT_ADD_NEW}
-                        />
-                      </FormField>
-                    ) : undefined
-                  }
-                >
-                  <select
-                    name="unit"
-                    value={editUnitSelect || editing.unit}
-                    onChange={(e) => setEditUnitSelect(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    required
+
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Don't see your unit?{" "}
+                  <Link
+                    to="/units"
+                    className="text-blue-600 hover:text-blue-800 underline"
                   >
-                    <option value="">Select unit</option>
-                    {(units.some((u) => u.name === editing.unit)
-                      ? units
-                      : [
-                          {
-                            id: -1,
-                            name: editing.unit,
-                            symbol: null,
-                            created_at: "",
-                          },
-                          ...units,
-                        ]
-                    ).map((u) => (
-                      <option
-                        key={u.id >= 0 ? u.id : `unit-${u.name}`}
-                        value={u.name}
+                    Manage all units
+                  </Link>{" "}
+                  — add to Stock (godown) or Invoice and return here.
+                </p>
+                <div className="border-t border-gray-200 pt-3">
+                  <span className="mb-2 block text-sm text-gray-500">
+                    Primary stock unit and optional retail/other units.
+                  </span>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <FormField
+                      label="Unit"
+                      required
+                      extra={
+                        editUnitSelect === UNIT_ADD_NEW ? (
+                          <FormField label="Unit name" required>
+                            <input
+                              name="unit_name"
+                              className="w-full border border-gray-300 rounded px-3 py-2"
+                              placeholder="e.g. packets, tins, bags"
+                              required={editUnitSelect === UNIT_ADD_NEW}
+                            />
+                          </FormField>
+                        ) : undefined
+                      }
+                    >
+                      <select
+                        name="unit"
+                        value={editUnitSelect || editing.unit}
+                        onChange={(e) => setEditUnitSelect(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                        required
                       >
-                        {(u.symbol && u.symbol.trim()) || u.name}
-                      </option>
+                        <option value="">Select unit</option>
+                        {(units.some((u) => u.name === editing.unit)
+                          ? units
+                          : [
+                              {
+                                id: -1,
+                                name: editing.unit,
+                                symbol: null,
+                                created_at: "",
+                              },
+                              ...units,
+                            ]
+                        ).map((u) => (
+                          <option
+                            key={u.id >= 0 ? u.id : `unit-${u.name}`}
+                            value={u.name}
+                          >
+                            {unitDisplay(u.name)}
+                          </option>
+                        ))}
+                        <option value={UNIT_ADD_NEW}>Add new…</option>
+                      </select>
+                    </FormField>
+                    <FormField label="Retail primary unit (optional)">
+                      <select
+                        value={editRetailPrimary}
+                        onChange={(e) => setEditRetailPrimary(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">None</option>
+                        {invoiceUnits.map((u) => (
+                          <option key={u.id} value={u.name}>
+                            {unitDisplay(u.name)}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="block text-sm font-medium text-gray-700">
+                        Other units (optional)
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() =>
+                          setEditOtherUnits((prev) => [
+                            ...prev,
+                            { unit: "", sort_order: prev.length },
+                          ])
+                        }
+                      >
+                        <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                        Add unit
+                      </Button>
+                    </div>
+                    {editOtherUnits.map((ou, idx) => (
+                      <div key={idx} className="mt-2 flex items-center gap-2">
+                        <select
+                          value={ou.unit}
+                          onChange={(e) =>
+                            setEditOtherUnits((prev) =>
+                              prev.map((p, i) =>
+                                i === idx ? { ...p, unit: e.target.value } : p
+                              )
+                            )
+                          }
+                          className="flex-1 border border-gray-300 rounded px-3 py-2"
+                        >
+                          <option value="">Select unit</option>
+                          {invoiceUnits.map((u) => (
+                            <option key={u.id} value={u.name}>
+                              {unitDisplay(u.name)}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditOtherUnits((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                          title="Remove"
+                          aria-label="Remove"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     ))}
-                    <option value={UNIT_ADD_NEW}>Add new…</option>
-                  </select>
-                </FormField>
-                <FormField label="Retail primary unit (optional)">
-                  <select
-                    value={editRetailPrimary}
-                    onChange={(e) => setEditRetailPrimary(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value="">None</option>
-                    {invoiceUnits.map((u) => (
-                      <option key={u.id} value={u.name}>
-                        {(u.symbol && u.symbol.trim()) || u.name}
-                      </option>
+                  </div>
+                </div>
+
+                <FormField label="Conversion (optional)">
+                  <p className="mb-2 text-sm text-gray-500">
+                    e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
+                    multiple rows for several units.
+                  </p>
+                  <div className="space-y-2">
+                    {editConversions.map((row, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <span className="text-gray-600">
+                          1 {editUnitSelect || editing.unit} =
+                        </span>
+                        <input
+                          type="number"
+                          min="0.0001"
+                          step="any"
+                          placeholder="e.g. 25"
+                          value={row.factor || ""}
+                          onChange={(e) =>
+                            setEditConversions((prev) =>
+                              prev.map((p, i) =>
+                                i === idx
+                                  ? {
+                                      ...p,
+                                      factor: Number(e.target.value) || 0,
+                                    }
+                                  : p
+                              )
+                            )
+                          }
+                          className="w-24 border border-gray-300 rounded px-3 py-2"
+                        />
+                        <select
+                          value={row.to_unit}
+                          onChange={(e) =>
+                            setEditConversions((prev) =>
+                              prev.map((p, i) =>
+                                i === idx
+                                  ? { ...p, to_unit: e.target.value }
+                                  : p
+                              )
+                            )
+                          }
+                          className="border border-gray-300 rounded px-3 py-2"
+                        >
+                          <option value="">Select unit</option>
+                          {[
+                            ...new Set([
+                              ...units.map((u) => u.name),
+                              ...invoiceUnits.map((u) => u.name),
+                            ]),
+                          ]
+                            .sort()
+                            .map((name) => (
+                              <option key={name} value={name}>
+                                {unitDisplay(name)}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditConversions((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                          title="Remove"
+                          aria-label="Remove"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     ))}
-                  </select>
-                </FormField>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="block text-sm font-medium text-gray-700">
-                      Other units (optional)
-                    </span>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="ghost"
                       onClick={() =>
-                        setEditOtherUnits((prev) => [
+                        setEditConversions((prev) => [
                           ...prev,
-                          { unit: "", sort_order: prev.length },
+                          { to_unit: "", factor: 0 },
                         ])
                       }
                     >
                       <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-                      Add unit
+                      Add row
                     </Button>
                   </div>
-                  {editOtherUnits.map((ou, idx) => (
-                    <div key={idx} className="flex gap-2 items-center mt-2">
-                      <select
-                        value={ou.unit}
-                        onChange={(e) =>
-                          setEditOtherUnits((prev) =>
-                            prev.map((p, i) =>
-                              i === idx ? { ...p, unit: e.target.value } : p
-                            )
-                          )
-                        }
-                        className="flex-1 border border-gray-300 rounded px-3 py-2"
-                      >
-                        <option value="">Select unit</option>
-                        {invoiceUnits.map((u) => (
-                          <option key={u.id} value={u.name}>
-                            {(u.symbol && u.symbol.trim()) || u.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditOtherUnits((prev) =>
-                            prev.filter((_, i) => i !== idx)
-                          )
-                        }
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Remove"
-                        aria-label="Remove"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                </FormField>
               </div>
-            </div>
-            <FormField label="Current Stock">
-              <input
-                name="current_stock"
-                type="number"
-                min="0"
-                defaultValue={editing.current_stock}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
-            <FormField label="Reorder Level">
-              <input
-                name="reorder_level"
-                type="number"
-                min="0"
-                defaultValue={editing.reorder_level ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </FormField>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Stock & reorder
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="Current Stock">
+                  <div className="flex gap-2">
+                    <input
+                      name="current_stock"
+                      type="number"
+                      min="0"
+                      step="any"
+                      defaultValue={editing.current_stock}
+                      className="flex-1 border border-gray-300 rounded px-3 py-2"
+                    />
+                    <select
+                      value={editStockUnit}
+                      onChange={(e) => setEditStockUnit(e.target.value)}
+                      className="w-32 border border-gray-300 rounded px-3 py-2"
+                    >
+                      {editAllowedStockUnits.length === 0 ? (
+                        <option value={editing.unit}>
+                          {unitDisplay(editing.unit)}
+                        </option>
+                      ) : (
+                        editAllowedStockUnits.map((name) => (
+                          <option key={name} value={name}>
+                            {unitDisplay(name)}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                </FormField>
+                <FormField label="Reorder Level">
+                  <input
+                    name="reorder_level"
+                    type="number"
+                    min="0"
+                    defaultValue={editing.reorder_level ?? ""}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </FormField>
+              </div>
+            </section>
           </form>
         )}
       </FormModal>
@@ -978,7 +1518,14 @@ export default function Items() {
               toast.error("Quantity must be positive.");
               return;
             }
-            addStock.mutate({ id: addStockItem.id, quantity: qty });
+            addStock.mutate({
+              id: addStockItem.id,
+              quantity: qty,
+              unit:
+                addStockUnitModal && addStockUnitModal !== addStockItem.unit
+                  ? addStockUnitModal
+                  : undefined,
+            });
           }}
         >
           <FormField label="Product">
@@ -1002,14 +1549,34 @@ export default function Items() {
             </select>
           </FormField>
           <FormField label="Quantity to add">
-            <input
-              name="quantity"
-              type="number"
-              min="0.01"
-              step="any"
-              required
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
+            <div className="flex gap-2">
+              <input
+                name="quantity"
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                className="flex-1 border border-gray-300 rounded px-3 py-2"
+              />
+              <select
+                value={addStockUnitModal}
+                onChange={(e) => setAddStockUnitModal(e.target.value)}
+                className="w-32 border border-gray-300 rounded px-3 py-2"
+              >
+                {addStockItem ? (
+                  <>
+                    <option value={addStockItem.unit}>
+                      {unitDisplay(addStockItem.unit)}
+                    </option>
+                    {invoiceUnits.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {unitDisplay(u.name)}
+                      </option>
+                    ))}
+                  </>
+                ) : null}
+              </select>
+            </div>
           </FormField>
         </form>
       </FormModal>
@@ -1039,7 +1606,15 @@ export default function Items() {
               toast.error("Quantity must be positive.");
               return;
             }
-            reduceStock.mutate({ id: reduceStockItem.id, quantity: qty });
+            reduceStock.mutate({
+              id: reduceStockItem.id,
+              quantity: qty,
+              unit:
+                reduceStockUnitModal &&
+                reduceStockUnitModal !== reduceStockItem.unit
+                  ? reduceStockUnitModal
+                  : undefined,
+            });
           }}
         >
           <FormField label="Product">
@@ -1063,14 +1638,34 @@ export default function Items() {
             </select>
           </FormField>
           <FormField label="Quantity to deduct">
-            <input
-              name="quantity"
-              type="number"
-              min="0.01"
-              step="any"
-              required
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
+            <div className="flex gap-2">
+              <input
+                name="quantity"
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                className="flex-1 border border-gray-300 rounded px-3 py-2"
+              />
+              <select
+                value={reduceStockUnitModal}
+                onChange={(e) => setReduceStockUnitModal(e.target.value)}
+                className="w-32 border border-gray-300 rounded px-3 py-2"
+              >
+                {reduceStockItem ? (
+                  <>
+                    <option value={reduceStockItem.unit}>
+                      {unitDisplay(reduceStockItem.unit)}
+                    </option>
+                    {invoiceUnits.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {unitDisplay(u.name)}
+                      </option>
+                    ))}
+                  </>
+                ) : null}
+              </select>
+            </div>
           </FormField>
         </form>
       </FormModal>

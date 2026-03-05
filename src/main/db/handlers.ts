@@ -4,7 +4,35 @@ import type { OpenDialogOptions } from "electron";
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
 import { roundDecimal } from "../../shared/numbers";
+import {
+  convertToPrimaryQuantity,
+  type ConversionRow,
+  type ItemConversionRow,
+} from "./unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
+import {
+  SEED_CONVERSION_KEYS,
+  SEED_UNIT_NAMES,
+  SEED_UNIT_TYPE_NAMES,
+} from "../../shared/seedConstants";
+import { populateSampleData } from "./sampleData";
+
+function getUnitConversionsRows(): ConversionRow[] {
+  return getDb()
+    .prepare("SELECT from_unit, to_unit, factor FROM unit_conversions")
+    .all() as ConversionRow[];
+}
+
+function getItemUnitConversions(
+  database: ReturnType<typeof getDb>,
+  itemId: number
+): ItemConversionRow[] {
+  return database
+    .prepare(
+      "SELECT to_unit, factor FROM item_unit_conversions WHERE item_id = ?"
+    )
+    .all(itemId) as ItemConversionRow[];
+}
 
 export function registerIpcHandlers(): void {
   function db() {
@@ -16,6 +44,38 @@ export function registerIpcHandlers(): void {
     return db().prepare("SELECT * FROM items ORDER BY name").all();
   });
 
+  ipcMain.handle("items:getAllWithUnits", () => {
+    const rows = db().prepare("SELECT * FROM items ORDER BY name").all() as {
+      id: number;
+      name: string;
+      code: string | null;
+      unit: string;
+      reference_unit: string | null;
+      quantity_per_primary: number | null;
+      retail_primary_unit: string | null;
+      current_stock: number;
+      reorder_level: number | null;
+      created_at: string;
+      updated_at: string;
+    }[];
+    const otherUnitsByItem = db()
+      .prepare(
+        "SELECT item_id, unit, sort_order FROM item_other_units ORDER BY item_id, sort_order, unit"
+      )
+      .all() as { item_id: number; unit: string; sort_order: number }[];
+    const map = new Map<number, { unit: string; sort_order: number }[]>();
+    for (const ou of otherUnitsByItem) {
+      const arr = map.get(ou.item_id) ?? [];
+      arr.push({ unit: ou.unit, sort_order: ou.sort_order });
+      map.set(ou.item_id, arr);
+    }
+    return rows.map((row) => ({
+      ...row,
+      retail_primary_unit: row.retail_primary_unit ?? null,
+      other_units: map.get(row.id) ?? [],
+    }));
+  });
+
   ipcMain.handle("items:getById", (_, id: number) => {
     const row = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
       | {
@@ -23,6 +83,8 @@ export function registerIpcHandlers(): void {
           name: string;
           code: string | null;
           unit: string;
+          reference_unit: string | null;
+          quantity_per_primary: number | null;
           retail_primary_unit: string | null;
           current_stock: number;
           reorder_level: number | null;
@@ -36,10 +98,12 @@ export function registerIpcHandlers(): void {
         "SELECT id, unit, sort_order FROM item_other_units WHERE item_id = ? ORDER BY sort_order, unit"
       )
       .all(id) as { id: number; unit: string; sort_order: number }[];
+    const item_unit_conversions = getItemUnitConversions(db(), id);
     return {
       ...row,
       retail_primary_unit: row.retail_primary_unit ?? null,
       other_units: otherUnits,
+      item_unit_conversions,
     };
   });
 
@@ -82,36 +146,103 @@ export function registerIpcHandlers(): void {
         name: string;
         code?: string;
         unit: string;
+        reference_unit?: string | null;
+        quantity_per_primary?: number | null;
         retail_primary_unit?: string | null;
         current_stock?: number;
+        current_stock_value?: number;
+        current_stock_unit?: string;
         reorder_level?: number;
         other_units?: { unit: string; sort_order?: number }[];
+        conversions?: { to_unit: string; factor: number }[];
       }
     ) => {
+      const primaryUnit = item.unit || "pcs";
+      let stockPrimary: number;
+      if (
+        item.current_stock_unit != null &&
+        item.current_stock_unit !== "" &&
+        (item.current_stock_value != null || item.current_stock != null)
+      ) {
+        const val = item.current_stock_value ?? item.current_stock ?? 0;
+        const conversions = getUnitConversionsRows();
+        const result = convertToPrimaryQuantity(
+          conversions,
+          {
+            unit: primaryUnit,
+            reference_unit: item.reference_unit ?? null,
+            quantity_per_primary: item.quantity_per_primary ?? null,
+            item_conversions: item.conversions ?? undefined,
+          },
+          val,
+          item.current_stock_unit
+        );
+        if ("error" in result) throw new Error(result.error);
+        stockPrimary = result.primaryQuantity;
+      } else {
+        // Store stock with higher precision than DECIMAL_PLACES so that
+        // unit conversions (e.g. bags ↔ kg ↔ gram) stay accurate.
+        stockPrimary = roundDecimal(item.current_stock ?? 0, 6);
+      }
+      const convList = item.conversions ?? [];
+      const firstRef = convList[0];
+      const refUnit =
+        firstRef != null ? firstRef.to_unit : (item.reference_unit ?? null);
+      const qtyPerPrimary =
+        firstRef != null
+          ? roundDecimal(firstRef.factor, 6)
+          : item.quantity_per_primary != null
+            ? roundDecimal(item.quantity_per_primary, 6)
+            : null;
+      const unitIdRow = db()
+        .prepare("SELECT id FROM units WHERE name = ?")
+        .get(primaryUnit) as { id: number } | undefined;
+      const unitId = unitIdRow?.id ?? null;
       const result = db()
         .prepare(
-          "INSERT INTO items (name, code, unit, retail_primary_unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?)"
+          "INSERT INTO items (name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           item.name,
           item.code ?? null,
-          item.unit || "pcs",
+          primaryUnit,
+          unitId,
+          refUnit,
+          qtyPerPrimary,
           item.retail_primary_unit ?? null,
-          roundDecimal(item.current_stock ?? 0),
+          stockPrimary,
           item.reorder_level != null ? roundDecimal(item.reorder_level) : null
         );
       const itemId = result.lastInsertRowid as number;
       const otherUnits = item.other_units ?? [];
       if (otherUnits.length > 0) {
         const insertOther = db().prepare(
-          "INSERT INTO item_other_units (item_id, unit, sort_order) VALUES (?, ?, ?)"
+          "INSERT INTO item_other_units (item_id, unit, unit_id, sort_order) VALUES (?, ?, ?, ?)"
         );
+        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         for (const ou of otherUnits) {
+          const ouId =
+            (getUnitId.get(ou.unit) as { id: number } | undefined)?.id ?? null;
           insertOther.run(
             itemId,
             ou.unit,
+            ouId,
             typeof ou.sort_order === "number" ? ou.sort_order : 0
           );
+        }
+      }
+      if (convList.length > 0) {
+        const insertConv = db().prepare(
+          "INSERT INTO item_unit_conversions (item_id, to_unit, to_unit_id, factor) VALUES (?, ?, ?, ?)"
+        );
+        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
+        for (const c of convList) {
+          if (c.to_unit && c.factor > 0) {
+            const toId =
+              (getUnitId.get(c.to_unit) as { id: number } | undefined)?.id ??
+              null;
+            insertConv.run(itemId, c.to_unit, toId, roundDecimal(c.factor, 6));
+          }
         }
       }
       return itemId;
@@ -127,10 +258,15 @@ export function registerIpcHandlers(): void {
         name?: string;
         code?: string;
         unit?: string;
+        reference_unit?: string | null;
+        quantity_per_primary?: number | null;
         retail_primary_unit?: string | null;
         current_stock?: number;
+        current_stock_value?: number;
+        current_stock_unit?: string;
         reorder_level?: number;
         other_units?: { unit: string; sort_order?: number }[];
+        conversions?: { to_unit: string; factor: number }[];
       }
     ) => {
       const row = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
@@ -138,24 +274,74 @@ export function registerIpcHandlers(): void {
             name: string;
             code: string | null;
             unit: string;
+            reference_unit: string | null;
+            quantity_per_primary: number | null;
             retail_primary_unit: string | null;
             current_stock: number;
             reorder_level: number | null;
           }
         | undefined;
       if (!row) throw new Error("Item not found");
+      const primaryUnit = item.unit ?? row.unit;
+      const convList = item.conversions;
+      const firstConv = convList?.[0];
+      const refUnit =
+        firstConv != null
+          ? firstConv.to_unit
+          : item.reference_unit !== undefined
+            ? item.reference_unit
+            : row.reference_unit;
+      const qtyPerPrimary =
+        firstConv != null
+          ? roundDecimal(firstConv.factor, 6)
+          : item.quantity_per_primary !== undefined
+            ? item.quantity_per_primary
+            : row.quantity_per_primary;
+      const itemConvsForConvert = convList ?? getItemUnitConversions(db(), id);
+      let stockPrimary: number;
+      if (
+        item.current_stock_unit != null &&
+        item.current_stock_unit !== "" &&
+        (item.current_stock_value != null || item.current_stock != null)
+      ) {
+        const val = item.current_stock_value ?? item.current_stock ?? 0;
+        const conversions = getUnitConversionsRows();
+        const result = convertToPrimaryQuantity(
+          conversions,
+          {
+            unit: primaryUnit,
+            reference_unit: refUnit,
+            quantity_per_primary: qtyPerPrimary != null ? qtyPerPrimary : null,
+            item_conversions:
+              itemConvsForConvert.length > 0 ? itemConvsForConvert : undefined,
+          },
+          val,
+          item.current_stock_unit
+        );
+        if ("error" in result) throw new Error(result.error);
+        stockPrimary = result.primaryQuantity;
+      } else {
+        stockPrimary = roundDecimal(item.current_stock ?? row.current_stock, 6);
+      }
+      const unitIdRow = db()
+        .prepare("SELECT id FROM units WHERE name = ?")
+        .get(primaryUnit) as { id: number } | undefined;
+      const unitId = unitIdRow?.id ?? null;
       db()
         .prepare(
-          "UPDATE items SET name = ?, code = ?, unit = ?, retail_primary_unit = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           item.name ?? row.name,
           item.code !== undefined ? item.code : row.code,
-          item.unit ?? row.unit,
+          primaryUnit,
+          unitId,
+          refUnit,
+          qtyPerPrimary != null ? roundDecimal(qtyPerPrimary, 6) : null,
           item.retail_primary_unit !== undefined
             ? item.retail_primary_unit
             : row.retail_primary_unit,
-          roundDecimal(item.current_stock ?? row.current_stock),
+          stockPrimary,
           item.reorder_level !== undefined
             ? item.reorder_level != null
               ? roundDecimal(item.reorder_level)
@@ -167,14 +353,37 @@ export function registerIpcHandlers(): void {
       const otherUnits = item.other_units ?? [];
       if (otherUnits.length > 0) {
         const insertOther = db().prepare(
-          "INSERT INTO item_other_units (item_id, unit, sort_order) VALUES (?, ?, ?)"
+          "INSERT INTO item_other_units (item_id, unit, unit_id, sort_order) VALUES (?, ?, ?, ?)"
         );
+        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         for (const ou of otherUnits) {
+          const ouId =
+            (getUnitId.get(ou.unit) as { id: number } | undefined)?.id ?? null;
           insertOther.run(
             id,
             ou.unit,
+            ouId,
             typeof ou.sort_order === "number" ? ou.sort_order : 0
           );
+        }
+      }
+      if (convList !== undefined) {
+        db()
+          .prepare("DELETE FROM item_unit_conversions WHERE item_id = ?")
+          .run(id);
+        if (convList.length > 0) {
+          const insertConv = db().prepare(
+            "INSERT INTO item_unit_conversions (item_id, to_unit, to_unit_id, factor) VALUES (?, ?, ?, ?)"
+          );
+          const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
+          for (const c of convList) {
+            if (c.to_unit && c.factor > 0) {
+              const toId =
+                (getUnitId.get(c.to_unit) as { id: number } | undefined)?.id ??
+                null;
+              insertConv.run(id, c.to_unit, toId, roundDecimal(c.factor, 6));
+            }
+          }
         }
       }
       return id;
@@ -192,42 +401,190 @@ export function registerIpcHandlers(): void {
     return id;
   });
 
-  ipcMain.handle("items:addStock", (_, id: number, quantity: number) => {
-    if (quantity <= 0) throw new Error("Quantity must be positive.");
-    db()
-      .prepare(
-        "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
-      )
-      .run(roundDecimal(quantity), id);
-    return id;
+  ipcMain.handle(
+    "items:addStock",
+    (
+      _,
+      id: number,
+      quantityOrPayload: number | { quantity: number; unit: string }
+    ) => {
+      const quantity =
+        typeof quantityOrPayload === "number"
+          ? quantityOrPayload
+          : quantityOrPayload.quantity;
+      const fromUnit =
+        typeof quantityOrPayload === "number"
+          ? undefined
+          : quantityOrPayload.unit;
+      if (quantity <= 0) throw new Error("Quantity must be positive.");
+      const row = db()
+        .prepare(
+          "SELECT unit, reference_unit, quantity_per_primary FROM items WHERE id = ?"
+        )
+        .get(id) as
+        | {
+            unit: string;
+            reference_unit: string | null;
+            quantity_per_primary: number | null;
+          }
+        | undefined;
+      if (!row) throw new Error("Item not found");
+      const itemConvs = getItemUnitConversions(db(), id);
+      let primaryQty: number;
+      if (fromUnit != null && fromUnit !== "" && fromUnit !== row.unit) {
+        const conversions = getUnitConversionsRows();
+        const result = convertToPrimaryQuantity(
+          conversions,
+          {
+            ...row,
+            item_conversions: itemConvs.length > 0 ? itemConvs : undefined,
+          },
+          quantity,
+          fromUnit
+        );
+        if ("error" in result) throw new Error(result.error);
+        primaryQty = result.primaryQuantity;
+      } else {
+        primaryQty = roundDecimal(quantity, 6);
+      }
+      db()
+        .prepare(
+          "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .run(primaryQty, id);
+      return id;
+    }
+  );
+
+  ipcMain.handle(
+    "items:reduceStock",
+    (
+      _,
+      id: number,
+      quantityOrPayload: number | { quantity: number; unit: string }
+    ) => {
+      const quantity =
+        typeof quantityOrPayload === "number"
+          ? quantityOrPayload
+          : quantityOrPayload.quantity;
+      const fromUnit =
+        typeof quantityOrPayload === "number"
+          ? undefined
+          : quantityOrPayload.unit;
+      if (quantity <= 0) throw new Error("Quantity must be positive.");
+      const row = db()
+        .prepare(
+          "SELECT unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
+        )
+        .get(id) as
+        | {
+            unit: string;
+            reference_unit: string | null;
+            quantity_per_primary: number | null;
+            current_stock: number;
+          }
+        | undefined;
+      if (!row) throw new Error("Item not found");
+      const itemConvs = getItemUnitConversions(db(), id);
+      let primaryQty: number;
+      if (fromUnit != null && fromUnit !== "" && fromUnit !== row.unit) {
+        const conversions = getUnitConversionsRows();
+        const result = convertToPrimaryQuantity(
+          conversions,
+          {
+            ...row,
+            item_conversions: itemConvs.length > 0 ? itemConvs : undefined,
+          },
+          quantity,
+          fromUnit
+        );
+        if ("error" in result) throw new Error(result.error);
+        primaryQty = result.primaryQuantity;
+      } else {
+        primaryQty = roundDecimal(quantity, 6);
+      }
+      if (row.current_stock < primaryQty)
+        throw new Error("Insufficient stock.");
+      db()
+        .prepare(
+          "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .run(primaryQty, id);
+      return id;
+    }
+  );
+
+  // ---- Unit types (master data) ----
+  ipcMain.handle("unitTypes:getAll", () => {
+    return db()
+      .prepare("SELECT id, name, created_at FROM unit_types ORDER BY name")
+      .all();
   });
 
-  ipcMain.handle("items:reduceStock", (_, id: number, quantity: number) => {
-    const qty = roundDecimal(quantity);
-    if (qty <= 0) throw new Error("Quantity must be positive.");
+  ipcMain.handle("unitTypes:create", (_, name: string) => {
+    const n = typeof name === "string" ? name.trim() : "";
+    if (!n) throw new Error("Unit type name is required.");
+    const run = db().prepare("INSERT INTO unit_types (name) VALUES (?)").run(n);
+    return (run as { lastInsertRowid: number }).lastInsertRowid;
+  });
+
+  ipcMain.handle(
+    "unitTypes:update",
+    (_, id: number, payload: { name?: string }) => {
+      const row = db()
+        .prepare("SELECT id FROM unit_types WHERE id = ?")
+        .get(id);
+      if (!row) throw new Error("Unit type not found.");
+      const n =
+        typeof payload?.name === "string" ? payload.name.trim() : undefined;
+      if (n !== undefined) {
+        if (!n) throw new Error("Unit type name is required.");
+        db().prepare("UPDATE unit_types SET name = ? WHERE id = ?").run(n, id);
+      }
+      return id;
+    }
+  );
+
+  ipcMain.handle("unitTypes:delete", (_, id: number) => {
     const row = db()
-      .prepare("SELECT current_stock FROM items WHERE id = ?")
-      .get(id) as { current_stock: number } | undefined;
-    if (!row) throw new Error("Item not found");
-    if (row.current_stock < qty) throw new Error("Insufficient stock.");
-    db()
-      .prepare(
-        "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
-      )
-      .run(qty, id);
+      .prepare("SELECT id, name FROM unit_types WHERE id = ?")
+      .get(id) as { id: number; name: string } | undefined;
+    if (!row) throw new Error("Unit type not found.");
+    if (SEED_UNIT_TYPE_NAMES.has(row.name))
+      throw new Error("Cannot delete: this is a system unit type.");
+    const used = db()
+      .prepare("SELECT 1 FROM units WHERE unit_type_id = ? LIMIT 1")
+      .get(id);
+    if (used)
+      throw new Error("Cannot delete: one or more units use this type.");
+    db().prepare("DELETE FROM unit_types WHERE id = ?").run(id);
     return id;
   });
 
-  // ---- Units ----
+  // ---- Units (single table + unit_sort_order by context) ----
   ipcMain.handle("units:getAll", () => {
-    return db().prepare("SELECT * FROM units ORDER BY name").all();
+    return db()
+      .prepare(
+        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, u.created_at
+         FROM units u
+         LEFT JOIN unit_types t ON t.id = u.unit_type_id
+         INNER JOIN unit_sort_order so ON so.unit_id = u.id AND so.context = 'godown'
+         ORDER BY so.sort_order ASC, u.name ASC`
+      )
+      .all();
   });
 
   ipcMain.handle(
     "units:create",
-    (_, nameOrPayload: string | { name: string; symbol?: string | null }) => {
+    (
+      _,
+      nameOrPayload:
+        | string
+        | { name: string; symbol?: string | null; unit_type_id?: number | null }
+    ) => {
       let name: string;
       let symbol: string | null = null;
+      let unitTypeId: number | null = null;
       if (typeof nameOrPayload === "string") {
         name = nameOrPayload.trim();
       } else {
@@ -239,18 +596,57 @@ export function registerIpcHandlers(): void {
           typeof nameOrPayload?.symbol === "string"
             ? nameOrPayload.symbol.trim() || null
             : null;
+        if (
+          typeof nameOrPayload?.unit_type_id === "number" &&
+          Number.isFinite(nameOrPayload.unit_type_id)
+        ) {
+          unitTypeId = nameOrPayload.unit_type_id;
+        }
       }
       if (!name) throw new Error("Unit name is required.");
+      const run = db()
+        .prepare(
+          "INSERT OR IGNORE INTO units (name, symbol, unit_type_id) VALUES (?, ?, ?)"
+        )
+        .run(name, symbol, unitTypeId);
+      const id =
+        run.changes > 0
+          ? (run as { lastInsertRowid: number }).lastInsertRowid
+          : (
+              db().prepare("SELECT id FROM units WHERE name = ?").get(name) as {
+                id: number;
+              }
+            ).id;
+      const maxOrder = db()
+        .prepare(
+          "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM unit_sort_order WHERE context = 'godown'"
+        )
+        .get() as { next: number };
       db()
-        .prepare("INSERT OR IGNORE INTO units (name, symbol) VALUES (?, ?)")
-        .run(name, symbol);
+        .prepare(
+          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('godown', ?, ?)"
+        )
+        .run(id, maxOrder.next);
+      db()
+        .prepare(
+          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('invoice', ?, 999)"
+        )
+        .run(id);
       return name;
     }
   );
 
   ipcMain.handle(
     "units:update",
-    (_, id: number, payload: { name?: string; symbol?: string | null }) => {
+    (
+      _,
+      id: number,
+      payload: {
+        name?: string;
+        symbol?: string | null;
+        unit_type_id?: number | null;
+      }
+    ) => {
       const row = db().prepare("SELECT * FROM units WHERE id = ?").get(id) as
         | { name: string; symbol: string | null }
         | undefined;
@@ -264,9 +660,24 @@ export function registerIpcHandlers(): void {
               ? payload.symbol.trim()
               : null) || null
           : row.symbol;
-      db()
-        .prepare("UPDATE units SET name = ?, symbol = ? WHERE id = ?")
-        .run(name, symbol, id);
+      const unitTypeId =
+        payload?.unit_type_id !== undefined
+          ? typeof payload.unit_type_id === "number" &&
+            Number.isFinite(payload.unit_type_id)
+            ? payload.unit_type_id
+            : null
+          : undefined;
+      if (unitTypeId !== undefined) {
+        db()
+          .prepare(
+            "UPDATE units SET name = ?, symbol = ?, unit_type_id = ? WHERE id = ?"
+          )
+          .run(name, symbol, unitTypeId, id);
+      } else {
+        db()
+          .prepare("UPDATE units SET name = ?, symbol = ? WHERE id = ?")
+          .run(name, symbol, id);
+      }
       return id;
     }
   );
@@ -276,19 +687,108 @@ export function registerIpcHandlers(): void {
       .prepare("SELECT id, name FROM units WHERE id = ?")
       .get(id) as { id: number; name: string } | undefined;
     if (!row) throw new Error("Unit not found");
-    const used = db()
-      .prepare("SELECT 1 FROM items WHERE unit = ? LIMIT 1")
-      .get(row.name) as { "1": number } | undefined;
+    if (SEED_UNIT_NAMES.has(row.name))
+      throw new Error("Cannot delete: this is a system unit.");
+    const usedByUnitId = db()
+      .prepare("SELECT 1 FROM items WHERE unit_id = ? LIMIT 1")
+      .get(id) as { "1": number } | undefined;
+    const used =
+      usedByUnitId ??
+      (db()
+        .prepare("SELECT 1 FROM items WHERE unit = ? LIMIT 1")
+        .get(row.name) as { "1": number } | undefined);
     if (used)
       throw new Error("Cannot delete unit: one or more products use it.");
+    db().prepare("DELETE FROM unit_sort_order WHERE unit_id = ?").run(id);
     db().prepare("DELETE FROM units WHERE id = ?").run(id);
     return id;
   });
 
-  // ---- Invoice units ----
+  ipcMain.handle(
+    "units:reorder",
+    (_, context: "godown" | "invoice", unitIds: number[]) => {
+      if (!Array.isArray(unitIds) || unitIds.length === 0) return;
+      const update = db().prepare(
+        "UPDATE unit_sort_order SET sort_order = ? WHERE context = ? AND unit_id = ?"
+      );
+      unitIds.forEach((unitId, index) => {
+        update.run(index, context, unitId);
+      });
+    }
+  );
+
+  ipcMain.handle("units:getAllWithContext", () => {
+    return db()
+      .prepare(
+        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, u.created_at,
+         EXISTS (SELECT 1 FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'godown') AS in_godown,
+         EXISTS (SELECT 1 FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'invoice') AS in_invoice,
+         (SELECT so.sort_order FROM unit_sort_order so WHERE so.unit_id = u.id AND so.context = 'invoice' LIMIT 1) AS invoice_sort_order
+         FROM units u
+         LEFT JOIN unit_types t ON t.id = u.unit_type_id
+         ORDER BY u.name ASC`
+      )
+      .all();
+  });
+
+  ipcMain.handle(
+    "units:addToContext",
+    (_, unitId: number, context: "godown" | "invoice", sortOrder?: number) => {
+      const row = db()
+        .prepare("SELECT id FROM units WHERE id = ?")
+        .get(unitId) as { id: number } | undefined;
+      if (!row) throw new Error("Unit not found");
+      const existing = db()
+        .prepare(
+          "SELECT 1 FROM unit_sort_order WHERE unit_id = ? AND context = ?"
+        )
+        .get(unitId, context);
+      if (existing) return unitId;
+      let order: number;
+      if (context === "godown") {
+        const max = db()
+          .prepare(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM unit_sort_order WHERE context = 'godown'"
+          )
+          .get() as { next: number };
+        order = max.next;
+      } else {
+        order =
+          typeof sortOrder === "number" && Number.isFinite(sortOrder)
+            ? sortOrder
+            : 999;
+      }
+      db()
+        .prepare(
+          "INSERT INTO unit_sort_order (context, unit_id, sort_order) VALUES (?, ?, ?)"
+        )
+        .run(context, unitId, order);
+      return unitId;
+    }
+  );
+
+  ipcMain.handle(
+    "units:removeFromContext",
+    (_, unitId: number, context: "godown" | "invoice") => {
+      db()
+        .prepare(
+          "DELETE FROM unit_sort_order WHERE unit_id = ? AND context = ?"
+        )
+        .run(unitId, context);
+      return unitId;
+    }
+  );
+
+  // ---- Invoice units (same units table, context = invoice) ----
   ipcMain.handle("invoiceUnits:getAll", () => {
     return db()
-      .prepare("SELECT * FROM invoice_units ORDER BY sort_order ASC, name ASC")
+      .prepare(
+        `SELECT u.id, u.name, u.symbol, u.unit_type_id, t.name AS unit_type_name, so.sort_order, u.created_at
+         FROM units u
+         LEFT JOIN unit_types t ON t.id = u.unit_type_id
+         INNER JOIN unit_sort_order so ON so.unit_id = u.id AND so.context = 'invoice'
+         ORDER BY so.sort_order ASC, u.name ASC`
+      )
       .all();
   });
 
@@ -296,7 +796,12 @@ export function registerIpcHandlers(): void {
     "invoiceUnits:create",
     (
       _,
-      payload: { name: string; symbol?: string | null; sort_order?: number }
+      payload: {
+        name: string;
+        symbol?: string | null;
+        sort_order?: number;
+        unit_type_id?: number | null;
+      }
     ) => {
       const name = typeof payload?.name === "string" ? payload.name.trim() : "";
       if (!name) throw new Error("Invoice unit name is required.");
@@ -309,12 +814,32 @@ export function registerIpcHandlers(): void {
         Number.isFinite(payload.sort_order)
           ? payload.sort_order
           : 999;
-      const result = db()
+      const unitTypeId =
+        payload?.unit_type_id !== undefined &&
+        typeof payload.unit_type_id === "number" &&
+        Number.isFinite(payload.unit_type_id)
+          ? payload.unit_type_id
+          : null;
+      db()
         .prepare(
-          "INSERT INTO invoice_units (name, symbol, sort_order) VALUES (?, ?, ?)"
+          "INSERT OR IGNORE INTO units (name, symbol, unit_type_id) VALUES (?, ?, ?)"
         )
-        .run(name, symbol, sortOrder);
-      return result.lastInsertRowid as number;
+        .run(name, symbol, unitTypeId);
+      const row = db()
+        .prepare("SELECT id FROM units WHERE name = ?")
+        .get(name) as { id: number } | undefined;
+      if (!row) throw new Error("Unit not found after insert");
+      db()
+        .prepare(
+          "INSERT INTO unit_sort_order (context, unit_id, sort_order) VALUES (?, ?, ?) ON CONFLICT(context, unit_id) DO UPDATE SET sort_order = excluded.sort_order"
+        )
+        .run("invoice", row.id, sortOrder);
+      db()
+        .prepare(
+          "INSERT OR IGNORE INTO unit_sort_order (context, unit_id, sort_order) VALUES ('godown', ?, 999)"
+        )
+        .run(row.id);
+      return row.id;
     }
   );
 
@@ -325,10 +850,8 @@ export function registerIpcHandlers(): void {
       id: number,
       payload: { name?: string; symbol?: string | null; sort_order?: number }
     ) => {
-      const row = db()
-        .prepare("SELECT * FROM invoice_units WHERE id = ?")
-        .get(id) as
-        | { name: string; symbol: string | null; sort_order: number }
+      const row = db().prepare("SELECT * FROM units WHERE id = ?").get(id) as
+        | { name: string; symbol: string | null }
         | undefined;
       if (!row) throw new Error("Invoice unit not found");
       const name =
@@ -340,26 +863,138 @@ export function registerIpcHandlers(): void {
               ? payload.symbol.trim()
               : null) || null
           : row.symbol;
-      const sortOrder =
+      db()
+        .prepare("UPDATE units SET name = ?, symbol = ? WHERE id = ?")
+        .run(name, symbol, id);
+      if (
         typeof payload?.sort_order === "number" &&
         Number.isFinite(payload.sort_order)
-          ? payload.sort_order
-          : row.sort_order;
-      db()
-        .prepare(
-          "UPDATE invoice_units SET name = ?, symbol = ?, sort_order = ? WHERE id = ?"
-        )
-        .run(name, symbol, sortOrder, id);
+      ) {
+        db()
+          .prepare(
+            "UPDATE unit_sort_order SET sort_order = ? WHERE context = 'invoice' AND unit_id = ?"
+          )
+          .run(payload.sort_order, id);
+      }
       return id;
     }
   );
 
   ipcMain.handle("invoiceUnits:delete", (_, id: number) => {
-    const row = db()
-      .prepare("SELECT id FROM invoice_units WHERE id = ?")
-      .get(id);
+    const row = db().prepare("SELECT id FROM units WHERE id = ?").get(id);
     if (!row) throw new Error("Invoice unit not found");
-    db().prepare("DELETE FROM invoice_units WHERE id = ?").run(id);
+    db()
+      .prepare(
+        "DELETE FROM unit_sort_order WHERE context = 'invoice' AND unit_id = ?"
+      )
+      .run(id);
+    return id;
+  });
+
+  // ---- Unit conversions ----
+  ipcMain.handle("unitConversions:getAll", () => {
+    return db()
+      .prepare(
+        "SELECT id, from_unit, to_unit, factor, created_at FROM unit_conversions ORDER BY from_unit, to_unit"
+      )
+      .all();
+  });
+
+  ipcMain.handle(
+    "unitConversions:create",
+    (_, payload: { from_unit: string; to_unit: string; factor: number }) => {
+      const from = payload.from_unit?.trim();
+      const to = payload.to_unit?.trim();
+      const factor = Number(payload.factor);
+      if (!from || !to) throw new Error("From unit and to unit are required.");
+      if (!Number.isFinite(factor) || factor <= 0)
+        throw new Error("Factor must be a positive number.");
+      const fromId =
+        (
+          db().prepare("SELECT id FROM units WHERE name = ?").get(from) as
+            | { id: number }
+            | undefined
+        )?.id ?? null;
+      const toId =
+        (
+          db().prepare("SELECT id FROM units WHERE name = ?").get(to) as
+            | { id: number }
+            | undefined
+        )?.id ?? null;
+      const result = db()
+        .prepare(
+          "INSERT INTO unit_conversions (from_unit, to_unit, from_unit_id, to_unit_id, factor) VALUES (?, ?, ?, ?, ?)"
+        )
+        .run(from, to, fromId, toId, roundDecimal(factor, 10));
+      return result.lastInsertRowid as number;
+    }
+  );
+
+  ipcMain.handle(
+    "unitConversions:update",
+    (
+      _,
+      id: number,
+      payload: {
+        from_unit?: string;
+        to_unit?: string;
+        factor?: number;
+      }
+    ) => {
+      const row = db()
+        .prepare(
+          "SELECT id, from_unit, to_unit, factor FROM unit_conversions WHERE id = ?"
+        )
+        .get(id) as
+        | { id: number; from_unit: string; to_unit: string; factor: number }
+        | undefined;
+      if (!row) throw new Error("Unit conversion not found.");
+      const from =
+        payload.from_unit !== undefined
+          ? payload.from_unit.trim()
+          : row.from_unit;
+      const to =
+        payload.to_unit !== undefined ? payload.to_unit.trim() : row.to_unit;
+      const factor =
+        payload.factor !== undefined && Number.isFinite(payload.factor)
+          ? payload.factor
+          : row.factor;
+      if (!from || !to) throw new Error("From unit and to unit are required.");
+      if (factor <= 0) throw new Error("Factor must be a positive number.");
+      const fromId =
+        (
+          db().prepare("SELECT id FROM units WHERE name = ?").get(from) as
+            | { id: number }
+            | undefined
+        )?.id ?? null;
+      const toId =
+        (
+          db().prepare("SELECT id FROM units WHERE name = ?").get(to) as
+            | { id: number }
+            | undefined
+        )?.id ?? null;
+      db()
+        .prepare(
+          "UPDATE unit_conversions SET from_unit = ?, to_unit = ?, from_unit_id = ?, to_unit_id = ?, factor = ? WHERE id = ?"
+        )
+        .run(from, to, fromId, toId, roundDecimal(factor, 10), id);
+      return id;
+    }
+  );
+
+  ipcMain.handle("unitConversions:delete", (_, id: number) => {
+    const row = db()
+      .prepare(
+        "SELECT id, from_unit, to_unit FROM unit_conversions WHERE id = ?"
+      )
+      .get(id) as
+      | { id: number; from_unit: string; to_unit: string }
+      | undefined;
+    if (!row) throw new Error("Unit conversion not found.");
+    const key = `${row.from_unit}|${row.to_unit}`;
+    if (SEED_CONVERSION_KEYS.has(key))
+      throw new Error("Cannot delete: this is a system conversion.");
+    db().prepare("DELETE FROM unit_conversions WHERE id = ?").run(id);
     return id;
   });
 
@@ -506,6 +1141,15 @@ export function registerIpcHandlers(): void {
       const nextSeq = (maxSeq?.n ?? 0) + 1;
       const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, "0")}`;
       const run = db().transaction(() => {
+        const conversions = getUnitConversionsRows();
+        const itemInfoStmt = db().prepare(
+          "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
+        );
+        const stockDeltaByItem = new Map<
+          number,
+          { name: string; delta: number }
+        >();
+
         const r = db()
           .prepare(
             "INSERT INTO invoices (invoice_number, customer_name, customer_address, invoice_date, notes) VALUES (?, ?, ?, ?, ?)"
@@ -518,21 +1162,89 @@ export function registerIpcHandlers(): void {
             payload.notes ?? null
           );
         const invoiceId = r.lastInsertRowid as number;
+        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
+          const unitId =
+            (getUnitId.get(line.unit ?? "") as { id: number } | undefined)
+              ?.id ?? null;
           stmt.run(
             invoiceId,
             line.product_id,
             line.product_name ?? null,
-            roundDecimal(line.quantity),
-            line.unit,
+            roundDecimal(line.quantity, 6),
+            line.unit ?? "",
+            unitId,
             roundDecimal(line.price),
             roundDecimal(line.amount),
             line.price_entered_as ?? "per_unit"
           );
+
+          if (line.product_id > 0) {
+            const itemRow = itemInfoStmt.get(line.product_id) as
+              | {
+                  id: number;
+                  name: string;
+                  unit: string;
+                  reference_unit: string | null;
+                  quantity_per_primary: number | null;
+                  current_stock: number;
+                }
+              | undefined;
+            if (!itemRow) {
+              throw new Error("Product not found for invoice line.");
+            }
+            const itemConvs = getItemUnitConversions(db(), itemRow.id);
+            const conv = convertToPrimaryQuantity(
+              conversions,
+              {
+                unit: itemRow.unit,
+                reference_unit: itemRow.reference_unit,
+                quantity_per_primary: itemRow.quantity_per_primary,
+                item_conversions: itemConvs.length > 0 ? itemConvs : undefined,
+              },
+              line.quantity,
+              line.unit
+            );
+            if ("error" in conv) {
+              throw new Error(
+                `Cannot deduct stock for ${itemRow.name}: ${conv.error}`
+              );
+            }
+            const prev = stockDeltaByItem.get(itemRow.id)?.delta ?? 0;
+            stockDeltaByItem.set(itemRow.id, {
+              name: itemRow.name,
+              delta: prev - conv.primaryQuantity,
+            });
+          }
         }
+
+        if (stockDeltaByItem.size > 0) {
+          const stockStmt = db().prepare(
+            "SELECT current_stock FROM items WHERE id = ?"
+          );
+          const updateStmt = db().prepare(
+            "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+          );
+          for (const [itemId, info] of stockDeltaByItem) {
+            const row = stockStmt.get(itemId) as
+              | { current_stock: number }
+              | undefined;
+            if (!row) continue;
+            const newStock = row.current_stock + info.delta;
+            if (newStock < -1e-6) {
+              throw new Error(
+                `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
+              );
+            }
+            if (info.delta !== 0) {
+              updateStmt.run(info.delta, itemId);
+            }
+          }
+        }
+
         return invoiceId;
       });
       return run();
@@ -567,7 +1279,107 @@ export function registerIpcHandlers(): void {
       if (!existing) throw new Error("Invoice not found");
       if (!payload.lines?.length)
         throw new Error("At least one line is required.");
+
+      const existingLines = db()
+        .prepare(
+          "SELECT product_id, product_name, quantity, unit FROM invoice_lines WHERE invoice_id = ?"
+        )
+        .all(id) as {
+        product_id: number | null;
+        product_name: string | null;
+        quantity: number;
+        unit: string;
+      }[];
+
       db().transaction(() => {
+        const conversions = getUnitConversionsRows();
+        const itemInfoStmt = db().prepare(
+          "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
+        );
+        const stockDeltaByItem = new Map<
+          number,
+          { name: string; delta: number }
+        >();
+
+        // Old lines: add back their quantities.
+        for (const line of existingLines) {
+          if (!line.product_id || line.product_id <= 0) continue;
+          const itemRow = itemInfoStmt.get(line.product_id) as
+            | {
+                id: number;
+                name: string;
+                unit: string;
+                reference_unit: string | null;
+                quantity_per_primary: number | null;
+                current_stock: number;
+              }
+            | undefined;
+          if (!itemRow) continue;
+          const itemConvs = getItemUnitConversions(db(), itemRow.id);
+          const conv = convertToPrimaryQuantity(
+            conversions,
+            {
+              unit: itemRow.unit,
+              reference_unit: itemRow.reference_unit,
+              quantity_per_primary: itemRow.quantity_per_primary,
+              item_conversions: itemConvs.length > 0 ? itemConvs : undefined,
+            },
+            line.quantity,
+            line.unit
+          );
+          if ("error" in conv) {
+            throw new Error(
+              `Cannot restore stock for ${itemRow.name}: ${conv.error}`
+            );
+          }
+          const prev = stockDeltaByItem.get(itemRow.id)?.delta ?? 0;
+          stockDeltaByItem.set(itemRow.id, {
+            name: itemRow.name,
+            delta: prev + conv.primaryQuantity,
+          });
+        }
+
+        // New lines: deduct their quantities.
+        for (const line of payload.lines) {
+          if (line.product_id <= 0) continue;
+          const itemRow = itemInfoStmt.get(line.product_id) as
+            | {
+                id: number;
+                name: string;
+                unit: string;
+                reference_unit: string | null;
+                quantity_per_primary: number | null;
+                current_stock: number;
+              }
+            | undefined;
+          if (!itemRow) {
+            throw new Error("Product not found for invoice line.");
+          }
+          const itemConvsNew = getItemUnitConversions(db(), line.product_id);
+          const conv = convertToPrimaryQuantity(
+            conversions,
+            {
+              unit: itemRow.unit,
+              reference_unit: itemRow.reference_unit,
+              quantity_per_primary: itemRow.quantity_per_primary,
+              item_conversions:
+                itemConvsNew.length > 0 ? itemConvsNew : undefined,
+            },
+            line.quantity,
+            line.unit
+          );
+          if ("error" in conv) {
+            throw new Error(
+              `Cannot deduct stock for ${itemRow.name}: ${conv.error}`
+            );
+          }
+          const prev = stockDeltaByItem.get(itemRow.id)?.delta ?? 0;
+          stockDeltaByItem.set(itemRow.id, {
+            name: itemRow.name,
+            delta: prev - conv.primaryQuantity,
+          });
+        }
+
         db()
           .prepare(
             "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, invoice_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
@@ -581,20 +1393,49 @@ export function registerIpcHandlers(): void {
             id
           );
         db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
+        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
+          const unitId =
+            (getUnitId.get(line.unit ?? "") as { id: number } | undefined)
+              ?.id ?? null;
           stmt.run(
             id,
             line.product_id,
             line.product_name ?? null,
-            roundDecimal(line.quantity),
-            line.unit,
+            roundDecimal(line.quantity, 6),
+            line.unit ?? "",
+            unitId,
             roundDecimal(line.price),
             roundDecimal(line.amount),
             line.price_entered_as ?? "per_unit"
           );
+        }
+
+        if (stockDeltaByItem.size > 0) {
+          const stockStmt = db().prepare(
+            "SELECT current_stock FROM items WHERE id = ?"
+          );
+          const updateStmt = db().prepare(
+            "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+          );
+          for (const [itemId, info] of stockDeltaByItem) {
+            const row = stockStmt.get(itemId) as
+              | { current_stock: number }
+              | undefined;
+            if (!row) continue;
+            const newStock = row.current_stock + info.delta;
+            if (newStock < -1e-6) {
+              throw new Error(
+                `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
+              );
+            }
+            if (info.delta !== 0) {
+              updateStmt.run(info.delta, itemId);
+            }
+          }
         }
       })();
       return id;
@@ -604,10 +1445,82 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("invoices:delete", (_, id: number) => {
     const existing = db()
       .prepare("SELECT id FROM invoices WHERE id = ?")
-      .get(id);
+      .get(id) as { id: number } | undefined;
     if (!existing) throw new Error("Invoice not found");
-    db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
-    db().prepare("DELETE FROM invoices WHERE id = ?").run(id);
+
+    const lines = db()
+      .prepare(
+        "SELECT product_id, product_name, quantity, unit FROM invoice_lines WHERE invoice_id = ?"
+      )
+      .all(id) as {
+      product_id: number | null;
+      product_name: string | null;
+      quantity: number;
+      unit: string;
+    }[];
+
+    db().transaction(() => {
+      const conversions = getUnitConversionsRows();
+      const itemInfoStmt = db().prepare(
+        "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
+      );
+      const stockDeltaByItem = new Map<
+        number,
+        { name: string; delta: number }
+      >();
+
+      for (const line of lines) {
+        if (!line.product_id || line.product_id <= 0) continue;
+        const itemRow = itemInfoStmt.get(line.product_id) as
+          | {
+              id: number;
+              name: string;
+              unit: string;
+              reference_unit: string | null;
+              quantity_per_primary: number | null;
+              current_stock: number;
+            }
+          | undefined;
+        if (!itemRow) continue;
+        const itemConvsDel = getItemUnitConversions(db(), itemRow.id);
+        const conv = convertToPrimaryQuantity(
+          conversions,
+          {
+            unit: itemRow.unit,
+            reference_unit: itemRow.reference_unit,
+            quantity_per_primary: itemRow.quantity_per_primary,
+            item_conversions:
+              itemConvsDel.length > 0 ? itemConvsDel : undefined,
+          },
+          line.quantity,
+          line.unit
+        );
+        if ("error" in conv) {
+          throw new Error(
+            `Cannot restore stock for ${itemRow.name}: ${conv.error}`
+          );
+        }
+        const prev = stockDeltaByItem.get(itemRow.id)?.delta ?? 0;
+        stockDeltaByItem.set(itemRow.id, {
+          name: itemRow.name,
+          delta: prev + conv.primaryQuantity,
+        });
+      }
+
+      if (stockDeltaByItem.size > 0) {
+        const updateStmt = db().prepare(
+          "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+        );
+        for (const [itemId, info] of stockDeltaByItem) {
+          if (info.delta !== 0) {
+            updateStmt.run(info.delta, itemId);
+          }
+        }
+      }
+
+      db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
+      db().prepare("DELETE FROM invoices WHERE id = ?").run(id);
+    })();
     return id;
   });
 
@@ -1570,6 +2483,10 @@ export function registerIpcHandlers(): void {
   // ---- Database danger zone (Settings) ----
   ipcMain.handle("db:getPath", () => getDbPath());
 
+  ipcMain.handle("db:populateSampleData", () => {
+    populateSampleData(db());
+  });
+
   ipcMain.handle("db:clearTables", () => {
     const database = db();
     const tables = [
@@ -1581,8 +2498,10 @@ export function registerIpcHandlers(): void {
       "item_other_units",
       "items",
       "mahajans",
+      "unit_sort_order",
+      "unit_conversions",
       "units",
-      "invoice_units",
+      "unit_types",
       "settings",
     ];
     for (const table of tables) {
@@ -1603,13 +2522,17 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("db:exportDb", async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
+    const win =
+      BrowserWindow.fromWebContents(event.sender) ??
+      BrowserWindow.getFocusedWindow();
     const opts = {
       title: "Export database",
       defaultPath: "godown-export.db",
       filters: [{ name: "SQLite database", extensions: ["db"] }],
     };
-    const result = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+    const result = win
+      ? await dialog.showSaveDialog(win, opts)
+      : await dialog.showSaveDialog(opts);
     if (result.canceled || !result.filePath) return { canceled: true };
     const dest = result.filePath;
     closeDb();
@@ -1620,14 +2543,19 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("db:importDb", async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
+    const win =
+      BrowserWindow.fromWebContents(event.sender) ??
+      BrowserWindow.getFocusedWindow();
     const opts: OpenDialogOptions = {
       title: "Import database",
       filters: [{ name: "SQLite database", extensions: ["db"] }],
       properties: ["openFile"],
     };
-    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
-    if (result.canceled || result.filePaths.length === 0) return { canceled: true };
+    const result = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts);
+    if (result.canceled || result.filePaths.length === 0)
+      return { canceled: true };
     const src = result.filePaths[0];
     closeDb();
     const dest = getDbPath();
