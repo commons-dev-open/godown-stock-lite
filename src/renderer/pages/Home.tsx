@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
+import Table from "../components/Table";
 import { formatDateForView, formatDateForForm, todayISO } from "../lib/date";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
@@ -216,46 +217,51 @@ export default function Home() {
         {weeklyLoading ? (
           <TableLoader />
         ) : (
-          <div className="table-scroll-wrap overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-right py-2">Sale</th>
-                  <th className="text-right py-2">Invoice</th>
-                  <th className="text-right py-2">Misc</th>
-                  <th className="text-right py-2">Cash in Hand</th>
-                  <th className="text-right py-2">Expenditure</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(weeklySales as WeeklyRow[]).map((s) => (
-                  <tr key={s.sale_date} className="border-b">
-                    <td className="py-2">
-                      <Tooltip content={formatDateForForm(s.sale_date)}>
-                        <span>{formatDateForView(s.sale_date)}</span>
-                      </Tooltip>
-                    </td>
-                    <td className="text-right py-2">
-                      {formatRupee(s.sale_amount)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatRupee(s.invoice_sales ?? 0)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatRupee(s.misc_sales ?? 0)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatRupee(s.cash_in_hand)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatRupee(s.expenditure_amount ?? 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table<WeeklyRow>
+            columns={[
+              {
+                key: "sale_date",
+                label: "Date",
+                render: (s) => (
+                  <Tooltip content={formatDateForForm(s.sale_date)}>
+                    <span>{formatDateForView(s.sale_date)}</span>
+                  </Tooltip>
+                ),
+              },
+              {
+                key: "sale_amount",
+                label: "Sale",
+                align: "right",
+                render: (s) => formatRupee(s.sale_amount),
+              },
+              {
+                key: "invoice_sales",
+                label: "Invoice",
+                align: "right",
+                render: (s) => formatRupee(s.invoice_sales ?? 0),
+              },
+              {
+                key: "misc_sales",
+                label: "Misc",
+                align: "right",
+                render: (s) => formatRupee(s.misc_sales ?? 0),
+              },
+              {
+                key: "cash_in_hand",
+                label: "Cash in Hand",
+                align: "right",
+                render: (s) => formatRupee(s.cash_in_hand),
+              },
+              {
+                key: "expenditure_amount",
+                label: "Expenditure",
+                align: "right",
+                render: (s) => formatRupee(s.expenditure_amount ?? 0),
+              },
+            ]}
+            data={weeklySales as WeeklyRow[]}
+            getRowKey={(s) => s.sale_date}
+          />
         )}
       </section>
 
@@ -418,37 +424,31 @@ export default function Home() {
             & Stock page) to see alerts.
           </p>
         ) : (
-          <div className="table-scroll-wrap overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-2">Item</th>
-                  <th className="text-right py-2">Current</th>
-                  <th className="text-right py-2">Reorder At</th>
-                  <th className="text-left py-2">Unit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowStockItems.map((item) => (
-                  <tr key={item.id} className="border-b">
-                    <td className="py-2">{item.name}</td>
-                    <td className="text-right py-2">
-                      {formatDecimal(item.current_stock)}
-                    </td>
-                    <td className="text-right py-2">
-                      {formatDecimal(item.reorder_level)}
-                    </td>
-                    <td className="py-2">{item.unit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            columns={[
+              { key: "name", label: "Item" },
+              {
+                key: "current_stock",
+                label: "Current",
+                align: "right",
+                render: (item) => formatDecimal(item.current_stock),
+              },
+              {
+                key: "reorder_level",
+                label: "Reorder At",
+                align: "right",
+                render: (item) => formatDecimal(item.reorder_level),
+              },
+              { key: "unit", label: "Unit" },
+            ]}
+            data={lowStockItems}
+            getRowKey={(item) => item.id}
+          />
         )}
       </section>
 
       {/* Profit / Loss */}
-      <section className="bg-white rounded-lg border p-4">
+      {/* <section className="bg-white rounded-lg border p-4">
         <h2 className="text-lg font-medium text-gray-900 mb-3">
           Profit / Loss
         </h2>
@@ -515,6 +515,7 @@ export default function Home() {
             </button>
           </div>
         </div>
+        d
         {plResult && (
           <div className="text-sm space-y-1 border-t pt-3">
             <p>Opening Balance: {formatRupee(plResult.openingBalance)}</p>
@@ -552,7 +553,7 @@ export default function Home() {
             </p>
           </div>
         )}
-      </section>
+      </section> */}
     </div>
   );
 }
