@@ -116,10 +116,13 @@ const electronAPI = {
     dateTo?: string;
   }) => ipcRenderer.invoke("invoices:getPage", opts),
   getInvoiceById: (id: number) => ipcRenderer.invoke("invoices:getById", id),
+  getCustomerByPhone: (phone: string) =>
+    ipcRenderer.invoke("customers:getByPhone", phone),
   createInvoice: (payload: {
     invoice_number?: string | null;
     customer_name?: string | null;
     customer_address?: string | null;
+    customer_phone?: string | null;
     invoice_date: string;
     notes?: string | null;
     lines: {
@@ -136,6 +139,7 @@ const electronAPI = {
       invoice_number?: string | null;
       customer_name?: string | null;
       customer_address?: string | null;
+      customer_phone?: string | null;
       invoice_date?: string;
       notes?: string | null;
       lines: {

@@ -87,6 +87,10 @@ export function exportInvoiceToPdf(
   const billDateTime = formatBillDateTime(new Date());
   doc.text(`Date: ${billDateTime}`, MARGIN_MM, y);
   y += 5;
+  if (invoice.customer_phone) {
+    doc.text(`Phone: ${invoice.customer_phone}`, MARGIN_MM, y);
+    y += 5;
+  }
   if (invoice.customer_name) {
     doc.text(`Customer: ${invoice.customer_name}`, MARGIN_MM, y);
     y += 5;

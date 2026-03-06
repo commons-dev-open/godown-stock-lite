@@ -998,10 +998,10 @@ export function registerIpcHandlers(): void {
       const params: (string | number)[] = [];
       if (search) {
         conditions.push(
-          "(invoice_number LIKE ? OR customer_name LIKE ? OR customer_address LIKE ?)"
+          "(invoice_number LIKE ? OR customer_name LIKE ? OR customer_address LIKE ? OR COALESCE(customer_phone, '') LIKE ?)"
         );
         const like = `%${search}%`;
-        params.push(like, like, like);
+        params.push(like, like, like, like);
       }
       if (dateFrom) {
         conditions.push("invoice_date >= ?");
@@ -1054,6 +1054,7 @@ export function registerIpcHandlers(): void {
         invoice_number?: string | null;
         customer_name?: string | null;
         customer_address?: string | null;
+        customer_phone?: string | null;
         invoice_date: string;
         notes?: string | null;
         lines: {
@@ -1089,14 +1090,31 @@ export function registerIpcHandlers(): void {
           { name: string; delta: number }
         >();
 
+        // Handle customer phone: upsert customer if phone provided
+        let customerId: number | null = null;
+        const customerPhone =
+          typeof payload.customer_phone === "string" &&
+          payload.customer_phone.trim()
+            ? payload.customer_phone.trim()
+            : null;
+        if (customerPhone) {
+          customerId = upsertCustomer(
+            customerPhone,
+            payload.customer_name ?? null,
+            payload.customer_address ?? null
+          );
+        }
+
         const r = db()
           .prepare(
-            "INSERT INTO invoices (invoice_number, customer_name, customer_address, invoice_date, notes) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
           )
           .run(
             invoiceNumber,
             payload.customer_name ?? null,
             payload.customer_address ?? null,
+            customerPhone,
+            customerId,
             payload.invoice_date,
             payload.notes ?? null
           );
@@ -1202,6 +1220,7 @@ export function registerIpcHandlers(): void {
         invoice_number?: string | null;
         customer_name?: string | null;
         customer_address?: string | null;
+        customer_phone?: string | null;
         invoice_date?: string;
         notes?: string | null;
         lines: {
@@ -1217,7 +1236,14 @@ export function registerIpcHandlers(): void {
     ) => {
       const existing = db()
         .prepare("SELECT * FROM invoices WHERE id = ?")
-        .get(id) as { invoice_date: string } | undefined;
+        .get(id) as
+        | {
+            invoice_date: string;
+            customer_id?: number | null;
+            customer_name?: string | null;
+            customer_address?: string | null;
+          }
+        | undefined;
       if (!existing) throw new Error("Invoice not found");
       if (!payload.lines?.length)
         throw new Error("At least one line is required.");
@@ -1329,14 +1355,32 @@ export function registerIpcHandlers(): void {
           });
         }
 
+        // Handle customer phone: upsert customer if phone provided
+        let customerId: number | null = existing.customer_id ?? null;
+        let customerPhone: string | null = null;
+        const rawPhone = payload.customer_phone;
+        if (
+          typeof rawPhone === "string" &&
+          rawPhone.trim()
+        ) {
+          customerPhone = rawPhone.trim();
+          customerId = upsertCustomer(
+            customerPhone,
+            payload.customer_name ?? existing.customer_name ?? null,
+            payload.customer_address ?? existing.customer_address ?? null
+          );
+        }
+
         db()
           .prepare(
-            "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, invoice_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+            "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, customer_phone = ?, customer_id = ?, invoice_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
           )
           .run(
             payload.invoice_number ?? null,
             payload.customer_name ?? null,
             payload.customer_address ?? null,
+            customerPhone,
+            customerId,
             payload.invoice_date ?? existing.invoice_date,
             payload.notes ?? null,
             id
@@ -1488,6 +1532,51 @@ export function registerIpcHandlers(): void {
       db().prepare("DELETE FROM invoices WHERE id = ?").run(id);
     })();
     return id;
+  });
+
+  // ---- Customers ----
+  /**
+   * Upsert customer by phone. If customer with phone exists, update name/address.
+   * Otherwise, insert new customer. Returns customer id.
+   */
+  function upsertCustomer(
+    phone: string,
+    name: string | null,
+    address: string | null
+  ): number {
+    const trimmedPhone = phone.trim();
+    const existing = db()
+      .prepare("SELECT id FROM customers WHERE phone = ?")
+      .get(trimmedPhone) as { id: number } | undefined;
+    if (existing) {
+      db()
+        .prepare(
+          "UPDATE customers SET name = ?, address = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .run(name, address, existing.id);
+      return existing.id;
+    }
+    const r = db()
+      .prepare(
+        "INSERT INTO customers (phone, name, address) VALUES (?, ?, ?)"
+      )
+      .run(trimmedPhone, name, address);
+    return r.lastInsertRowid as number;
+  }
+
+  ipcMain.handle("customers:getByPhone", (_, phone: string) => {
+    const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
+    if (!trimmedPhone) return null;
+    const result = db()
+      .prepare("SELECT id, phone, name, address FROM customers WHERE phone = ?")
+      .get(trimmedPhone) as
+      | { id: number; phone: string; name: string | null; address: string | null }
+      | undefined;
+    return result ?? null;
+  });
+
+  ipcMain.handle("customers:upsert", (_, data: { phone: string; name?: string | null; address?: string | null }) => {
+    return upsertCustomer(data.phone, data.name ?? null, data.address ?? null);
   });
 
   // ---- Mahajans ----

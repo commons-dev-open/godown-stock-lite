@@ -145,10 +145,17 @@ export interface ElectronAPI {
     dateTo?: string;
   }) => Promise<{ data: unknown[]; total: number }>;
   getInvoiceById: (id: number) => Promise<unknown>;
+  getCustomerByPhone: (phone: string) => Promise<{
+    id: number;
+    phone: string;
+    name: string | null;
+    address: string | null;
+  } | null>;
   createInvoice: (payload: {
     invoice_number?: string | null;
     customer_name?: string | null;
     customer_address?: string | null;
+    customer_phone?: string | null;
     invoice_date: string;
     notes?: string | null;
     lines: {
@@ -167,6 +174,7 @@ export interface ElectronAPI {
       invoice_number?: string | null;
       customer_name?: string | null;
       customer_address?: string | null;
+      customer_phone?: string | null;
       invoice_date?: string;
       notes?: string | null;
       lines: {

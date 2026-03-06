@@ -86,7 +86,7 @@ export function populateSampleData(db: Database.Database): void {
         "INSERT INTO opening_balance (year, amount, updated_at) VALUES (@year, @amount, @updated_at)"
       );
       const insertInvoice = db.prepare(
-        "INSERT INTO invoices (id, invoice_number, customer_name, customer_address, invoice_date, notes, created_at, updated_at) VALUES (@id, @invoice_number, @customer_name, @customer_address, @invoice_date, @notes, @created_at, @updated_at)"
+        "INSERT INTO invoices (id, invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes, created_at, updated_at) VALUES (@id, @invoice_number, @customer_name, @customer_address, @customer_phone, @customer_id, @invoice_date, @notes, @created_at, @updated_at)"
       );
       const insertInvoiceLine = db.prepare(
         "INSERT INTO invoice_lines (id, invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as, created_at) VALUES (@id, @invoice_id, @product_id, @product_name, @quantity, @unit, @unit_id, @price, @amount, @price_entered_as, @created_at)"
@@ -421,17 +421,25 @@ export function populateSampleData(db: Database.Database): void {
     insertOpeningBalance.run(currentYear, 50000);
 
     const insertInvoice = db.prepare(
-      "INSERT INTO invoices (invoice_number, customer_name, customer_address, invoice_date, notes) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const insertInvoiceLine = db.prepare(
       "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
+
+    const insertCustomer = db.prepare(
+      "INSERT OR IGNORE INTO customers (phone, name, address) VALUES (?, ?, ?)"
+    );
+    const getCustomerId = db.prepare(
+      "SELECT id FROM customers WHERE phone = ?"
+    ) as Database.Statement;
 
     const invoices = [
       {
         number: "INV-2025-0001",
         customer: "Local Retailer A",
         address: "Sodepur, Kolkata",
+        phone: "9876123456",
         date: "2025-04-02",
         notes: "Repeat customer",
         lines: [
@@ -443,6 +451,7 @@ export function populateSampleData(db: Database.Database): void {
         number: "INV-2025-0002",
         customer: "Local Retailer B",
         address: "Dumdum, Kolkata",
+        phone: "9876234567",
         date: "2025-04-03",
         notes: "Cash invoice",
         lines: [
@@ -454,6 +463,7 @@ export function populateSampleData(db: Database.Database): void {
         number: "INV-2025-0003",
         customer: "Tea Stall C",
         address: "Barasat Crossing",
+        phone: null as string | null,
         date: "2025-04-04",
         notes: "Monthly supply",
         lines: [
@@ -465,6 +475,7 @@ export function populateSampleData(db: Database.Database): void {
         number: "INV-2025-0004",
         customer: "Catering Service D",
         address: "Howrah",
+        phone: "9876456789",
         date: "2025-04-05",
         notes: "Event order",
         lines: [
@@ -476,6 +487,7 @@ export function populateSampleData(db: Database.Database): void {
         number: "INV-2025-0005",
         customer: "Grocery Shop E",
         address: "Lake Town, Kolkata",
+        phone: null as string | null,
         date: "2025-04-06",
         notes: "Credit invoice",
         lines: [
@@ -486,10 +498,19 @@ export function populateSampleData(db: Database.Database): void {
     ];
 
     for (const inv of invoices) {
+      const phone = inv.phone ?? null;
+      if (phone) {
+        insertCustomer.run(phone, inv.customer, inv.address);
+      }
+      const customerId = phone
+        ? (getCustomerId.get(phone) as { id: number } | undefined)?.id ?? null
+        : null;
       const res = insertInvoice.run(
         inv.number,
         inv.customer,
         inv.address,
+        phone,
+        customerId,
         inv.date,
         inv.notes
       ) as Database.RunResult;

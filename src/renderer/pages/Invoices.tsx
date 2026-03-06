@@ -169,6 +169,12 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
           <span className="font-medium">Date:</span>{" "}
           {formatBillDateTime(new Date())}
         </div>
+        {invoice.customer_phone && (
+          <div className="col-span-2">
+            <span className="font-medium">Phone:</span>{" "}
+            {invoice.customer_phone}
+          </div>
+        )}
         {invoice.customer_name && (
           <div className="col-span-2">
             <span className="font-medium">Customer:</span>{" "}
@@ -727,6 +733,7 @@ function InvoiceFormModal({
       invoice_number?: string | null;
       customer_name?: string | null;
       customer_address?: string | null;
+      customer_phone?: string | null;
       invoice_date: string;
       notes?: string | null;
       lines: Array<LinePayload>;
@@ -737,6 +744,9 @@ function InvoiceFormModal({
 }>) {
   const [invoiceNumber, setInvoiceNumber] = useState(
     () => invoice?.invoice_number ?? ""
+  );
+  const [customerPhone, setCustomerPhone] = useState(
+    () => invoice?.customer_phone ?? ""
   );
   const [customerName, setCustomerName] = useState(
     () => invoice?.customer_name ?? ""
@@ -801,6 +811,29 @@ function InvoiceFormModal({
     [items, allUnits, unitConversions, lines]
   );
 
+  const lookupCustomerByPhone = useCallback((phone: string) => {
+    const trimmed = phone.trim();
+    if (!trimmed) return;
+    void getElectron()
+      .getCustomerByPhone(trimmed)
+      .then((customer) => {
+        if (customer) {
+          setCustomerName(customer.name ?? "");
+          setCustomerAddress(customer.address ?? "");
+        }
+      });
+  }, []);
+
+  const handlePhoneBlur = useCallback(() => {
+    lookupCustomerByPhone(customerPhone);
+  }, [customerPhone, lookupCustomerByPhone]);
+
+  useEffect(() => {
+    if (!customerPhone.trim()) return;
+    const t = setTimeout(() => lookupCustomerByPhone(customerPhone), 400);
+    return () => clearTimeout(t);
+  }, [customerPhone, lookupCustomerByPhone]);
+
   const getLineConvFactor = useCallback(
     (line: LineRow): number => {
       if (!line.unit || !line.priceUnit || line.unit === line.priceUnit)
@@ -861,6 +894,7 @@ function InvoiceFormModal({
         invoice_number: invoiceNumber.trim() || null,
         customer_name: customerName.trim() || null,
         customer_address: customerAddress.trim() || null,
+        customer_phone: customerPhone.trim() || null,
         invoice_date: invoiceDate,
         notes: notes.trim() || null,
         lines: validLines.map((l) => {
@@ -974,6 +1008,16 @@ function InvoiceFormModal({
             />
           </FormField>
         </div>
+        <FormField label="Customer phone">
+          <input
+            type="tel"
+            value={customerPhone}
+            onChange={(e) => setCustomerPhone(e.target.value)}
+            onBlur={handlePhoneBlur}
+            className="input-base w-full"
+            placeholder="Optional – enter to auto-fill name/address"
+          />
+        </FormField>
         <FormField label="Customer name">
           <input
             value={customerName}

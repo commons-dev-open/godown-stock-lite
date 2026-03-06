@@ -4,6 +4,15 @@ interface DbLike {
 
 export function createSchema(db: DbLike): void {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT NOT NULL UNIQUE,
+      name TEXT,
+      address TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS unit_types (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -117,6 +126,8 @@ export function createSchema(db: DbLike): void {
       invoice_number TEXT UNIQUE,
       customer_name TEXT,
       customer_address TEXT,
+      customer_phone TEXT,
+      customer_id INTEGER REFERENCES customers(id),
       invoice_date TEXT NOT NULL,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),

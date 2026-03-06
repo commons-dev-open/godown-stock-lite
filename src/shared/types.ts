@@ -113,6 +113,8 @@ export interface Invoice {
   invoice_number: string | null;
   customer_name: string | null;
   customer_address: string | null;
+  customer_phone?: string | null;
+  customer_id?: number | null;
   invoice_date: string;
   notes: string | null;
   created_at: string;
