@@ -14,7 +14,6 @@ const navItems = [
   { to: "/transactions", label: "Transactions" },
   { to: "/sales", label: "Daily Sales" },
   { to: "/invoices", label: "Invoices" },
-  { to: "/reports", label: "Reports" },
   { to: "/settings", label: "Settings" },
   { to: "/help", label: "Help" },
 ];

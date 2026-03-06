@@ -239,6 +239,7 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setEditingLend(null);
       toast.success("Lend updated");
     },
@@ -278,6 +279,7 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       toast.success("Lend deleted");
     },
     onError: (err: Error) =>

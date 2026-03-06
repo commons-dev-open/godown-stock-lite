@@ -50,7 +50,6 @@ import type {
 } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
-const UNIT_ADD_NEW = "__new__";
 
 type ItemWithUnits = Item & {
   other_units?: { id?: number; unit: string; sort_order: number }[];
@@ -180,15 +179,13 @@ export default function Items() {
   const totalItems = pageResult?.total ?? 0;
 
   const addAllowedStockUnits = computeProductUnits({
-    primaryUnit:
-      addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
+    primaryUnit: addUnitSelect || null,
     retailPrimaryUnit: addRetailPrimary || null,
     otherUnits: addOtherUnits,
     itemConversions: addConversions,
     globalConversions: unitConversions,
     sortDirection: "desc",
-    pinUnit:
-      addUnitSelect && addUnitSelect !== UNIT_ADD_NEW ? addUnitSelect : null,
+    pinUnit: addUnitSelect || null,
   });
 
   const editAllowedStockUnits =
@@ -209,7 +206,6 @@ export default function Items() {
       name: string;
       code?: string;
       unit: string;
-      newUnitName?: string;
       retail_primary_unit?: string | null;
       other_units?: ItemOtherUnit[];
       current_stock?: number;
@@ -218,14 +214,10 @@ export default function Items() {
       conversions?: { to_unit: string; factor: number }[];
       reorder_level?: number;
     }) => {
-      let unit = payload.unit;
-      if (payload.newUnitName?.trim()) {
-        unit = await api.createUnit(payload.newUnitName.trim());
-      }
       return api.createItem({
         name: payload.name,
         code: payload.code,
-        unit,
+        unit: payload.unit,
         retail_primary_unit: payload.retail_primary_unit ?? null,
         other_units: payload.other_units,
         current_stock: payload.current_stock,
@@ -238,6 +230,7 @@ export default function Items() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       queryClient.invalidateQueries({ queryKey: ["units"] });
       setAddProductOpen(false);
     },
@@ -247,22 +240,17 @@ export default function Items() {
     mutationFn: async (payload: {
       id: number;
       item: Parameters<typeof api.updateItem>[1];
-      newUnitName?: string;
       other_units?: ItemOtherUnit[];
     }) => {
-      let unit = payload.item.unit;
-      if (payload.newUnitName?.trim()) {
-        unit = await api.createUnit(payload.newUnitName.trim());
-      }
       return api.updateItem(payload.id, {
         ...payload.item,
-        unit,
         other_units: payload.other_units,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       queryClient.invalidateQueries({ queryKey: ["units"] });
       setEditing(null);
     },
@@ -273,6 +261,7 @@ export default function Items() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
     },
   });
 
@@ -289,6 +278,7 @@ export default function Items() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setAddStockOpen(false);
       setAddStockItem(null);
     },
@@ -307,6 +297,7 @@ export default function Items() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["itemsPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setReduceStockOpen(false);
       setReduceStockItem(null);
     },
@@ -565,13 +556,10 @@ export default function Items() {
               name: HTMLInputElement;
               code: HTMLInputElement;
               unit: HTMLSelectElement;
-              unit_name?: HTMLInputElement;
               current_stock: HTMLInputElement;
               reorder_level: HTMLInputElement;
             };
-            const isNewUnit = els.unit.value === UNIT_ADD_NEW;
-            const newUnitName = els.unit_name?.value?.trim();
-            const primaryUnit = isNewUnit ? "" : els.unit.value;
+            const primaryUnit = els.unit.value;
             const stockVal = Number(els.current_stock.value) || 0;
             const stockUnit = addStockUnit || primaryUnit;
             const conversions = addConversions
@@ -584,7 +572,6 @@ export default function Items() {
               name: els.name.value,
               code: els.code.value || undefined,
               unit: primaryUnit,
-              newUnitName: isNewUnit ? newUnitName : undefined,
               retail_primary_unit: addRetailPrimary || null,
               other_units: addOtherUnits.length > 0 ? addOtherUnits : undefined,
               current_stock: stockUnit === primaryUnit ? stockVal : undefined,
@@ -658,22 +645,7 @@ export default function Items() {
                   Primary stock unit and optional retail/other units.
                 </span>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <FormField
-                    label="Primary stock unit"
-                    required
-                    extra={
-                      addUnitSelect === UNIT_ADD_NEW ? (
-                        <FormField label="Unit name" required>
-                          <input
-                            name="unit_name"
-                            className="w-full border border-gray-300 rounded px-3 py-2"
-                            placeholder="e.g. packets, tins, bags"
-                            required={addUnitSelect === UNIT_ADD_NEW}
-                          />
-                        </FormField>
-                      ) : undefined
-                    }
-                  >
+                  <FormField label="Primary stock unit" required>
                     <select
                       name="unit"
                       value={addUnitSelect}
@@ -691,7 +663,6 @@ export default function Items() {
                           {unitDisplay(u.name)}
                         </option>
                       ))}
-                      <option value={UNIT_ADD_NEW}>Add new…</option>
                     </select>
                   </FormField>
                   <FormField label="Retail primary unit (optional)">
@@ -877,7 +848,7 @@ export default function Items() {
                   >
                     {addAllowedStockUnits.length === 0 ? (
                       <option value="">
-                        {addUnitSelect && addUnitSelect !== UNIT_ADD_NEW
+                        {addUnitSelect
                           ? unitDisplay(addUnitSelect)
                           : "Select unit"}
                       </option>
@@ -1009,13 +980,10 @@ export default function Items() {
                 name: HTMLInputElement;
                 code: HTMLInputElement;
                 unit: HTMLSelectElement;
-                unit_name?: HTMLInputElement;
                 current_stock: HTMLInputElement;
                 reorder_level: HTMLInputElement;
               };
-              const isNewUnit = els.unit.value === UNIT_ADD_NEW;
-              const newUnitName = els.unit_name?.value?.trim();
-              const primaryUnit = isNewUnit ? editing.unit : els.unit.value;
+              const primaryUnit = els.unit.value;
               const stockVal = Number(els.current_stock.value);
               const stockUnit = editStockUnit || primaryUnit;
               const conversions = editConversions
@@ -1042,7 +1010,6 @@ export default function Items() {
                       : undefined,
                   reorder_level: Number(els.reorder_level.value) || undefined,
                 },
-                newUnitName: isNewUnit ? newUnitName : undefined,
                 other_units: editOtherUnits,
               });
             }}
@@ -1113,22 +1080,7 @@ export default function Items() {
                     Primary stock unit and optional retail/other units.
                   </span>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <FormField
-                      label="Unit"
-                      required
-                      extra={
-                        editUnitSelect === UNIT_ADD_NEW ? (
-                          <FormField label="Unit name" required>
-                            <input
-                              name="unit_name"
-                              className="w-full border border-gray-300 rounded px-3 py-2"
-                              placeholder="e.g. packets, tins, bags"
-                              required={editUnitSelect === UNIT_ADD_NEW}
-                            />
-                          </FormField>
-                        ) : undefined
-                      }
-                    >
+                    <FormField label="Unit" required>
                       <select
                         name="unit"
                         value={editUnitSelect || editing.unit}
@@ -1156,7 +1108,6 @@ export default function Items() {
                             {unitDisplay(u.name)}
                           </option>
                         ))}
-                        <option value={UNIT_ADD_NEW}>Add new…</option>
                       </select>
                     </FormField>
                     <FormField label="Retail primary unit (optional)">

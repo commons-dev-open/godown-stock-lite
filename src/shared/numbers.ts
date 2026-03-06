@@ -10,6 +10,13 @@ export function formatDecimal(value: number, places?: number): string {
 }
 
 /**
+ * Format a number as Indian Rupee with ₹ prefix.
+ */
+export function formatRupee(value: number, places?: number): string {
+  return `₹${formatDecimal(value, places)}`;
+}
+
+/**
  * Round a number to a fixed number of decimal places for storage.
  * Uses DECIMAL_PLACES from constants (default 2).
  */

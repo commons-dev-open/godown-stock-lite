@@ -292,6 +292,18 @@ const electronAPI = {
   deletePurchase: (id: number) => ipcRenderer.invoke("purchases:delete", id),
 
   // Reports
+  getReportSummary: () =>
+    ipcRenderer.invoke("reports:getReportSummary") as Promise<{
+      todaySale: number;
+      weekSale: number;
+      weekExpenditure: number;
+      monthSale: number;
+      monthExpenditure: number;
+    }>,
+  getLowStockItems: () =>
+    ipcRenderer.invoke("reports:getLowStockItems") as Promise<
+      { id: number; name: string; current_stock: number; reorder_level: number; unit: string }[]
+    >,
   getTotalLend: () =>
     ipcRenderer.invoke("reports:getTotalLend") as Promise<{
       totalLend: number;
@@ -315,7 +327,12 @@ const electronAPI = {
   getWeeklySale: (fromDate: string) =>
     ipcRenderer.invoke("reports:getWeeklySale", fromDate),
   getTotalSale: (fromDate: string, toDate: string) =>
-    ipcRenderer.invoke("reports:getTotalSale", fromDate, toDate),
+    ipcRenderer.invoke("reports:getTotalSale", fromDate, toDate) as Promise<{
+      total: number;
+      expenditure: number;
+      invoice_sales: number;
+      misc_sales: number;
+    }>,
   getOpeningBalance: (year: number) =>
     ipcRenderer.invoke("reports:getOpeningBalance", year),
   setOpeningBalance: (year: number, amount: number) =>

@@ -2331,6 +2331,88 @@ export function registerIpcHandlers(): void {
   });
 
   // ---- Reports ----
+  ipcMain.handle("reports:getReportSummary", () => {
+    const today = new Date();
+    const isoToday =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - 6);
+    const isoWeekStart =
+      weekStart.getFullYear() +
+      "-" +
+      String(weekStart.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(weekStart.getDate()).padStart(2, "0");
+    const monthStart =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-01";
+
+    const todayRow = db()
+      .prepare(
+        "SELECT sale_amount FROM daily_sales WHERE sale_date = ? LIMIT 1"
+      )
+      .get(isoToday) as { sale_amount: number } | undefined;
+    const todaySale = todayRow?.sale_amount ?? 0;
+
+    const weekRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(sale_amount), 0) AS total, COALESCE(SUM(expenditure_amount), 0) AS expenditure FROM daily_sales WHERE sale_date BETWEEN ? AND ?"
+      )
+      .get(isoWeekStart, isoToday) as { total: number; expenditure: number };
+    const weekSale = weekRow?.total ?? 0;
+    const weekExpenditure = weekRow?.expenditure ?? 0;
+
+    const monthRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(sale_amount), 0) AS total, COALESCE(SUM(expenditure_amount), 0) AS expenditure FROM daily_sales WHERE sale_date BETWEEN ? AND ?"
+      )
+      .get(monthStart, isoToday) as { total: number; expenditure: number };
+    const monthSale = monthRow?.total ?? 0;
+    const monthExpenditure = monthRow?.expenditure ?? 0;
+
+    return {
+      todaySale,
+      weekSale,
+      weekExpenditure,
+      monthSale,
+      monthExpenditure,
+    };
+  });
+
+  ipcMain.handle("reports:getLowStockItems", () => {
+    try {
+      const rows = db()
+        .prepare(
+          `SELECT id, name, current_stock, reorder_level, unit FROM items
+           WHERE reorder_level IS NOT NULL AND current_stock <= reorder_level
+           ORDER BY current_stock ASC`
+        )
+        .all() as Array<{
+        id: number;
+        name: string | null;
+        current_stock: number;
+        reorder_level: number;
+        unit: string | null;
+      }>;
+      return rows.map((r) => ({
+        id: Number(r.id),
+        name: String(r.name ?? ""),
+        current_stock: Number(r.current_stock),
+        reorder_level: Number(r.reorder_level),
+        unit: String(r.unit ?? "pcs"),
+      }));
+    } catch (err) {
+      console.error("reports:getLowStockItems:", err);
+      return [];
+    }
+  });
+
   ipcMain.handle("reports:getTotalLend", () => {
     const row = db()
       .prepare(
@@ -2452,9 +2534,18 @@ export function registerIpcHandlers(): void {
     (_, fromDate: string, toDate: string) => {
       const rows = db()
         .prepare(
-          "SELECT COALESCE(SUM(sale_amount), 0) AS total, COALESCE(SUM(expenditure_amount), 0) AS expenditure FROM daily_sales WHERE sale_date BETWEEN ? AND ?"
+          `SELECT COALESCE(SUM(sale_amount), 0) AS total,
+            COALESCE(SUM(expenditure_amount), 0) AS expenditure,
+            COALESCE(SUM(invoice_sales), 0) AS invoice_sales,
+            COALESCE(SUM(misc_sales), 0) AS misc_sales
+           FROM daily_sales WHERE sale_date BETWEEN ? AND ?`
         )
-        .get(fromDate, toDate) as { total: number; expenditure: number };
+        .get(fromDate, toDate) as {
+        total: number;
+        expenditure: number;
+        invoice_sales: number;
+        misc_sales: number;
+      };
       return rows;
     }
   );
@@ -2493,14 +2584,33 @@ export function registerIpcHandlers(): void {
         .get(String(year)) as { total: number; expenditure: number };
       const totalSale = sales?.total ?? 0;
       const totalExpenditure = sales?.expenditure ?? 0;
-      const profitLoss =
-        closingBalance - openingBalance - totalSale + totalExpenditure;
+
+      const lendDeposit = db()
+        .prepare(
+          `SELECT
+            COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) AS totalLend,
+            COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS totalDeposit
+           FROM transactions WHERE type IN ('lend','deposit') AND strftime('%Y', transaction_date) = ?`
+        )
+        .get(String(year)) as { totalLend: number; totalDeposit: number };
+      const totalLend = lendDeposit?.totalLend ?? 0;
+      const totalDeposit = lendDeposit?.totalDeposit ?? 0;
+
+      const profitLoss = totalSale - totalExpenditure;
+      const expectedClosing =
+        openingBalance + totalSale - totalExpenditure + totalDeposit - totalLend;
+      const cashVariance = closingBalance - expectedClosing;
+
       return {
         openingBalance,
         totalSale,
         totalExpenditure,
+        totalLend,
+        totalDeposit,
         closingBalance,
         profitLoss,
+        expectedClosing,
+        cashVariance,
       };
     }
   );

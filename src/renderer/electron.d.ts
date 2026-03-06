@@ -308,6 +308,22 @@ export interface ElectronAPI {
     }
   ) => Promise<number>;
   deletePurchase: (id: number) => Promise<number>;
+  getReportSummary: () => Promise<{
+    todaySale: number;
+    weekSale: number;
+    weekExpenditure: number;
+    monthSale: number;
+    monthExpenditure: number;
+  }>;
+  getLowStockItems: () => Promise<
+    {
+      id: number;
+      name: string;
+      current_stock: number;
+      reorder_level: number;
+      unit: string;
+    }[]
+  >;
   getTotalLend: () => Promise<{ totalLend: number }>;
   getMahajanSummary: () => Promise<{
     totalLend: number;
@@ -325,7 +341,12 @@ export interface ElectronAPI {
   getTotalSale: (
     fromDate: string,
     toDate: string
-  ) => Promise<{ total: number; expenditure: number }>;
+  ) => Promise<{
+    total: number;
+    expenditure: number;
+    invoice_sales: number;
+    misc_sales: number;
+  }>;
   getOpeningBalance: (year: number) => Promise<number>;
   setOpeningBalance: (year: number, amount: number) => Promise<number>;
   getProfitLoss: (
@@ -335,8 +356,12 @@ export interface ElectronAPI {
     openingBalance: number;
     totalSale: number;
     totalExpenditure: number;
+    totalLend: number;
+    totalDeposit: number;
     closingBalance: number;
     profitLoss: number;
+    expectedClosing: number;
+    cashVariance: number;
   }>;
 
   getDbPath: () => Promise<string>;

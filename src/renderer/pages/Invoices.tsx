@@ -311,6 +311,7 @@ export default function Invoices() {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
       queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setCreateOpen(false);
     },
   });
@@ -334,6 +335,7 @@ export default function Invoices() {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
       queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setEditing(null);
     },
   });
@@ -344,6 +346,7 @@ export default function Invoices() {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
       queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setViewing(null);
     },
   });

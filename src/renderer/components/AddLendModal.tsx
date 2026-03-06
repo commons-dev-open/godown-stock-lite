@@ -105,6 +105,7 @@ export default function AddLendModal({
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setConfirmLendOpen(false);
       setConfirmPayload(null);
       setLendLines([emptyLine()]);

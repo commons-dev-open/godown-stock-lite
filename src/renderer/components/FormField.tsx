@@ -5,7 +5,7 @@ interface FormFieldProps {
   htmlFor?: string;
   required?: boolean;
   children: ReactNode;
-  /** Extra block below the label (e.g. conditional "Add new unit" input) */
+  /** Extra block below the label */
   extra?: ReactNode;
 }
 

@@ -193,7 +193,7 @@ export default function Help() {
             steps={[
               "Go to Products & Stock and click “Add Product”.",
               "Enter product Name and optional Code.",
-              "Select the primary Unit (stock unit). You can create a new unit by choosing “Add new unit” and entering the name.",
+              "Select the primary Unit (stock unit).",
               "Optionally set Current stock and Reorder level.",
               "Optionally set Retail primary unit and add Other units (e.g. for selling in different units). Use “Import units from another product” to copy units from an existing product.",
               "Save. The product appears in the table with current stock and unit.",
@@ -375,25 +375,54 @@ export default function Help() {
       </Section>
 
       <Section id="9-reports" title="Reports">
+        <SubSection title="Executive Summary">
+          <p className="mb-2">
+            At the top, you see key metrics without selecting dates: today&apos;s
+            sale, this week&apos;s total and expenditure, this month&apos;s
+            totals, and mahajan net balance (total lent minus deposited). Data
+            loads automatically.
+          </p>
+        </SubSection>
         <SubSection title="Weekly Sale">
           <p className="mb-2">
-            Select a date; the report shows 7 days of daily sales ending on that
-            date (newest first). Data comes from Daily Sales entries.
+            The report shows 7 days of daily sales ending on the selected date
+            (newest first). It includes Sale, Invoice Sales, Misc Sales, Cash in
+            Hand, and Expenditure. The date defaults to today.
           </p>
         </SubSection>
         <SubSection title="Total Sale">
           <p className="mb-2">
-            Enter “From” and “To” dates to get the total sale amount and total
-            expenditure for that range (from Daily Sales entries).
+            Enter From and To dates or use presets (This Week, This Month, Last
+            30 Days, This Year) to get total sale, invoice sales, misc sales, and
+            expenditure for that range.
+          </p>
+        </SubSection>
+        <SubSection title="Mahajan Summary">
+          <p className="mb-2">
+            Shows total lent, total deposited, and net balance (₹). Also shows
+            receivable count (mahajans who owe you) and payable count (you owe).
+            Green = receivable, red = payable. Links to the Mahajans page for
+            details.
+          </p>
+        </SubSection>
+        <SubSection title="Low Stock Alerts">
+          <p className="mb-2">
+            Lists items where current stock is at or below the reorder level.
+            Use this to plan restocking. Links to the Stock page to update items.
           </p>
         </SubSection>
         <SubSection title="Profit / Loss">
+          <p className="mb-2">
+            <strong>Profit/Loss</strong> = Total Sale − Total Expenditure (actual
+            operating result for the year). Lend and deposit do not affect
+            P&L—they are balance-sheet items (receivables and repayments).
+          </p>
           <StepList
             steps={[
               "Select the Year.",
               "Set Opening balance for that year (you can save it for the year).",
-              "Enter Closing balance and click Calculate.",
-              "The result shows Opening, Total Sale, Total Expenditure, Closing, and Profit/Loss.",
+              "Enter Closing balance (or leave empty and use 0) and click Calculate.",
+              "Result shows Opening, Total Sale, Total Expenditure, Lend/Deposit (if any), Closing, Profit/Loss, and Cash variance for reconciliation.",
             ]}
           />
         </SubSection>
