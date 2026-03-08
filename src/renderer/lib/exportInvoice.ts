@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDecimal } from "../../shared/numbers";
+import { amountInWords } from "../../shared/gst";
 import {
   downloadPdf,
   formatBillDateTime,
@@ -46,10 +47,7 @@ export function exportInvoiceToPdf(
   const gstin = companySettings?.gstin?.trim();
   const ownerPhone = companySettings?.owner_phone?.trim();
 
-  const lineHeight = (fontSize: number, compact = false) =>
-    fontSize * (compact ? 1.05 : 1.25);
-
-  // Company name at top (large, bold – like print header)
+  // Company name at top (large, bold - like print header)
   if (companyName) {
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
@@ -78,6 +76,32 @@ export function exportInvoiceToPdf(
   y += 8;
   doc.setFont("helvetica", "normal");
 
+  const gstEnabled = companySettings?.gst_enabled === "true";
+  const anyLineHasGst = lines.some(
+    (l) => ((l as { gst_rate?: number }).gst_rate ?? 0) > 0
+  );
+  const hsnEnabled = companySettings?.hsn_enabled !== "false";
+  const hasHsn =
+    hsnEnabled &&
+    lines.some((l) => (l as { hsn_code?: string | null }).hsn_code);
+
+  let invoiceLabel = "INVOICE";
+  if (gstEnabled) {
+    invoiceLabel = anyLineHasGst ? "TAX INVOICE" : "BILL OF SUPPLY";
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(invoiceLabel, MARGIN_MM, y);
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+
+  const placeOfSupply = companySettings?.place_of_supply?.trim();
+  if (gstEnabled && placeOfSupply) {
+    doc.text(`Place of Supply: ${placeOfSupply}`, MARGIN_MM, y);
+    y += 5;
+  }
+
   // Invoice details
   doc.setFontSize(9);
   if (invoice.invoice_number) {
@@ -99,19 +123,89 @@ export function exportInvoiceToPdf(
     doc.text(`Address: ${invoice.customer_address}`, MARGIN_MM, y);
     y += 5;
   }
+  const customerGstinEnabled =
+    companySettings?.customer_gstin_enabled === "true";
+  const customerGstin = (invoice as { customer_gstin?: string })
+    ?.customer_gstin;
+  if (customerGstinEnabled && customerGstin) {
+    doc.text(`Customer GSTIN: ${customerGstin}`, MARGIN_MM, y);
+    y += 5;
+  }
 
-  // Table: dark gray header with white text, clean body (minimal/no grid)
-  const columns = ["Product", "Qty", "Unit", "Price/unit", "Amt"];
-  const body = lines.map((line) => {
-    const amount = line.amount ?? line.quantity * line.price;
-    return [
-      line.product_name ?? "",
-      formatDecimal(line.quantity),
-      unitToShort(line.unit, invoiceUnits),
-      PDF_RUPEE + formatDecimal(line.price),
-      PDF_RUPEE + formatDecimal(amount),
-    ];
-  });
+  const useGstLayout = gstEnabled && anyLineHasGst;
+  const columns = useGstLayout
+    ? [
+        ...(hasHsn ? ["HSN"] : []),
+        "Product",
+        "Qty",
+        "Unit",
+        "Rate/unit",
+        "Taxable",
+        "CGST",
+        "SGST",
+        "Total",
+      ].filter(Boolean)
+    : ["Product", "Qty", "Unit", "Rate/unit", "Amt"];
+
+  const body = useGstLayout
+    ? lines.map((line) => {
+        const amount = line.amount ?? line.quantity * line.price;
+        const gstRate = (line as { gst_rate?: number }).gst_rate ?? 0;
+        const taxable =
+          (line as { taxable_amount?: number }).taxable_amount ?? amount;
+        const cgst = (line as { cgst_amount?: number }).cgst_amount ?? 0;
+        const sgst = (line as { sgst_amount?: number }).sgst_amount ?? 0;
+        const hsn = (line as { hsn_code?: string | null }).hsn_code ?? "";
+        const priceUnit =
+          (line as { price_unit?: string | null }).price_unit ?? line.unit;
+        const row = [
+          ...(hasHsn ? [hsn] : []),
+          line.product_name ?? "",
+          formatDecimal(line.quantity),
+          unitToShort(line.unit, invoiceUnits),
+          PDF_RUPEE +
+            formatDecimal(line.price) +
+            "/" +
+            unitToShort(priceUnit, invoiceUnits) +
+            (gstRate ? ` (${gstRate}%)` : ""),
+          PDF_RUPEE + formatDecimal(taxable),
+          PDF_RUPEE + formatDecimal(cgst),
+          PDF_RUPEE + formatDecimal(sgst),
+          PDF_RUPEE + formatDecimal(amount),
+        ];
+        return row;
+      })
+    : lines.map((line) => {
+        const amount = line.amount ?? line.quantity * line.price;
+        const priceUnit =
+          (line as { price_unit?: string | null }).price_unit ?? line.unit;
+        return [
+          line.product_name ?? "",
+          formatDecimal(line.quantity),
+          unitToShort(line.unit, invoiceUnits),
+          PDF_RUPEE +
+            formatDecimal(line.price) +
+            "/" +
+            unitToShort(priceUnit, invoiceUnits),
+          PDF_RUPEE + formatDecimal(amount),
+        ];
+      });
+
+  const colCount = columns.length;
+  const colWidth = CONTENT_WIDTH_MM / colCount;
+  const columnStyles: Record<number, object> = {};
+  for (let i = 0; i < colCount; i++) {
+    columnStyles[i] = {
+      cellWidth: colWidth,
+      fontSize: 9,
+      halign: i >= 1 && i < colCount - 1 ? "right" : "left",
+    };
+  }
+  if (!useGstLayout) {
+    columnStyles[1] = { ...columnStyles[1], halign: "right" };
+    columnStyles[3] = { ...columnStyles[3], halign: "right" };
+    columnStyles[4] = { ...columnStyles[4], halign: "right" };
+  }
 
   autoTable(doc, {
     startY: y,
@@ -119,13 +213,15 @@ export function exportInvoiceToPdf(
     body,
     margin: { left: MARGIN_MM, right: MARGIN_MM },
     tableWidth: CONTENT_WIDTH_MM,
-    columnStyles: {
-      0: { cellWidth: 78, fontSize: 9, overflow: "linebreak" },
-      1: { cellWidth: 22, fontSize: 9, halign: "right" },
-      2: { cellWidth: 18, fontSize: 9 },
-      3: { cellWidth: 28, fontSize: 9, halign: "right" },
-      4: { cellWidth: 28, fontSize: 9, halign: "right" },
-    },
+    columnStyles: useGstLayout
+      ? columnStyles
+      : {
+          0: { cellWidth: 78, fontSize: 9, overflow: "linebreak" },
+          1: { cellWidth: 22, fontSize: 9, halign: "right" },
+          2: { cellWidth: 18, fontSize: 9 },
+          3: { cellWidth: 28, fontSize: 9, halign: "right" },
+          4: { cellWidth: 28, fontSize: 9, halign: "right" },
+        },
     headStyles: {
       fontSize: 9,
       halign: "left",
@@ -144,8 +240,28 @@ export function exportInvoiceToPdf(
     (sum, line) => sum + (line.amount ?? line.quantity * line.price),
     0
   );
+  const taxableTotal = useGstLayout
+    ? lines.reduce(
+        (s, l) =>
+          s +
+          ((l as { taxable_amount?: number }).taxable_amount ?? l.amount ?? 0),
+        0
+      )
+    : total;
+  const cgstTotal = useGstLayout
+    ? lines.reduce(
+        (s, l) => s + ((l as { cgst_amount?: number }).cgst_amount ?? 0),
+        0
+      )
+    : 0;
+  const sgstTotal = useGstLayout
+    ? lines.reduce(
+        (s, l) => s + ((l as { sgst_amount?: number }).sgst_amount ?? 0),
+        0
+      )
+    : 0;
 
-  if (finalY + 12 > PAGE_HEIGHT_MM - MARGIN_MM) {
+  if (finalY + (useGstLayout ? 25 : 12) > PAGE_HEIGHT_MM - MARGIN_MM) {
     doc.addPage([PAGE_WIDTH_MM, PAGE_HEIGHT_MM], "portrait");
     y = MARGIN_MM;
   } else {
@@ -154,7 +270,33 @@ export function exportInvoiceToPdf(
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   y += 3;
-  doc.text(`Total: ${PDF_RUPEE}${formatDecimal(total)}`, MARGIN_MM, y);
+  if (useGstLayout) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(
+      `Taxable Amount: ${PDF_RUPEE}${formatDecimal(taxableTotal)}`,
+      MARGIN_MM,
+      y
+    );
+    y += 5;
+    doc.text(`CGST: ${PDF_RUPEE}${formatDecimal(cgstTotal)}`, MARGIN_MM, y);
+    y += 5;
+    doc.text(`SGST: ${PDF_RUPEE}${formatDecimal(sgstTotal)}`, MARGIN_MM, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text(`Grand Total: ${PDF_RUPEE}${formatDecimal(total)}`, MARGIN_MM, y);
+    y += 6;
+    if (gstEnabled) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      const words = amountInWords(total);
+      const wordsLines = doc.splitTextToSize(words, CONTENT_WIDTH_MM);
+      doc.text(wordsLines, MARGIN_MM, y);
+      y += wordsLines.length * 4 + 2;
+    }
+  } else {
+    doc.text(`Total: ${PDF_RUPEE}${formatDecimal(total)}`, MARGIN_MM, y);
+  }
 
   const safeNum = invoice.invoice_number
     ? sanitizeForFilename(invoice.invoice_number)

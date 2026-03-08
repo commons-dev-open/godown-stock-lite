@@ -332,7 +332,7 @@ export default function Mahajans() {
           </div>
         </div>
 
-        {/* Summary strip – totals load on mount; "Fetch latest" to refresh */}
+        {/* Summary strip - totals load on mount; "Fetch latest" to refresh */}
         <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
           {isLoadingSummary && (
             <div className="text-sm text-gray-500">Loading…</div>
@@ -369,7 +369,7 @@ export default function Mahajans() {
                 className="!py-1 !text-xs shrink-0"
                 title={
                   showUpdatesIndicator
-                    ? "Totals may have changed – click to refresh"
+                    ? "Totals may have changed - click to refresh"
                     : "Refresh totals"
                 }
               >

@@ -56,6 +56,8 @@ type ItemWithUnits = Item & {
   item_unit_conversions?: { to_unit: string; factor: number }[];
 };
 
+const GST_SLABS = [0, 5, 12, 18, 28] as const;
+
 type ConversionRow = { to_unit: string; factor: number };
 
 export default function Items() {
@@ -85,9 +87,28 @@ export default function Items() {
   ]);
   const [addStockUnitModal, setAddStockUnitModal] = useState<string>("");
   const [reduceStockUnitModal, setReduceStockUnitModal] = useState<string>("");
+  const [addSellingPrice, setAddSellingPrice] = useState<string>("");
+  const [addSellingPriceUnit, setAddSellingPriceUnit] = useState<string>("");
+  const [addGstRate, setAddGstRate] = useState<number>(0);
+  const [addHsnCode, setAddHsnCode] = useState<string>("");
+  const [editSellingPrice, setEditSellingPrice] = useState<string>("");
+  const [editSellingPriceUnit, setEditSellingPriceUnit] = useState<string>("");
+  const [editGstRate, setEditGstRate] = useState<number>(0);
+  const [editHsnCode, setEditHsnCode] = useState<string>("");
+
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+  });
+
   useEffect(() => {
     if (addProductOpen) setAddStockUnit(addUnitSelect);
   }, [addProductOpen, addUnitSelect]);
+  useEffect(() => {
+    if (addProductOpen && addGstRate === 0 && settings?.gst_default_rate) {
+      setAddGstRate(Number(settings.gst_default_rate) || 0);
+    }
+  }, [addProductOpen, addGstRate, settings?.gst_default_rate]);
   useEffect(() => {
     if (addStockOpen && addStockItem) setAddStockUnitModal(addStockItem.unit);
   }, [addStockOpen, addStockItem]);
@@ -128,11 +149,9 @@ export default function Items() {
     getFloatingProps: getExportFloatingProps,
   } = useInteractions([exportClick, exportDismiss]);
 
-  const { data: settings = {} } = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.getSettings(),
-  });
   const appName = getAppDisplayName(settings);
+  const gstEnabled = settings.gst_enabled === "true";
+  const hsnEnabled = settings.hsn_enabled !== "false";
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
@@ -213,6 +232,10 @@ export default function Items() {
       current_stock_unit?: string;
       conversions?: { to_unit: string; factor: number }[];
       reorder_level?: number;
+      selling_price?: number | null;
+      selling_price_unit?: string | null;
+      gst_rate?: number;
+      hsn_code?: string | null;
     }) => {
       return api.createItem({
         name: payload.name,
@@ -225,6 +248,10 @@ export default function Items() {
         current_stock_unit: payload.current_stock_unit,
         conversions: payload.conversions,
         reorder_level: payload.reorder_level,
+        selling_price: payload.selling_price ?? null,
+        selling_price_unit: payload.selling_price_unit ?? null,
+        gst_rate: payload.gst_rate ?? 0,
+        hsn_code: payload.hsn_code ?? null,
       });
     },
     onSuccess: () => {
@@ -465,6 +492,33 @@ export default function Items() {
                   label: "Unit",
                   render: (r) => unitDisplay(r.unit),
                 },
+                ...(gstEnabled
+                  ? [
+                      {
+                        key: "selling_price" as const,
+                        label: "Selling Price",
+                        render: (r: Item) =>
+                          r.selling_price != null && r.selling_price > 0
+                            ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
+                            : "",
+                      },
+                      {
+                        key: "gst_rate" as const,
+                        label: "GST",
+                        render: (r: Item) =>
+                          (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
+                      },
+                      ...(hsnEnabled
+                        ? [
+                            {
+                              key: "hsn_code" as const,
+                              label: "HSN",
+                              render: (r: Item) => r.hsn_code ?? "",
+                            },
+                          ]
+                        : []),
+                    ]
+                  : []),
                 {
                   key: "reorder_level",
                   label: "Reorder Level",
@@ -480,6 +534,12 @@ export default function Items() {
                 setEditing(full);
                 setEditUnitSelect(full.unit);
                 setEditRetailPrimary(full.retail_primary_unit ?? "");
+                setEditSellingPrice(
+                  full.selling_price != null ? String(full.selling_price) : ""
+                );
+                setEditSellingPriceUnit(full.selling_price_unit ?? "");
+                setEditGstRate(full.gst_rate ?? 0);
+                setEditHsnCode(full.hsn_code ?? "");
                 setEditStockUnit(full.unit);
                 setEditConversions(
                   (full as ItemWithUnits).item_unit_conversions?.length
@@ -534,6 +594,10 @@ export default function Items() {
           setAddRetailPrimary("");
           setAddOtherUnits([]);
           setAddConversions([{ to_unit: "", factor: 0 }]);
+          setAddSellingPrice("");
+          setAddSellingPriceUnit("");
+          setAddGstRate(Number(settings?.gst_default_rate) || 0);
+          setAddHsnCode("");
           setImportUnitsPopupOpen(false);
           setImportUnitsTarget(null);
           setImportProductId("");
@@ -574,6 +638,16 @@ export default function Items() {
               unit: primaryUnit,
               retail_primary_unit: addRetailPrimary || null,
               other_units: addOtherUnits.length > 0 ? addOtherUnits : undefined,
+              selling_price:
+                addSellingPrice && Number(addSellingPrice) > 0
+                  ? Number(addSellingPrice)
+                  : null,
+              selling_price_unit:
+                addSellingPrice && addSellingPriceUnit
+                  ? addSellingPriceUnit
+                  : null,
+              gst_rate: addGstRate,
+              hsn_code: addHsnCode?.trim() || null,
               current_stock: stockUnit === primaryUnit ? stockVal : undefined,
               current_stock_value:
                 stockUnit !== primaryUnit ? stockVal : undefined,
@@ -826,6 +900,65 @@ export default function Items() {
             </div>
           </section>
 
+          {gstEnabled && (
+            <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+              <h3 className="text-sm font-semibold text-gray-900">
+                GST & Selling Price
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="Selling Price (optional)">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 50"
+                    value={addSellingPrice}
+                    onChange={(e) => setAddSellingPrice(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </FormField>
+                <FormField label="Selling Price Unit">
+                  <select
+                    value={addSellingPriceUnit}
+                    onChange={(e) => setAddSellingPriceUnit(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="">—</option>
+                    {addAllowedStockUnits.map((name) => (
+                      <option key={name} value={name}>
+                        {unitDisplay(name)}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="GST Rate">
+                  <select
+                    value={addGstRate}
+                    onChange={(e) => setAddGstRate(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    {GST_SLABS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}%
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                {hsnEnabled && (
+                  <FormField label="HSN Code (optional)">
+                    <input
+                      type="text"
+                      placeholder="e.g. 1006"
+                      value={addHsnCode}
+                      onChange={(e) => setAddHsnCode(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    />
+                  </FormField>
+                )}
+              </div>
+            </section>
+          )}
+
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900">
               Stock & reorder
@@ -955,6 +1088,10 @@ export default function Items() {
           setEditStockUnit("");
           setEditConversions([{ to_unit: "", factor: 0 }]);
           setEditOtherUnits([]);
+          setEditSellingPrice("");
+          setEditSellingPriceUnit("");
+          setEditGstRate(0);
+          setEditHsnCode("");
           setImportUnitsPopupOpen(false);
           setImportUnitsTarget(null);
           setImportProductId("");
@@ -999,6 +1136,16 @@ export default function Items() {
                   code: els.code.value || undefined,
                   unit: primaryUnit,
                   retail_primary_unit: editRetailPrimary || null,
+                  selling_price:
+                    editSellingPrice && Number(editSellingPrice) > 0
+                      ? Number(editSellingPrice)
+                      : null,
+                  selling_price_unit:
+                    editSellingPrice && editSellingPriceUnit
+                      ? editSellingPriceUnit
+                      : null,
+                  gst_rate: editGstRate,
+                  hsn_code: editHsnCode?.trim() || null,
                   conversions: conversions.length > 0 ? conversions : undefined,
                   current_stock:
                     stockUnit === primaryUnit ? stockVal : undefined,
@@ -1272,6 +1419,65 @@ export default function Items() {
                 </FormField>
               </div>
             </section>
+
+            {gstEnabled && (
+              <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  GST & Selling Price
+                </h3>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <FormField label="Selling Price (optional)">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g. 50"
+                      value={editSellingPrice}
+                      onChange={(e) => setEditSellingPrice(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="Selling Price Unit">
+                    <select
+                      value={editSellingPriceUnit}
+                      onChange={(e) => setEditSellingPriceUnit(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    >
+                      <option value="">—</option>
+                      {editAllowedStockUnits.map((name) => (
+                        <option key={name} value={name}>
+                          {unitDisplay(name)}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="GST Rate">
+                    <select
+                      value={editGstRate}
+                      onChange={(e) => setEditGstRate(Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    >
+                      {GST_SLABS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}%
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  {hsnEnabled && (
+                    <FormField label="HSN Code (optional)">
+                      <input
+                        type="text"
+                        placeholder="e.g. 1006"
+                        value={editHsnCode}
+                        onChange={(e) => setEditHsnCode(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                      />
+                    </FormField>
+                  )}
+                </div>
+              </section>
+            )}
 
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900">

@@ -14,6 +14,10 @@ const electronAPI = {
     reference_unit?: string | null;
     quantity_per_primary?: number | null;
     retail_primary_unit?: string | null;
+    selling_price?: number | null;
+    selling_price_unit?: string | null;
+    gst_rate?: number;
+    hsn_code?: string | null;
     current_stock?: number;
     current_stock_value?: number;
     current_stock_unit?: string;
@@ -30,6 +34,10 @@ const electronAPI = {
       reference_unit?: string | null;
       quantity_per_primary?: number | null;
       retail_primary_unit?: string | null;
+      selling_price?: number | null;
+      selling_price_unit?: string | null;
+      gst_rate?: number;
+      hsn_code?: string | null;
       current_stock?: number;
       current_stock_value?: number;
       current_stock_unit?: string;

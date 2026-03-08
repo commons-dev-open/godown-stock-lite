@@ -15,6 +15,7 @@ import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
 import { computeProductUnits } from "../../shared/computeProductUnits";
+import { amountInWords, computeLineGst } from "../../shared/gst";
 import type {
   Invoice,
   InvoiceLine,
@@ -41,23 +42,22 @@ type InvoiceRow = Invoice & { total?: number };
 
 type PriceMode = "per_unit" | "total";
 
+const GST_SLABS = [0, 5, 12, 18, 28] as const;
+
 type LineRow = {
   product_id: number;
   product_name: string;
   quantity: number;
-  /** Unit the quantity is measured in. */
   unit: string;
-  /** Unit the price is expressed per (only relevant when priceMode is "per_unit"). */
   priceUnit: string;
   price: number;
   priceMode: PriceMode;
-  /** When priceMode is "total", raw input so user can type freely. */
   totalInput?: string;
-  /** Line total (from load or computed). Used when switching to Total mode and for submit. */
   amount?: number;
-  /** Client-only key for list stability when creating new lines (no id yet). */
+  gst_rate: number;
+  gst_inclusive: boolean;
+  hsn_code?: string | null;
   _key?: number;
-  /** Present when loaded from server (edit mode) for stable list key. */
   id?: number;
 };
 
@@ -69,12 +69,18 @@ const DEFAULT_LINE_ROW: LineRow = {
   priceUnit: "",
   price: 0,
   priceMode: "per_unit",
+  gst_rate: 0,
+  gst_inclusive: false,
 };
 
-/** Payload line sent to API (no priceMode/totalInput/priceUnit — UI-only fields). */
+/** Payload line sent to API. */
 type LinePayload = Omit<LineRow, "priceMode" | "totalInput" | "priceUnit"> & {
   amount: number;
   price_entered_as: PriceMode;
+  price_unit?: string | null;
+  taxable_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
 };
 
 /** Resolve unit name to short display (symbol); falls back to name if no match. */
@@ -141,15 +147,33 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
   invoice,
   isPrint,
   invoiceUnits = [],
+  settings = {},
 }: {
   invoice: InvoiceWithLines;
   isPrint?: boolean;
   invoiceUnits?: Unit[];
+  settings?: Record<string, string>;
 }) {
   const total = invoice.lines.reduce(
     (s, l) => s + (l.amount ?? l.quantity * l.price),
     0
   );
+  const gstEnabled = settings.gst_enabled === "true";
+  const anyLineHasGst = invoice.lines.some((l) => (l.gst_rate ?? 0) > 0);
+  const useGstLayout = gstEnabled && anyLineHasGst;
+  const hsnEnabled = settings.hsn_enabled !== "false";
+  const hasHsn =
+    hsnEnabled && invoice.lines.some((l) => l.hsn_code?.trim());
+  const taxableTotal = useGstLayout
+    ? invoice.lines.reduce((s, l) => s + (l.taxable_amount ?? l.amount ?? 0), 0)
+    : 0;
+  const cgstTotal = useGstLayout
+    ? invoice.lines.reduce((s, l) => s + (l.cgst_amount ?? 0), 0)
+    : 0;
+  const sgstTotal = useGstLayout
+    ? invoice.lines.reduce((s, l) => s + (l.sgst_amount ?? 0), 0)
+    : 0;
+
   return (
     <div className={isPrint ? "text-sm invoice-view-content" : ""}>
       <div
@@ -165,14 +189,19 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             {invoice.invoice_number}
           </div>
         )}
+        {gstEnabled && settings.place_of_supply?.trim() && (
+          <div className="col-span-2">
+            <span className="font-medium">Place of Supply:</span>{" "}
+            {settings.place_of_supply.trim()}
+          </div>
+        )}
         <div className="col-span-2">
           <span className="font-medium">Date:</span>{" "}
           {formatBillDateTime(new Date())}
         </div>
         {invoice.customer_phone && (
           <div className="col-span-2">
-            <span className="font-medium">Phone:</span>{" "}
-            {invoice.customer_phone}
+            <span className="font-medium">Phone:</span> {invoice.customer_phone}
           </div>
         )}
         {invoice.customer_name && (
@@ -191,43 +220,110 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
       <table className="w-full border-collapse border border-gray-300">
         <thead>
           <tr className="bg-gray-100">
+            {useGstLayout && hasHsn && (
+              <th className="border border-gray-300 px-2 py-1 text-left">
+                HSN
+              </th>
+            )}
             <th className="border border-gray-300 px-2 py-1 text-left">
               Product
             </th>
             <th className="border border-gray-300 px-2 py-1 text-right">Qty</th>
             <th className="border border-gray-300 px-2 py-1 text-left">Unit</th>
             <th className="border border-gray-300 px-2 py-1 text-right">
-              Price/unit
+              Rate/unit
             </th>
+            {useGstLayout && (
+              <>
+                <th className="border border-gray-300 px-2 py-1 text-right">
+                  Taxable
+                </th>
+                <th className="border border-gray-300 px-2 py-1 text-right">
+                  CGST
+                </th>
+                <th className="border border-gray-300 px-2 py-1 text-right">
+                  SGST
+                </th>
+              </>
+            )}
             <th className="border border-gray-300 px-2 py-1 text-right">
-              Amount
+              Total
             </th>
           </tr>
         </thead>
         <tbody>
-          {invoice.lines.map((line) => (
-            <tr key={line.id}>
-              <td className="border border-gray-300 px-2 py-1">
-                {line.product_name ?? ""}
-              </td>
-              <td className="border border-gray-300 px-2 py-1 text-right">
-                {formatDecimal(line.quantity)}
-              </td>
-              <td className="border border-gray-300 px-2 py-1">
-                {unitToShort(line.unit, invoiceUnits)}
-              </td>
-              <td className="border border-gray-300 px-2 py-1 text-right">
-                ₹{formatDecimal(line.price)}
-              </td>
-              <td className="border border-gray-300 px-2 py-1 text-right">
-                ₹{formatDecimal(line.amount ?? line.quantity * line.price)}
-              </td>
-            </tr>
-          ))}
+          {invoice.lines.map((line) => {
+            const amount = line.amount ?? line.quantity * line.price;
+            const gstRate = line.gst_rate ?? 0;
+            const taxable = line.taxable_amount ?? amount;
+            const cgst = line.cgst_amount ?? 0;
+            const sgst = line.sgst_amount ?? 0;
+            return (
+              <tr key={line.id}>
+                {useGstLayout && hasHsn && (
+                  <td className="border border-gray-300 px-2 py-1">
+                    {line.hsn_code ?? ""}
+                  </td>
+                )}
+                <td className="border border-gray-300 px-2 py-1">
+                  {line.product_name ?? ""}
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-right">
+                  {formatDecimal(line.quantity)}
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  {unitToShort(line.unit, invoiceUnits)}
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-right">
+                  ₹{formatDecimal(line.price)}/
+                  {unitToShort(
+                    (line as { price_unit?: string | null }).price_unit ??
+                      line.unit,
+                    invoiceUnits
+                  )}
+                  {useGstLayout && gstRate > 0 && ` (${gstRate}%)`}
+                </td>
+                {useGstLayout && (
+                  <>
+                    <td className="border border-gray-300 px-2 py-1 text-right">
+                      ₹{formatDecimal(taxable)}
+                    </td>
+                    <td className="border border-gray-300 px-2 py-1 text-right">
+                      ₹{formatDecimal(cgst)}
+                    </td>
+                    <td className="border border-gray-300 px-2 py-1 text-right">
+                      ₹{formatDecimal(sgst)}
+                    </td>
+                  </>
+                )}
+                <td className="border border-gray-300 px-2 py-1 text-right">
+                  ₹{formatDecimal(amount)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      {isPrint && (
-        <div className="mt-1 font-medium">Total: ₹{formatDecimal(total)}</div>
+      {(isPrint || useGstLayout) && (
+        <div className="mt-2 space-y-0.5">
+          {useGstLayout && (
+            <>
+              <div className="text-sm">
+                Taxable Amount: ₹{formatDecimal(taxableTotal)}
+              </div>
+              <div className="text-sm">CGST: ₹{formatDecimal(cgstTotal)}</div>
+              <div className="text-sm">SGST: ₹{formatDecimal(sgstTotal)}</div>
+            </>
+          )}
+          <div className="font-medium">
+            {useGstLayout ? "Grand Total: " : "Total: "}₹{formatDecimal(total)}
+          </div>
+          {useGstLayout && (
+            <div className="text-sm text-gray-700 mt-1">
+              {amountInWords(total)}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -250,8 +346,8 @@ export default function Invoices() {
       dateFrom?: string;
       dateTo?: string;
     } | null;
-    if (state?.dateFrom) setDateFrom(state.dateFrom);
-    if (state?.dateTo) setDateTo(state.dateTo);
+    if (state?.dateFrom) setDateFrom(state.dateFrom); // eslint-disable-line react-hooks/set-state-in-effect -- sync nav state to form
+    if (state?.dateTo) setDateTo(state.dateTo); // eslint-disable-line react-hooks/set-state-in-effect -- sync nav state to form
   }, [location.state]);
   const [printData, setPrintData] = useState<InvoiceWithLines | null>(null);
   const [deleteConfirmInvoiceId, setDeleteConfirmInvoiceId] = useState<
@@ -557,6 +653,7 @@ export default function Invoices() {
         items={itemsWithUnits ?? items}
         units={allUnits}
         unitConversions={unitConversions}
+        settings={settings}
         onSubmit={(payload, opts) =>
           createInvoice.mutate(payload, {
             onSuccess: (newId: number) => {
@@ -582,6 +679,7 @@ export default function Invoices() {
           items={itemsWithUnits ?? items}
           units={allUnits}
           unitConversions={unitConversions}
+          settings={settings}
           onSubmit={(payload, opts) =>
             updateInvoice.mutate(
               { id: editing.id, payload },
@@ -666,7 +764,11 @@ export default function Invoices() {
             </div>
           }
         >
-          <ViewInvoiceContent invoice={viewing} invoiceUnits={allUnits} />
+          <ViewInvoiceContent
+            invoice={viewing}
+            invoiceUnits={allUnits}
+            settings={settings}
+          />
         </FormModal>
       )}
 
@@ -697,6 +799,7 @@ export default function Invoices() {
             invoice={printData}
             isPrint
             invoiceUnits={allUnits}
+            settings={settings}
           />
         </div>
       )}
@@ -718,6 +821,7 @@ function InvoiceFormModal({
   items,
   units: allUnits,
   unitConversions,
+  settings = {},
   onSubmit,
   isPending,
 }: Readonly<{
@@ -728,12 +832,14 @@ function InvoiceFormModal({
   items: Item[] | ItemWithUnits[];
   units: Unit[];
   unitConversions: UnitConversion[];
+  settings?: Record<string, string>;
   onSubmit: (
     payload: {
       invoice_number?: string | null;
       customer_name?: string | null;
       customer_address?: string | null;
       customer_phone?: string | null;
+      customer_gstin?: string | null;
       invoice_date: string;
       notes?: string | null;
       lines: Array<LinePayload>;
@@ -760,6 +866,10 @@ function InvoiceFormModal({
       : new Date().toISOString().slice(0, 10)
   );
   const [notes, setNotes] = useState(() => invoice?.notes ?? "");
+  const [customerGstin, setCustomerGstin] = useState(
+    () =>
+      (invoice as { customer_gstin?: string } | undefined)?.customer_gstin ?? ""
+  );
   const [lines, setLines] = useState<LineRow[]>(() => {
     if (invoice?.lines?.length) {
       return invoice.lines.map((l) => {
@@ -771,7 +881,7 @@ function InvoiceFormModal({
           product_name: l.product_name ?? "",
           quantity: l.quantity,
           unit: l.unit,
-          priceUnit: l.unit,
+          priceUnit: (l as { price_unit?: string | null }).price_unit ?? l.unit,
           price: l.price,
           amount,
           priceMode: priceEnteredAs,
@@ -779,6 +889,11 @@ function InvoiceFormModal({
             priceEnteredAs === "total" && amount > 0
               ? formatDecimal(amount)
               : undefined,
+          gst_rate: (l as { gst_rate?: number }).gst_rate ?? 0,
+          gst_inclusive: Boolean(
+            (l as { gst_inclusive?: boolean }).gst_inclusive
+          ),
+          hsn_code: (l as { hsn_code?: string | null }).hsn_code ?? null,
         };
       });
     }
@@ -811,18 +926,30 @@ function InvoiceFormModal({
     [items, allUnits, unitConversions, lines]
   );
 
-  const lookupCustomerByPhone = useCallback((phone: string) => {
-    const trimmed = phone.trim();
-    if (!trimmed) return;
-    void getElectron()
-      .getCustomerByPhone(trimmed)
-      .then((customer) => {
-        if (customer) {
-          setCustomerName(customer.name ?? "");
-          setCustomerAddress(customer.address ?? "");
-        }
-      });
-  }, []);
+  const gstEnabled = settings.gst_enabled === "true";
+  const gstDefaultMode = settings.gst_default_mode ?? "exclusive";
+  const customerGstinEnabled = settings.customer_gstin_enabled === "true";
+
+  const lookupCustomerByPhone = useCallback(
+    (phone: string) => {
+      const trimmed = phone.trim();
+      if (!trimmed) return;
+      void getElectron()
+        .getCustomerByPhone(trimmed)
+        .then((customer) => {
+          if (customer) {
+            setCustomerName(customer.name ?? "");
+            setCustomerAddress(customer.address ?? "");
+            if (customerGstinEnabled) {
+              setCustomerGstin(
+                (customer as { gstin?: string | null }).gstin ?? ""
+              );
+            }
+          }
+        });
+    },
+    [customerGstinEnabled]
+  );
 
   const handlePhoneBlur = useCallback(() => {
     lookupCustomerByPhone(customerPhone);
@@ -857,6 +984,14 @@ function InvoiceFormModal({
       | ItemWithUnits
       | undefined;
     const defaultUnit = item?.retail_primary_unit ?? item?.unit ?? "";
+    const sellingPriceUnit =
+      item?.selling_price_unit ??
+      item?.retail_primary_unit ??
+      item?.unit ??
+      defaultUnit;
+    const sellingPrice = item?.selling_price ?? 0;
+    const itemGstRate = item?.gst_rate ?? 0;
+    const itemHsn = item?.hsn_code ?? null;
     setLines((prev) =>
       prev.map((p, i) =>
         i === idx
@@ -865,7 +1000,11 @@ function InvoiceFormModal({
               product_id: productId,
               product_name: item?.name ?? "",
               unit: defaultUnit,
-              priceUnit: defaultUnit,
+              priceUnit: sellingPriceUnit,
+              price: sellingPrice,
+              gst_rate: itemGstRate,
+              gst_inclusive: gstDefaultMode === "inclusive",
+              hsn_code: itemHsn,
             }
           : p
       )
@@ -895,32 +1034,55 @@ function InvoiceFormModal({
         customer_name: customerName.trim() || null,
         customer_address: customerAddress.trim() || null,
         customer_phone: customerPhone.trim() || null,
+        customer_gstin:
+          customerGstinEnabled && customerGstin.trim()
+            ? customerGstin.trim()
+            : null,
         invoice_date: invoiceDate,
         notes: notes.trim() || null,
         lines: validLines.map((l) => {
-          let amount: number;
+          let gross: number;
           let price: number;
+          let priceUnit: string | null;
           if (l.priceMode === "per_unit") {
             const conv = getLineConvFactor(l);
-            amount = roundDecimal(l.quantity * conv * l.price, 2);
-            price = l.quantity > 0 ? roundDecimal(amount / l.quantity, 4) : 0;
+            gross = roundDecimal(l.quantity * conv * l.price, 2);
+            // Store price per price_unit (e.g. per kg), not per line unit
+            price = roundDecimal(l.price, 4);
+            priceUnit = l.priceUnit || null;
           } else {
-            amount = roundDecimal(
+            gross = roundDecimal(
               (l.totalInput !== undefined && l.totalInput !== ""
                 ? Number(l.totalInput)
                 : (l.amount ?? l.quantity * l.price)) || 0,
               2
             );
-            price = l.quantity > 0 ? roundDecimal(amount / l.quantity, 4) : 0;
+            price = l.quantity > 0 ? roundDecimal(gross / l.quantity, 4) : 0;
+            priceUnit = l.unit ? l.unit : l.priceUnit || null;
           }
+          const gstResult = gstEnabled
+            ? computeLineGst(gross, l.gst_rate, l.gst_inclusive)
+            : {
+                taxable_amount: gross,
+                cgst_amount: 0,
+                sgst_amount: 0,
+                total_amount: gross,
+              };
           return {
             product_id: l.product_id,
             product_name: l.product_name,
             quantity: l.quantity,
             unit: l.unit || "pcs",
             price,
-            amount,
+            amount: roundDecimal(gstResult.total_amount, 2),
             price_entered_as: l.priceMode,
+            price_unit: priceUnit,
+            gst_rate: l.gst_rate,
+            gst_inclusive: l.gst_inclusive,
+            taxable_amount: gstResult.taxable_amount,
+            cgst_amount: gstResult.cgst_amount,
+            sgst_amount: gstResult.sgst_amount,
+            hsn_code: l.hsn_code ?? null,
           };
         }),
       },
@@ -928,32 +1090,65 @@ function InvoiceFormModal({
     );
   };
 
-  const formTotal = useMemo(() => {
-    return lines.reduce((sum, l) => {
-      if (l.product_id <= 0 || l.quantity <= 0) return sum;
+  const formTotals = useMemo(() => {
+    let taxable = 0;
+    let cgst = 0;
+    let sgst = 0;
+    let grand = 0;
+    for (const l of lines) {
+      if (l.product_id <= 0 || l.quantity <= 0) continue;
+      let gross: number;
       if (l.priceMode === "per_unit") {
         const factor = getLineConvFactor(l);
-        return sum + (l.quantity || 0) * factor * (l.price || 0);
+        gross = (l.quantity || 0) * factor * (l.price || 0);
+      } else {
+        gross =
+          l.totalInput !== undefined && l.totalInput !== ""
+            ? Number(l.totalInput)
+            : l.amount ?? (l.quantity || 0) * (l.price || 0);
       }
-      const amt =
-        l.totalInput !== undefined && l.totalInput !== ""
-          ? Number(l.totalInput)
-          : (l.amount ?? (l.quantity || 0) * (l.price || 0));
-      return sum + (amt || 0);
-    }, 0);
-  }, [lines, getLineConvFactor]);
+      if (gstEnabled && l.gst_rate > 0) {
+        const r = computeLineGst(gross, l.gst_rate, l.gst_inclusive);
+        taxable += r.taxable_amount;
+        cgst += r.cgst_amount;
+        sgst += r.sgst_amount;
+        grand += r.total_amount;
+      } else {
+        taxable += gross;
+        grand += gross;
+      }
+    }
+    return { taxable, cgst, sgst, grand };
+  }, [lines, getLineConvFactor, gstEnabled]);
+
+  const formTotal = formTotals.grand;
 
   return (
     <FormModal
       title={title}
       open={open}
       onClose={onClose}
-      maxWidth="max-w-4xl"
+      maxWidth="max-w-6xl"
       footer={
-        <div className="flex w-full items-center justify-between gap-4">
-          <span className="font-medium text-gray-900">
-            Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
-          </span>
+        <div className="flex w-full items-center justify-between gap-4 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            {gstEnabled && formTotals.cgst + formTotals.sgst > 0 ? (
+              <>
+                <span className="text-sm">
+                  Subtotal: ₹{formatDecimal(formTotals.taxable)} | CGST: ₹
+                  {formatDecimal(formTotals.cgst)} | SGST: ₹
+                  {formatDecimal(formTotals.sgst)}
+                </span>
+                <span className="font-medium text-gray-900">
+                  Grand Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+                </span>
+              </>
+            ) : (
+              <span className="font-medium text-gray-900">
+                Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button
               type="submit"
@@ -1015,7 +1210,7 @@ function InvoiceFormModal({
             onChange={(e) => setCustomerPhone(e.target.value)}
             onBlur={handlePhoneBlur}
             className="input-base w-full"
-            placeholder="Optional – enter to auto-fill name/address"
+            placeholder="Optional - enter to auto-fill name/address"
           />
         </FormField>
         <FormField label="Customer name">
@@ -1033,6 +1228,16 @@ function InvoiceFormModal({
             rows={2}
           />
         </FormField>
+        {customerGstinEnabled && (
+          <FormField label="Customer GSTIN">
+            <input
+              value={customerGstin}
+              onChange={(e) => setCustomerGstin(e.target.value)}
+              className="input-base w-full"
+              placeholder="Optional"
+            />
+          </FormField>
+        )}
         <FormField label="Notes">
           <textarea
             value={notes}
@@ -1047,262 +1252,322 @@ function InvoiceFormModal({
           <div className="min-w-0 overflow-x-auto">
             <div className="min-w-[36rem]">
               {lines.length > 0 && (
-                <div className="grid grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2">
+                <div
+                  className={`grid gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2 ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
+                >
                   <span>Product</span>
                   <span>Qty</span>
                   <span>Unit</span>
+                  {gstEnabled && (
+                    <>
+                      <span>GST%</span>
+                      <span>Mode</span>
+                    </>
+                  )}
                   <span>Type</span>
                   <span>Amount</span>
-                  <span>Rate</span>
+                  <span>Total</span>
                   <span aria-hidden="true" />
                 </div>
               )}
               <div className="space-y-3">
-                {lines.map((line, idx) => (
-                  <div
-                    key={line.id ?? line._key ?? idx}
-                    className="grid grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
-                  >
-                    <select
-                      value={line.product_id || ""}
-                      onChange={(e) =>
-                        handleProductChange(idx, Number(e.target.value))
-                      }
-                      className="input-base w-full min-w-0"
-                      aria-label="Product"
-                    >
-                      <option value="">Select product</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="0"
-                      value={line.quantity || ""}
-                      onChange={(e) => {
-                        const qty = Number(e.target.value) || 0;
-                        setLines((prev) =>
-                          prev.map((p, i) => {
-                            if (i !== idx) return p;
-                            const next = { ...p, quantity: qty };
-                            if (
-                              p.priceMode === "total" &&
-                              p.totalInput !== undefined &&
-                              p.totalInput !== "" &&
-                              qty > 0
-                            ) {
-                              next.price = roundDecimal(
-                                Number(p.totalInput) / qty,
-                                4
-                              );
-                            }
-                            return next;
-                          })
-                        );
-                      }}
-                      className="input-base w-full text-right"
-                      aria-label="Quantity"
-                    />
-                    <select
-                      value={line.unit}
-                      onChange={(e) =>
-                        setLines((prev) =>
-                          prev.map((p, i) =>
-                            i === idx ? { ...p, unit: e.target.value } : p
-                          )
+                {lines.map((line, idx) => {
+                  const lineGross =
+                    line.priceMode === "per_unit"
+                      ? (line.quantity || 0) *
+                        getLineConvFactor(line) *
+                        (line.price || 0)
+                      : ((line.totalInput !== undefined &&
+                        line.totalInput !== ""
+                          ? Number(line.totalInput)
+                          : (line.amount ??
+                            (line.quantity || 0) * (line.price || 0))) ?? 0);
+                  const lineGst =
+                    gstEnabled && line.gst_rate > 0
+                      ? computeLineGst(
+                          lineGross,
+                          line.gst_rate,
+                          line.gst_inclusive
                         )
-                      }
-                      className="input-base w-full min-w-0"
-                      aria-label="Unit"
+                      : null;
+                  const lineTotal = lineGst?.total_amount ?? lineGross;
+                  return (
+                    <div
+                      key={line.id ?? line._key ?? idx}
+                      className={`grid gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
                     >
-                      <option value="">—</option>
-                      {getUnitsForLine(idx).map((u) => (
-                        <option key={u.id} value={u.name}>
-                          {(u.symbol && u.symbol.trim()) || u.name}
-                        </option>
-                      ))}
-                    </select>
-                    {(() => {
-                      const lineUnits = getUnitsForLine(idx);
-                      const typeValue =
-                        line.priceMode === "per_unit"
-                          ? line.priceUnit
-                          : "total";
-                      return (
-                        <select
-                          value={typeValue}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "total") {
+                      <select
+                        value={line.product_id || ""}
+                        onChange={(e) =>
+                          handleProductChange(idx, Number(e.target.value))
+                        }
+                        className="input-base w-full min-w-0"
+                        aria-label="Product"
+                      >
+                        <option value="">Select product</option>
+                        {items.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0"
+                        value={line.quantity || ""}
+                        onChange={(e) => {
+                          const qty = Number(e.target.value) || 0;
+                          setLines((prev) =>
+                            prev.map((p, i) => {
+                              if (i !== idx) return p;
+                              const next = { ...p, quantity: qty };
+                              if (
+                                p.priceMode === "total" &&
+                                p.totalInput !== undefined &&
+                                p.totalInput !== "" &&
+                                qty > 0
+                              ) {
+                                next.price = roundDecimal(
+                                  Number(p.totalInput) / qty,
+                                  4
+                                );
+                              }
+                              return next;
+                            })
+                          );
+                        }}
+                        className="input-base w-full text-right"
+                        aria-label="Quantity"
+                      />
+                      <select
+                        value={line.unit}
+                        onChange={(e) =>
+                          setLines((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, unit: e.target.value } : p
+                            )
+                          )
+                        }
+                        className="input-base w-full min-w-0"
+                        aria-label="Unit"
+                      >
+                        <option value="">—</option>
+                        {getUnitsForLine(idx).map((u) => (
+                          <option key={u.id} value={u.name}>
+                            {(u.symbol && u.symbol.trim()) || u.name}
+                          </option>
+                        ))}
+                      </select>
+                      {gstEnabled && (
+                        <>
+                          <select
+                            value={line.gst_rate}
+                            onChange={(e) =>
+                              setLines((prev) =>
+                                prev.map((p, i) =>
+                                  i === idx
+                                    ? { ...p, gst_rate: Number(e.target.value) }
+                                    : p
+                                )
+                              )
+                            }
+                            className="input-base w-full text-sm min-w-0"
+                            aria-label="GST rate"
+                          >
+                            {GST_SLABS.map((r) => (
+                              <option key={r} value={r}>
+                                {r}%
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={
+                              line.gst_inclusive ? "inclusive" : "exclusive"
+                            }
+                            onChange={(e) =>
+                              setLines((prev) =>
+                                prev.map((p, i) =>
+                                  i === idx
+                                    ? {
+                                        ...p,
+                                        gst_inclusive:
+                                          e.target.value === "inclusive",
+                                      }
+                                    : p
+                                )
+                              )
+                            }
+                            className="input-base w-full text-xs min-w-0"
+                            aria-label="GST mode"
+                          >
+                            <option value="exclusive">Excl.</option>
+                            <option value="inclusive">Incl.</option>
+                          </select>
+                        </>
+                      )}
+                      {(() => {
+                        const lineUnits = getUnitsForLine(idx);
+                        const typeValue =
+                          line.priceMode === "per_unit"
+                            ? line.priceUnit
+                            : "total";
+                        return (
+                          <select
+                            value={typeValue}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "total") {
+                                setLines((prev) =>
+                                  prev.map((p, i) => {
+                                    if (i !== idx) return p;
+                                    const factor = getLineConvFactor(p);
+                                    const lineAmt =
+                                      p.amount ??
+                                      (p.quantity > 0
+                                        ? p.quantity * factor * p.price
+                                        : 0);
+                                    const totalInput =
+                                      lineAmt > 0 ? formatDecimal(lineAmt) : "";
+                                    return {
+                                      ...p,
+                                      priceMode: "total",
+                                      totalInput,
+                                    };
+                                  })
+                                );
+                              } else {
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i !== idx
+                                      ? p
+                                      : {
+                                          ...p,
+                                          priceMode: "per_unit",
+                                          priceUnit: val,
+                                          totalInput: undefined,
+                                        }
+                                  )
+                                );
+                              }
+                            }}
+                            className="input-base w-full text-sm min-w-0"
+                            title="Enter price per unit or total for this line"
+                            aria-label="Price type"
+                          >
+                            {lineUnits.length > 0 ? (
+                              lineUnits.map((u) => (
+                                <option key={u.id} value={u.name}>
+                                  Per {u?.symbol?.trim() || u.name}
+                                </option>
+                              ))
+                            ) : (
+                              <option value={line.priceUnit || ""}>
+                                Per{" "}
+                                {unitToShort(line.priceUnit, allUnits) ||
+                                  "unit"}
+                              </option>
+                            )}
+                            <option value="total">Total</option>
+                          </select>
+                        );
+                      })()}
+                      {line.priceMode === "per_unit" ? (
+                        <>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            placeholder="0"
+                            value={line.price || ""}
+                            onChange={(e) =>
+                              setLines((prev) =>
+                                prev.map((p, i) =>
+                                  i === idx
+                                    ? {
+                                        ...p,
+                                        price: Number(e.target.value) || 0,
+                                      }
+                                    : p
+                                )
+                              )
+                            }
+                            className="input-base w-full text-right"
+                            aria-label="Unit price"
+                          />
+                          <span className="text-xs text-gray-600 whitespace-nowrap">
+                            ₹{formatDecimal(lineTotal)}
+                            {lineGst && line.gst_rate > 0 && (
+                              <span className="block text-[10px] text-gray-500">
+                                (tax ₹
+                                {formatDecimal(
+                                  lineGst.cgst_amount + lineGst.sgst_amount
+                                )}
+                                )
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            placeholder="0"
+                            value={getLineTotalDisplay(line)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const total = Number(raw) || 0;
                               setLines((prev) =>
                                 prev.map((p, i) => {
                                   if (i !== idx) return p;
-                                  const factor = getLineConvFactor(p);
-                                  const lineAmt =
-                                    p.amount ??
-                                    (p.quantity > 0
-                                      ? p.quantity * factor * p.price
-                                      : 0);
-                                  const totalInput =
-                                    lineAmt > 0 ? formatDecimal(lineAmt) : "";
-                                  return {
+                                  const next = {
                                     ...p,
-                                    priceMode: "total",
-                                    totalInput,
+                                    totalInput: raw,
                                   };
+                                  if (p.quantity > 0 && total >= 0) {
+                                    next.price = roundDecimal(
+                                      total / p.quantity,
+                                      4
+                                    );
+                                  }
+                                  return next;
                                 })
                               );
-                            } else {
-                              setLines((prev) =>
-                                prev.map((p, i) =>
-                                  i !== idx
-                                    ? p
-                                    : {
-                                        ...p,
-                                        priceMode: "per_unit",
-                                        priceUnit: val,
-                                        totalInput: undefined,
-                                      }
+                            }}
+                            className="input-base w-full text-right"
+                            title="Total amount for this line (quantity can be entered before or after)"
+                            aria-label="Line total"
+                          />
+                          <span className="text-xs text-gray-600 whitespace-nowrap">
+                            ₹{formatDecimal(lineTotal)}
+                            {lineGst && line.gst_rate > 0 && (
+                              <span className="block text-[10px] text-gray-500">
+                                (tax ₹
+                                {formatDecimal(
+                                  lineGst.cgst_amount + lineGst.sgst_amount
+                                )}
                                 )
-                              );
-                            }
-                          }}
-                          className="input-base w-full text-sm min-w-0"
-                          title="Enter price per unit or total for this line"
-                          aria-label="Price type"
-                        >
-                          {lineUnits.length > 0 ? (
-                            lineUnits.map((u) => (
-                              <option key={u.id} value={u.name}>
-                                Per {u?.symbol?.trim() || u.name}
-                              </option>
-                            ))
-                          ) : (
-                            <option value={line.priceUnit || ""}>
-                              Per{" "}
-                              {unitToShort(line.priceUnit, allUnits) || "unit"}
-                            </option>
-                          )}
-                          <option value="total">Total</option>
-                        </select>
-                      );
-                    })()}
-                    {line.priceMode === "per_unit" ? (
-                      <>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          placeholder="0"
-                          value={line.price || ""}
-                          onChange={(e) =>
-                            setLines((prev) =>
-                              prev.map((p, i) =>
-                                i === idx
-                                  ? { ...p, price: Number(e.target.value) || 0 }
-                                  : p
-                              )
-                            )
-                          }
-                          className="input-base w-full text-right"
-                          aria-label="Unit price"
-                        />
-                        <span className="text-xs text-gray-600 whitespace-nowrap">
-                          ₹
-                          {formatDecimal(
-                            (line.quantity || 0) *
-                              getLineConvFactor(line) *
-                              (line.price || 0)
-                          )}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          placeholder="0"
-                          value={getLineTotalDisplay(line)}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const total = Number(raw) || 0;
-                            setLines((prev) =>
-                              prev.map((p, i) => {
-                                if (i !== idx) return p;
-                                const next = {
-                                  ...p,
-                                  totalInput: raw,
-                                };
-                                if (p.quantity > 0 && total >= 0) {
-                                  next.price = roundDecimal(
-                                    total / p.quantity,
-                                    4
-                                  );
-                                }
-                                return next;
-                              })
-                            );
-                          }}
-                          className="input-base w-full text-right"
-                          title="Total amount for this line (quantity can be entered before or after)"
-                          aria-label="Line total"
-                        />
-                        {line.quantity > 0 &&
-                        (line.totalInput
-                          ? Number(line.totalInput) > 0
-                          : (line.amount ?? 0) > 0) ? (
-                          <span className="text-xs text-gray-600 whitespace-nowrap ml-2">
-                            ₹
-                            {formatDecimal(
-                              (() => {
-                                const amt =
-                                  line.totalInput !== undefined &&
-                                  line.totalInput !== ""
-                                    ? Number(line.totalInput)
-                                    : line.amount ??
-                                      (line.quantity || 0) * (line.price || 0);
-                                const factor = getLineConvFactor(line);
-                                if (
-                                  factor > 0 &&
-                                  (line.quantity || 0) > 0 &&
-                                  line.priceUnit
-                                ) {
-                                  return amt / ((line.quantity || 0) * factor);
-                                }
-                                return line.price > 0
-                                  ? line.price
-                                  : amt / (line.quantity || 1);
-                              })()
+                              </span>
                             )}
-                            /
-                            {unitToShort(
-                              line.priceUnit || line.unit,
-                              allUnits
-                            ) || "unit"}
                           </span>
-                        ) : (
-                          <span aria-hidden="true" />
-                        )}
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLines((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
-                      aria-label="Remove line"
-                    >
-                      <TrashIcon className="w-4 h-4" aria-hidden />
-                    </button>
-                  </div>
-                ))}
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLines((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
+                        aria-label="Remove line"
+                      >
+                        <TrashIcon className="w-4 h-4" aria-hidden />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <Button
                 type="button"
@@ -1310,7 +1575,14 @@ function InvoiceFormModal({
                 onClick={() =>
                   setLines((prev) => [
                     ...prev,
-                    { ...DEFAULT_LINE_ROW, _key: Date.now() },
+                    {
+                      ...DEFAULT_LINE_ROW,
+                      _key: Date.now(),
+                      gst_rate: Number(settings?.gst_default_rate) || 0,
+                      gst_inclusive:
+                        (settings?.gst_default_mode ?? "exclusive") ===
+                        "inclusive",
+                    },
                   ])
                 }
                 className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"

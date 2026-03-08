@@ -2,8 +2,6 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  CalculatorIcon,
-  CheckIcon,
   XMarkIcon,
   ArrowTopRightOnSquareIcon,
   ExclamationTriangleIcon,
@@ -74,10 +72,10 @@ export default function Home() {
   const [weeklyDate, setWeeklyDate] = useState(todayISO());
   const [totalFrom, setTotalFrom] = useState(defaultTotalFrom);
   const [totalTo, setTotalTo] = useState(defaultTotalTo);
-  const [plYear, setPlYear] = useState(currentYear);
-  const [openingBalance, setOpeningBalance] = useState("");
-  const [closingBalance, setClosingBalance] = useState("");
-  const [plResult, setPlResult] = useState<{
+  const [_plYear, _setPlYear] = useState(currentYear);
+  const [_openingBalance, _setOpeningBalance] = useState("");
+  const [_closingBalance, _setClosingBalance] = useState("");
+  const [_plResult, _setPlResult] = useState<{
     openingBalance: number;
     totalSale: number;
     totalExpenditure: number;
@@ -120,12 +118,12 @@ export default function Home() {
     enabled: !!totalFrom && !!totalTo,
   });
 
-  const { data: savedOpening } = useQuery({
-    queryKey: ["openingBalance", plYear],
-    queryFn: () => api.getOpeningBalance(plYear),
+  const { data: _savedOpening } = useQuery({
+    queryKey: ["openingBalance", _plYear],
+    queryFn: () => api.getOpeningBalance(_plYear),
   });
 
-  const setOpening = useMutation({
+  const _setOpening = useMutation({
     mutationFn: ({ year, amount }: { year: number; amount: number }) =>
       api.setOpeningBalance(year, amount),
     onSuccess: (_, { year }) =>

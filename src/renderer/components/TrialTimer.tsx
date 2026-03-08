@@ -15,7 +15,6 @@ export default function TrialTimer() {
 
   useEffect(() => {
     if (!TRIAL_MODE || !TRIAL_END_ISO || isTrialExpired(TRIAL_END_ISO)) {
-      if (TRIAL_MODE && TRIAL_END_ISO) setLabel(formatTrialTimer(TRIAL_END_ISO));
       return;
     }
     const tick = () => setLabel(formatTrialTimer(TRIAL_END_ISO));

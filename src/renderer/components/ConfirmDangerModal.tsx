@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import FormModal from "./FormModal";
 import Button from "./Button";
 
@@ -25,10 +25,6 @@ export default function ConfirmDangerModal({
   isConfirming = false,
 }: Readonly<ConfirmDangerModalProps>) {
   const [input, setInput] = useState("");
-
-  useEffect(() => {
-    if (open) setInput("");
-  }, [open]);
 
   const matches = input.trim() === CONFIRM_PHRASE;
   const canProceed = matches && !isConfirming;
@@ -67,6 +63,7 @@ export default function ConfirmDangerModal({
         to continue
       </label>
       <input
+        key={open ? "open" : "closed"}
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}

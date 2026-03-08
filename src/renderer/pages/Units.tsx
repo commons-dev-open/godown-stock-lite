@@ -15,11 +15,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
-import type {
-  Unit,
-  UnitType,
-  UnitConversion,
-} from "../../shared/types";
+import type { Unit, UnitType, UnitConversion } from "../../shared/types";
 import {
   isSeedConversion,
   isSeedUnit,
@@ -383,7 +379,7 @@ export default function Units() {
         }}
       />
 
-      {/* Unit type – Add */}
+      {/* Unit type - Add */}
       <FormModal
         title="Add unit type"
         open={typesAddOpen}
@@ -394,8 +390,9 @@ export default function Units() {
               const form = document.getElementById(
                 "form-type-add"
               ) as HTMLFormElement;
-              const name = (form?.elements.namedItem("name") as HTMLInputElement)
-                ?.value?.trim();
+              const name = (
+                form?.elements.namedItem("name") as HTMLInputElement
+              )?.value?.trim();
               if (!name) return;
               createUnitType.mutate(name);
             }}
@@ -409,9 +406,9 @@ export default function Units() {
           id="form-type-add"
           onSubmit={(e) => {
             e.preventDefault();
-            const name = (e.currentTarget.elements.namedItem(
-              "name"
-            ) as HTMLInputElement)?.value?.trim();
+            const name = (
+              e.currentTarget.elements.namedItem("name") as HTMLInputElement
+            )?.value?.trim();
             if (name) createUnitType.mutate(name);
           }}
           className="space-y-4"
@@ -427,7 +424,7 @@ export default function Units() {
         </form>
       </FormModal>
 
-      {/* Unit type – Edit */}
+      {/* Unit type - Edit */}
       <FormModal
         title="Edit unit type"
         open={!!typeEditing}
@@ -439,8 +436,9 @@ export default function Units() {
                 "form-type-edit"
               ) as HTMLFormElement;
               if (!form || !typeEditing) return;
-              const name = (form.elements.namedItem("name") as HTMLInputElement)
-                ?.value?.trim();
+              const name = (
+                form.elements.namedItem("name") as HTMLInputElement
+              )?.value?.trim();
               if (!name) return;
               updateUnitType.mutate({ id: typeEditing.id, name });
             }}
@@ -455,9 +453,9 @@ export default function Units() {
             id="form-type-edit"
             onSubmit={(e) => {
               e.preventDefault();
-              const name = (e.currentTarget.elements.namedItem(
-                "name"
-              ) as HTMLInputElement)?.value?.trim();
+              const name = (
+                e.currentTarget.elements.namedItem("name") as HTMLInputElement
+              )?.value?.trim();
               if (name) updateUnitType.mutate({ id: typeEditing.id, name });
             }}
             className="space-y-4"
@@ -672,7 +670,7 @@ export default function Units() {
         )}
       </FormModal>
 
-      {/* Standard conversion – Add */}
+      {/* Standard conversion - Add */}
       <FormModal
         title="Add conversion"
         open={convAddOpen}
@@ -767,7 +765,7 @@ export default function Units() {
         </form>
       </FormModal>
 
-      {/* Standard conversion – Edit */}
+      {/* Standard conversion - Edit */}
       <FormModal
         title="Edit conversion"
         open={!!convEditing}

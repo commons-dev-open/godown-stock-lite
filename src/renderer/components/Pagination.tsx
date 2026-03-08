@@ -23,7 +23,7 @@ export default function Pagination({
   return (
     <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-gray-50 text-sm">
       <span className="text-gray-600">
-        Showing {start}–{end} of {total}
+        Showing {start}-{end} of {total}
       </span>
       <div className="flex items-center gap-1">
         <button

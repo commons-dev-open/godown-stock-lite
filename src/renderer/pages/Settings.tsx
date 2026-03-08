@@ -55,6 +55,21 @@ const SETTING_KEYS = {
   owner_phone: "Phone",
 } as const;
 
+const GST_SETTING_KEYS = {
+  gst_enabled: "Enable GST",
+  gst_default_rate: "Default GST Rate",
+  gst_default_mode: "Default Price Mode",
+  place_of_supply: "Place of Supply",
+  customer_gstin_enabled: "Show Customer GSTIN field",
+  hsn_enabled: "Enable HSN",
+} as const;
+
+const GST_RATES = ["0", "5", "12", "18", "28"] as const;
+const GST_MODES = [
+  { value: "exclusive", label: "Exclusive" },
+  { value: "inclusive", label: "Inclusive" },
+] as const;
+
 const DISPLAY_NAME_MAX = 25;
 
 export default function Settings() {
@@ -78,7 +93,16 @@ export default function Settings() {
     for (const key of Object.keys(SETTING_KEYS)) {
       initial[key] = settings[key] ?? "";
     }
+    for (const key of Object.keys(GST_SETTING_KEYS)) {
+      initial[key] = settings[key] ?? "";
+    }
     initial.displayName = settings.displayName ?? "";
+    initial.gst_enabled = settings.gst_enabled ?? "false";
+    initial.gst_default_rate = settings.gst_default_rate ?? "0";
+    initial.gst_default_mode = settings.gst_default_mode ?? "exclusive";
+    initial.place_of_supply = settings.place_of_supply ?? "";
+    initial.customer_gstin_enabled = settings.customer_gstin_enabled ?? "false";
+    initial.hsn_enabled = settings.hsn_enabled ?? "true";
     setForm(initial); // eslint-disable-line react-hooks/set-state-in-effect -- sync server settings to form when loaded
   }, [settings]);
 
@@ -97,6 +121,20 @@ export default function Settings() {
     }
     setSettingsMutation.mutate(payload);
   };
+
+  const saveGstSettings = () => {
+    const payload: Record<string, string> = {
+      gst_enabled: form.gst_enabled ?? "false",
+      gst_default_rate: form.gst_default_rate ?? "0",
+      gst_default_mode: form.gst_default_mode ?? "exclusive",
+      place_of_supply: (form.place_of_supply ?? "").trim(),
+      customer_gstin_enabled: form.customer_gstin_enabled ?? "false",
+      hsn_enabled: form.hsn_enabled ?? "true",
+    };
+    setSettingsMutation.mutate(payload);
+  };
+
+  const gstEnabled = form.gst_enabled === "true";
 
   const clearTablesMutation = useMutationWithToast({
     mutationFn: () => api.clearDbTables(),
@@ -189,6 +227,134 @@ export default function Settings() {
               <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
               Save
             </Button>
+          </div>
+        </section>
+
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">
+            GST / Tax Settings
+          </h2>
+          <div className="space-y-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={gstEnabled}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    gst_enabled: e.target.checked ? "true" : "false",
+                  }))
+                }
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Enable GST
+              </span>
+            </label>
+            <div
+              className={`space-y-4 ${!gstEnabled ? "opacity-60 pointer-events-none" : ""}`}
+            >
+              <FormField label="Default GST Rate">
+                <select
+                  value={form.gst_default_rate ?? "0"}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      gst_default_rate: e.target.value,
+                    }))
+                  }
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  {GST_RATES.map((r) => (
+                    <option key={r} value={r}>
+                      {r}%
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Default Price Mode">
+                <select
+                  value={form.gst_default_mode ?? "exclusive"}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      gst_default_mode: e.target.value,
+                    }))
+                  }
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  {GST_MODES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField
+                label="Place of Supply"
+                extra={
+                  <p className="text-xs text-gray-500">
+                    Seller&apos;s state; shown on Tax Invoice PDF
+                  </p>
+                }
+              >
+                <input
+                  value={form.place_of_supply ?? ""}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      place_of_supply: e.target.value,
+                    }))
+                  }
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="e.g. Maharashtra"
+                />
+              </FormField>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.customer_gstin_enabled === "true"}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      customer_gstin_enabled: e.target.checked
+                        ? "true"
+                        : "false",
+                    }))
+                  }
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">
+                  Show Customer GSTIN field (B2B mode)
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hsn_enabled !== "false"}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      hsn_enabled: e.target.checked ? "true" : "false",
+                    }))
+                  }
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">
+                  Enable HSN (Harmonized System of Nomenclature) code
+                </span>
+              </label>
+            </div>
+            <div className="mt-4">
+              <Button
+                type="button"
+                onClick={saveGstSettings}
+                disabled={setSettingsMutation.isPending}
+              >
+                <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                Save GST settings
+              </Button>
+            </div>
           </div>
         </section>
 

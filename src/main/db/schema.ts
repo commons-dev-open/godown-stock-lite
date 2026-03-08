@@ -9,6 +9,7 @@ export function createSchema(db: DbLike): void {
       phone TEXT NOT NULL UNIQUE,
       name TEXT,
       address TEXT,
+      gstin TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -36,6 +37,11 @@ export function createSchema(db: DbLike): void {
       reference_unit TEXT,
       quantity_per_primary REAL,
       retail_primary_unit TEXT,
+      selling_price REAL,
+      selling_price_unit TEXT,
+      selling_price_unit_id INTEGER REFERENCES units(id),
+      gst_rate REAL NOT NULL DEFAULT 0,
+      hsn_code TEXT,
       current_stock REAL NOT NULL DEFAULT 0,
       reorder_level REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -143,11 +149,43 @@ export function createSchema(db: DbLike): void {
       unit TEXT NOT NULL,
       unit_id INTEGER REFERENCES units(id),
       price REAL NOT NULL,
+      price_unit TEXT,
       amount REAL NOT NULL DEFAULT 0,
       price_entered_as TEXT NOT NULL DEFAULT 'per_unit' CHECK(price_entered_as IN ('per_unit', 'total')),
+      gst_rate REAL NOT NULL DEFAULT 0,
+      gst_inclusive INTEGER NOT NULL DEFAULT 0,
+      taxable_amount REAL NOT NULL DEFAULT 0,
+      cgst_amount REAL NOT NULL DEFAULT 0,
+      sgst_amount REAL NOT NULL DEFAULT 0,
+      hsn_code TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     DROP TABLE IF EXISTS unit_sort_order;
   `);
+  ensureGstColumns(db);
+}
+
+function addColumnIfMissing(db: DbLike, table: string, sql: string): void {
+  try {
+    db.exec(sql);
+  } catch {
+    /* column already exists */
+  }
+}
+
+function ensureGstColumns(db: DbLike): void {
+  addColumnIfMissing(db, "customers", "ALTER TABLE customers ADD COLUMN gstin TEXT");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN selling_price REAL");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN selling_price_unit TEXT");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN selling_price_unit_id INTEGER REFERENCES units(id)");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN gst_rate REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN hsn_code TEXT");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN price_unit TEXT");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN gst_rate REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN gst_inclusive INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN taxable_amount REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN cgst_amount REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN sgst_amount REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN hsn_code TEXT");
 }

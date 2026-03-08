@@ -202,6 +202,11 @@ export function registerIpcHandlers(): void {
         reference_unit?: string | null;
         quantity_per_primary?: number | null;
         retail_primary_unit?: string | null;
+        selling_price?: number | null;
+        selling_price_unit?: string | null;
+        selling_price_unit_id?: number | null;
+        gst_rate?: number;
+        hsn_code?: string | null;
         current_stock?: number;
         current_stock_value?: number;
         current_stock_unit?: string;
@@ -251,9 +256,19 @@ export function registerIpcHandlers(): void {
         .prepare("SELECT id FROM units WHERE name = ?")
         .get(primaryUnit) as { id: number } | undefined;
       const unitId = unitIdRow?.id ?? null;
+      const sellingPriceUnitId =
+        item.selling_price_unit_id ??
+        (item.selling_price_unit
+          ? (
+              db()
+                .prepare("SELECT id FROM units WHERE name = ?")
+                .get(item.selling_price_unit) as { id: number } | undefined
+            )?.id ??
+            null
+          : null);
       const result = db()
         .prepare(
-          "INSERT INTO items (name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO items (name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, selling_price, selling_price_unit, selling_price_unit_id, gst_rate, hsn_code, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           item.name,
@@ -263,6 +278,11 @@ export function registerIpcHandlers(): void {
           refUnit,
           qtyPerPrimary,
           item.retail_primary_unit ?? null,
+          item.selling_price != null ? roundDecimal(item.selling_price) : null,
+          item.selling_price_unit ?? null,
+          sellingPriceUnitId,
+          item.gst_rate ?? 0,
+          item.hsn_code ?? null,
           stockPrimary,
           item.reorder_level != null ? roundDecimal(item.reorder_level) : null
         );
@@ -314,6 +334,11 @@ export function registerIpcHandlers(): void {
         reference_unit?: string | null;
         quantity_per_primary?: number | null;
         retail_primary_unit?: string | null;
+        selling_price?: number | null;
+        selling_price_unit?: string | null;
+        selling_price_unit_id?: number | null;
+        gst_rate?: number;
+        hsn_code?: string | null;
         current_stock?: number;
         current_stock_value?: number;
         current_stock_unit?: string;
@@ -380,9 +405,36 @@ export function registerIpcHandlers(): void {
         .prepare("SELECT id FROM units WHERE name = ?")
         .get(primaryUnit) as { id: number } | undefined;
       const unitId = unitIdRow?.id ?? null;
+      const rowWithGst = row as {
+        selling_price?: number | null;
+        selling_price_unit?: string | null;
+        gst_rate?: number;
+        hsn_code?: string | null;
+      };
+      const spUnit =
+        item.selling_price_unit !== undefined
+          ? item.selling_price_unit
+          : rowWithGst.selling_price_unit ?? null;
+      const spUnitId = spUnit
+        ? (
+            db()
+              .prepare("SELECT id FROM units WHERE name = ?")
+              .get(spUnit) as { id: number } | undefined
+          )?.id ?? null
+        : null;
+      const spPrice =
+        item.selling_price !== undefined
+          ? item.selling_price != null
+            ? roundDecimal(item.selling_price)
+            : null
+          : rowWithGst.selling_price ?? null;
+      const gstRate =
+        item.gst_rate !== undefined ? item.gst_rate : (rowWithGst.gst_rate ?? 0);
+      const hsnCode =
+        item.hsn_code !== undefined ? item.hsn_code : (rowWithGst.hsn_code ?? null);
       db()
         .prepare(
-          "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, selling_price = ?, selling_price_unit = ?, selling_price_unit_id = ?, gst_rate = ?, hsn_code = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           item.name ?? row.name,
@@ -394,6 +446,11 @@ export function registerIpcHandlers(): void {
           item.retail_primary_unit !== undefined
             ? item.retail_primary_unit
             : row.retail_primary_unit,
+          spPrice,
+          spUnit,
+          spUnitId,
+          gstRate,
+          hsnCode,
           stockPrimary,
           item.reorder_level !== undefined
             ? item.reorder_level != null
@@ -661,7 +718,7 @@ export function registerIpcHandlers(): void {
           "INSERT OR IGNORE INTO units (name, symbol, unit_type_id) VALUES (?, ?, ?)"
         )
         .run(name, symbol, unitTypeId);
-      const id =
+      const _id =
         run.changes > 0
           ? (run as { lastInsertRowid: number }).lastInsertRowid
           : (
@@ -1037,7 +1094,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("invoices:getById", (_, id: number) => {
     const invoice = db()
-      .prepare("SELECT * FROM invoices WHERE id = ?")
+      .prepare(
+        "SELECT i.*, c.gstin AS customer_gstin FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?"
+      )
       .get(id) as Record<string, unknown> | undefined;
     if (!invoice) throw new Error("Invoice not found");
     const lines = db()
@@ -1055,6 +1114,7 @@ export function registerIpcHandlers(): void {
         customer_name?: string | null;
         customer_address?: string | null;
         customer_phone?: string | null;
+        customer_gstin?: string | null;
         invoice_date: string;
         notes?: string | null;
         lines: {
@@ -1065,6 +1125,13 @@ export function registerIpcHandlers(): void {
           price: number;
           amount: number;
           price_entered_as: "per_unit" | "total";
+          price_unit?: string | null;
+          gst_rate?: number;
+          gst_inclusive?: boolean;
+          taxable_amount?: number;
+          cgst_amount?: number;
+          sgst_amount?: number;
+          hsn_code?: string | null;
         }[];
       }
     ) => {
@@ -1101,7 +1168,8 @@ export function registerIpcHandlers(): void {
           customerId = upsertCustomer(
             customerPhone,
             payload.customer_name ?? null,
-            payload.customer_address ?? null
+            payload.customer_address ?? null,
+            payload.customer_gstin ?? null
           );
         }
 
@@ -1121,12 +1189,17 @@ export function registerIpcHandlers(): void {
         const invoiceId = r.lastInsertRowid as number;
         const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
           const unitId =
             (getUnitId.get(line.unit ?? "") as { id: number } | undefined)
               ?.id ?? null;
+          const gstRate = line.gst_rate ?? 0;
+          const gstInclusive = line.gst_inclusive ?? false;
+          const taxableAmount = line.taxable_amount ?? 0;
+          const cgstAmount = line.cgst_amount ?? 0;
+          const sgstAmount = line.sgst_amount ?? 0;
           stmt.run(
             invoiceId,
             line.product_id,
@@ -1135,8 +1208,15 @@ export function registerIpcHandlers(): void {
             line.unit ?? "",
             unitId,
             roundDecimal(line.price),
+            line.price_unit ?? null,
             roundDecimal(line.amount),
-            line.price_entered_as ?? "per_unit"
+            line.price_entered_as ?? "per_unit",
+            gstRate,
+            gstInclusive ? 1 : 0,
+            roundDecimal(taxableAmount),
+            roundDecimal(cgstAmount),
+            roundDecimal(sgstAmount),
+            line.hsn_code ?? null
           );
 
           if (line.product_id > 0) {
@@ -1221,6 +1301,7 @@ export function registerIpcHandlers(): void {
         customer_name?: string | null;
         customer_address?: string | null;
         customer_phone?: string | null;
+        customer_gstin?: string | null;
         invoice_date?: string;
         notes?: string | null;
         lines: {
@@ -1231,6 +1312,13 @@ export function registerIpcHandlers(): void {
           price: number;
           amount: number;
           price_entered_as: "per_unit" | "total";
+          price_unit?: string | null;
+          gst_rate?: number;
+          gst_inclusive?: boolean;
+          taxable_amount?: number;
+          cgst_amount?: number;
+          sgst_amount?: number;
+          hsn_code?: string | null;
         }[];
       }
     ) => {
@@ -1367,7 +1455,8 @@ export function registerIpcHandlers(): void {
           customerId = upsertCustomer(
             customerPhone,
             payload.customer_name ?? existing.customer_name ?? null,
-            payload.customer_address ?? existing.customer_address ?? null
+            payload.customer_address ?? existing.customer_address ?? null,
+            payload.customer_gstin ?? null
           );
         }
 
@@ -1388,12 +1477,17 @@ export function registerIpcHandlers(): void {
         db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
         const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, amount, price_entered_as) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
           const unitId =
             (getUnitId.get(line.unit ?? "") as { id: number } | undefined)
               ?.id ?? null;
+          const gstRate = line.gst_rate ?? 0;
+          const gstInclusive = line.gst_inclusive ?? false;
+          const taxableAmount = line.taxable_amount ?? 0;
+          const cgstAmount = line.cgst_amount ?? 0;
+          const sgstAmount = line.sgst_amount ?? 0;
           stmt.run(
             id,
             line.product_id,
@@ -1402,8 +1496,15 @@ export function registerIpcHandlers(): void {
             line.unit ?? "",
             unitId,
             roundDecimal(line.price),
+            line.price_unit ?? null,
             roundDecimal(line.amount),
-            line.price_entered_as ?? "per_unit"
+            line.price_entered_as ?? "per_unit",
+            gstRate,
+            gstInclusive ? 1 : 0,
+            roundDecimal(taxableAmount),
+            roundDecimal(cgstAmount),
+            roundDecimal(sgstAmount),
+            line.hsn_code ?? null
           );
         }
 
@@ -1542,7 +1643,8 @@ export function registerIpcHandlers(): void {
   function upsertCustomer(
     phone: string,
     name: string | null,
-    address: string | null
+    address: string | null,
+    gstin: string | null = null
   ): number {
     const trimmedPhone = phone.trim();
     const existing = db()
@@ -1551,16 +1653,16 @@ export function registerIpcHandlers(): void {
     if (existing) {
       db()
         .prepare(
-          "UPDATE customers SET name = ?, address = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE customers SET name = ?, address = ?, gstin = ?, updated_at = datetime('now') WHERE id = ?"
         )
-        .run(name, address, existing.id);
+        .run(name, address, gstin, existing.id);
       return existing.id;
     }
     const r = db()
       .prepare(
-        "INSERT INTO customers (phone, name, address) VALUES (?, ?, ?)"
+        "INSERT INTO customers (phone, name, address, gstin) VALUES (?, ?, ?, ?)"
       )
-      .run(trimmedPhone, name, address);
+      .run(trimmedPhone, name, address, gstin);
     return r.lastInsertRowid as number;
   }
 
@@ -1568,16 +1670,38 @@ export function registerIpcHandlers(): void {
     const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
     if (!trimmedPhone) return null;
     const result = db()
-      .prepare("SELECT id, phone, name, address FROM customers WHERE phone = ?")
+      .prepare("SELECT id, phone, name, address, gstin FROM customers WHERE phone = ?")
       .get(trimmedPhone) as
-      | { id: number; phone: string; name: string | null; address: string | null }
+      | {
+          id: number;
+          phone: string;
+          name: string | null;
+          address: string | null;
+          gstin: string | null;
+        }
       | undefined;
     return result ?? null;
   });
 
-  ipcMain.handle("customers:upsert", (_, data: { phone: string; name?: string | null; address?: string | null }) => {
-    return upsertCustomer(data.phone, data.name ?? null, data.address ?? null);
-  });
+  ipcMain.handle(
+    "customers:upsert",
+    (
+      _,
+      data: {
+        phone: string;
+        name?: string | null;
+        address?: string | null;
+        gstin?: string | null;
+      }
+    ) => {
+      return upsertCustomer(
+        data.phone,
+        data.name ?? null,
+        data.address ?? null,
+        data.gstin ?? null
+      );
+    }
+  );
 
   // ---- Mahajans ----
   ipcMain.handle("mahajans:getAll", () => {

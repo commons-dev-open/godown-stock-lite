@@ -37,8 +37,22 @@ export interface Item {
   reference_unit: string | null;
   quantity_per_primary: number | null;
   retail_primary_unit: string | null;
+  selling_price: number | null;
+  selling_price_unit: string | null;
+  gst_rate: number;
+  hsn_code: string | null;
   current_stock: number;
   reorder_level: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Customer {
+  id: number;
+  phone: string;
+  name: string | null;
+  address: string | null;
+  gstin: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -130,11 +144,19 @@ export interface InvoiceLine {
   product_name: string | null;
   quantity: number;
   unit: string;
+  /** Unit the price is expressed per (e.g. "kg"). */
+  price_unit?: string | null;
   /** Unit price (for display). When user entered total, this is amount/quantity. */
   price: number;
-  /** Line total in currency. This is the source of truth for the line amount. */
+  /** Line total in currency including GST. Source of truth. */
   amount: number;
   /** Whether the user entered price per unit or total for this line. Defaults to 'per_unit' for older rows. */
   price_entered_as?: PriceEnteredAs;
+  gst_rate: number;
+  gst_inclusive: boolean;
+  taxable_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  hsn_code?: string | null;
   created_at: string;
 }
