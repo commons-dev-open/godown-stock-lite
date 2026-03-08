@@ -10,7 +10,7 @@ const navItems = [
   { to: "/", label: "Home" },
   { to: "/units", label: "Units" },
   { to: "/stock", label: "Products & Stock" },
-  { to: "/mahajans", label: "Mahajans" },
+  { to: "/mahajans", label: "Lenders" },
   { to: "/transactions", label: "Transactions" },
   { to: "/sales", label: "Daily Sales" },
   { to: "/invoices", label: "Invoices" },

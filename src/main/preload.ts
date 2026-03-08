@@ -161,85 +161,184 @@ const electronAPI = {
   ) => ipcRenderer.invoke("invoices:update", id, payload),
   deleteInvoice: (id: number) => ipcRenderer.invoke("invoices:delete", id),
 
-  // Mahajans
-  getMahajans: () => ipcRenderer.invoke("mahajans:getAll"),
-  getMahajansPage: (opts: { search?: string; page?: number; limit?: number }) =>
-    ipcRenderer.invoke("mahajans:getPage", opts),
-  createMahajan: (m: {
+  // Lenders
+  getLenders: () => ipcRenderer.invoke("lenders:getAll"),
+  getLendersPage: (opts: { search?: string; page?: number; limit?: number }) =>
+    ipcRenderer.invoke("lenders:getPage", opts),
+  createLender: (m: {
     name: string;
     address?: string;
     phone?: string;
     gstin?: string;
-  }) => ipcRenderer.invoke("mahajans:create", m),
-  updateMahajan: (
+  }) => ipcRenderer.invoke("lenders:create", m),
+  updateLender: (
     id: number,
     m: { name?: string; address?: string; phone?: string; gstin?: string }
-  ) => ipcRenderer.invoke("mahajans:update", id, m),
-  deleteMahajan: (id: number) => ipcRenderer.invoke("mahajans:delete", id),
+  ) => ipcRenderer.invoke("lenders:update", id, m),
+  deleteLender: (id: number) => ipcRenderer.invoke("lenders:delete", id),
 
-  // Mahajan Lends
-  getMahajanLends: (mahajanId?: number) =>
-    ipcRenderer.invoke("mahajanLends:getAll", mahajanId),
-  createMahajanLend: (l: {
-    mahajan_id: number;
+  // Credit Purchases
+  getCreditPurchases: (lenderId?: number) =>
+    ipcRenderer.invoke("creditPurchases:getAll", lenderId),
+  createCreditPurchase: (l: {
+    lender_id: number;
     product_id?: number | null;
     product_name?: string;
     quantity?: number;
     transaction_date: string;
     amount: number;
     notes?: string;
-  }) => ipcRenderer.invoke("mahajanLends:create", l),
-  createMahajanLendBatch: (payload: {
-    mahajan_id: number;
+    lender_invoice_number?: string;
+    invoice_file_path?: string;
+    gst_rate?: number;
+    gst_inclusive?: boolean;
+    taxable_amount?: number;
+    cgst_amount?: number;
+    sgst_amount?: number;
+  }) => ipcRenderer.invoke("creditPurchases:create", l),
+  saveCreditPurchaseInvoice: (opts: {
+    batchUuid: string;
+    buffer: ArrayBuffer;
+    extension: string;
+  }) => ipcRenderer.invoke("creditPurchase:saveInvoice", opts),
+  openCreditPurchaseInvoice: (relativePath: string) =>
+    ipcRenderer.invoke("creditPurchase:openInvoice", relativePath),
+  createCreditPurchaseBatch: (payload: {
+    lender_id: number;
     transaction_date: string;
     notes?: string;
+    lender_invoice_number?: string;
+    invoice_file_path?: string;
+    batch_uuid?: string;
     lines: {
       product_id: number;
       product_name?: string;
       quantity: number;
       amount: number;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+      taxable_amount?: number;
+      cgst_amount?: number;
+      sgst_amount?: number;
     }[];
-  }) => ipcRenderer.invoke("mahajanLends:createBatch", payload),
-  updateMahajanLend: (
+  }) => ipcRenderer.invoke("creditPurchases:createBatch", payload),
+  updateCreditPurchase: (
     id: number,
     l: {
-      mahajan_id?: number;
+      lender_id?: number;
       product_id?: number | null;
       product_name?: string;
       quantity?: number;
       transaction_date?: string;
       amount?: number;
       notes?: string;
+      lender_invoice_number?: string;
+      invoice_file_path?: string;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+      taxable_amount?: number;
+      cgst_amount?: number;
+      sgst_amount?: number;
     }
-  ) => ipcRenderer.invoke("mahajanLends:update", id, l),
-  deleteMahajanLend: (id: number) =>
-    ipcRenderer.invoke("mahajanLends:delete", id),
+  ) => ipcRenderer.invoke("creditPurchases:update", id, l),
+  deleteCreditPurchase: (id: number) =>
+    ipcRenderer.invoke("creditPurchases:delete", id),
 
-  // Mahajan Deposits
-  getMahajanDeposits: (mahajanId?: number) =>
-    ipcRenderer.invoke("mahajanDeposits:getAll", mahajanId),
+  // Settlements
+  getSettlements: (lenderId?: number) =>
+    ipcRenderer.invoke("settlements:getAll", lenderId),
+  getCreditPurchasesWithAllocated: (lenderId: number) =>
+    ipcRenderer.invoke("creditPurchases:getWithAllocated", lenderId),
 
-  // Mahajan Ledger (unified lends + deposits, paginated)
-  getMahajanLedgerPage: (opts: {
+  // Lender Ledger (unified credit purchases + settlements, paginated)
+  getLenderLedgerPage: (opts: {
+    lenderId?: number | null;
     mahajanId?: number | null;
-    transactionType?: "all" | "lend" | "deposit" | "cash_purchase";
+    transactionType?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
     limit?: number;
-  }) => ipcRenderer.invoke("mahajanLedger:getPage", opts),
+  }) => ipcRenderer.invoke("lenderLedger:getPage", opts),
+  createSettlement: (d: {
+    lender_id: number;
+    transaction_date: string;
+    amount: number;
+    notes?: string;
+    payment_method?: string;
+    reference_number?: string;
+    allocations?: { credit_purchase_id: number; amount: number }[];
+  }) => ipcRenderer.invoke("settlements:create", d),
+  updateSettlement: (
+    id: number,
+    d: {
+      transaction_date?: string;
+      amount?: number;
+      notes?: string;
+      payment_method?: string;
+      reference_number?: string;
+    }
+  ) => ipcRenderer.invoke("settlements:update", id, d),
+  deleteSettlement: (id: number) =>
+    ipcRenderer.invoke("settlements:delete", id),
+
+  // Aliases for backward compatibility
+  getMahajans: () => ipcRenderer.invoke("lenders:getAll"),
+  getMahajansPage: (opts: { search?: string; page?: number; limit?: number }) =>
+    ipcRenderer.invoke("lenders:getPage", opts),
+  createMahajan: (m: { name: string; address?: string; phone?: string; gstin?: string }) =>
+    ipcRenderer.invoke("lenders:create", m),
+  updateMahajan: (id: number, m: { name?: string; address?: string; phone?: string; gstin?: string }) =>
+    ipcRenderer.invoke("lenders:update", id, m),
+  deleteMahajan: (id: number) => ipcRenderer.invoke("lenders:delete", id),
+  getMahajanLends: (id?: number) => ipcRenderer.invoke("creditPurchases:getAll", id),
+  createMahajanLend: (l: { mahajan_id: number; product_id?: number | null; product_name?: string; quantity?: number; transaction_date: string; amount: number; notes?: string }) =>
+    ipcRenderer.invoke("creditPurchases:create", { ...l, lender_id: l.mahajan_id }),
+  createMahajanLendBatch: (p: {
+    mahajan_id: number;
+    transaction_date: string;
+    notes?: string;
+    lender_invoice_number?: string;
+    invoice_file_path?: string;
+    batch_uuid?: string;
+    lines: {
+      product_id: number;
+      product_name?: string;
+      quantity: number;
+      amount: number;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+      taxable_amount?: number;
+      cgst_amount?: number;
+      sgst_amount?: number;
+    }[];
+  }) =>
+    ipcRenderer.invoke("creditPurchases:createBatch", {
+      ...p,
+      lender_id: p.mahajan_id,
+    }),
+  updateMahajanLend: (id: number, l: { mahajan_id?: number; product_id?: number | null; product_name?: string; quantity?: number; transaction_date?: string; amount?: number; notes?: string }) =>
+    ipcRenderer.invoke("creditPurchases:update", id, { ...l, lender_id: l.mahajan_id }),
+  deleteMahajanLend: (id: number) => ipcRenderer.invoke("creditPurchases:delete", id),
+  getMahajanDeposits: (id?: number) => ipcRenderer.invoke("settlements:getAll", id),
+  getMahajanLedgerPage: (opts: { mahajanId?: number | null; transactionType?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number }) =>
+    ipcRenderer.invoke("lenderLedger:getPage", { ...opts, lenderId: opts.mahajanId, transactionType: opts.transactionType === "lend" ? "credit_purchase" : opts.transactionType === "deposit" ? "settlement" : opts.transactionType }),
   createMahajanDeposit: (d: {
     mahajan_id: number;
     transaction_date: string;
     amount: number;
     notes?: string;
-  }) => ipcRenderer.invoke("mahajanDeposits:create", d),
-  updateMahajanDeposit: (
-    id: number,
-    d: { transaction_date?: string; amount?: number; notes?: string }
-  ) => ipcRenderer.invoke("mahajanDeposits:update", id, d),
-  deleteMahajanDeposit: (id: number) =>
-    ipcRenderer.invoke("mahajanDeposits:delete", id),
+    payment_method?: string;
+    reference_number?: string;
+    allocations?: { credit_purchase_id: number; amount: number }[];
+  }) =>
+    ipcRenderer.invoke("settlements:create", {
+      ...d,
+      lender_id: d.mahajan_id,
+    }),
+  updateMahajanDeposit: (id: number, d: { transaction_date?: string; amount?: number; notes?: string }) =>
+    ipcRenderer.invoke("settlements:update", id, d),
+  deleteMahajanDeposit: (id: number) => ipcRenderer.invoke("settlements:delete", id),
 
   // Daily Sales
   getDailySales: (fromDate?: string, toDate?: string) =>
@@ -316,12 +415,32 @@ const electronAPI = {
     ipcRenderer.invoke("reports:getLowStockItems") as Promise<
       { id: number; name: string; current_stock: number; reorder_level: number; unit: string }[]
     >,
-  getTotalLend: () =>
-    ipcRenderer.invoke("reports:getTotalLend") as Promise<{
-      totalLend: number;
+  getTotalCreditPurchase: () =>
+    ipcRenderer.invoke("reports:getTotalCreditPurchase") as Promise<{
+      totalCreditPurchase: number;
     }>,
+  getLenderSummary: () =>
+    ipcRenderer.invoke("reports:getLenderSummary") as Promise<{
+      totalCreditPurchase: number;
+      totalSettlement: number;
+      totalLend: number;
+      totalDeposit: number;
+      balance: number;
+      countOweMe: number;
+      countIOwe: number;
+    }>,
+  getAllLenderBalances: () =>
+    ipcRenderer.invoke("reports:getAllLenderBalances") as Promise<{
+      balances: Record<number, number>;
+    }>,
+  getLenderBalance: (lenderId: number) =>
+    ipcRenderer.invoke("reports:getLenderBalance", lenderId),
+  getLenderLedger: (lenderId: number) =>
+    ipcRenderer.invoke("reports:getLenderLedger", lenderId),
+  getTotalLend: () =>
+    ipcRenderer.invoke("reports:getTotalCreditPurchase") as Promise<{ totalCreditPurchase: number }>,
   getMahajanSummary: () =>
-    ipcRenderer.invoke("reports:getMahajanSummary") as Promise<{
+    ipcRenderer.invoke("reports:getLenderSummary") as Promise<{
       totalLend: number;
       totalDeposit: number;
       balance: number;
@@ -329,13 +448,9 @@ const electronAPI = {
       countIOwe: number;
     }>,
   getAllMahajanBalances: () =>
-    ipcRenderer.invoke("reports:getAllMahajanBalances") as Promise<{
-      balances: Record<number, number>;
-    }>,
-  getMahajanBalance: (mahajanId: number) =>
-    ipcRenderer.invoke("reports:getMahajanBalance", mahajanId),
-  getMahajanLedger: (mahajanId: number) =>
-    ipcRenderer.invoke("reports:getMahajanLedger", mahajanId),
+    ipcRenderer.invoke("reports:getAllLenderBalances") as Promise<{ balances: Record<number, number> }>,
+  getMahajanBalance: (id: number) => ipcRenderer.invoke("reports:getLenderBalance", id),
+  getMahajanLedger: (id: number) => ipcRenderer.invoke("reports:getLenderLedger", id),
   getWeeklySale: (fromDate: string) =>
     ipcRenderer.invoke("reports:getWeeklySale", fromDate),
   getTotalSale: (fromDate: string, toDate: string) =>

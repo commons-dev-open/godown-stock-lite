@@ -11,7 +11,7 @@ interface MahajanBalanceCardProps {
   loading?: boolean;
   /** Optional balance after an action (e.g. after this lend/deposit) for confirm modals */
   balanceAfter?: number;
-  /** Label for balanceAfter, e.g. "After this lend:" */
+  /** Label for balanceAfter, e.g. "After this credit purchase:" */
   balanceAfterLabel?: string;
   /** Layout: "row" for ledger header, "compact" for modals (smaller, bordered box) */
   variant?: "row" | "compact";
@@ -84,10 +84,10 @@ export default function MahajanBalanceCard({
   if (variant === "compact") {
     return (
       <div className="text-sm rounded border p-3 bg-gray-50 space-y-1">
-        <p>Total Lends: ₹{formatDecimal(balance.totalLends)}</p>
-        <p>Total Deposits: ₹{formatDecimal(balance.totalDeposits)}</p>
+        <p>Total Credit Purchase: ₹{formatDecimal(balance.totalLends)}</p>
+        <p>Total Settlements: ₹{formatDecimal(balance.totalDeposits)}</p>
         <p className="font-medium">
-          Balance (Lend - Deposit): <BalanceLine balance={balance.balance} />
+          Balance (Credit Purchase − Settlement): <BalanceLine balance={balance.balance} />
         </p>
         {balanceAfter !== undefined && balanceAfterLabel && (
           <p className="font-medium">
@@ -102,7 +102,7 @@ export default function MahajanBalanceCard({
     <div className="mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
       <div>
         <span className="text-xs font-medium uppercase text-gray-500">
-          Total Lends
+          Total Credit Purchase
         </span>
         <p className="text-lg font-semibold text-amber-800">
           ₹{formatDecimal(balance.totalLends)}
@@ -110,7 +110,7 @@ export default function MahajanBalanceCard({
       </div>
       <div>
         <span className="text-xs font-medium uppercase text-gray-500">
-          Total Deposits
+          Total Settlements
         </span>
         <p className="text-lg font-semibold text-green-800">
           ₹{formatDecimal(balance.totalDeposits)}
@@ -118,7 +118,7 @@ export default function MahajanBalanceCard({
       </div>
       <div>
         <span className="text-xs font-medium uppercase text-gray-500">
-          Balance (Lend - Deposit)
+          Balance (Credit Purchase − Settlement)
         </span>
         <p
           className={

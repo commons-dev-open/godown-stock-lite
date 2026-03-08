@@ -33,17 +33,17 @@ const DANGER_CONFIG: Record<
   clearTables: {
     title: "Clear all data",
     message:
-      "Every table will be emptied: items, mahajans, transactions, invoices, daily sales, and settings. The database structure stays in place so you can start fresh without losing units or schema. Use this when you want to wipe all business data but keep the app ready for new entries. This cannot be undone.",
+      "Every table will be emptied: items, lenders, transactions, invoices, daily sales, and settings. The database structure stays in place so you can start fresh without losing units or schema. Use this when you want to wipe all business data but keep the app ready for new entries. This cannot be undone.",
   },
   clearEntireDb: {
     title: "Reset database",
     message:
-      "The database file will be deleted and a brand‑new empty database will be created. Use this for a complete fresh start. All your data—items, mahajans, invoices, everything—will be gone forever. Export a backup first if you might need to refer to this data later. This cannot be undone.",
+      "The database file will be deleted and a brand‑new empty database will be created. Use this for a complete fresh start. All your data—items, lenders, invoices, everything—will be gone forever. Export a backup first if you might need to refer to this data later. This cannot be undone.",
   },
   populateSampleData: {
     title: "Fill with sample data",
     message:
-      "This will insert a small set of realistic sample items, mahajans, invoices, transactions, and daily sales into an empty database so you can explore the app. It only runs when there is no existing business data; if you’ve already started using the app, nothing will be changed.",
+      "This will insert a small set of realistic sample items, lenders, invoices, transactions, and daily sales into an empty database so you can explore the app. It only runs when there is no existing business data; if you’ve already started using the app, nothing will be changed.",
   },
 };
 

@@ -51,11 +51,11 @@ export function exportMahajansToCsv(
     const emptyRow: string[] = ["", "", "", "", "", "", "", ""];
     rows.push(
       emptyRow,
-      ["", "Total Lends", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalLend)}`],
-      ["", "Total Deposits", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalDeposit)}`],
+      ["", "Total Credit Purchase", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalLend)}`],
+      ["", "Total Settlements", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalDeposit)}`],
       [
         "",
-        "Balance (Lend − Deposit)",
+        "Balance (Credit Purchase − Settlement)",
         "",
         "",
         "",
@@ -65,7 +65,7 @@ export function exportMahajansToCsv(
       ]
     );
   }
-  downloadCsv(header, rows, `mahajans-${formatDateForFile(new Date())}.csv`);
+  downloadCsv(header, rows, `lenders-${formatDateForFile(new Date())}.csv`);
 }
 
 function resolveAppName(appDisplayName?: string): string {
@@ -89,7 +89,7 @@ export function exportMahajansToPdf(
   doc.text(appName, 14, y);
   y += 6;
   doc.setFontSize(10);
-  doc.text("Mahajans", 14, y);
+  doc.text("Lenders", 14, y);
   y += 5;
   doc.setFontSize(8);
   doc.text(
@@ -102,16 +102,16 @@ export function exportMahajansToPdf(
   if (summary != null) {
     doc.setFontSize(9);
     const valueX = 75;
-    doc.text("Total Lends", 14, y);
+    doc.text("Total Credit Purchase", 14, y);
     doc.text(`${PDF_RUPEE}${formatDecimal(summary.totalLend)}`, valueX, y);
     y += 6;
-    doc.text("Total Deposits", 14, y);
+    doc.text("Total Settlements", 14, y);
     doc.text(`${PDF_RUPEE}${formatDecimal(summary.totalDeposit)}`, valueX, y);
     y += 6;
     let balanceHint = "";
     if (summary.balance > 0) balanceHint = "(payable)";
     else if (summary.balance < 0) balanceHint = "(receivable)";
-    doc.text("Balance (Lend − Deposit)", 14, y);
+    doc.text("Balance (Credit Purchase − Settlement)", 14, y);
     doc.text(
       `${PDF_RUPEE}${formatDecimal(Math.abs(summary.balance))} ${balanceHint}`.trim(),
       valueX,
@@ -127,7 +127,7 @@ export function exportMahajansToPdf(
     styles: { fontSize: 8 },
     headStyles: { fillColor: [66, 139, 202] },
   });
-  downloadPdf(doc, `mahajans-${formatDateForFile(new Date())}.pdf`);
+  downloadPdf(doc, `lenders-${formatDateForFile(new Date())}.pdf`);
 }
 
 export function getPrintTableBody(

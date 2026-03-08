@@ -264,7 +264,7 @@ export default function Mahajans() {
   useEffect(() => {
     if (!printData) return;
     const previousTitle = document.title;
-    document.title = `Mahajans_${formatDateForFile(new Date())}`;
+    document.title = `Lenders_${formatDateForFile(new Date())}`;
     const onAfterPrint = () => {
       document.title = previousTitle;
       setPrintData(null);
@@ -282,7 +282,7 @@ export default function Mahajans() {
     <div>
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Mahajans</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Lenders</h1>
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
@@ -327,7 +327,7 @@ export default function Mahajans() {
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
               <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-              Add Mahajan
+              Add Lender
             </Button>
           </div>
         </div>
@@ -386,13 +386,13 @@ export default function Mahajans() {
                 )}
               </Button>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Total lend</span>
+                <span className="text-gray-600">Total Credit Purchase</span>
                 <span className="font-medium text-red-600">
                   ₹{formatDecimal(summary.totalLend)}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Total deposit</span>
+                <span className="text-gray-600">Total Settlements</span>
                 <span className="font-medium text-emerald-600">
                   ₹{formatDecimal(summary.totalDeposit)}
                 </span>
@@ -409,14 +409,14 @@ export default function Mahajans() {
                 <span className="text-gray-600">Receivable</span>
                 <span className="font-medium text-emerald-600">
                   {summary.countOweMe}{" "}
-                  {summary.countOweMe === 1 ? "mahajan" : "mahajans"}
+                  {summary.countOweMe === 1 ? "lender" : "lenders"}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-gray-600">Payable</span>
                 <span className="font-medium text-red-600">
                   {summary.countIOwe}{" "}
-                  {summary.countIOwe === 1 ? "mahajan" : "mahajans"}
+                  {summary.countIOwe === 1 ? "lender" : "lenders"}
                 </span>
               </div>
             </div>
@@ -540,7 +540,7 @@ export default function Mahajans() {
               data={mahajansPage}
               onEdit={setEditing}
               onDelete={(row) => setDeleteConfirmMahajan(row)}
-              emptyMessage="No Mahajans yet. Click Add Mahajan."
+              emptyMessage="No Lenders yet. Click Add Lender."
             />
             <Pagination
               page={page}
@@ -555,8 +555,8 @@ export default function Mahajans() {
       <ConfirmModal
         open={deleteConfirmMahajan != null}
         onClose={() => setDeleteConfirmMahajan(null)}
-        title="Delete Mahajan"
-        message="Delete this Mahajan? Balance must be 0."
+        title="Delete Lender"
+        message="Delete this Lender? Balance must be 0."
         confirmLabel="Delete"
         confirmVariant="danger"
         onConfirm={() => {
@@ -566,7 +566,7 @@ export default function Mahajans() {
       />
 
       <FormModal
-        title="Add Mahajan"
+        title="Add Lender"
         open={addOpen}
         onClose={() => setAddOpen(false)}
         footer={
@@ -621,7 +621,7 @@ export default function Mahajans() {
       </FormModal>
 
       <FormModal
-        title="Edit Mahajan"
+        title="Edit Lender"
         open={!!editing}
         onClose={() => setEditing(null)}
         footer={
@@ -693,23 +693,23 @@ export default function Mahajans() {
         >
           <header className="mb-4 border-b border-gray-200 pb-3">
             <p className="text-sm font-semibold text-gray-900">{appName}</p>
-            <p className="text-xs text-gray-600">Mahajans</p>
+            <p className="text-xs text-gray-600">Lenders</p>
             {printData.summary != null && (
               <div className="mt-2 space-y-1 text-xs">
                 <p className="text-gray-700">
-                  <span className="font-medium">Total Lends</span>
+                  <span className="font-medium">Total Credit Purchase</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.summary.totalLend)}
                   </span>
                 </p>
                 <p className="text-gray-700">
-                  <span className="font-medium">Total Deposits</span>
+                  <span className="font-medium">Total Settlements</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.summary.totalDeposit)}
                   </span>
                 </p>
                 <p className="text-gray-700">
-                  <span className="font-medium">Balance (Lend − Deposit)</span>
+                  <span className="font-medium">Balance (Credit Purchase − Settlement)</span>
                   <span className="ml-2">
                     ₹{formatDecimal(Math.abs(printData.summary.balance))}
                     {printData.summary.balance > 0 && " (payable)"}

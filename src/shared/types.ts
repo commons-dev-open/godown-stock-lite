@@ -57,7 +57,7 @@ export interface Customer {
   updated_at: string;
 }
 
-export interface Mahajan {
+export interface Lender {
   id: number;
   name: string;
   address: string | null;
@@ -67,28 +67,47 @@ export interface Mahajan {
   updated_at: string;
 }
 
-export interface MahajanLend {
+/** @deprecated Use Lender */
+export type Mahajan = Lender;
+
+export interface CreditPurchase {
   id: number;
-  mahajan_id: number;
+  lender_id: number;
   product_id: number | null;
   product_name: string | null;
   quantity: number;
   transaction_date: string;
   amount: number;
   notes: string | null;
+  lender_invoice_number?: string | null;
+  invoice_file_path?: string | null;
+  gst_rate?: number;
+  gst_inclusive?: boolean;
+  taxable_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface MahajanDeposit {
+/** @deprecated Use CreditPurchase */
+export type MahajanLend = CreditPurchase;
+
+export interface Settlement {
   id: number;
-  mahajan_id: number;
+  lender_id: number;
   transaction_date: string;
   amount: number;
   notes: string | null;
+  payment_method?: string | null;
+  reference_number?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** @deprecated Use Settlement */
+export type MahajanDeposit = Settlement;
+
 
 export interface DailySale {
   id: number;
@@ -116,7 +135,7 @@ export interface Purchase {
 
 export interface LedgerRow {
   transaction_date: string;
-  type: "lend" | "deposit" | "cash_purchase";
+  type: "credit_purchase" | "settlement" | "cash_purchase";
   description: string;
   amount: number;
   id: number;

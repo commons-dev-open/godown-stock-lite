@@ -39,7 +39,7 @@ export function exportMahajanLedgerToCsv(
   const safeName = sanitizeForFilename(mahajanName);
   const date = formatDateForFile(new Date());
   const prefixRows = appliedFilters?.length ? csvPrefixRowsForFilters(appliedFilters) : undefined;
-  downloadCsv(header, dataRows, `mahajan-ledger-${safeName}-${date}.csv`, prefixRows);
+  downloadCsv(header, dataRows, `lender-ledger-${safeName}-${date}.csv`, prefixRows);
 }
 
 function resolveAppName(appDisplayName?: string): string {
@@ -64,10 +64,10 @@ export function exportMahajanLedgerToPdf(
   doc.text(appName, 14, y);
   y += 6;
   doc.setFontSize(10);
-  doc.text("Mahajan Ledger", 14, y);
+  doc.text("Lender Ledger", 14, y);
   y += 5;
   doc.setFontSize(9);
-  doc.text(`Mahajan: ${mahajanName}`, 14, y);
+  doc.text(`Lender: ${mahajanName}`, 14, y);
   y += 5;
   doc.setFontSize(8);
   doc.text(
@@ -93,16 +93,16 @@ export function exportMahajanLedgerToPdf(
     doc.setFontSize(9);
     // Value column at 75mm so long label "Balance (Lend - Deposit)" does not overlap
     const valueX = 75;
-    doc.text("Total Lends", 14, y);
+    doc.text("Total Credit Purchase", 14, y);
     doc.text(`${PDF_RUPEE}${formatDecimal(balance.totalLends)}`, valueX, y);
     y += 6;
-    doc.text("Total Deposits", 14, y);
+    doc.text("Total Settlements", 14, y);
     doc.text(`${PDF_RUPEE}${formatDecimal(balance.totalDeposits)}`, valueX, y);
     y += 6;
     let balanceHint = "";
     if (balance.balance > 0) balanceHint = "(payable)";
     else if (balance.balance < 0) balanceHint = "(receivable)";
-    doc.text("Balance (Lend - Deposit)", 14, y);
+    doc.text("Balance (Credit Purchase - Settlement)", 14, y);
     doc.text(
       `${PDF_RUPEE}${formatDecimal(Math.abs(balance.balance))} ${balanceHint}`.trim(),
       valueX,
@@ -121,7 +121,7 @@ export function exportMahajanLedgerToPdf(
   const safeName = sanitizeForFilename(mahajanName);
   downloadPdf(
     doc,
-    `mahajan-ledger-${safeName}-${formatDateForFile(new Date())}.pdf`
+    `lender-ledger-${safeName}-${formatDateForFile(new Date())}.pdf`
   );
 }
 

@@ -1,6 +1,6 @@
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-type ActionType = "lend" | "deposit" | "cash_purchase";
+type ActionType = "credit_purchase" | "settlement" | "cash_purchase";
 
 export default function LedgerRowActions({
   type: _type,

@@ -19,9 +19,28 @@ export type TransactionExportRow = {
   unit: string;
   amount: number;
   notes: string | null;
+  payment_method?: string | null;
+  reference_number?: string | null;
 };
 
-const COLUMNS = ["Type", "Date", "Mahajan", "Product", "Qty", "Unit", "Amount (₹)", "Notes"];
+const COLUMNS = [
+  "Type",
+  "Date",
+  "Lender",
+  "Product",
+  "Qty",
+  "Unit",
+  "Amount (₹)",
+  "Notes",
+  "Payment",
+];
+
+function formatPayment(row: TransactionExportRow): string {
+  const parts: string[] = [];
+  if (row.payment_method) parts.push(row.payment_method);
+  if (row.reference_number) parts.push(row.reference_number);
+  return parts.join(" · ") || "";
+}
 
 function rowToCells(row: TransactionExportRow): string[] {
   return [
@@ -33,6 +52,7 @@ function rowToCells(row: TransactionExportRow): string[] {
     row.unit ?? "",
     formatDecimal(row.amount),
     row.notes ?? "",
+    formatPayment(row),
   ];
 }
 

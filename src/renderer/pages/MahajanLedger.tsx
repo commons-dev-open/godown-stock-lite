@@ -67,9 +67,9 @@ export default function MahajanLedger() {
   const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
     null
   );
-  const [filterType, setFilterType] = useState<"all" | "lend" | "deposit">(
-    "all"
-  );
+  const [filterType, setFilterType] = useState<
+    "all" | "credit_purchase" | "settlement"
+  >("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function MahajanLedger() {
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
-    type: "lend" | "deposit";
+    type: "credit_purchase" | "settlement";
     row: LedgerRow;
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
@@ -241,10 +241,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setEditingLend(null);
-      toast.success("Lend updated");
+      toast.success("Credit purchase updated");
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update lend"),
+      toast.error(err.message ?? "Failed to update credit purchase"),
   });
 
   const updateDeposit = useMutation({
@@ -263,10 +263,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
-      toast.success("Deposit updated");
+      toast.success("Settlement updated");
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update deposit"),
+      toast.error(err.message ?? "Failed to update settlement"),
   });
 
   const deleteLend = useMutation({
@@ -280,10 +280,10 @@ export default function MahajanLedger() {
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
-      toast.success("Lend deleted");
+      toast.success("Credit purchase deleted");
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete lend"),
+      toast.error(err.message ?? "Failed to delete credit purchase"),
   });
 
   const deleteDeposit = useMutation({
@@ -295,10 +295,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
-      toast.success("Deposit deleted");
+      toast.success("Settlement deleted");
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete deposit"),
+      toast.error(err.message ?? "Failed to delete settlement"),
   });
 
   const getLendRecord = (row: LedgerRow): MahajanLend | undefined =>
@@ -316,7 +316,7 @@ export default function MahajanLedger() {
   }, [ledger, filterType, filterDateFrom, filterDateTo]);
 
   const handleFilterChange = (updates: {
-    type?: "all" | "lend" | "deposit";
+    type?: "all" | "credit_purchase" | "settlement";
     dateFrom?: string;
     dateTo?: string;
   }) => {
@@ -381,7 +381,7 @@ export default function MahajanLedger() {
     const name = (printData.mahajanName ?? "")
       .replace(/[/\\:*?"<>|]/g, "-")
       .replace(/\s+/g, "_");
-    const base = name ? `Mahajan_Ledger_${name}` : "Mahajan_Ledger";
+    const base = name ? `Lender_Ledger_${name}` : "Lender_Ledger";
     document.title = `${base}_${formatDateForFile(new Date())}`;
     const onAfterPrint = () => {
       document.title = previousTitle;
@@ -396,7 +396,7 @@ export default function MahajanLedger() {
     };
   }, [printData]);
 
-  if (!id) return <div className="text-gray-500">Invalid Mahajan</div>;
+  if (!id) return <div className="text-gray-500">Invalid Lender</div>;
 
   return (
     <div>
@@ -458,11 +458,11 @@ export default function MahajanLedger() {
           </FloatingPortal>
           <Button variant="amber" onClick={() => setLendModalOpen(true)}>
             <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Add Lend
+            Add Credit Purchase
           </Button>
           <Button variant="green" onClick={() => setDepositModalOpen(true)}>
             <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
-            Deposit
+            Add Settlement
           </Button>
         </div>
       </div>
@@ -473,13 +473,13 @@ export default function MahajanLedger() {
           value={filterType}
           onChange={(e) =>
             handleFilterChange({
-              type: e.target.value as "all" | "lend" | "deposit",
+              type: e.target.value as "all" | "credit_purchase" | "settlement",
             })
           }
         >
-          <option value="all">All (Lend + Deposit)</option>
-          <option value="lend">Lend only</option>
-          <option value="deposit">Deposit only</option>
+          <option value="all">All (Credit Purchase + Settlement)</option>
+          <option value="credit_purchase">Credit Purchase only</option>
+          <option value="settlement">Settlement only</option>
         </select>
         <button
           type="button"
@@ -597,7 +597,7 @@ export default function MahajanLedger() {
               <tbody className="divide-y divide-gray-200">
                 {filteredLedger.map((row) => {
                   const amountColorClass =
-                    row.type === "lend" ? "text-amber-800" : "text-green-800";
+                    row.type === "credit_purchase" ? "text-amber-800" : "text-green-800";
                   return (
                     <tr
                       key={`${row.type}-${row.id}`}
@@ -614,7 +614,68 @@ export default function MahajanLedger() {
                         <TransactionTypeBadge type={row.type} />
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-900">
-                        {row.description}
+                        <span className="block">{row.description}</span>
+                        {row.type === "credit_purchase" && (() => {
+                          const rec = getLendRecord(row) as
+                            | (MahajanLend & {
+                                lender_invoice_number?: string | null;
+                                invoice_file_path?: string | null;
+                              })
+                            | undefined;
+                          if (!rec) return null;
+                          const invNum = rec.lender_invoice_number;
+                          const invPath = rec.invoice_file_path;
+                          return (
+                            (invNum || invPath) && (
+                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-gray-500">
+                                {invNum && (
+                                  <span title="Lender invoice">
+                                    #{invNum}
+                                  </span>
+                                )}
+                                {invPath && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      api.openCreditPurchaseInvoice(invPath)
+                                    }
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    View invoice
+                                  </button>
+                                )}
+                              </span>
+                            )
+                          );
+                        })()}
+                        {row.type === "settlement" && (() => {
+                          const rec = getDepositRecord(row) as
+                            | (MahajanDeposit & {
+                                payment_method?: string | null;
+                                reference_number?: string | null;
+                              })
+                            | undefined;
+                          if (!rec) return null;
+                          const pm = rec.payment_method;
+                          const ref = rec.reference_number;
+                          return (
+                            (pm || ref) && (
+                              <span className="block mt-1 text-xs text-gray-500">
+                                {pm && (
+                                  <span className="capitalize">{pm}</span>
+                                )}
+                                {pm && ref && " · "}
+                                {ref && (
+                                  <span title={ref}>
+                                    {ref.length > 16
+                                      ? `${ref.slice(0, 14)}…`
+                                      : ref}
+                                  </span>
+                                )}
+                              </span>
+                            )
+                          );
+                        })()}
                       </td>
                       <td
                         className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass}`}
@@ -624,37 +685,37 @@ export default function MahajanLedger() {
                       <LedgerRowActions
                         type={row.type}
                         onEdit={() => {
-                          if (row.type === "lend") {
+                          if (row.type === "credit_purchase") {
                             const rec = getLendRecord(row);
                             if (rec) setEditingLend(rec);
-                            else toast.error("Lend record not found");
+                            else toast.error("Credit purchase record not found");
                           } else {
                             const rec = getDepositRecord(row);
                             if (rec) setEditingDeposit(rec);
-                            else toast.error("Deposit record not found");
+                            else toast.error("Settlement record not found");
                           }
                         }}
                         onDelete={() => {
-                          if (row.type === "lend") {
+                          if (row.type === "credit_purchase") {
                             const rec = getLendRecord(row);
                             if (rec) {
                               setDeleteConfirmPayload({
-                                type: "lend",
+                                type: "credit_purchase",
                                 row,
                                 record: rec,
                               });
                               setDeleteConfirmOpen(true);
-                            } else toast.error("Lend record not found");
+                            } else toast.error("Credit purchase record not found");
                           } else {
                             const rec = getDepositRecord(row);
                             if (rec) {
                               setDeleteConfirmPayload({
-                                type: "deposit",
+                                type: "settlement",
                                 row,
                                 record: rec,
                               });
                               setDeleteConfirmOpen(true);
-                            } else toast.error("Deposit record not found");
+                            } else toast.error("Settlement record not found");
                           }
                         }}
                       />
@@ -1315,7 +1376,7 @@ export default function MahajanLedger() {
                 type="button"
                 onClick={() => {
                   if (!deleteConfirmPayload) return;
-                  if (deleteConfirmPayload.type === "lend")
+                  if (deleteConfirmPayload.type === "credit_purchase")
                     deleteLend.mutate(deleteConfirmPayload.row.id);
                   else deleteDeposit.mutate(deleteConfirmPayload.row.id);
                   setDeleteConfirmOpen(false);
@@ -1360,7 +1421,7 @@ export default function MahajanLedger() {
                       )}
                     </td>
                   </tr>
-                  {deleteConfirmPayload.type === "lend" && (
+                  {deleteConfirmPayload.type === "credit_purchase" && (
                     <>
                       <tr className="border-b">
                         <td className="p-2 font-medium">Product</td>
@@ -1395,21 +1456,21 @@ export default function MahajanLedger() {
             </div>
             <div
               className={`rounded border p-3 space-y-2 text-sm ${
-                deleteConfirmPayload.type === "lend"
+                deleteConfirmPayload.type === "credit_purchase"
                   ? "border-amber-100 bg-amber-50"
                   : "border-green-100 bg-green-50"
               }`}
             >
               <p
                 className={`font-medium ${
-                  deleteConfirmPayload.type === "lend"
+                  deleteConfirmPayload.type === "credit_purchase"
                     ? "text-amber-900"
                     : "text-green-900"
                 }`}
               >
                 Impact after delete
               </p>
-              {deleteConfirmPayload.type === "lend" &&
+              {deleteConfirmPayload.type === "credit_purchase" &&
                 (deleteConfirmPayload.record as MahajanLend).product_id !=
                   null && (
                   <p className="text-gray-700">
@@ -1462,7 +1523,7 @@ export default function MahajanLedger() {
                   </p>
                   {(() => {
                     const balanceAfter =
-                      deleteConfirmPayload.type === "lend"
+                      deleteConfirmPayload.type === "credit_purchase"
                         ? balance.balance - deleteConfirmPayload.record.amount
                         : balance.balance + deleteConfirmPayload.record.amount;
                     return (
@@ -1474,7 +1535,7 @@ export default function MahajanLedger() {
                         }
                       >
                         After this delete:{" "}
-                        {deleteConfirmPayload.type === "lend"
+                        {deleteConfirmPayload.type === "credit_purchase"
                           ? "Total Lends"
                           : "Total Deposits"}{" "}
                         will decrease by ₹

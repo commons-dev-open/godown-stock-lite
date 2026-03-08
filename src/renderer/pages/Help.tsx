@@ -88,7 +88,7 @@ export default function Help() {
             How to Use This App
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Detailed guide to manage stock, mahajans, sales, and reports
+            Detailed guide to manage stock, lenders, sales, and reports
           </p>
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function Help() {
           <NavAnchor sectionId="2-getting-started" label="2. Getting Started" />
           <NavAnchor sectionId="3-units" label="3. Units" />
           <NavAnchor sectionId="4-products-stock" label="4. Products & Stock" />
-          <NavAnchor sectionId="5-mahajans" label="5. Mahajans" />
+          <NavAnchor sectionId="5-lenders" label="5. Lenders" />
           <NavAnchor sectionId="6-transactions" label="6. Transactions" />
           <NavAnchor sectionId="7-daily-sales" label="7. Daily Sales" />
           <NavAnchor sectionId="8-invoices" label="8. Invoices" />
@@ -114,9 +114,11 @@ export default function Help() {
       <Section id="1-overview" title="Overview">
         <p className="text-gray-600 mb-4">
           This application helps you manage a godown (warehouse) or retail stock:
-          products, units, stock levels, daily sales, mahajan (parties you take lend
-          from and deposit to) ledgers, transactions (take lend from mahajan,
-          deposit to mahajan, cash purchase), invoices, and reports. Data is stored locally in a database on your computer.
+          products, units, stock levels, daily sales, lender (parties you receive
+          credit purchase from and make settlement to) ledgers, transactions
+          (credit purchase from lender, settlement to lender, cash purchase),
+          invoices, and reports. Data is stored locally in a database on your
+          computer.
         </p>
         <SubSection title="Main areas">
           <BulletList
@@ -124,8 +126,8 @@ export default function Help() {
               "Home: Dashboard with shortcuts to Stock, Add Sale, and Reports.",
               "Units: Define stock units (e.g. kg, pcs) and invoice units for billing.",
               "Products & Stock: Add products, track current stock, add or reduce stock.",
-              "Mahajans: Manage mahajans (parties you take lend from and deposit to); view balance and ledger.",
-              "Transactions: Record lend taken from mahajan, deposit to mahajan, and cash purchase.",
+              "Lenders: Manage lenders (parties you receive credit purchase from and make settlement to); view balance and ledger.",
+              "Transactions: Record credit purchase from lender, settlement to lender, and cash purchase.",
               "Daily Sales: Log daily summary (invoice sales auto from invoices, misc/cash sales, cash in hand, expenditure).",
               "Invoices: Create and edit customer invoices with line items.",
               "Reports: Weekly sale, total sale for a date range, and profit/loss.",
@@ -142,7 +144,7 @@ export default function Help() {
               "Go to Settings and fill in Company name, Address, GSTIN, Owner name, and Phone. Optionally set an App display name (used in header and PDFs).",
               "Open Units and add Stock units (e.g. Kg, Pcs, Box) that you will use for products. Add Invoice units if you use different units on invoices.",
               "Go to Products & Stock and add your products (name, code, unit, optional reorder level and retail/other units).",
-              "If you work with mahajans, add them under Mahajans, then use Transactions to record lend taken from mahajan and deposit to mahajan.",
+              "If you work with lenders, add them under Lenders, then use Transactions to record credit purchase from lender and settlement to lender.",
               "Use Daily Sales to record each day’s sale and cash position; use Reports to view weekly sale, total sale, and P&L.",
             ]}
           />
@@ -232,33 +234,33 @@ export default function Help() {
         </SubSection>
       </Section>
 
-      <Section id="5-mahajans" title="Mahajans">
+      <Section id="5-lenders" title="Lenders">
         <p className="text-gray-600 mb-4">
-          Mahajans are parties you take lend from (receive goods/money) and
-          deposit to (pay back). Each mahajan has a ledger of lend and deposit
-          transactions and a running balance.
+          Lenders are parties you receive credit purchase from (goods/money) and
+          make settlement to (pay back). Each lender has a ledger of credit
+          purchase and settlement transactions and a running balance.
         </p>
-        <SubSection title="Adding a mahajan">
+        <SubSection title="Adding a lender">
           <StepList
             steps={[
-              "Go to Mahajans and click “Add Mahajan”.",
+              "Go to Lenders and click “Add Lender”.",
               "Enter Name and optionally Phone, Address, and GSTIN.",
-              "Save. The mahajan appears in the list.",
+              "Save. The lender appears in the list.",
             ]}
           />
         </SubSection>
         <SubSection title="Viewing balance and ledger">
           <BulletList
             items={[
-              "Balance: Click “Balance” on a row to load and show that mahajan’s current balance. Positive balance means you owe the mahajan (you have received more than you have deposited); negative means the mahajan owes you.",
-              "Ledger: Click the mahajan name or “Ledger” to open the full ledger. There you can add Lend (take from mahajan) or Deposit (pay to mahajan), filter by type and date, and export or print.",
+              "Balance: Click “Balance” on a row to load and show that lender’s current balance. Positive balance means you owe the lender (you have received more than you have settled); negative means the lender owes you.",
+              "Ledger: Click the lender name or “Ledger” to open the full ledger. There you can add Credit Purchase (receive from lender) or Settlement (pay to lender), filter by type and date, and export or print.",
             ]}
           />
         </SubSection>
         <SubSection title="Export and print">
           <p>
-            From the Mahajans list, use “Export” for CSV/PDF or “Print” for the
-            mahajan list. From a mahajan’s ledger page, use Export/Print for
+            From the Lenders list, use “Export” for CSV/PDF or “Print” for the
+            lender list. From a lender’s ledger page, use Export/Print for
             that ledger’s transactions.
           </p>
         </SubSection>
@@ -266,27 +268,27 @@ export default function Help() {
 
       <Section id="6-transactions" title="Transactions">
         <p className="text-gray-600 mb-4">
-          The Transactions page shows all ledger-style entries: Lend from
-          Mahajan (take lend), Deposit to Mahajan (pay back), and Cash Purchase.
-          You can filter by mahajan and type, and export or print.
+          The Transactions page shows all ledger-style entries: Credit Purchase
+          from Lender, Settlement to Lender, and Cash Purchase. You can filter
+          by lender and type, and export or print.
         </p>
-        <SubSection title="Take Lend from Mahajan">
+        <SubSection title="Add Credit Purchase from Lender">
           <StepList
             steps={[
-              "Click “Add Lend”.",
-              "Select the Mahajan and Transaction date.",
-              "Add one or more lines: select Product, enter Quantity and Amount per line (goods/money received from the mahajan). Add optional Notes.",
-              "Save. Stock for the product increases automatically because you received goods from the mahajan.",
+              "Click “Add Credit Purchase”.",
+              "Select the Lender and Transaction date.",
+              "Add one or more lines: select Product, enter Quantity and Amount per line (goods/money received from the lender). Add optional Notes.",
+              "Save. Stock for the product increases automatically because you received goods from the lender.",
             ]}
           />
         </SubSection>
-        <SubSection title="Deposit to Mahajan">
+        <SubSection title="Add Settlement to Lender">
           <StepList
             steps={[
-              "Click “Add Deposit”.",
-              "Select the Mahajan and Transaction date.",
-              "Enter Amount and optional Notes (money you are paying to the mahajan).",
-              "Save. This records your deposit (payment) to the mahajan.",
+              "Click “Add Settlement”.",
+              "Select the Lender and Transaction date.",
+              "Enter Amount and optional Notes (money you are paying to the lender).",
+              "Save. This records your settlement (payment) to the lender.",
             ]}
           />
         </SubSection>
@@ -301,8 +303,8 @@ export default function Help() {
         </SubSection>
         <SubSection title="Filters and list">
           <p>
-            Use the mahajan filter and type filter (All / Lend from mahajan / Deposit to
-            mahajan / Cash purchase) to narrow the list. Edit or delete existing transactions
+            Use the lender filter and type filter (All / Credit Purchase / Settlement
+            / Cash purchase) to narrow the list. Edit or delete existing transactions
             from the row actions. Export and Print work on the currently
             filtered list.
           </p>
@@ -379,7 +381,7 @@ export default function Help() {
           <p className="mb-2">
             At the top, you see key metrics without selecting dates: today&apos;s
             sale, this week&apos;s total and expenditure, this month&apos;s
-            totals, and mahajan net balance (total lent minus deposited). Data
+            totals, and lender net balance (total credit purchase minus settlements). Data
             loads automatically.
           </p>
         </SubSection>
@@ -397,11 +399,11 @@ export default function Help() {
             expenditure for that range.
           </p>
         </SubSection>
-        <SubSection title="Mahajan Summary">
+        <SubSection title="Lender Summary">
           <p className="mb-2">
-            Shows total lent, total deposited, and net balance (₹). Also shows
-            receivable count (mahajans who owe you) and payable count (you owe).
-            Green = receivable, red = payable. Links to the Mahajans page for
+            Shows total credit purchase, total settlements, and net balance (₹). Also shows
+            receivable count (lenders who owe you) and payable count (you owe).
+            Green = receivable, red = payable. Links to the Lenders page for
             details.
           </p>
         </SubSection>
@@ -414,7 +416,7 @@ export default function Help() {
         <SubSection title="Profit / Loss">
           <p className="mb-2">
             <strong>Profit/Loss</strong> = Total Sale − Total Expenditure (actual
-            operating result for the year). Lend and deposit do not affect
+            operating result for the year). Credit purchase and settlement do not affect
             P&L—they are balance-sheet items (receivables and repayments).
           </p>
           <StepList
@@ -422,7 +424,7 @@ export default function Help() {
               "Select the Year.",
               "Set Opening balance for that year (you can save it for the year).",
               "Enter Closing balance (or leave empty and use 0) and click Calculate.",
-              "Result shows Opening, Total Sale, Total Expenditure, Lend/Deposit (if any), Closing, Profit/Loss, and Cash variance for reconciliation.",
+              "Result shows Opening, Total Sale, Total Expenditure, Credit Purchase/Settlement (if any), Closing, Profit/Loss, and Cash variance for reconciliation.",
             ]}
           />
         </SubSection>
@@ -447,7 +449,7 @@ export default function Help() {
             items={[
               "Export database: Saves a full copy of your database to a file. Use for backup or moving to another computer.",
               "Import database: Replaces the current database with the file you select. All existing data is overwritten; export a backup first if needed.",
-              "Clear all data: Empties all tables (items, mahajans, transactions, invoices, daily sales, etc.) but keeps the database structure. Use to start fresh without losing units/schema.",
+              "Clear all data: Empties all tables (items, lenders, transactions, invoices, daily sales, etc.) but keeps the database structure. Use to start fresh without losing units/schema.",
               "Reset database: Deletes the database file and creates a new empty database. Everything is lost. Export a backup first if you might need the data.",
             ]}
           />

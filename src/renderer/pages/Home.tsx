@@ -168,7 +168,7 @@ export default function Home() {
               </p>
             </div>
             <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Mahajan Net</p>
+              <p className="text-sm text-gray-500">Lender Net</p>
               <p
                 className={`text-xl font-semibold mt-1 ${mahajanSummary ? netBalanceClass(mahajanSummary.balance) : "text-gray-900"}`}
               >
@@ -331,30 +331,30 @@ export default function Home() {
         )}
       </section>
 
-      {/* Mahajan Summary */}
+      {/* Lender Summary */}
       <section className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium text-gray-900">Mahajan Summary</h2>
+          <h2 className="text-lg font-medium text-gray-900">Lender Summary</h2>
           <Link
             to="/mahajans"
             className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
           >
-            View Mahajans
+            View Lenders
             <ArrowTopRightOnSquareIcon className="w-4 h-4" aria-hidden />
           </Link>
         </div>
         {mahajanSummary ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Total Lent</p>
+              <p className="text-gray-500">Total Credit Purchase</p>
               <p className="font-medium">
-                {formatRupee(mahajanSummary.totalLend)}
+                {formatRupee(mahajanSummary.totalCreditPurchase ?? mahajanSummary.totalLend)}
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Total Deposited</p>
+              <p className="text-gray-500">Total Settlements</p>
               <p className="font-medium">
-                {formatRupee(mahajanSummary.totalDeposit)}
+                {formatRupee(mahajanSummary.totalSettlement ?? mahajanSummary.totalDeposit)}
               </p>
             </div>
             <div>
@@ -386,7 +386,7 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No mahajan data.</p>
+          <p className="text-sm text-gray-500">No lender data.</p>
         )}
       </section>
 

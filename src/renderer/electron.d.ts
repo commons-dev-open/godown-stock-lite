@@ -224,15 +224,48 @@ export interface ElectronAPI {
     amount: number;
     notes?: string;
   }) => Promise<number>;
-  createMahajanLendBatch: (payload: {
-    mahajan_id: number;
+  saveCreditPurchaseInvoice: (opts: {
+    batchUuid: string;
+    buffer: ArrayBuffer;
+    extension: string;
+  }) => Promise<string>;
+  openCreditPurchaseInvoice: (relativePath: string) => Promise<void>;
+  createCreditPurchaseBatch: (payload: {
+    lender_id: number;
     transaction_date: string;
     notes?: string;
+    lender_invoice_number?: string;
+    invoice_file_path?: string;
+    batch_uuid?: string;
     lines: {
       product_id: number;
       product_name?: string;
       quantity: number;
       amount: number;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+      taxable_amount?: number;
+      cgst_amount?: number;
+      sgst_amount?: number;
+    }[];
+  }) => Promise<number[]>;
+  createMahajanLendBatch: (payload: {
+    mahajan_id: number;
+    transaction_date: string;
+    notes?: string;
+    lender_invoice_number?: string;
+    invoice_file_path?: string;
+    batch_uuid?: string;
+    lines: {
+      product_id: number;
+      product_name?: string;
+      quantity: number;
+      amount: number;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+      taxable_amount?: number;
+      cgst_amount?: number;
+      sgst_amount?: number;
     }[];
   }) => Promise<number[]>;
   updateMahajanLend: (
@@ -262,10 +295,32 @@ export interface ElectronAPI {
     transaction_date: string;
     amount: number;
     notes?: string;
+    payment_method?: string;
+    reference_number?: string;
+    allocations?: { credit_purchase_id: number; amount: number }[];
   }) => Promise<number>;
+  getCreditPurchasesWithAllocated: (
+    lenderId: number
+  ) => Promise<
+    {
+      id: number;
+      amount: number;
+      transaction_date: string;
+      product_name: string | null;
+      lender_invoice_number: string | null;
+      allocated: number;
+      outstanding: number;
+    }[]
+  >;
   updateMahajanDeposit: (
     id: number,
-    d: { transaction_date?: string; amount?: number; notes?: string }
+    d: {
+      transaction_date?: string;
+      amount?: number;
+      notes?: string;
+      payment_method?: string;
+      reference_number?: string;
+    }
   ) => Promise<number>;
   deleteMahajanDeposit: (id: number) => Promise<number>;
   getDailySales: (fromDate?: string, toDate?: string) => Promise<unknown[]>;

@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import fs from "fs";
+import path from "path";
 import type { OpenDialogOptions } from "electron";
-import { BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
 import { roundDecimal } from "../../shared/numbers";
 import {
@@ -1703,13 +1704,13 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  // ---- Mahajans ----
-  ipcMain.handle("mahajans:getAll", () => {
-    return db().prepare("SELECT * FROM mahajans ORDER BY name").all();
+  // ---- Lenders ----
+  ipcMain.handle("lenders:getAll", () => {
+    return db().prepare("SELECT * FROM lenders ORDER BY name").all();
   });
 
   ipcMain.handle(
-    "mahajans:getPage",
+    "lenders:getPage",
     (_, opts: { search?: string; page?: number; limit?: number }) => {
       const search = typeof opts?.search === "string" ? opts.search.trim() : "";
       const page = Math.max(1, opts?.page ?? 1);
@@ -1719,35 +1720,35 @@ export function registerIpcHandlers(): void {
       if (likeArg) {
         const countRow = db()
           .prepare(
-            "SELECT COUNT(*) AS total FROM mahajans WHERE name LIKE ? OR COALESCE(address, '') LIKE ? OR COALESCE(phone, '') LIKE ?"
+            "SELECT COUNT(*) AS total FROM lenders WHERE name LIKE ? OR COALESCE(address, '') LIKE ? OR COALESCE(phone, '') LIKE ?"
           )
           .get(likeArg, likeArg, likeArg) as { total: number };
         const rows = db()
           .prepare(
-            "SELECT * FROM mahajans WHERE name LIKE ? OR COALESCE(address, '') LIKE ? OR COALESCE(phone, '') LIKE ? ORDER BY name LIMIT ? OFFSET ?"
+            "SELECT * FROM lenders WHERE name LIKE ? OR COALESCE(address, '') LIKE ? OR COALESCE(phone, '') LIKE ? ORDER BY name LIMIT ? OFFSET ?"
           )
           .all(likeArg, likeArg, likeArg, limit, offset);
         return { data: rows, total: countRow.total };
       }
       const countRow = db()
-        .prepare("SELECT COUNT(*) AS total FROM mahajans")
+        .prepare("SELECT COUNT(*) AS total FROM lenders")
         .get() as { total: number };
       const rows = db()
-        .prepare("SELECT * FROM mahajans ORDER BY name LIMIT ? OFFSET ?")
+        .prepare("SELECT * FROM lenders ORDER BY name LIMIT ? OFFSET ?")
         .all(limit, offset);
       return { data: rows, total: countRow.total };
     }
   );
 
   ipcMain.handle(
-    "mahajans:create",
+    "lenders:create",
     (
       _,
       m: { name: string; address?: string; phone?: string; gstin?: string }
     ) => {
       const result = db()
         .prepare(
-          "INSERT INTO mahajans (name, address, phone, gstin) VALUES (?, ?, ?, ?)"
+          "INSERT INTO lenders (name, address, phone, gstin) VALUES (?, ?, ?, ?)"
         )
         .run(m.name, m.address ?? null, m.phone ?? null, m.gstin ?? null);
       return result.lastInsertRowid;
@@ -1755,19 +1756,19 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(
-    "mahajans:update",
+    "lenders:update",
     (
       _,
       id: number,
       m: { name?: string; address?: string; phone?: string; gstin?: string }
     ) => {
       const row = db()
-        .prepare("SELECT * FROM mahajans WHERE id = ?")
+        .prepare("SELECT * FROM lenders WHERE id = ?")
         .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Mahajan not found");
+      if (!row) throw new Error("Lender not found");
       db()
         .prepare(
-          "UPDATE mahajans SET name = ?, address = ?, phone = ?, gstin = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE lenders SET name = ?, address = ?, phone = ?, gstin = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           m.name ?? row.name,
@@ -1780,38 +1781,74 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle("mahajans:delete", (_, id: number) => {
-    const lends = db()
+  ipcMain.handle("lenders:delete", (_, id: number) => {
+    const creditPurchases = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend' AND mahajan_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?"
       )
       .get(id) as { total: number };
-    const deposits = db()
+    const settlements = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'deposit' AND mahajan_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement' AND lender_id = ?"
       )
       .get(id) as { total: number };
-    const balance = (lends?.total ?? 0) - (deposits?.total ?? 0);
+    const balance = (creditPurchases?.total ?? 0) - (settlements?.total ?? 0);
     if (balance !== 0)
       throw new Error(
-        "Mahajan balance must be 0 to delete. Clear lends and deposits first."
+        "Lender balance must be 0 to delete. Clear credit purchases and settlements first."
       );
-    db().prepare("DELETE FROM transactions WHERE mahajan_id = ?").run(id);
-    db().prepare("DELETE FROM mahajans WHERE id = ?").run(id);
+    db().prepare("DELETE FROM transactions WHERE lender_id = ?").run(id);
+    db().prepare("DELETE FROM lenders WHERE id = ?").run(id);
     return id;
   });
 
-  // ---- Mahajan Lends (transactions type='lend') ----
-  ipcMain.handle("mahajanLends:getAll", (_, mahajanId?: number) => {
+  // ---- Credit Purchase Invoice Storage ----
+  ipcMain.handle(
+    "creditPurchase:saveInvoice",
+    (
+      _,
+      opts: { batchUuid: string; buffer: ArrayBuffer; extension: string }
+    ) => {
+      const userData = app.getPath("userData");
+      const dir = path.join(userData, "credit-purchase-invoices");
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const ext = opts.extension.startsWith(".")
+        ? opts.extension
+        : `.${opts.extension}`;
+      const fileName = `${opts.batchUuid}${ext}`;
+      const fullPath = path.join(dir, fileName);
+      const buf = Buffer.from(opts.buffer);
+      fs.writeFileSync(fullPath, buf);
+      return `credit-purchase-invoices/${fileName}`;
+    }
+  );
+
+  ipcMain.handle(
+    "creditPurchase:getInvoiceFullPath",
+    (_, relativePath: string) => {
+      const userData = app.getPath("userData");
+      return path.join(userData, relativePath);
+    }
+  );
+
+  ipcMain.handle("creditPurchase:openInvoice", async (_, relativePath: string) => {
+    const fullPath = path.join(app.getPath("userData"), relativePath);
+    if (!fs.existsSync(fullPath))
+      throw new Error("Invoice file not found");
+    await shell.openPath(fullPath);
+  });
+
+  // ---- Credit Purchases (transactions type='credit_purchase') ----
+  ipcMain.handle("creditPurchases:getAll", (_, lenderId?: number) => {
     const base =
-      "SELECT u.id, u.mahajan_id, u.product_id, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.transaction_date, u.notes, u.created_at, u.updated_at FROM transactions u LEFT JOIN items i ON u.product_id = i.id WHERE u.type = 'lend'";
-    if (mahajanId != null) {
+      "SELECT u.id, u.lender_id, u.product_id, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.transaction_date, u.notes, u.created_at, u.updated_at, u.lender_invoice_number, u.invoice_file_path, u.gst_rate, u.gst_inclusive, u.taxable_amount, u.cgst_amount, u.sgst_amount FROM transactions u LEFT JOIN items i ON u.product_id = i.id WHERE u.type = 'credit_purchase'";
+    if (lenderId != null) {
       return db()
         .prepare(
           base +
-            " AND u.mahajan_id = ? ORDER BY u.transaction_date DESC, u.id DESC"
+            " AND u.lender_id = ? ORDER BY u.transaction_date DESC, u.id DESC"
         )
-        .all(mahajanId);
+        .all(lenderId);
     }
     return db()
       .prepare(base + " ORDER BY u.transaction_date DESC, u.id DESC")
@@ -1819,32 +1856,80 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(
-    "mahajanLends:create",
+    "creditPurchases:getWithAllocated",
+    (_, lenderId: number) => {
+      const rows = db()
+        .prepare(
+          `SELECT u.id, u.lender_id, u.product_id, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.transaction_date, u.notes, u.lender_invoice_number
+           FROM transactions u LEFT JOIN items i ON u.product_id = i.id
+           WHERE u.type = 'credit_purchase' AND u.lender_id = ?
+           ORDER BY u.transaction_date DESC, u.id DESC`
+        )
+        .all(lenderId) as {
+        id: number;
+        amount: number;
+        transaction_date: string;
+        product_name: string | null;
+        lender_invoice_number: string | null;
+      }[];
+      const allocMap = new Map<number, number>();
+      const allocRows = db()
+        .prepare(
+          "SELECT credit_purchase_id, SUM(amount) AS total FROM settlement_allocations GROUP BY credit_purchase_id"
+        )
+        .all() as { credit_purchase_id: number; total: number }[];
+      for (const r of allocRows) {
+        allocMap.set(r.credit_purchase_id, r.total);
+      }
+      return rows.map((r) => ({
+        ...r,
+        allocated: allocMap.get(r.id) ?? 0,
+        outstanding: r.amount - (allocMap.get(r.id) ?? 0),
+      }));
+    }
+  );
+
+  ipcMain.handle(
+    "creditPurchases:create",
     (
       _,
       l: {
-        mahajan_id: number;
+        lender_id: number;
         product_id?: number | null;
         product_name?: string;
         quantity?: number;
         transaction_date: string;
         amount: number;
         notes?: string;
+        lender_invoice_number?: string;
+        invoice_file_path?: string;
+        gst_rate?: number;
+        gst_inclusive?: boolean;
+        taxable_amount?: number;
+        cgst_amount?: number;
+        sgst_amount?: number;
       }
     ) => {
       const quantity = roundDecimal(l.quantity ?? 0);
       const amount = roundDecimal(l.amount);
       const result = db()
         .prepare(
-          "INSERT INTO transactions (type, mahajan_id, product_id, quantity, amount, transaction_date, notes) VALUES ('lend', ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO transactions (type, lender_id, product_id, quantity, amount, transaction_date, notes, lender_invoice_number, invoice_file_path, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount) VALUES ('credit_purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
-          l.mahajan_id,
+          l.lender_id,
           l.product_id ?? null,
           quantity,
           amount,
           l.transaction_date,
-          l.notes ?? null
+          l.notes ?? null,
+          l.lender_invoice_number ?? null,
+          l.invoice_file_path ?? null,
+          l.gst_rate ?? 0,
+          l.gst_inclusive ? 1 : 0,
+          l.taxable_amount ?? amount,
+          l.cgst_amount ?? 0,
+          l.sgst_amount ?? 0
         );
       if (l.product_id != null && quantity > 0) {
         const row = db()
@@ -1861,27 +1946,35 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  type LendLine = {
+  type CreditPurchaseLine = {
     product_id: number;
     product_name?: string;
     quantity: number;
     amount: number;
+    gst_rate?: number;
+    gst_inclusive?: boolean;
+    taxable_amount?: number;
+    cgst_amount?: number;
+    sgst_amount?: number;
   };
-  // Lend = mahajan lends TO us → we receive stock → ADD to current_stock (no insufficient-stock check).
+  // Credit purchase = we receive stock from lender → ADD to current_stock
   ipcMain.handle(
-    "mahajanLends:createBatch",
+    "creditPurchases:createBatch",
     (
       _,
       payload: {
-        mahajan_id: number;
+        lender_id: number;
         transaction_date: string;
         notes?: string;
-        lines: LendLine[];
+        lender_invoice_number?: string;
+        invoice_file_path?: string;
+        batch_uuid?: string;
+        lines: CreditPurchaseLine[];
       }
     ) => {
       if (!payload.lines?.length)
         throw new Error("At least one product line is required.");
-      const batchUuid = randomUUID();
+      const batchUuid = payload.batch_uuid ?? randomUUID();
       const run = db().transaction(() => {
         const ids: number[] = [];
         for (const line of payload.lines) {
@@ -1891,18 +1984,26 @@ export function registerIpcHandlers(): void {
             .prepare("SELECT current_stock FROM items WHERE id = ?")
             .get(line.product_id) as { current_stock: number } | undefined;
           if (!row) throw new Error(`Item not found: ${line.product_id}`);
+          const amount = roundDecimal(line.amount);
           const result = db()
             .prepare(
-              "INSERT INTO transactions (type, batch_uuid, mahajan_id, product_id, quantity, amount, transaction_date, notes) VALUES ('lend', ?, ?, ?, ?, ?, ?, ?)"
+              "INSERT INTO transactions (type, batch_uuid, lender_id, product_id, quantity, amount, transaction_date, notes, lender_invoice_number, invoice_file_path, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount) VALUES ('credit_purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             .run(
               batchUuid,
-              payload.mahajan_id,
+              payload.lender_id,
               line.product_id,
               qty,
-              roundDecimal(line.amount),
+              amount,
               payload.transaction_date,
-              payload.notes ?? null
+              payload.notes ?? null,
+              payload.lender_invoice_number ?? null,
+              payload.invoice_file_path ?? null,
+              line.gst_rate ?? 0,
+              line.gst_inclusive ? 1 : 0,
+              line.taxable_amount ?? amount,
+              line.cgst_amount ?? 0,
+              line.sgst_amount ?? 0
             );
           ids.push(Number(result.lastInsertRowid));
           db()
@@ -1918,24 +2019,31 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(
-    "mahajanLends:update",
+    "creditPurchases:update",
     (
       _,
       id: number,
       l: {
-        mahajan_id?: number;
+        lender_id?: number;
         product_id?: number | null;
         product_name?: string;
         quantity?: number;
         transaction_date?: string;
         amount?: number;
         notes?: string;
+        lender_invoice_number?: string;
+        invoice_file_path?: string;
+        gst_rate?: number;
+        gst_inclusive?: boolean;
+        taxable_amount?: number;
+        cgst_amount?: number;
+        sgst_amount?: number;
       }
     ) => {
       const row = db()
-        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'lend'")
+        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'credit_purchase'")
         .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Lend not found");
+      if (!row) throw new Error("Credit purchase not found");
       const oldProductId = row.product_id as number | null;
       const oldQuantity = (row.quantity as number) ?? 0;
       const newProductId =
@@ -1946,19 +2054,28 @@ export function registerIpcHandlers(): void {
         l.amount !== undefined
           ? roundDecimal(l.amount)
           : (row.amount as number);
+      const newLenderId =
+        l.lender_id !== undefined ? l.lender_id : (row.lender_id as number);
 
       db().transaction(() => {
         db()
           .prepare(
-            "UPDATE transactions SET mahajan_id = ?, product_id = ?, quantity = ?, transaction_date = ?, amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+            "UPDATE transactions SET lender_id = ?, product_id = ?, quantity = ?, transaction_date = ?, amount = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, gst_rate = ?, gst_inclusive = ?, taxable_amount = ?, cgst_amount = ?, sgst_amount = ?, updated_at = datetime('now') WHERE id = ?"
           )
           .run(
-            l.mahajan_id !== undefined ? l.mahajan_id : row.mahajan_id,
+            newLenderId,
             newProductId,
             newQuantity,
             l.transaction_date ?? row.transaction_date,
             newAmount,
             l.notes !== undefined ? l.notes : row.notes,
+            l.lender_invoice_number !== undefined ? l.lender_invoice_number : row.lender_invoice_number,
+            l.invoice_file_path !== undefined ? l.invoice_file_path : row.invoice_file_path,
+            l.gst_rate !== undefined ? l.gst_rate : (row.gst_rate ?? 0),
+            l.gst_inclusive !== undefined ? (l.gst_inclusive ? 1 : 0) : (row.gst_inclusive ?? 0),
+            l.taxable_amount !== undefined ? l.taxable_amount : (row.taxable_amount ?? newAmount),
+            l.cgst_amount !== undefined ? l.cgst_amount : (row.cgst_amount ?? 0),
+            l.sgst_amount !== undefined ? l.sgst_amount : (row.sgst_amount ?? 0),
             id
           );
         if (oldProductId != null && oldQuantity > 0) {
@@ -1968,7 +2085,7 @@ export function registerIpcHandlers(): void {
           if (!oldStock) throw new Error("Item not found");
           if (oldStock.current_stock < oldQuantity) {
             throw new Error(
-              `Cannot update: would result in negative stock (current ${oldStock.current_stock}, lend quantity ${oldQuantity}).`
+              `Cannot update: would result in negative stock (current ${oldStock.current_stock}, credit purchase quantity ${oldQuantity}).`
             );
           }
           db()
@@ -1993,41 +2110,41 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle("mahajanLends:delete", (_, id: number) => {
-    const lend = db()
+  ipcMain.handle("creditPurchases:delete", (_, id: number) => {
+    const cp = db()
       .prepare(
-        "SELECT product_id, quantity FROM transactions WHERE id = ? AND type = 'lend'"
+        "SELECT product_id, quantity FROM transactions WHERE id = ? AND type = 'credit_purchase'"
       )
       .get(id) as { product_id: number | null; quantity: number } | undefined;
-    if (lend?.product_id != null && (lend.quantity ?? 0) > 0) {
+    if (cp?.product_id != null && (cp.quantity ?? 0) > 0) {
       const row = db()
         .prepare("SELECT current_stock FROM items WHERE id = ?")
-        .get(lend.product_id) as { current_stock: number } | undefined;
-      if (row && row.current_stock < lend.quantity) {
+        .get(cp.product_id) as { current_stock: number } | undefined;
+      if (row && row.current_stock < cp.quantity) {
         throw new Error(
-          `Cannot delete lend: would result in negative stock (current ${row.current_stock}, lend quantity ${lend.quantity}).`
+          `Cannot delete credit purchase: would result in negative stock (current ${row.current_stock}, credit purchase quantity ${cp.quantity}).`
         );
       }
       db()
         .prepare(
           "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
         )
-        .run(lend.quantity, lend.product_id);
+        .run(cp.quantity, cp.product_id);
     }
     db().prepare("DELETE FROM transactions WHERE id = ?").run(id);
     return id;
   });
 
-  // ---- Mahajan Deposits (transactions type='deposit') ----
-  ipcMain.handle("mahajanDeposits:getAll", (_, mahajanId?: number) => {
+  // ---- Settlements (transactions type='settlement') ----
+  ipcMain.handle("settlements:getAll", (_, lenderId?: number) => {
     const sql =
-      "SELECT id, mahajan_id, amount, transaction_date, notes, created_at, updated_at FROM transactions WHERE type = 'deposit'";
-    if (mahajanId != null) {
+      "SELECT id, lender_id, amount, transaction_date, notes, created_at, updated_at, payment_method, reference_number FROM transactions WHERE type = 'settlement'";
+    if (lenderId != null) {
       return db()
         .prepare(
-          sql + " AND mahajan_id = ? ORDER BY transaction_date DESC, id DESC"
+          sql + " AND lender_id = ? ORDER BY transaction_date DESC, id DESC"
         )
-        .all(mahajanId);
+        .all(lenderId);
     }
     return db()
       .prepare(sql + " ORDER BY transaction_date DESC, id DESC")
@@ -2035,83 +2152,114 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(
-    "mahajanDeposits:create",
+    "settlements:create",
     (
       _,
       d: {
-        mahajan_id: number;
+        lender_id: number;
         transaction_date: string;
         amount: number;
         notes?: string;
+        payment_method?: string;
+        reference_number?: string;
+        allocations?: { credit_purchase_id: number; amount: number }[];
       }
     ) => {
-      const result = db()
-        .prepare(
-          "INSERT INTO transactions (type, mahajan_id, amount, transaction_date, notes) VALUES ('deposit', ?, ?, ?, ?)"
-        )
-        .run(
-          d.mahajan_id,
-          roundDecimal(d.amount),
-          d.transaction_date,
-          d.notes ?? null
-        );
-      return result.lastInsertRowid;
+      const run = db().transaction(() => {
+        const result = db()
+          .prepare(
+            "INSERT INTO transactions (type, lender_id, amount, transaction_date, notes, payment_method, reference_number) VALUES ('settlement', ?, ?, ?, ?, ?, ?)"
+          )
+          .run(
+            d.lender_id,
+            roundDecimal(d.amount),
+            d.transaction_date,
+            d.notes ?? null,
+            d.payment_method ?? null,
+            d.reference_number ?? null
+          );
+        const settlementId = Number(result.lastInsertRowid);
+        if (d.allocations?.length) {
+          const insertAlloc = db().prepare(
+            "INSERT INTO settlement_allocations (settlement_id, credit_purchase_id, amount) VALUES (?, ?, ?)"
+          );
+          for (const a of d.allocations) {
+            insertAlloc.run(
+              settlementId,
+              a.credit_purchase_id,
+              roundDecimal(a.amount)
+            );
+          }
+        }
+        return settlementId;
+      });
+      return run();
     }
   );
 
   ipcMain.handle(
-    "mahajanDeposits:update",
+    "settlements:update",
     (
       _,
       id: number,
-      d: { transaction_date?: string; amount?: number; notes?: string }
+      d: {
+        transaction_date?: string;
+        amount?: number;
+        notes?: string;
+        payment_method?: string;
+        reference_number?: string;
+      }
     ) => {
       const row = db()
-        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'deposit'")
+        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'settlement'")
         .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Deposit not found");
+      if (!row) throw new Error("Settlement not found");
       db()
         .prepare(
-          "UPDATE transactions SET transaction_date = ?, amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE transactions SET transaction_date = ?, amount = ?, notes = ?, payment_method = ?, reference_number = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(
           d.transaction_date ?? row.transaction_date,
           roundDecimal(d.amount ?? (row.amount as number)),
           d.notes !== undefined ? d.notes : row.notes,
+          d.payment_method !== undefined ? d.payment_method : row.payment_method,
+          d.reference_number !== undefined ? d.reference_number : row.reference_number,
           id
         );
       return id;
     }
   );
 
-  ipcMain.handle("mahajanDeposits:delete", (_, id: number) => {
+  ipcMain.handle("settlements:delete", (_, id: number) => {
     db().prepare("DELETE FROM transactions WHERE id = ?").run(id);
     return id;
   });
 
-  // ---- Mahajan Ledger (unified lends + deposits + purchases, paginated) ----
+  // ---- Lender Ledger (unified credit purchases + settlements + cash purchases, paginated) ----
   type LedgerFilters = {
-    mahajanId?: number | null;
-    type?: "all" | "lend" | "deposit" | "cash_purchase";
-    transactionType?: "all" | "lend" | "deposit" | "cash_purchase";
+    lenderId?: number | null;
+    mahajanId?: number | null; // deprecated, use lenderId
+    type?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
+    transactionType?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
     limit?: number;
   };
-  ipcMain.handle("mahajanLedger:getPage", (_, opts: LedgerFilters) => {
+  ipcMain.handle("lenderLedger:getPage", (_, opts: LedgerFilters) => {
     const rawType = opts?.transactionType ?? opts?.type;
-    const typeFilter: "all" | "lend" | "deposit" | "cash_purchase" =
+    const typeFilter: "all" | "credit_purchase" | "settlement" | "cash_purchase" =
       rawType === "cash_purchase"
         ? "cash_purchase"
-        : rawType === "lend"
-          ? "lend"
-          : rawType === "deposit"
-            ? "deposit"
+        : rawType === "credit_purchase"
+          ? "credit_purchase"
+          : rawType === "settlement"
+            ? "settlement"
             : "all";
-    // When showing only cash purchases, ignore mahajan (cash_purchase have no mahajan_id)
-    const mahajanId =
-      typeFilter === "cash_purchase" ? null : (opts?.mahajanId ?? null);
+    const lenderId =
+      typeFilter === "cash_purchase"
+        ? null
+        : (opts?.lenderId ?? opts?.mahajanId ?? null);
     const dateFrom =
       typeof opts?.dateFrom === "string" ? opts.dateFrom.trim() : "";
     const dateTo = typeof opts?.dateTo === "string" ? opts.dateTo.trim() : "";
@@ -2121,15 +2269,15 @@ export function registerIpcHandlers(): void {
 
     const whereParts: string[] = [];
     const params: (number | string)[] = [];
-    if (mahajanId != null) {
-      whereParts.push("u.mahajan_id = ?");
-      params.push(mahajanId);
+    if (lenderId != null) {
+      whereParts.push("u.lender_id = ?");
+      params.push(lenderId);
     }
     if (typeFilter === "all") {
-      if (mahajanId != null) {
-        whereParts.push("u.type IN ('lend','deposit')");
+      if (lenderId != null) {
+        whereParts.push("u.type IN ('credit_purchase','settlement')");
       } else {
-        whereParts.push("u.type IN ('lend','deposit','cash_purchase')");
+        whereParts.push("u.type IN ('credit_purchase','settlement','cash_purchase')");
       }
     } else {
       whereParts.push("u.type = ?");
@@ -2146,7 +2294,7 @@ export function registerIpcHandlers(): void {
     const whereClause = whereParts.length
       ? `WHERE ${whereParts.join(" AND ")}`
       : "";
-    const countSql = `SELECT COUNT(*) AS total FROM transactions u LEFT JOIN mahajans m ON u.mahajan_id = m.id ${whereClause}`;
+    const countSql = `SELECT COUNT(*) AS total FROM transactions u LEFT JOIN lenders m ON u.lender_id = m.id ${whereClause}`;
     const countRow = (
       params.length
         ? db()
@@ -2154,7 +2302,7 @@ export function registerIpcHandlers(): void {
             .get(...params)
         : db().prepare(countSql).get()
     ) as { total: number };
-    const dataSql = `SELECT u.type, u.id, u.mahajan_id, m.name AS mahajan_name, u.product_id, u.transaction_date, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.notes FROM transactions u LEFT JOIN mahajans m ON u.mahajan_id = m.id LEFT JOIN items i ON u.product_id = i.id ${whereClause} ORDER BY u.transaction_date DESC, u.id DESC LIMIT ? OFFSET ?`;
+    const dataSql = `SELECT u.type, u.id, u.lender_id, m.name AS lender_name, u.product_id, u.transaction_date, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.notes, u.lender_invoice_number, u.invoice_file_path, u.payment_method, u.reference_number FROM transactions u LEFT JOIN lenders m ON u.lender_id = m.id LEFT JOIN items i ON u.product_id = i.id ${whereClause} ORDER BY u.transaction_date DESC, u.id DESC LIMIT ? OFFSET ?`;
     const dataRows = (
       params.length
         ? db()
@@ -2164,14 +2312,18 @@ export function registerIpcHandlers(): void {
     ) as {
       type: string;
       id: number;
-      mahajan_id: number | null;
-      mahajan_name: string | null;
+      lender_id: number | null;
+      lender_name: string | null;
       product_id: number | null;
       transaction_date: string;
       product_name: string | null;
       quantity: number | null;
       amount: number;
       notes: string | null;
+      lender_invoice_number?: string | null;
+      invoice_file_path?: string | null;
+      payment_method?: string | null;
+      reference_number?: string | null;
     }[];
     return { data: dataRows, total: countRow.total };
   });
@@ -2626,37 +2778,37 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle("reports:getTotalLend", () => {
+  ipcMain.handle("reports:getTotalCreditPurchase", () => {
     const row = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend'"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase'"
       )
       .get() as { total: number };
-    return { totalLend: row?.total ?? 0 };
+    return { totalCreditPurchase: row?.total ?? 0 };
   });
 
-  ipcMain.handle("reports:getMahajanSummary", () => {
-    const totalLendRow = db()
+  ipcMain.handle("reports:getLenderSummary", () => {
+    const totalCreditPurchaseRow = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend'"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase'"
       )
       .get() as { total: number };
-    const totalDepositRow = db()
+    const totalSettlementRow = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'deposit'"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement'"
       )
       .get() as { total: number };
     const balanceRows = db()
       .prepare(
-        `SELECT mahajan_id,
-          COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) -
-          COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS balance
-         FROM transactions WHERE type IN ('lend','deposit') GROUP BY mahajan_id`
+        `SELECT lender_id,
+          COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) -
+          COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS balance
+         FROM transactions WHERE type IN ('credit_purchase','settlement') GROUP BY lender_id`
       )
-      .all() as { mahajan_id: number; balance: number }[];
-    const totalLend = Number(totalLendRow?.total ?? 0);
-    const totalDeposit = Number(totalDepositRow?.total ?? 0);
-    const balance = totalLend - totalDeposit;
+      .all() as { lender_id: number; balance: number }[];
+    const totalCreditPurchase = Number(totalCreditPurchaseRow?.total ?? 0);
+    const totalSettlement = Number(totalSettlementRow?.total ?? 0);
+    const balance = totalCreditPurchase - totalSettlement;
     let countOweMe = 0;
     let countIOwe = 0;
     for (const r of balanceRows) {
@@ -2665,50 +2817,58 @@ export function registerIpcHandlers(): void {
       else if (b > 0) countIOwe += 1;
     }
     return {
-      totalLend,
-      totalDeposit,
+      totalCreditPurchase,
+      totalSettlement,
+      totalLend: totalCreditPurchase,
+      totalDeposit: totalSettlement,
       balance,
       countOweMe,
       countIOwe,
     };
   });
 
-  ipcMain.handle("reports:getAllMahajanBalances", () => {
+  ipcMain.handle("reports:getAllLenderBalances", () => {
     const rows = db()
       .prepare(
-        `SELECT mahajan_id,
-          COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) -
-          COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS balance
-         FROM transactions WHERE type IN ('lend','deposit') GROUP BY mahajan_id`
+        `SELECT lender_id,
+          COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) -
+          COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS balance
+         FROM transactions WHERE type IN ('credit_purchase','settlement') GROUP BY lender_id`
       )
-      .all() as { mahajan_id: number; balance: number }[];
+      .all() as { lender_id: number; balance: number }[];
     const balances: Record<number, number> = {};
-    for (const r of rows) balances[r.mahajan_id] = r.balance;
+    for (const r of rows) balances[r.lender_id] = r.balance;
     return { balances };
   });
 
-  ipcMain.handle("reports:getMahajanBalance", (_, mahajanId: number) => {
-    const lends = db()
+  ipcMain.handle("reports:getLenderBalance", (_, lenderId: number) => {
+    const creditPurchases = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'lend' AND mahajan_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?"
       )
-      .get(mahajanId) as { total: number };
-    const deposits = db()
+      .get(lenderId) as { total: number };
+    const settlements = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'deposit' AND mahajan_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement' AND lender_id = ?"
       )
-      .get(mahajanId) as { total: number };
-    const totalLends = lends?.total ?? 0;
-    const totalDeposits = deposits?.total ?? 0;
-    return { totalLends, totalDeposits, balance: totalLends - totalDeposits };
+      .get(lenderId) as { total: number };
+    const totalCreditPurchases = creditPurchases?.total ?? 0;
+    const totalSettlements = settlements?.total ?? 0;
+    return {
+      totalCreditPurchases,
+      totalSettlements,
+      totalLends: totalCreditPurchases,
+      totalDeposits: totalSettlements,
+      balance: totalCreditPurchases - totalSettlements,
+    };
   });
 
-  ipcMain.handle("reports:getMahajanLedger", (_, mahajanId: number) => {
+  ipcMain.handle("reports:getLenderLedger", (_, lenderId: number) => {
     const rows = db()
       .prepare(
-        "SELECT id, transaction_date, type, COALESCE(product_name, (SELECT name FROM items WHERE items.id = transactions.product_id)) AS description, amount FROM transactions WHERE type IN ('lend','deposit') AND mahajan_id = ?"
+        "SELECT id, transaction_date, type, COALESCE(product_name, (SELECT name FROM items WHERE items.id = transactions.product_id)) AS description, amount FROM transactions WHERE type IN ('credit_purchase','settlement') AND lender_id = ?"
       )
-      .all(mahajanId) as {
+      .all(lenderId) as {
       id: number;
       transaction_date: string;
       type: string;
@@ -2717,14 +2877,15 @@ export function registerIpcHandlers(): void {
     }[];
     const combined: {
       transaction_date: string;
-      type: "lend" | "deposit";
+      type: "credit_purchase" | "settlement";
       description: string;
       amount: number;
       id: number;
     }[] = rows.map((r) => ({
       ...r,
-      type: r.type as "lend" | "deposit",
-      description: r.type === "deposit" ? "Deposit" : r.description || "Lend",
+      type: r.type as "credit_purchase" | "settlement",
+      description:
+        r.type === "settlement" ? "Settlement" : r.description || "Credit Purchase",
     }));
     combined.sort((a, b) =>
       b.transaction_date === a.transaction_date
@@ -2798,16 +2959,16 @@ export function registerIpcHandlers(): void {
       const totalSale = sales?.total ?? 0;
       const totalExpenditure = sales?.expenditure ?? 0;
 
-      const lendDeposit = db()
+      const cpSettlement = db()
         .prepare(
           `SELECT
-            COALESCE(SUM(CASE WHEN type = 'lend' THEN amount ELSE 0 END), 0) AS totalLend,
-            COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END), 0) AS totalDeposit
-           FROM transactions WHERE type IN ('lend','deposit') AND strftime('%Y', transaction_date) = ?`
+            COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) AS totalCreditPurchase,
+            COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS totalSettlement
+           FROM transactions WHERE type IN ('credit_purchase','settlement') AND strftime('%Y', transaction_date) = ?`
         )
-        .get(String(year)) as { totalLend: number; totalDeposit: number };
-      const totalLend = lendDeposit?.totalLend ?? 0;
-      const totalDeposit = lendDeposit?.totalDeposit ?? 0;
+        .get(String(year)) as { totalCreditPurchase: number; totalSettlement: number };
+      const totalLend = cpSettlement?.totalCreditPurchase ?? 0;
+      const totalDeposit = cpSettlement?.totalSettlement ?? 0;
 
       const profitLoss = totalSale - totalExpenditure;
       const expectedClosing =
@@ -2840,12 +3001,13 @@ export function registerIpcHandlers(): void {
     const tables = [
       "invoice_lines",
       "invoices",
+      "settlement_allocations",
       "transactions",
       "daily_sales",
       "opening_balance",
       "item_other_units",
       "items",
-      "mahajans",
+      "lenders",
       "unit_conversions",
       "units",
       "unit_types",

@@ -6,7 +6,7 @@ import { seedIfEmpty } from "./seed";
 
 type SampleSnapshot = {
   items: unknown[];
-  mahajans: unknown[];
+  lenders: unknown[];
   transactions: unknown[];
   daily_sales: unknown[];
   opening_balance: unknown[];
@@ -29,7 +29,7 @@ function getSnapshotPath(): string {
 function writeSnapshot(db: Database.Database): void {
   const snapshot: SampleSnapshot = {
     items: db.prepare("SELECT * FROM items LIMIT 50").all(),
-    mahajans: db.prepare("SELECT * FROM mahajans LIMIT 50").all(),
+    lenders: db.prepare("SELECT * FROM lenders LIMIT 50").all(),
     transactions: db.prepare("SELECT * FROM transactions LIMIT 100").all(),
     daily_sales: db.prepare("SELECT * FROM daily_sales LIMIT 50").all(),
     opening_balance: db.prepare("SELECT * FROM opening_balance LIMIT 50").all(),
@@ -58,7 +58,7 @@ export function populateSampleData(db: Database.Database): void {
   const run = db.transaction(() => {
     const hasExistingData =
       getCount(db, "items") > 0 ||
-      getCount(db, "mahajans") > 0 ||
+      getCount(db, "lenders") > 0 ||
       getCount(db, "transactions") > 0 ||
       getCount(db, "daily_sales") > 0 ||
       getCount(db, "invoices") > 0;
@@ -73,11 +73,11 @@ export function populateSampleData(db: Database.Database): void {
       const insertItem = db.prepare(
         "INSERT INTO items (id, name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, current_stock, reorder_level, created_at, updated_at) VALUES (@id, @name, @code, @unit, @unit_id, @reference_unit, @quantity_per_primary, @retail_primary_unit, @current_stock, @reorder_level, @created_at, @updated_at)"
       );
-      const insertMahajan = db.prepare(
-        "INSERT INTO mahajans (id, name, address, phone, gstin, created_at, updated_at) VALUES (@id, @name, @address, @phone, @gstin, @created_at, @updated_at)"
+      const insertLender = db.prepare(
+        "INSERT INTO lenders (id, name, address, phone, gstin, created_at, updated_at) VALUES (@id, @name, @address, @phone, @gstin, @created_at, @updated_at)"
       );
       const insertTransaction = db.prepare(
-        "INSERT INTO transactions (id, type, batch_uuid, mahajan_id, product_id, product_name, quantity, amount, transaction_date, notes, created_at, updated_at) VALUES (@id, @type, @batch_uuid, @mahajan_id, @product_id, @product_name, @quantity, @amount, @transaction_date, @notes, @created_at, @updated_at)"
+        "INSERT INTO transactions (id, type, batch_uuid, lender_id, product_id, product_name, quantity, amount, transaction_date, notes, created_at, updated_at) VALUES (@id, @type, @batch_uuid, @lender_id, @product_id, @product_name, @quantity, @amount, @transaction_date, @notes, @created_at, @updated_at)"
       );
       const insertDailySale = db.prepare(
         "INSERT INTO daily_sales (id, sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes, created_at, updated_at) VALUES (@id, @sale_date, @sale_amount, @cash_in_hand, @expenditure_amount, COALESCE(@invoice_sales, 0), COALESCE(@misc_sales, @sale_amount, 0), @notes, @created_at, @updated_at)"
@@ -93,7 +93,7 @@ export function populateSampleData(db: Database.Database): void {
       );
 
       for (const row of snapshot.items) insertItem.run(row);
-      for (const row of snapshot.mahajans) insertMahajan.run(row);
+      for (const row of snapshot.lenders) insertLender.run(row);
       for (const row of snapshot.transactions) insertTransaction.run(row);
       for (const row of snapshot.daily_sales) insertDailySale.run(row);
       for (const row of snapshot.opening_balance)
@@ -108,11 +108,11 @@ export function populateSampleData(db: Database.Database): void {
       "SELECT id FROM units WHERE name = ?"
     ) as Database.Statement;
 
-    const insertMahajan = db.prepare(
-      "INSERT INTO mahajans (name, address, phone, gstin) VALUES (?, ?, ?, ?)"
+    const insertLender = db.prepare(
+      "INSERT INTO lenders (name, address, phone, gstin) VALUES (?, ?, ?, ?)"
     );
 
-    const mahajans = [
+    const lenders = [
       {
         name: "Sharma Traders",
         address: "Bazaar Road, Kolkata",
@@ -145,15 +145,15 @@ export function populateSampleData(db: Database.Database): void {
       },
     ];
 
-    const mahajanIds: number[] = [];
-    for (const m of mahajans) {
-      const res = insertMahajan.run(
+    const lenderIds: number[] = [];
+    for (const m of lenders) {
+      const res = insertLender.run(
         m.name,
         m.address,
         m.phone,
         m.gstin
       ) as Database.RunResult;
-      mahajanIds.push(Number(res.lastInsertRowid));
+      lenderIds.push(Number(res.lastInsertRowid));
     }
 
     const insertItem = db.prepare(
@@ -264,23 +264,23 @@ export function populateSampleData(db: Database.Database): void {
     }
 
     const insertTransaction = db.prepare(
-      "INSERT INTO transactions (type, batch_uuid, mahajan_id, product_id, product_name, quantity, amount, transaction_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO transactions (type, batch_uuid, lender_id, product_id, product_name, quantity, amount, transaction_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     const transactions = [
       {
-        type: "lend",
-        mahajanIndex: 0,
+        type: "credit_purchase",
+        lenderIndex: 0,
         productCode: "RICE25",
         productName: "Basmati Rice 25kg Bag",
         quantity: 10,
         amount: 35000,
         date: "2025-04-01",
-        notes: "Opening lend for rice stock",
+        notes: "Opening credit purchase for rice stock",
       },
       {
-        type: "lend",
-        mahajanIndex: 1,
+        type: "credit_purchase",
+        lenderIndex: 1,
         productCode: "OIL15",
         productName: "Refined Oil 15L Jar",
         quantity: 8,
@@ -289,18 +289,18 @@ export function populateSampleData(db: Database.Database): void {
         notes: "Oil stock received",
       },
       {
-        type: "deposit",
-        mahajanIndex: 0,
+        type: "settlement",
+        lenderIndex: 0,
         productCode: null,
         productName: null,
         quantity: null,
         amount: 15000,
         date: "2025-04-10",
-        notes: "Part payment received",
+        notes: "Part settlement received",
       },
       {
         type: "cash_purchase",
-        mahajanIndex: null,
+        lenderIndex: null,
         productCode: "SUGAR50",
         productName: "Sugar 50kg Bag",
         quantity: 5,
@@ -310,7 +310,7 @@ export function populateSampleData(db: Database.Database): void {
       },
       {
         type: "cash_purchase",
-        mahajanIndex: null,
+        lenderIndex: null,
         productCode: "TEA250",
         productName: "Tea 250g Packet",
         quantity: 50,
@@ -321,13 +321,13 @@ export function populateSampleData(db: Database.Database): void {
     ] as const;
 
     for (const t of transactions) {
-      const hasMahajanIndex =
-        typeof t.mahajanIndex === "number" &&
-        Number.isInteger(t.mahajanIndex) &&
-        t.mahajanIndex >= 0 &&
-        t.mahajanIndex < mahajanIds.length;
-      const mahajanId = hasMahajanIndex
-        ? mahajanIds[t.mahajanIndex as number]
+      const hasLenderIndex =
+        typeof t.lenderIndex === "number" &&
+        Number.isInteger(t.lenderIndex) &&
+        t.lenderIndex >= 0 &&
+        t.lenderIndex < lenderIds.length;
+      const lenderId = hasLenderIndex
+        ? lenderIds[t.lenderIndex as number]
         : null;
       const hasProductCode = typeof t.productCode === "string";
       const productId = hasProductCode
@@ -336,7 +336,7 @@ export function populateSampleData(db: Database.Database): void {
       insertTransaction.run(
         t.type,
         null,
-        mahajanId,
+        lenderId,
         productId,
         t.productName,
         t.quantity,

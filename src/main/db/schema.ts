@@ -78,7 +78,7 @@ export function createSchema(db: DbLike): void {
       UNIQUE(item_id, to_unit)
     );
 
-    CREATE TABLE IF NOT EXISTS mahajans (
+    CREATE TABLE IF NOT EXISTS lenders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       address TEXT,
@@ -90,17 +90,34 @@ export function createSchema(db: DbLike): void {
 
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL CHECK(type IN ('lend','deposit','cash_purchase')),
+      type TEXT NOT NULL CHECK(type IN ('credit_purchase','settlement','cash_purchase')),
       batch_uuid TEXT,
-      mahajan_id INTEGER REFERENCES mahajans(id),
+      lender_id INTEGER REFERENCES lenders(id),
       product_id INTEGER REFERENCES items(id),
       product_name TEXT,
       quantity REAL,
       amount REAL NOT NULL,
       transaction_date TEXT NOT NULL,
       notes TEXT,
+      lender_invoice_number TEXT,
+      invoice_file_path TEXT,
+      payment_method TEXT,
+      reference_number TEXT,
+      gst_rate REAL NOT NULL DEFAULT 0,
+      gst_inclusive INTEGER NOT NULL DEFAULT 0,
+      taxable_amount REAL NOT NULL DEFAULT 0,
+      cgst_amount REAL NOT NULL DEFAULT 0,
+      sgst_amount REAL NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS settlement_allocations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      settlement_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+      credit_purchase_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+      amount REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS daily_sales (
