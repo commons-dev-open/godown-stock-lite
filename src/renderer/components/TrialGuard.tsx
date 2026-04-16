@@ -58,8 +58,8 @@ export default function TrialGuard() {
           </Button>
         }
       >
-        <div className="space-y-3 text-gray-700">
-          <p className="font-medium text-gray-900">
+        <div className="space-y-3 text-[var(--color-text-secondary)]">
+          <p className="font-medium text-[var(--color-text-primary)]">
             Your trial has ended — buy the full version to continue using the
             app.
           </p>
@@ -68,7 +68,7 @@ export default function TrialGuard() {
             <strong>12 months free support and bug fixes</strong>, plus access
             to all features:
           </p>
-          <ul className="text-sm list-disc list-inside space-y-1 text-gray-600">
+          <ul className="text-sm list-disc list-inside space-y-1 text-[var(--color-text-secondary)]">
             <li>Products & stock management</li>
             <li>Mahajans & ledger</li>
             <li>Transactions & daily sales</li>
@@ -82,7 +82,7 @@ export default function TrialGuard() {
             Contact Arindam Hazra to get the full version.
           </p>
           {expiryTime && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--color-text-tertiary)]">
               Trial expired on <strong>{expiryTime}</strong>.
             </p>
           )}

@@ -6,13 +6,7 @@ import FormModal from "./FormModal";
 import DateInput from "./DateInput";
 import Tooltip from "./Tooltip";
 import MahajanBalanceCard from "./MahajanBalanceCard";
-import {
-  ClipboardDocumentCheckIcon,
-  DocumentArrowUpIcon,
-  XMarkIcon,
-  PlusIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import { ClipboardCheck, FileUp, X, Plus, Trash2 } from "lucide-react";
 import Button from "./Button";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
@@ -321,9 +315,10 @@ export default function AddLendModal({
         maxWidth="max-w-3xl"
         footer={
           <Button type="submit" form="add-lend-form" variant="amber">
-            <ClipboardDocumentCheckIcon
-              className="w-5 h-5 mr-1.5"
-              aria-hidden
+            <ClipboardCheck
+              size={20}
+              className="mr-1.5"
+              aria-hidden="true"
             />
             Review &amp; confirm
           </Button>
@@ -332,7 +327,7 @@ export default function AddLendModal({
         <form id="add-lend-form" className="space-y-5" onSubmit={handleSubmit}>
           {fixedMahajanId == null && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
                 Lender *
               </label>
               <select name="mahajan_id" required className="input-base w-full">
@@ -346,7 +341,7 @@ export default function AddLendModal({
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
               Date * (dd/mm/yyyy)
             </label>
             <DateInput
@@ -355,12 +350,12 @@ export default function AddLendModal({
               className="input-base w-full"
             />
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+          <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
             <div className="min-w-0 overflow-x-auto">
               <div className="min-w-[32rem]">
                 {lendLines.length > 0 && (
                   <div
-                    className={`grid gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2 ${
+                    className={`grid gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1 ml-2 ${
                       gstEnabled
                         ? "grid-cols-[12rem_5rem_4rem_7rem_5rem_6rem_2.5rem]"
                         : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
@@ -387,7 +382,7 @@ export default function AddLendModal({
                     return (
                       <div
                         key={idx}
-                        className={`grid gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm ${
+                        className={`grid gap-3 items-center p-3 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm ${
                           gstEnabled
                             ? "grid-cols-[12rem_5rem_4rem_7rem_5rem_6rem_2.5rem]"
                             : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
@@ -448,8 +443,8 @@ export default function AddLendModal({
                               : "Quantity"
                           }
                         />
-                        <span className="text-sm text-gray-600 whitespace-nowrap">
-                          {selectedItem?.unit ?? "—"}
+                        <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
+                          {selectedItem?.unit ?? "\u2014"}
                         </span>
                         <input
                           name={`amount_${idx}`}
@@ -525,11 +520,11 @@ export default function AddLendModal({
                               prev.filter((_, i) => i !== idx)
                             )
                           }
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
+                          className="text-[var(--color-danger)] hover:text-[var(--color-danger-text)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded-lg transition-colors inline-flex items-center gap-1 disabled:invisible"
                           aria-label="Remove line"
                           disabled={lendLines.length <= 1}
                         >
-                          <TrashIcon className="w-4 h-4" aria-hidden />
+                          <Trash2 size={16} aria-hidden="true" />
                         </button>
                       </div>
                     );
@@ -539,20 +534,20 @@ export default function AddLendModal({
                   type="button"
                   variant="ghost"
                   onClick={() => setLendLines((prev) => [...prev, emptyLine()])}
-                  className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                  className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
                 >
-                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  <Plus size={20} className="mr-1.5" aria-hidden="true" />
                   Add item
                 </Button>
               </div>
             </div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Invoice details (optional)
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Lender&apos;s Invoice Number
               </label>
               <input
@@ -564,7 +559,7 @@ export default function AddLendModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Upload Invoice
               </label>
               <div className="flex items-center gap-2">
@@ -579,9 +574,9 @@ export default function AddLendModal({
                 />
                 <label
                   htmlFor="credit-purchase-invoice-upload"
-                  className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--color-border-strong)] rounded-lg text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-raised)] cursor-pointer"
                 >
-                  <DocumentArrowUpIcon className="w-5 h-5" aria-hidden />
+                  <FileUp size={20} aria-hidden="true" />
                   {invoiceFile
                     ? invoiceFile.name
                     : "Choose file (PDF, images)"}
@@ -590,28 +585,28 @@ export default function AddLendModal({
                   <button
                     type="button"
                     onClick={() => setInvoiceFile(null)}
-                    className="text-red-600 hover:text-red-700 p-1 rounded"
+                    className="text-[var(--color-danger)] hover:text-[var(--color-danger-text)] p-1 rounded-lg"
                     aria-label="Remove file"
                   >
-                    <XMarkIcon className="w-5 h-5" aria-hidden />
+                    <X size={20} aria-hidden="true" />
                   </button>
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
                 Max 10 MB. Stored in app data.
               </p>
             </div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
-            <p className="text-sm font-medium text-gray-700">Pay now (optional)</p>
-            <p className="text-xs text-gray-500">
+          <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">Pay now (optional)</p>
+            <p className="text-xs text-[var(--color-text-tertiary)]">
               Pay part of this credit purchase immediately. Remaining amount stays
               as liability.
             </p>
             <div>
               <label
                 htmlFor="pay-now-amount"
-                className="block text-sm font-medium text-gray-600 mb-1"
+                className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
               >
                 Amount to pay now
               </label>
@@ -634,7 +629,7 @@ export default function AddLendModal({
                 <div>
                   <label
                     htmlFor="pay-now-method"
-                    className="block text-sm font-medium text-gray-600 mb-1"
+                    className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
                   >
                     Payment Method
                   </label>
@@ -656,7 +651,7 @@ export default function AddLendModal({
                   <div>
                     <label
                       htmlFor="pay-now-reference"
-                      className="block text-sm font-medium text-gray-600 mb-1"
+                      className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
                     >
                       {PAYMENT_METHODS.find(
                         (p) => p.value === payNowPaymentMethod
@@ -682,7 +677,7 @@ export default function AddLendModal({
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
               Notes
             </label>
             <textarea
@@ -737,7 +732,7 @@ export default function AddLendModal({
                 }}
                 disabled={createLendBatch.isPending}
               >
-                {createLendBatch.isPending ? "Saving…" : "Confirm"}
+                {createLendBatch.isPending ? "Saving..." : "Confirm"}
               </Button>
             </>
           ) : null
@@ -745,7 +740,7 @@ export default function AddLendModal({
       >
         {confirmPayload && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               Receive credit purchase from <strong>{confirmPayload.mahajanName}</strong> on{" "}
               <Tooltip
                 content={formatDateForForm(confirmPayload.transaction_date)}
@@ -758,7 +753,7 @@ export default function AddLendModal({
             <div className="table-scroll-wrap overflow-auto max-h-60">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b bg-gray-50">
+                  <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]">
                     <th className="text-left p-2">Product</th>
                     <th className="text-right p-2">Old stock</th>
                     <th className="text-right p-2">Received (credit purchase)</th>
@@ -777,9 +772,9 @@ export default function AddLendModal({
                     const oldStock = item?.current_stock ?? 0;
                     const after = oldStock + line.quantity;
                     return (
-                      <tr key={idx} className="border-b">
+                      <tr key={idx} className="border-b border-[var(--color-border-default)]">
                         <td className="p-2">
-                          {line.product_name || item?.name || "—"}
+                          {line.product_name || item?.name || "\u2014"}
                         </td>
                         <td className="p-2 text-right">{oldStock}</td>
                         <td className="p-2 text-right">{line.quantity}</td>
@@ -800,7 +795,7 @@ export default function AddLendModal({
               )}
             </p>
             {confirmPayload.pay_now_amount > 0 && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 Paying ₹{formatDecimal(confirmPayload.pay_now_amount)} now
                 {confirmPayload.pay_now_payment_method && (
                   <> via {confirmPayload.pay_now_payment_method}</>

@@ -236,10 +236,22 @@ export function exportInvoiceToPdf(
   const finalY =
     (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
       ?.finalY ?? y + 15;
-  const total = lines.reduce(
+  const subtotal = lines.reduce(
     (sum, line) => sum + (line.amount ?? line.quantity * line.price),
     0
   );
+  const inv = invoice as {
+    order_discount_amount?: number;
+    round_to_whole?: number;
+    coupon_code?: string | null;
+  };
+  const orderDisc = inv?.order_discount_amount ?? 0;
+  let total = subtotal - orderDisc;
+  if (inv?.round_to_whole) {
+    total = Math.round(total);
+  } else {
+    total = Math.round(total * 100) / 100;
+  }
   const taxableTotal = useGstLayout
     ? lines.reduce(
         (s, l) =>
@@ -283,6 +295,28 @@ export function exportInvoiceToPdf(
     y += 5;
     doc.text(`SGST: ${PDF_RUPEE}${formatDecimal(sgstTotal)}`, MARGIN_MM, y);
     y += 5;
+    if (orderDisc > 0) {
+      doc.text(
+        `Order Discount: -${PDF_RUPEE}${formatDecimal(orderDisc)}`,
+        MARGIN_MM,
+        y
+      );
+      y += 5;
+      if (inv?.coupon_code) {
+        doc.text(
+          `Coupon ${inv.coupon_code}: applied`,
+          MARGIN_MM,
+          y
+        );
+        y += 5;
+      }
+    }
+    if (inv?.round_to_whole) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("(Rounded to nearest whole number)", MARGIN_MM, y);
+      y += 4;
+    }
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total: ${PDF_RUPEE}${formatDecimal(total)}`, MARGIN_MM, y);
     y += 6;
@@ -295,6 +329,35 @@ export function exportInvoiceToPdf(
       y += wordsLines.length * 4 + 2;
     }
   } else {
+    if (orderDisc > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Subtotal: ${PDF_RUPEE}${formatDecimal(subtotal)}`,
+        MARGIN_MM,
+        y
+      );
+      y += 5;
+      doc.text(
+        `Order Discount: -${PDF_RUPEE}${formatDecimal(orderDisc)}`,
+        MARGIN_MM,
+        y
+      );
+      y += 5;
+      if (inv?.coupon_code) {
+        doc.text(
+          `Coupon ${inv.coupon_code}: applied`,
+          MARGIN_MM,
+          y
+        );
+        y += 5;
+      }
+      if (inv?.round_to_whole) {
+        doc.setFontSize(8);
+        doc.text("(Rounded to nearest whole)", MARGIN_MM, y);
+        y += 4;
+      }
+      doc.setFont("helvetica", "bold");
+    }
     doc.text(`Total: ${PDF_RUPEE}${formatDecimal(total)}`, MARGIN_MM, y);
   }
 

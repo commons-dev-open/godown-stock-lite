@@ -20,7 +20,7 @@ export default function FormField({
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 mb-1.5"
+        className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5"
       >
         {label}
         {required && " *"}

@@ -150,6 +150,9 @@ export interface Invoice {
   customer_id?: number | null;
   invoice_date: string;
   notes: string | null;
+  order_discount_amount?: number;
+  round_to_whole?: number;
+  coupon_code?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -177,5 +180,34 @@ export interface InvoiceLine {
   cgst_amount: number;
   sgst_amount: number;
   hsn_code?: string | null;
+  line_discount_percent?: number;
+  line_discount_flat?: number;
+  bogo_buy_qty?: number | null;
+  bogo_get_qty?: number | null;
+  bogo_discount_percent?: number;
+  created_at: string;
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_type: "percent" | "flat";
+  discount_value: number;
+  min_order_amount: number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  usage_limit: number | null;
+  used_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TieredDiscountRule {
+  id: number;
+  min_order_amount: number;
+  discount_percent: number;
+  discount_flat: number;
+  max_discount_amount: number | null;
+  sort_order: number;
   created_at: string;
 }

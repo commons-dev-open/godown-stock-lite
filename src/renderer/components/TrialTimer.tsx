@@ -29,7 +29,7 @@ export default function TrialTimer() {
 
   return (
     <div
-      className="mt-2 text-xs text-gray-500"
+      className="mt-2 text-xs text-[var(--color-text-tertiary)]"
       title={
         left
           ? left.expired && TRIAL_END_ISO
@@ -39,9 +39,9 @@ export default function TrialTimer() {
       }
     >
       {expired ? (
-        <span className="text-amber-700 font-medium">{label}</span>
+        <span className="text-[var(--color-warning-text)] font-medium">{label}</span>
       ) : (
-        <span className="text-gray-600">{label}</span>
+        <span className="text-[var(--color-text-secondary)]">{label}</span>
       )}
     </div>
   );

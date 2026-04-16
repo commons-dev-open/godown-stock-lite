@@ -52,13 +52,13 @@ export default function ConfirmDangerModal({
             onClick={handleConfirm}
             disabled={!canProceed}
           >
-            {isConfirming ? "Please wait…" : confirmLabel}
+            {isConfirming ? "Please wait..." : confirmLabel}
           </Button>
         </>
       }
     >
-      <p className="text-gray-700 mb-4">{message}</p>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <p className="text-[var(--color-text-secondary)] mb-4">{message}</p>
+      <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
         Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span>{" "}
         to continue
       </label>
@@ -68,7 +68,7 @@ export default function ConfirmDangerModal({
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder={CONFIRM_PHRASE}
-        className="w-full border border-gray-300 rounded px-3 py-2 font-mono"
+        className="w-full border border-[var(--color-border-strong)] rounded-lg px-3 py-2 font-mono"
         autoComplete="off"
         autoFocus
       />

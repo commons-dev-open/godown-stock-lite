@@ -47,7 +47,7 @@ export default function ConfirmModal({
         </>
       }
     >
-      <p className="text-gray-700">{message}</p>
+      <p className="text-[var(--color-text-secondary)]">{message}</p>
     </FormModal>
   );
 }

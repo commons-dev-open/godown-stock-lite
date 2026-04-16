@@ -10,6 +10,7 @@ import {
   useInteractions,
   FloatingPortal,
 } from "@floating-ui/react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDateForForm, parseFormDate } from "../lib/date";
 
 type Props = Readonly<{
@@ -141,7 +142,7 @@ export default function DateInput({
   const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="relative inline-flex min-w-0 max-w-full rounded-md shadow-sm">
+    <div className="relative inline-flex min-w-0 max-w-full rounded-lg shadow-sm">
       <input
         type="text"
         id={id}
@@ -159,10 +160,10 @@ export default function DateInput({
         type="button"
         tabIndex={-1}
         onClick={() => setPickerOpen((o) => !o)}
-        className="inline-flex shrink-0 items-center justify-center rounded-r-md border border-gray-300 border-l-0 bg-gray-50 px-2 text-gray-600 hover:bg-gray-100 focus:outline-none"
+        className="inline-flex shrink-0 items-center justify-center rounded-r-lg border border-[var(--color-border-strong)] border-l-0 bg-[var(--color-bg-surface-raised)] px-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-sunken)] focus:outline-none"
         aria-label="Open calendar"
       >
-        <CalendarIcon />
+        <Calendar size={18} />
       </button>
       <FloatingPortal>
         {pickerOpen && (
@@ -170,32 +171,32 @@ export default function DateInput({
             ref={refs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
             style={floatingStyles}
             {...getFloatingProps()}
-            className="z-50 w-64 rounded-lg border border-gray-200 bg-white shadow-lg p-3"
+            className="z-50 w-64 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-lg p-3"
           >
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
                 onClick={prevMonth}
-                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+                className="p-1 rounded-lg hover:bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)]"
                 aria-label="Previous month"
               >
-                <ChevronLeft />
+                <ChevronLeft size={20} />
               </button>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-[var(--color-text-secondary)]">
                 {monthName}
               </span>
               <button
                 type="button"
                 onClick={nextMonth}
-                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+                className="p-1 rounded-lg hover:bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)]"
                 aria-label="Next month"
               >
-                <ChevronRight />
+                <ChevronRight size={20} />
               </button>
             </div>
             <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <div key={d} className="py-1 text-gray-500 font-medium">
+                <div key={d} className="py-1 text-[var(--color-text-tertiary)] font-medium">
                   {d}
                 </div>
               ))}
@@ -213,9 +214,9 @@ export default function DateInput({
                     type="button"
                     onClick={() => handleSelectDate(iso)}
                     className={`
-                      py-1.5 rounded
-                      ${isSelected ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-900"}
-                      ${isToday && !isSelected ? "ring-1 ring-blue-400" : ""}
+                      py-1.5 rounded-lg
+                      ${isSelected ? "bg-[var(--color-accent)] text-[var(--color-text-inverse)]" : "hover:bg-[var(--color-bg-surface-raised)] text-[var(--color-text-primary)]"}
+                      ${isToday && !isSelected ? "ring-1 ring-[var(--color-accent)]" : ""}
                     `}
                   >
                     {day}
@@ -227,58 +228,5 @@ export default function DateInput({
         )}
       </FloatingPortal>
     </div>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
-
-function ChevronLeft() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
   );
 }

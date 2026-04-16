@@ -32,15 +32,15 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
-  ArrowDownTrayIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CheckIcon,
-  DocumentArrowDownIcon,
-  PlusIcon,
-  PrinterIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+  Download,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  FileDown,
+  Plus,
+  Printer,
+  Trash2,
+} from "lucide-react";
 import { computeProductUnits } from "../../shared/computeProductUnits";
 import type {
   Item,
@@ -389,15 +389,15 @@ export default function Items() {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 mb-4">
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
             Products & Stock
           </h1>
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
-                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <Download size={20} className="mr-1.5" aria-hidden="true" />
                 Export
               </Button>
             </div>
@@ -407,52 +407,54 @@ export default function Items() {
                   ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                 >
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportCsv}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPdf}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPrint}
                   >
-                    <PrinterIcon className="w-4 h-4 shrink-0" />
+                    <Printer size={16} className="shrink-0" />
                     Print
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="secondary" onClick={() => setAddStockOpen(true)}>
-              <ArrowUpIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <ArrowUp size={20} className="mr-1.5" aria-hidden="true" />
               Add Stock
             </Button>
             <Button
               variant="secondary"
               onClick={() => setReduceStockOpen(true)}
             >
-              <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <ArrowDown size={20} className="mr-1.5" aria-hidden="true" />
               Reduce Stock
             </Button>
             <Button variant="primary" onClick={() => setAddProductOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Product
             </Button>
           </div>
         </div>
+      </div>
+      <div className="mb-4">
         <SearchFilterBar
           searchValue={search}
           onSearchChange={(v) => {
@@ -471,7 +473,7 @@ export default function Items() {
         />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
         {isLoading ? (
           <TableLoader />
         ) : itemsPage.length === 0 ? (
@@ -605,7 +607,7 @@ export default function Items() {
         maxWidth="max-w-3xl"
         footer={
           <Button variant="primary" type="submit" form="add-product-form">
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Check size={20} className="mr-1.5" aria-hidden="true" />
             Save
           </Button>
         }
@@ -659,7 +661,7 @@ export default function Items() {
           }}
         >
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
               Basic details
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
@@ -667,25 +669,25 @@ export default function Items() {
                 <input
                   name="name"
                   required
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 />
               </FormField>
               <FormField label="Code">
                 <input
                   name="code"
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 />
               </FormField>
             </div>
           </section>
 
-          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+          <section className="space-y-4 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-3 md:p-4">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                   Units & conversions
                 </h3>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
                   Choose how you buy, store and sell this product.
                 </p>
               </div>
@@ -698,24 +700,24 @@ export default function Items() {
                   setImportUnitsPopupOpen(true);
                 }}
               >
-                <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <FileDown size={20} className="mr-1.5" aria-hidden="true" />
                 Import from product
               </Button>
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-[var(--color-text-tertiary)]">
                 Don't see your unit?{" "}
                 <Link
                   to="/units"
-                  className="text-blue-600 hover:text-blue-800 underline"
+                  className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] underline"
                 >
                   Manage all units
                 </Link>{" "}
                 — add to Stock (godown) or Invoice and return here.
               </p>
-              <div className="border-t border-gray-200 pt-3">
-                <span className="mb-2 block text-sm text-gray-500">
+              <div className="border-t border-[var(--color-border-default)] pt-3">
+                <span className="mb-2 block text-sm text-[var(--color-text-tertiary)]">
                   Primary stock unit and optional retail/other units.
                 </span>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -728,7 +730,7 @@ export default function Items() {
                         setAddUnitSelect(v);
                         setAddStockUnit(v);
                       }}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                       required
                     >
                       <option value="">Select unit</option>
@@ -743,7 +745,7 @@ export default function Items() {
                     <select
                       value={addRetailPrimary}
                       onChange={(e) => setAddRetailPrimary(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     >
                       <option value="">None</option>
                       {units.map((u) => (
@@ -757,7 +759,7 @@ export default function Items() {
 
                 <div className="mt-3">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="block text-sm font-medium text-gray-700">
+                    <span className="block text-sm font-medium text-[var(--color-text-secondary)]">
                       Other units (optional)
                     </span>
                     <Button
@@ -770,7 +772,7 @@ export default function Items() {
                         ])
                       }
                     >
-                      <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                      <Plus size={20} className="mr-1.5" aria-hidden="true" />
                       Add unit
                     </Button>
                   </div>
@@ -785,7 +787,7 @@ export default function Items() {
                             )
                           )
                         }
-                        className="flex-1 border border-gray-300 rounded px-3 py-2"
+                        className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                       >
                         <option value="">Select unit</option>
                         {units.map((u) => (
@@ -801,11 +803,11 @@ export default function Items() {
                             prev.filter((_, i) => i !== idx)
                           )
                         }
-                        className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                        className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                         title="Remove"
                         aria-label="Remove"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -813,7 +815,7 @@ export default function Items() {
               </div>
 
               <FormField label="Conversion (optional)">
-                <p className="mb-2 text-sm text-gray-500">
+                <p className="mb-2 text-sm text-[var(--color-text-tertiary)]">
                   e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
                   multiple rows for several units.
                 </p>
@@ -823,7 +825,7 @@ export default function Items() {
                       key={idx}
                       className="flex flex-wrap items-center gap-2"
                     >
-                      <span className="text-gray-600">
+                      <span className="text-[var(--color-text-secondary)]">
                         1 {addUnitSelect || "—"} =
                       </span>
                       <input
@@ -844,7 +846,7 @@ export default function Items() {
                             )
                           )
                         }
-                        className="w-24 border border-gray-300 rounded px-3 py-2"
+                        className="w-24 border border-[var(--color-border-strong)] rounded px-3 py-2"
                       />
                       <select
                         value={row.to_unit}
@@ -855,7 +857,7 @@ export default function Items() {
                             )
                           )
                         }
-                        className="border border-gray-300 rounded px-3 py-2"
+                        className="border border-[var(--color-border-strong)] rounded px-3 py-2"
                       >
                         <option value="">Select unit</option>
                         {units
@@ -874,11 +876,11 @@ export default function Items() {
                             prev.filter((_, i) => i !== idx)
                           )
                         }
-                        className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                        className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                         title="Remove"
                         aria-label="Remove"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -892,7 +894,7 @@ export default function Items() {
                       ])
                     }
                   >
-                    <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                    <Plus size={20} className="mr-1.5" aria-hidden="true" />
                     Add row
                   </Button>
                 </div>
@@ -901,8 +903,8 @@ export default function Items() {
           </section>
 
           {gstEnabled && (
-            <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
-              <h3 className="text-sm font-semibold text-gray-900">
+            <section className="space-y-3 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-3 md:p-4">
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 GST & Selling Price
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
@@ -914,14 +916,14 @@ export default function Items() {
                     placeholder="e.g. 50"
                     value={addSellingPrice}
                     onChange={(e) => setAddSellingPrice(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
                 <FormField label="Selling Price Unit">
                   <select
                     value={addSellingPriceUnit}
                     onChange={(e) => setAddSellingPriceUnit(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   >
                     <option value="">—</option>
                     {addAllowedStockUnits.map((name) => (
@@ -935,7 +937,7 @@ export default function Items() {
                   <select
                     value={addGstRate}
                     onChange={(e) => setAddGstRate(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   >
                     {GST_SLABS.map((r) => (
                       <option key={r} value={r}>
@@ -951,7 +953,7 @@ export default function Items() {
                       placeholder="e.g. 1006"
                       value={addHsnCode}
                       onChange={(e) => setAddHsnCode(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     />
                   </FormField>
                 )}
@@ -960,7 +962,7 @@ export default function Items() {
           )}
 
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
               Stock & reorder
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
@@ -972,12 +974,12 @@ export default function Items() {
                     min="0"
                     step="any"
                     defaultValue="0"
-                    className="flex-1 border border-gray-300 rounded px-3 py-2"
+                    className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                   <select
                     value={addStockUnit}
                     onChange={(e) => setAddStockUnit(e.target.value)}
-                    className="w-32 border border-gray-300 rounded px-3 py-2"
+                    className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
                   >
                     {addAllowedStockUnits.length === 0 ? (
                       <option value="">
@@ -1000,7 +1002,7 @@ export default function Items() {
                   name="reorder_level"
                   type="number"
                   min="0"
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 />
               </FormField>
             </div>
@@ -1054,7 +1056,7 @@ export default function Items() {
               });
             }}
           >
-            <DocumentArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <FileDown size={20} className="mr-1.5" aria-hidden="true" />
             Import
           </Button>
         }
@@ -1063,7 +1065,7 @@ export default function Items() {
           <select
             value={importProductId}
             onChange={(e) => setImportProductId(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
           >
             <option value="">Select a product to copy units…</option>
             {(importUnitsTarget === "edit" && editing
@@ -1100,7 +1102,7 @@ export default function Items() {
         footer={
           editing ? (
             <Button variant="primary" type="submit" form="edit-product-form">
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Check size={20} className="mr-1.5" aria-hidden="true" />
               Update
             </Button>
           ) : null
@@ -1162,7 +1164,7 @@ export default function Items() {
             }}
           >
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 Basic details
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
@@ -1171,26 +1173,26 @@ export default function Items() {
                     name="name"
                     defaultValue={editing.name}
                     required
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
                 <FormField label="Code">
                   <input
                     name="code"
                     defaultValue={editing.code ?? ""}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
               </div>
             </section>
 
-            <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
+            <section className="space-y-4 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-3 md:p-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                     Units & conversions
                   </h3>
-                  <p className="mt-0.5 text-xs text-gray-500">
+                  <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
                     Update how you buy, store and sell this product.
                   </p>
                 </div>
@@ -1203,27 +1205,24 @@ export default function Items() {
                     setImportUnitsPopupOpen(true);
                   }}
                 >
-                  <DocumentArrowDownIcon
-                    className="w-5 h-5 mr-1.5"
-                    aria-hidden
-                  />
+                  <FileDown size={20} className="mr-1.5" aria-hidden="true" />
                   Import from product
                 </Button>
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-[var(--color-text-tertiary)]">
                   Don't see your unit?{" "}
                   <Link
                     to="/units"
-                    className="text-blue-600 hover:text-blue-800 underline"
+                    className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] underline"
                   >
                     Manage all units
                   </Link>{" "}
                   — add to Stock (godown) or Invoice and return here.
                 </p>
-                <div className="border-t border-gray-200 pt-3">
-                  <span className="mb-2 block text-sm text-gray-500">
+                <div className="border-t border-[var(--color-border-default)] pt-3">
+                  <span className="mb-2 block text-sm text-[var(--color-text-tertiary)]">
                     Primary stock unit and optional retail/other units.
                   </span>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -1232,7 +1231,7 @@ export default function Items() {
                         name="unit"
                         value={editUnitSelect || editing.unit}
                         onChange={(e) => setEditUnitSelect(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
+                        className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                         required
                       >
                         <option value="">Select unit</option>
@@ -1261,7 +1260,7 @@ export default function Items() {
                       <select
                         value={editRetailPrimary}
                         onChange={(e) => setEditRetailPrimary(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
+                        className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                       >
                         <option value="">None</option>
                         {units.map((u) => (
@@ -1275,7 +1274,7 @@ export default function Items() {
 
                   <div className="mt-3">
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="block text-sm font-medium text-gray-700">
+                      <span className="block text-sm font-medium text-[var(--color-text-secondary)]">
                         Other units (optional)
                       </span>
                       <Button
@@ -1288,7 +1287,7 @@ export default function Items() {
                           ])
                         }
                       >
-                        <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                        <Plus size={20} className="mr-1.5" aria-hidden="true" />
                         Add unit
                       </Button>
                     </div>
@@ -1303,7 +1302,7 @@ export default function Items() {
                               )
                             )
                           }
-                          className="flex-1 border border-gray-300 rounded px-3 py-2"
+                          className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                         >
                           <option value="">Select unit</option>
                           {units.map((u) => (
@@ -1319,11 +1318,11 @@ export default function Items() {
                               prev.filter((_, i) => i !== idx)
                             )
                           }
-                          className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                          className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                           title="Remove"
                           aria-label="Remove"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
@@ -1331,7 +1330,7 @@ export default function Items() {
                 </div>
 
                 <FormField label="Conversion (optional)">
-                  <p className="mb-2 text-sm text-gray-500">
+                  <p className="mb-2 text-sm text-[var(--color-text-tertiary)]">
                     e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
                     multiple rows for several units.
                   </p>
@@ -1341,7 +1340,7 @@ export default function Items() {
                         key={idx}
                         className="flex flex-wrap items-center gap-2"
                       >
-                        <span className="text-gray-600">
+                        <span className="text-[var(--color-text-secondary)]">
                           1 {editUnitSelect || editing.unit} =
                         </span>
                         <input
@@ -1362,7 +1361,7 @@ export default function Items() {
                               )
                             )
                           }
-                          className="w-24 border border-gray-300 rounded px-3 py-2"
+                          className="w-24 border border-[var(--color-border-strong)] rounded px-3 py-2"
                         />
                         <select
                           value={row.to_unit}
@@ -1375,7 +1374,7 @@ export default function Items() {
                               )
                             )
                           }
-                          className="border border-gray-300 rounded px-3 py-2"
+                          className="border border-[var(--color-border-strong)] rounded px-3 py-2"
                         >
                           <option value="">Select unit</option>
                           {units
@@ -1394,11 +1393,11 @@ export default function Items() {
                               prev.filter((_, i) => i !== idx)
                             )
                           }
-                          className="rounded p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                          className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                           title="Remove"
                           aria-label="Remove"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
@@ -1412,7 +1411,7 @@ export default function Items() {
                         ])
                       }
                     >
-                      <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                      <Plus size={20} className="mr-1.5" aria-hidden="true" />
                       Add row
                     </Button>
                   </div>
@@ -1421,8 +1420,8 @@ export default function Items() {
             </section>
 
             {gstEnabled && (
-              <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3 md:p-4">
-                <h3 className="text-sm font-semibold text-gray-900">
+              <section className="space-y-3 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-3 md:p-4">
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                   GST & Selling Price
                 </h3>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1434,14 +1433,14 @@ export default function Items() {
                       placeholder="e.g. 50"
                       value={editSellingPrice}
                       onChange={(e) => setEditSellingPrice(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     />
                   </FormField>
                   <FormField label="Selling Price Unit">
                     <select
                       value={editSellingPriceUnit}
                       onChange={(e) => setEditSellingPriceUnit(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     >
                       <option value="">—</option>
                       {editAllowedStockUnits.map((name) => (
@@ -1455,7 +1454,7 @@ export default function Items() {
                     <select
                       value={editGstRate}
                       onChange={(e) => setEditGstRate(Number(e.target.value))}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     >
                       {GST_SLABS.map((r) => (
                         <option key={r} value={r}>
@@ -1471,7 +1470,7 @@ export default function Items() {
                         placeholder="e.g. 1006"
                         value={editHsnCode}
                         onChange={(e) => setEditHsnCode(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
+                        className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                       />
                     </FormField>
                   )}
@@ -1480,7 +1479,7 @@ export default function Items() {
             )}
 
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 Stock & reorder
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
@@ -1492,12 +1491,12 @@ export default function Items() {
                       min="0"
                       step="any"
                       defaultValue={editing.current_stock}
-                      className="flex-1 border border-gray-300 rounded px-3 py-2"
+                      className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                     />
                     <select
                       value={editStockUnit}
                       onChange={(e) => setEditStockUnit(e.target.value)}
-                      className="w-32 border border-gray-300 rounded px-3 py-2"
+                      className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
                     >
                       {editAllowedStockUnits.length === 0 ? (
                         <option value={editing.unit}>
@@ -1519,7 +1518,7 @@ export default function Items() {
                     type="number"
                     min="0"
                     defaultValue={editing.reorder_level ?? ""}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
               </div>
@@ -1537,7 +1536,7 @@ export default function Items() {
         }}
         footer={
           <Button variant="primary" type="submit" form="add-stock-form">
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add
           </Button>
         }
@@ -1565,7 +1564,7 @@ export default function Items() {
         >
           <FormField label="Product">
             <select
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               value={addStockItem?.id ?? ""}
               onChange={(e) =>
                 setAddStockItem(
@@ -1591,12 +1590,12 @@ export default function Items() {
                 min="0.01"
                 step="any"
                 required
-                className="flex-1 border border-gray-300 rounded px-3 py-2"
+                className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
               <select
                 value={addStockUnitModal}
                 onChange={(e) => setAddStockUnitModal(e.target.value)}
-                className="w-32 border border-gray-300 rounded px-3 py-2"
+                className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
               >
                 {addStockItem ? (
                   <>
@@ -1625,7 +1624,7 @@ export default function Items() {
         }}
         footer={
           <Button variant="primary" type="submit" form="reduce-stock-form">
-            <ArrowDownIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <ArrowDown size={20} className="mr-1.5" aria-hidden="true" />
             Reduce
           </Button>
         }
@@ -1654,7 +1653,7 @@ export default function Items() {
         >
           <FormField label="Product">
             <select
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               value={reduceStockItem?.id ?? ""}
               onChange={(e) =>
                 setReduceStockItem(
@@ -1680,12 +1679,12 @@ export default function Items() {
                 min="0.01"
                 step="any"
                 required
-                className="flex-1 border border-gray-300 rounded px-3 py-2"
+                className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
               <select
                 value={reduceStockUnitModal}
                 onChange={(e) => setReduceStockUnitModal(e.target.value)}
-                className="w-32 border border-gray-300 rounded px-3 py-2"
+                className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
               >
                 {reduceStockItem ? (
                   <>
@@ -1707,17 +1706,17 @@ export default function Items() {
 
       {printData && (
         <div
-          className="app-print-container items-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          className="app-print-container items-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
-          <header className="items-print-header mb-4 border-b border-gray-200 pb-3">
-            <p className="items-print-app-name text-sm font-semibold text-gray-900">
+          <header className="items-print-header mb-4 border-b border-[var(--color-border-default)] pb-3">
+            <p className="items-print-app-name text-sm font-semibold text-[var(--color-text-primary)]">
               {appName}
             </p>
-            <p className="items-print-report text-xs text-gray-600">
+            <p className="items-print-report text-xs text-[var(--color-text-secondary)]">
               Products & Stock
             </p>
-            <p className="items-print-datetime mt-1 text-xs text-gray-500">
+            <p className="items-print-datetime mt-1 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -1730,7 +1729,7 @@ export default function Items() {
                 {printData.columns.map((col) => (
                   <th
                     key={col}
-                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white"
+                    className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white"
                   >
                     {col}
                   </th>
@@ -1743,7 +1742,7 @@ export default function Items() {
                   {row.map((cell, ci) => (
                     <td
                       key={`${row[0]}-${printData.columns[ci]}`}
-                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                      className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}
                     </td>

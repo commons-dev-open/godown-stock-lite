@@ -111,6 +111,49 @@ const electronAPI = {
   setSettings: (obj: Record<string, string>) =>
     ipcRenderer.invoke("settings:setBulk", obj),
 
+  getCoupons: () => ipcRenderer.invoke("coupons:getAll"),
+  getCouponByCode: (code: string) =>
+    ipcRenderer.invoke("coupons:getByCode", code),
+  validateAndApplyCoupon: (code: string, orderTotal: number) =>
+    ipcRenderer.invoke("coupons:validateAndApply", { code, orderTotal }),
+  incrementCouponUsed: (code: string) =>
+    ipcRenderer.invoke("coupons:incrementUsed", code),
+  createCoupon: (payload: {
+    code: string;
+    discount_type: "percent" | "flat";
+    discount_value: number;
+    min_order_amount?: number | null;
+    valid_from?: string | null;
+    valid_to?: string | null;
+    usage_limit?: number | null;
+  }) => ipcRenderer.invoke("coupons:create", payload),
+  updateCoupon: (
+    id: number,
+    payload: {
+      code?: string;
+      discount_type?: "percent" | "flat";
+      discount_value?: number;
+      min_order_amount?: number | null;
+      valid_from?: string | null;
+      valid_to?: string | null;
+      usage_limit?: number | null;
+    }
+  ) => ipcRenderer.invoke("coupons:update", id, payload),
+  deleteCoupon: (id: number) => ipcRenderer.invoke("coupons:delete", id),
+
+  getTieredDiscountRules: () =>
+    ipcRenderer.invoke("tieredDiscountRules:getAll"),
+  upsertTieredDiscountRule: (payload: {
+    id?: number;
+    min_order_amount: number;
+    discount_percent?: number;
+    discount_flat?: number;
+    max_discount_amount?: number | null;
+    sort_order?: number;
+  }) => ipcRenderer.invoke("tieredDiscountRules:upsert", payload),
+  deleteTieredDiscountRule: (id: number) =>
+    ipcRenderer.invoke("tieredDiscountRules:delete", id),
+
   getInvoices: () => ipcRenderer.invoke("invoices:getAll"),
   getInvoiceTotalForDate: (saleDate: string) =>
     ipcRenderer.invoke("invoices:getTotalForDate", saleDate) as Promise<{

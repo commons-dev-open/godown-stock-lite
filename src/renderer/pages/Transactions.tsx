@@ -37,15 +37,15 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
-  ArrowDownTrayIcon,
-  BanknotesIcon,
-  DocumentArrowDownIcon,
-  FunnelIcon,
-  PlusIcon,
-  PrinterIcon,
-  TrashIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+  Download,
+  Banknote,
+  FileDown,
+  Filter,
+  Plus,
+  Printer,
+  Trash2,
+  X,
+} from "lucide-react";
 import Button from "../components/Button";
 import type {
   Item,
@@ -104,10 +104,10 @@ const emptyPurchaseLine = (): PurchaseLine => ({
 });
 
 function amountColorClass(type: string): string {
-  if (type === "credit_purchase" || type === "lend") return "text-amber-600";
-  if (type === "settlement" || type === "deposit") return "text-green-600";
-  if (type === "cash_purchase") return "text-blue-600";
-  return "text-gray-900";
+  if (type === "credit_purchase" || type === "lend") return "text-[var(--color-warning-text)]";
+  if (type === "settlement" || type === "deposit") return "text-[var(--color-success)]";
+  if (type === "cash_purchase") return "text-[var(--color-accent)]";
+  return "text-[var(--color-text-primary)]";
 }
 
 export default function Transactions() {
@@ -631,13 +631,13 @@ export default function Transactions() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 mb-4">
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">Transactions</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Transactions</h1>
           <div className="flex gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
-                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <Download size={20} className="mr-1.5" aria-hidden="true" />
                 Export
               </Button>
             </div>
@@ -647,30 +647,30 @@ export default function Transactions() {
                   ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                 >
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportCsv}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPdf}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPrint}
                   >
-                    <PrinterIcon className="w-4 h-4 shrink-0" />
+                    <Printer size={16} className="shrink-0" />
                     Print
                   </button>
                 </div>
@@ -679,25 +679,26 @@ export default function Transactions() {
             <Button
               variant="primary"
               onClick={() => setPurchaseAddOpen(true)}
-              className="!bg-blue-600 hover:!bg-blue-700"
+              className="!bg-[var(--color-accent)] hover:!bg-[var(--color-accent-hover)]"
             >
-              <BanknotesIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Banknote size={20} className="mr-1.5" aria-hidden="true" />
               Cash Purchase
             </Button>
             <Button variant="amber" onClick={() => setLendOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Credit Purchase
             </Button>
             <Button variant="green" onClick={() => setDepositOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Settlement
             </Button>
           </div>
         </div>
-
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+      </div>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
           <select
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
+            className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
             value={filterType}
             onChange={(e) =>
               handleFilterChange({
@@ -715,7 +716,7 @@ export default function Transactions() {
             <option value="cash_purchase">Cash purchase only</option>
           </select>
           <select
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
+            className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
             value={filterMahajanId}
             onChange={(e) =>
               handleFilterChange({
@@ -734,12 +735,12 @@ export default function Transactions() {
           <button
             type="button"
             onClick={() => setMoreFiltersOpen(true)}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
           >
-            <FunnelIcon className="w-4 h-4" aria-hidden />
+            <Filter size={16} aria-hidden="true" />
             More filters
             {(filterDateFrom || filterDateTo) && (
-              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
                 1
               </span>
             )}
@@ -753,41 +754,41 @@ export default function Transactions() {
               onClick={() => setMoreFiltersOpen(false)}
               aria-hidden
             />
-            <div className="relative bg-white rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+            <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">More filters</h2>
                 <button
                   type="button"
                   onClick={() => setMoreFiltersOpen(false)}
-                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
                   aria-label="Close"
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <X size={20} />
                 </button>
               </div>
               <div className="flex flex-col gap-4">
                 <label
                   htmlFor="more-filters-date-from"
-                  className="flex flex-col gap-1.5 text-sm text-gray-600"
+                  className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
                 >
                   From date
                   <DateInput
                     id="more-filters-date-from"
                     value={filterDateFrom}
                     onChange={(v) => handleFilterChange({ dateFrom: v })}
-                    className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                    className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
                   />
                 </label>
                 <label
                   htmlFor="more-filters-date-to"
-                  className="flex flex-col gap-1.5 text-sm text-gray-600"
+                  className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
                 >
                   To date
                   <DateInput
                     id="more-filters-date-to"
                     value={filterDateTo}
                     onChange={(v) => handleFilterChange({ dateTo: v })}
-                    className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                    className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
                   />
                 </label>
                 {(filterMahajanId !== "" ||
@@ -805,7 +806,7 @@ export default function Transactions() {
                       });
                       setMoreFiltersOpen(false);
                     }}
-                    className="text-sm text-gray-600 hover:text-gray-900 underline self-start"
+                    className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline self-start"
                   >
                     Clear filters
                   </button>
@@ -815,7 +816,7 @@ export default function Transactions() {
           </div>
         )}
 
-        <div className="rounded-lg border border-gray-200 bg-white">
+        <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           {ledgerLoading ? (
             <TableLoader />
           ) : unifiedRows.length === 0 ? (
@@ -823,50 +824,50 @@ export default function Transactions() {
           ) : (
             <>
               <div className="table-scroll-wrap overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-[var(--color-border-default)]">
+                  <thead className="bg-[var(--color-bg-surface-raised)]">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Type
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Date
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Lender
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Product
                       </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Qty
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Unit
                       </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Amount (₹)
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase max-w-[12rem]">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase max-w-[12rem]">
                         Notes
                       </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-[var(--color-border-default)]">
                     {unifiedRows.map((row: LedgerRow) => (
                       <tr
                         key={`${row.type}-${row.id}`}
-                        className="hover:bg-gray-50"
+                        className="hover:bg-[var(--color-bg-surface-raised)]"
                       >
                         <td className="px-4 py-2 text-sm">
                           <TransactionTypeBadge
                             type={row.type as TransactionType}
                           />
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900">
+                        <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
                           <Tooltip
                             content={formatDateForForm(row.transaction_date)}
                           >
@@ -875,31 +876,31 @@ export default function Transactions() {
                             </span>
                           </Tooltip>
                         </td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                        <td className="px-4 py-2 text-sm font-medium text-[var(--color-text-primary)]">
                           {(row.lender_id ?? row.mahajan_id) == null ? (
                             (row.lender_name ?? row.mahajan_name ?? "—")
                           ) : (
                             <Link
                               to={`/mahajans/ledger/${row.lender_id ?? row.mahajan_id}`}
-                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                              className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
                             >
                               {row.lender_name ?? row.mahajan_name ?? "—"}
                             </Link>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-600">
+                        <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
                           {row.type === "settlement" || row.type === "deposit"
                             ? "—"
                             : (row.product_name ?? "—")}
                         </td>
-                        <td className="px-4 py-2 text-sm text-right text-gray-900">
+                        <td className="px-4 py-2 text-sm text-right text-[var(--color-text-primary)]">
                           {row.type === "settlement" || row.type === "deposit"
                             ? "—"
                             : row.quantity != null
                               ? String(row.quantity)
                               : "—"}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-600">
+                        <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
                           {(() => {
                             if (row.type === "settlement" || row.type === "deposit") return "—";
                             if (row.product_id != null) {
@@ -917,7 +918,7 @@ export default function Transactions() {
                           ₹{formatDecimal(row.amount)}
                         </td>
                         <td
-                          className="px-4 py-2 text-sm text-gray-600 max-w-[12rem]"
+                          className="px-4 py-2 text-sm text-[var(--color-text-secondary)] max-w-[12rem]"
                           title={row.notes ?? ""}
                         >
                           <span className="block truncate">
@@ -925,7 +926,7 @@ export default function Transactions() {
                           </span>
                           {row.type === "credit_purchase" &&
                             (row.lender_invoice_number || row.invoice_file_path) && (
-                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-gray-500">
+                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
                                 {row.lender_invoice_number && (
                                   <span>#{row.lender_invoice_number}</span>
                                 )}
@@ -937,7 +938,7 @@ export default function Transactions() {
                                         row.invoice_file_path!
                                       )
                                     }
-                                    className="text-blue-600 hover:underline"
+                                    className="text-[var(--color-accent)] hover:underline"
                                   >
                                     View invoice
                                   </button>
@@ -946,7 +947,7 @@ export default function Transactions() {
                             )}
                           {(row.type === "settlement" || row.type === "deposit") &&
                             (row.payment_method || row.reference_number) && (
-                              <span className="block mt-1 text-xs text-gray-500">
+                              <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
                                 {row.payment_method && (
                                   <span className="capitalize">
                                     {row.payment_method}
@@ -1069,7 +1070,7 @@ export default function Transactions() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Lender *
               </label>
               <select
@@ -1092,17 +1093,17 @@ export default function Transactions() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editLendDate}
                 onChange={setEditLendDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Product
               </label>
               <select
@@ -1124,7 +1125,7 @@ export default function Transactions() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Quantity
                 {((): string => {
                   const it = (itemList as Item[]).find(
@@ -1147,7 +1148,7 @@ export default function Transactions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Amount *
               </label>
               <input
@@ -1163,7 +1164,7 @@ export default function Transactions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -1228,13 +1229,13 @@ export default function Transactions() {
       >
         {confirmEditLendPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Summary of changes
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Current</th>
                     <th className="text-left p-2">After update</th>
@@ -1304,8 +1305,8 @@ export default function Transactions() {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border border-amber-100 bg-amber-50 p-3 space-y-2 text-sm">
-              <p className="font-medium text-amber-900">Impact after update</p>
+            <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
+              <p className="font-medium text-[var(--color-warning-text)]">Impact after update</p>
               {(() => {
                 const qtyDelta =
                   confirmEditLendPayload.newValues.quantity -
@@ -1316,7 +1317,7 @@ export default function Transactions() {
                 )
                   return null;
                 return (
-                  <p className="text-gray-700">
+                  <p className="text-[var(--color-text-secondary)]">
                     <strong>Stock:</strong>{" "}
                     {confirmEditLendPayload.record.product_id != null
                       ? (() => {
@@ -1343,9 +1344,9 @@ export default function Transactions() {
                 );
               })()}
               {editReviewBalanceLoading ? (
-                <p className="text-gray-500">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
               ) : editReviewBalance != null ? (
-                <div className="space-y-1 text-gray-700">
+                <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
                     <strong>Lender balance:</strong> Total Credit Purchase ₹
                     {formatDecimal(editReviewBalance.totalLends)}, Total
@@ -1353,18 +1354,18 @@ export default function Transactions() {
                     <span
                       className={
                         editReviewBalance.balance >= 0
-                          ? "font-medium text-amber-800"
-                          : "font-medium text-green-800"
+                          ? "font-medium text-[var(--color-warning-text)]"
+                          : "font-medium text-[var(--color-success)]"
                       }
                     >
                       ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (payable)
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (receivable)
                         </span>
                       )}
@@ -1382,8 +1383,8 @@ export default function Transactions() {
                         <p
                           className={
                             balanceAfter >= 0
-                              ? "font-medium text-amber-800"
-                              : "font-medium text-green-800"
+                              ? "font-medium text-[var(--color-warning-text)]"
+                              : "font-medium text-[var(--color-success)]"
                           }
                         >
                           After this update: Total Credit Purchase will change by ₹
@@ -1394,12 +1395,12 @@ export default function Transactions() {
                           → Balance will be ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (receivable)
                             </span>
                           )}
@@ -1454,17 +1455,17 @@ export default function Transactions() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editDepositDate}
                 onChange={setEditDepositDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Amount *
               </label>
               <input
@@ -1482,7 +1483,7 @@ export default function Transactions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -1542,13 +1543,13 @@ export default function Transactions() {
       >
         {confirmEditDepositPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Summary of changes
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Current</th>
                     <th className="text-left p-2">After update</th>
@@ -1591,12 +1592,12 @@ export default function Transactions() {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border border-green-100 bg-green-50 p-3 space-y-2 text-sm">
-              <p className="font-medium text-green-900">Impact after update</p>
+            <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
+              <p className="font-medium text-[var(--color-success)]">Impact after update</p>
               {editReviewBalanceLoading ? (
-                <p className="text-gray-500">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
               ) : editReviewBalance != null ? (
-                <div className="space-y-1 text-gray-700">
+                <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
                     <strong>Lender balance:</strong> Total Credit Purchase ₹
                     {formatDecimal(editReviewBalance.totalLends)}, Total
@@ -1604,18 +1605,18 @@ export default function Transactions() {
                     <span
                       className={
                         editReviewBalance.balance >= 0
-                          ? "font-medium text-amber-800"
-                          : "font-medium text-green-800"
+                          ? "font-medium text-[var(--color-warning-text)]"
+                          : "font-medium text-[var(--color-success)]"
                       }
                     >
                       ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (payable)
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (receivable)
                         </span>
                       )}
@@ -1633,8 +1634,8 @@ export default function Transactions() {
                         <p
                           className={
                             balanceAfter >= 0
-                              ? "font-medium text-amber-800"
-                              : "font-medium text-green-800"
+                              ? "font-medium text-[var(--color-warning-text)]"
+                              : "font-medium text-[var(--color-success)]"
                           }
                         >
                           After this update: Total Settlements will change by ₹
@@ -1645,12 +1646,12 @@ export default function Transactions() {
                           → Balance will be ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (receivable)
                             </span>
                           )}
@@ -1735,20 +1736,20 @@ export default function Transactions() {
           }}
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Date * (dd/mm/yyyy)
             </label>
             <DateInput
               value={purchaseFormDate}
               onChange={setPurchaseFormDate}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
             <div className="min-w-0 overflow-x-auto">
               <div className="min-w-[32rem]">
                 {purchaseLines.length > 0 && (
-                  <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1">
+                  <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1">
                     <span>Product</span>
                     <span>Qty</span>
                     <span>Unit</span>
@@ -1764,7 +1765,7 @@ export default function Transactions() {
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm"
+                        className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm"
                       >
                         <select
                           name={`product_id_${idx}`}
@@ -1818,7 +1819,7 @@ export default function Transactions() {
                               : "Quantity"
                           }
                         />
-                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                        <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
                           {selectedItem?.unit ?? "—"}
                         </span>
                         <input
@@ -1849,11 +1850,11 @@ export default function Transactions() {
                               prev.filter((_, i) => i !== idx)
                             )
                           }
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
+                          className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
                           aria-label="Remove line"
                           disabled={purchaseLines.length <= 1}
                         >
-                          <TrashIcon className="w-4 h-4" aria-hidden />
+                          <Trash2 size={16} aria-hidden="true" />
                         </button>
                       </div>
                     );
@@ -1865,16 +1866,16 @@ export default function Transactions() {
                   onClick={() =>
                     setPurchaseLines((prev) => [...prev, emptyPurchaseLine()])
                   }
-                  className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                  className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
                 >
-                  <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  <Plus size={20} className="mr-1.5" aria-hidden="true" />
                   Add item
                 </Button>
               </div>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Notes
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
@@ -1926,7 +1927,7 @@ export default function Transactions() {
       >
         {confirmPurchasePayload && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               Cash purchase on{" "}
               <Tooltip
                 content={formatDateForForm(
@@ -1944,7 +1945,7 @@ export default function Transactions() {
             <div className="table-scroll-wrap overflow-auto max-h-60">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b bg-gray-50">
+                  <tr className="border-b bg-[var(--color-bg-surface-raised)]">
                     <th className="text-left p-2">Product</th>
                     <th className="text-right p-2">Old stock</th>
                     <th className="text-right p-2">Qty</th>
@@ -2030,28 +2031,28 @@ export default function Transactions() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editPurchaseDate}
                 onChange={setEditPurchaseDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Product
               </label>
               <input
                 type="text"
                 value={editingPurchase.product_name ?? ""}
                 readOnly
-                className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600"
+                className="w-full border rounded px-3 py-2 bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Quantity *
                 {((): string => {
                   const it = (itemList as Item[]).find(
@@ -2075,7 +2076,7 @@ export default function Transactions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Amount *
               </label>
               <input
@@ -2093,7 +2094,7 @@ export default function Transactions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -2156,13 +2157,13 @@ export default function Transactions() {
       >
         {confirmEditPurchasePayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Summary of changes
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Current</th>
                     <th className="text-left p-2">After update</th>
@@ -2220,8 +2221,8 @@ export default function Transactions() {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border border-blue-100 bg-blue-50 p-3 space-y-2 text-sm">
-              <p className="font-medium text-blue-900">Impact after update</p>
+            <div className="rounded border border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)] p-3 space-y-2 text-sm">
+              <p className="font-medium text-[var(--color-accent)]">Impact after update</p>
               {(() => {
                 const qtyDelta =
                   confirmEditPurchasePayload.newValues.quantity -
@@ -2235,7 +2236,7 @@ export default function Transactions() {
                 const oldStock = item?.current_stock ?? 0;
                 const newStock = oldStock + qtyDelta;
                 return (
-                  <p className="text-gray-700">
+                  <p className="text-[var(--color-text-secondary)]">
                     <strong>Stock:</strong> Current stock {oldStock} →{" "}
                     {qtyDelta >= 0 ? "+" : ""}
                     {qtyDelta} → <strong>{newStock}</strong> after update
@@ -2297,13 +2298,13 @@ export default function Transactions() {
       >
         {deleteConfirmPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               You are about to delete this transaction. Summary:
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Value</th>
                   </tr>
@@ -2366,19 +2367,19 @@ export default function Transactions() {
             <div
               className={`rounded border p-3 space-y-2 text-sm ${
                 deleteConfirmPayload.type === "credit_purchase"
-                  ? "border-amber-100 bg-amber-50"
+                  ? "border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)]"
                   : deleteConfirmPayload.type === "settlement"
-                    ? "border-green-100 bg-green-50"
-                    : "border-blue-100 bg-blue-50"
+                    ? "border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)]"
+                    : "border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)]"
               }`}
             >
               <p
                 className={`font-medium ${
                   deleteConfirmPayload.type === "credit_purchase"
-                    ? "text-amber-900"
+                    ? "text-[var(--color-warning-text)]"
                     : deleteConfirmPayload.type === "settlement"
-                      ? "text-green-900"
-                      : "text-blue-900"
+                      ? "text-[var(--color-success)]"
+                      : "text-[var(--color-accent)]"
                 }`}
               >
                 Impact after delete
@@ -2386,7 +2387,7 @@ export default function Transactions() {
               {(deleteConfirmPayload.type === "lend" ||
                 deleteConfirmPayload.type === "cash_purchase") &&
                 deleteConfirmPayload.row.product_id != null && (
-                  <p className="text-gray-700">
+                  <p className="text-[var(--color-text-secondary)]">
                     <strong>Stock:</strong>{" "}
                     {(() => {
                       const item = (
@@ -2410,9 +2411,9 @@ export default function Transactions() {
                     deleteConfirmPayload.type === "settlement") && (
                 <>
                   {deleteReviewBalanceLoading ? (
-                    <p className="text-gray-500">Loading balance…</p>
+                    <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
                   ) : deleteReviewBalance != null ? (
-                    <div className="space-y-1 text-gray-700">
+                    <div className="space-y-1 text-[var(--color-text-secondary)]">
                       <p>
                         <strong>Lender balance:</strong> Total Credit Purchase ₹
                         {formatDecimal(deleteReviewBalance.totalLends)}, Total
@@ -2421,19 +2422,19 @@ export default function Transactions() {
                         <span
                           className={
                             deleteReviewBalance.balance >= 0
-                              ? "font-medium text-amber-800"
-                              : "font-medium text-green-800"
+                              ? "font-medium text-[var(--color-warning-text)]"
+                              : "font-medium text-[var(--color-success)]"
                           }
                         >
                           ₹
                           {formatDecimal(Math.abs(deleteReviewBalance.balance))}
                           {deleteReviewBalance.balance > 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (payable)
                             </span>
                           )}
                           {deleteReviewBalance.balance < 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (receivable)
                             </span>
                           )}
@@ -2450,8 +2451,8 @@ export default function Transactions() {
                           <p
                             className={
                               balanceAfter >= 0
-                                ? "font-medium text-amber-800"
-                                : "font-medium text-green-800"
+                                ? "font-medium text-[var(--color-warning-text)]"
+                                : "font-medium text-[var(--color-success)]"
                             }
                           >
                             After this delete:{" "}
@@ -2463,12 +2464,12 @@ export default function Transactions() {
                             Balance will be ₹
                             {formatDecimal(Math.abs(balanceAfter))}
                             {balanceAfter > 0 && (
-                              <span className="ml-1 text-gray-500 font-normal">
+                              <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                                 (payable)
                               </span>
                             )}
                             {balanceAfter < 0 && (
-                              <span className="ml-1 text-gray-500 font-normal">
+                              <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                                 (receivable)
                               </span>
                             )}
@@ -2486,24 +2487,24 @@ export default function Transactions() {
 
       {printData && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
-          <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">{appName}</p>
-            <p className="text-xs text-gray-600">Transactions</p>
+          <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">Transactions</p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-gray-700">Applied filters</p>
+                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
                   {printData.filterDetails.map((f) => (
-                    <p key={f.label} className="text-gray-600">
+                    <p key={f.label} className="text-[var(--color-text-secondary)]">
                       {f.label}: {f.value}
                     </p>
                   ))}
                 </div>
               )}
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -2516,7 +2517,7 @@ export default function Transactions() {
                 {printData.columns.map((col) => (
                   <th
                     key={col}
-                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                    className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
                   >
                     {col}
                   </th>
@@ -2529,7 +2530,7 @@ export default function Transactions() {
                   {row.map((cell, ci) => (
                     <td
                       key={`${row[0]}-${printData.columns[ci]}`}
-                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                      className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}
                     </td>

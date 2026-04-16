@@ -37,18 +37,18 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
-  ArrowDownTrayIcon,
-  DocumentArrowDownIcon,
-  PlusIcon,
-  PrinterIcon,
-} from "@heroicons/react/24/outline";
+  Download,
+  FileDown,
+  Plus,
+  Printer,
+} from "lucide-react";
 import type { Mahajan } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
 function totalBalanceClass(total: number): string {
-  if (total > 0) return "font-medium text-red-600";
-  if (total < 0) return "font-medium text-emerald-600";
-  return "font-medium text-gray-900";
+  if (total > 0) return "font-medium text-[var(--color-danger)]";
+  if (total < 0) return "font-medium text-[var(--color-success)]";
+  return "font-medium text-[var(--color-text-primary)]";
 }
 
 export default function Mahajans() {
@@ -280,13 +280,13 @@ export default function Mahajans() {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 mb-4">
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Lenders</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Lenders</h1>
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
-                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <Download size={20} className="mr-1.5" aria-hidden="true" />
                 Export
               </Button>
             </div>
@@ -296,50 +296,51 @@ export default function Mahajans() {
                   ref={exportRefs.setFloating}
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                 >
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportCsv}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPdf}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPrint}
                   >
-                    <PrinterIcon className="w-4 h-4 shrink-0" />
+                    <Printer size={16} className="shrink-0" />
                     Print
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Lender
             </Button>
           </div>
         </div>
-
+      </div>
+      <div className="flex flex-col gap-3 mb-4">
         {/* Summary strip - totals load on mount; "Fetch latest" to refresh */}
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+        <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
           {isLoadingSummary && (
-            <div className="text-sm text-gray-500">Loading…</div>
+            <div className="text-sm text-[var(--color-text-tertiary)]">Loading…</div>
           )}
           {!isLoadingSummary && isSummaryError && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-red-600">
+              <span className="text-[var(--color-danger)]">
                 Failed to load
                 {summaryError instanceof Error
                   ? `: ${summaryError.message}`
@@ -376,7 +377,7 @@ export default function Mahajans() {
                 {showUpdatesIndicator ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span
-                      className="inline-block w-1.5 h-1.5 rounded-full bg-white shrink-0"
+                      className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-bg-surface)] shrink-0"
                       aria-hidden
                     />
                     {"Fetch latest"}
@@ -386,19 +387,19 @@ export default function Mahajans() {
                 )}
               </Button>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Total Credit Purchase</span>
-                <span className="font-medium text-red-600">
+                <span className="text-[var(--color-text-secondary)]">Total Credit Purchase</span>
+                <span className="font-medium text-[var(--color-danger)]">
                   ₹{formatDecimal(summary.totalLend)}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Total Settlements</span>
-                <span className="font-medium text-emerald-600">
+                <span className="text-[var(--color-text-secondary)]">Total Settlements</span>
+                <span className="font-medium text-[var(--color-success)]">
                   ₹{formatDecimal(summary.totalDeposit)}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Balance</span>
+                <span className="text-[var(--color-text-secondary)]">Balance</span>
                 <span className={totalBalanceClass(summary.balance)}>
                   ₹{formatDecimal(Math.abs(summary.balance))}
                   {summary.balance > 0 && " (payable)"}
@@ -406,15 +407,15 @@ export default function Mahajans() {
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Receivable</span>
-                <span className="font-medium text-emerald-600">
+                <span className="text-[var(--color-text-secondary)]">Receivable</span>
+                <span className="font-medium text-[var(--color-success)]">
                   {summary.countOweMe}{" "}
                   {summary.countOweMe === 1 ? "lender" : "lenders"}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-gray-600">Payable</span>
-                <span className="font-medium text-red-600">
+                <span className="text-[var(--color-text-secondary)]">Payable</span>
+                <span className="font-medium text-[var(--color-danger)]">
                   {summary.countIOwe}{" "}
                   {summary.countIOwe === 1 ? "lender" : "lenders"}
                 </span>
@@ -454,15 +455,15 @@ export default function Mahajans() {
                 type="checkbox"
                 checked={showBalanceAll}
                 onChange={(e) => setShowBalanceAll(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-[var(--color-border-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
               />
-              <span className="text-sm text-gray-700">Show balance</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">Show balance</span>
             </label>
           }
         />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
         {isLoading && <TableLoader />}
         {!isLoading && mahajansPage.length === 0 && <EmptyState />}
         {!isLoading && mahajansPage.length > 0 && (
@@ -481,10 +482,10 @@ export default function Mahajans() {
                       ? allBalances[row.id]
                       : balances[row.id];
                     if (bal !== undefined) {
-                      let colorClass = "text-gray-500";
-                      if (bal > 0) colorClass = "text-red-600 font-medium";
+                      let colorClass = "text-[var(--color-text-tertiary)]";
+                      if (bal > 0) colorClass = "text-[var(--color-danger)] font-medium";
                       else if (bal < 0)
-                        colorClass = "text-green-600 font-medium";
+                        colorClass = "text-[var(--color-success)] font-medium";
                       let hint = "";
                       if (bal > 0) hint = " (payable)";
                       else if (bal < 0) hint = " (receivable)";
@@ -492,7 +493,7 @@ export default function Mahajans() {
                         <span className={colorClass}>
                           ₹{formatDecimal(Math.abs(bal))}
                           {hint && (
-                            <span className="text-gray-500 font-normal">
+                            <span className="text-[var(--color-text-tertiary)] font-normal">
                               {hint}
                             </span>
                           )}
@@ -501,12 +502,12 @@ export default function Mahajans() {
                     }
                     if (showBalanceAll && isLoadingAllBalances) {
                       return (
-                        <span className="text-gray-400 text-sm">Loading…</span>
+                        <span className="text-[var(--color-text-tertiary)] text-sm">Loading…</span>
                       );
                     }
                     if (showBalanceAll) {
                       return (
-                        <span className="text-gray-500 text-sm">
+                        <span className="text-[var(--color-text-tertiary)] text-sm">
                           ₹0.00 (Settled)
                         </span>
                       );
@@ -517,7 +518,7 @@ export default function Mahajans() {
                         type="button"
                         onClick={() => loadBalance(row.id)}
                         disabled={loading}
-                        className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-sm text-[var(--color-accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {loading ? "Loading…" : "View balance"}
                       </button>
@@ -530,7 +531,7 @@ export default function Mahajans() {
                   render: (row) => (
                     <Link
                       to={`/mahajans/ledger/${row.id}`}
-                      className="text-blue-600 hover:underline"
+                      className="text-[var(--color-accent)] hover:underline"
                     >
                       Ledger
                     </Link>
@@ -596,25 +597,25 @@ export default function Mahajans() {
             <input
               name="name"
               required
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
           <FormField label="Address">
             <input
               name="address"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
           <FormField label="Phone">
             <input
               name="phone"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
           <FormField label="GSTIN">
             <input
               name="gstin"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
         </form>
@@ -658,28 +659,28 @@ export default function Mahajans() {
                 name="name"
                 defaultValue={editing.name}
                 required
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
             <FormField label="Address">
               <input
                 name="address"
                 defaultValue={editing.address ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
             <FormField label="Phone">
               <input
                 name="phone"
                 defaultValue={editing.phone ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
             <FormField label="GSTIN">
               <input
                 name="gstin"
                 defaultValue={editing.gstin ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
           </form>
@@ -688,27 +689,27 @@ export default function Mahajans() {
 
       {printData && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
-          <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">{appName}</p>
-            <p className="text-xs text-gray-600">Lenders</p>
+          <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">Lenders</p>
             {printData.summary != null && (
               <div className="mt-2 space-y-1 text-xs">
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Total Credit Purchase</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.summary.totalLend)}
                   </span>
                 </p>
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Total Settlements</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.summary.totalDeposit)}
                   </span>
                 </p>
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Balance (Credit Purchase − Settlement)</span>
                   <span className="ml-2">
                     ₹{formatDecimal(Math.abs(printData.summary.balance))}
@@ -718,7 +719,7 @@ export default function Mahajans() {
                 </p>
               </div>
             )}
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -731,7 +732,7 @@ export default function Mahajans() {
                 {printData.columns.map((col) => (
                   <th
                     key={col}
-                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                    className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
                   >
                     {col}
                   </th>
@@ -744,7 +745,7 @@ export default function Mahajans() {
                   {row.map((cell, ci) => (
                     <td
                       key={`${row[0]}-${printData.columns[ci]}`}
-                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                      className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}
                     </td>

@@ -143,6 +143,45 @@ export interface ElectronAPI {
   getSetting: (key: string) => Promise<string>;
   setSetting: (key: string, value: string) => Promise<void>;
   setSettings: (obj: Record<string, string>) => Promise<void>;
+  getCoupons: () => Promise<unknown[]>;
+  getCouponByCode: (code: string) => Promise<unknown>;
+  validateAndApplyCoupon: (
+    code: string,
+    orderTotal: number
+  ) => Promise<{ discount_type: "percent" | "flat"; discount_value: number; code: string } | null>;
+  incrementCouponUsed: (code: string) => Promise<void>;
+  createCoupon: (payload: {
+    code: string;
+    discount_type: "percent" | "flat";
+    discount_value: number;
+    min_order_amount?: number | null;
+    valid_from?: string | null;
+    valid_to?: string | null;
+    usage_limit?: number | null;
+  }) => Promise<number>;
+  updateCoupon: (
+    id: number,
+    payload: {
+      code?: string;
+      discount_type?: "percent" | "flat";
+      discount_value?: number;
+      min_order_amount?: number | null;
+      valid_from?: string | null;
+      valid_to?: string | null;
+      usage_limit?: number | null;
+    }
+  ) => Promise<number>;
+  deleteCoupon: (id: number) => Promise<number>;
+  getTieredDiscountRules: () => Promise<unknown[]>;
+  upsertTieredDiscountRule: (payload: {
+    id?: number;
+    min_order_amount: number;
+    discount_percent?: number;
+    discount_flat?: number;
+    max_discount_amount?: number | null;
+    sort_order?: number;
+  }) => Promise<number>;
+  deleteTieredDiscountRule: (id: number) => Promise<number>;
   getInvoices: () => Promise<unknown[]>;
   getInvoiceTotalForDate: (saleDate: string) => Promise<{ total: number }>;
   getInvoicesPage: (opts: {

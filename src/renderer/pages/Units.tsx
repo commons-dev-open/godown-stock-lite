@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowsRightLeftIcon,
-  CheckIcon,
-  ListBulletIcon,
-  PlusIcon,
-  TagIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+  ArrowLeftRight,
+  Check,
+  List,
+  Plus,
+  Tag,
+  Trash2,
+} from "lucide-react";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
@@ -163,21 +163,23 @@ export default function Units() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Units</h1>
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Units</h1>
+        </div>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-[var(--color-border-default)]">
         <button
           type="button"
           onClick={() => setActiveSection("all")}
           className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "all"
-              ? "bg-white border border-b-0 border-gray-200 text-gray-900"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           }`}
         >
-          <ListBulletIcon className="w-4 h-4" aria-hidden />
+          <List size={16} aria-hidden="true" />
           All units
         </button>
         <button
@@ -185,11 +187,11 @@ export default function Units() {
           onClick={() => setActiveSection("types")}
           className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "types"
-              ? "bg-white border border-b-0 border-gray-200 text-gray-900"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           }`}
         >
-          <TagIcon className="w-4 h-4" aria-hidden />
+          <Tag size={16} aria-hidden="true" />
           Unit types
         </button>
         <button
@@ -197,20 +199,20 @@ export default function Units() {
           onClick={() => setActiveSection("conversions")}
           className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
             activeSection === "conversions"
-              ? "bg-white border border-b-0 border-gray-200 text-gray-900"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           }`}
         >
-          <ArrowsRightLeftIcon className="w-4 h-4" aria-hidden />
+          <ArrowLeftRight size={16} aria-hidden="true" />
           Standard conversions
         </button>
       </div>
 
       {activeSection === "all" && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
           <div className="flex justify-end mb-4">
             <Button onClick={() => setAllAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add unit
             </Button>
           </div>
@@ -244,11 +246,11 @@ export default function Units() {
                       <button
                         type="button"
                         onClick={() => setDeleteConfirmUnit(row)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
                         title="Delete unit"
                         aria-label="Delete unit"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
@@ -262,14 +264,14 @@ export default function Units() {
       )}
 
       {activeSection === "types" && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+          <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
             Unit types (e.g. Mass, Volume, Count) help group units and restrict
             conversions to the same type.
           </p>
           <div className="flex justify-end mb-4">
             <Button onClick={() => setTypesAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add type
             </Button>
           </div>
@@ -299,11 +301,11 @@ export default function Units() {
                       <button
                         type="button"
                         onClick={() => setDeleteConfirmType(row)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
                         title="Delete type"
                         aria-label="Delete type"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
@@ -317,10 +319,10 @@ export default function Units() {
       )}
 
       {activeSection === "conversions" && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
           <div className="flex justify-end mb-4">
             <Button onClick={() => setConvAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add conversion
             </Button>
           </div>
@@ -397,7 +399,7 @@ export default function Units() {
               createUnitType.mutate(name);
             }}
           >
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add
           </Button>
         }
@@ -416,7 +418,7 @@ export default function Units() {
           <FormField label="Name" required>
             <input
               name="name"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               placeholder="e.g. Mass, Volume, Count"
               required
             />
@@ -443,7 +445,7 @@ export default function Units() {
               updateUnitType.mutate({ id: typeEditing.id, name });
             }}
           >
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Check size={20} className="mr-1.5" aria-hidden="true" />
             Save
           </Button>
         }
@@ -464,7 +466,7 @@ export default function Units() {
               <input
                 name="name"
                 defaultValue={typeEditing.name}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 required
               />
             </FormField>
@@ -507,7 +509,7 @@ export default function Units() {
             }}
             disabled={createUnit.isPending}
           >
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add
           </Button>
         }
@@ -541,7 +543,7 @@ export default function Units() {
           <FormField label="Name" required>
             <input
               name="name"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               placeholder="e.g. kg, pcs, boxes"
               required
             />
@@ -549,14 +551,14 @@ export default function Units() {
           <FormField label="Symbol (optional)">
             <input
               name="symbol"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               placeholder="e.g. g, kg; if empty, full name is used"
             />
           </FormField>
           <FormField label="Type (optional)">
             <select
               name="unit_type_id"
-              className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2 bg-[var(--color-bg-surface)]"
             >
               <option value="">—</option>
               {unitTypes.map((t) => (
@@ -603,7 +605,7 @@ export default function Units() {
               });
             }}
           >
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Check size={20} className="mr-1.5" aria-hidden="true" />
             Save
           </Button>
         }
@@ -640,7 +642,7 @@ export default function Units() {
               <input
                 name="name"
                 defaultValue={stockEditing.name}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 required
               />
             </FormField>
@@ -648,14 +650,14 @@ export default function Units() {
               <input
                 name="symbol"
                 defaultValue={stockEditing.symbol ?? ""}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 placeholder="e.g. g for gram"
               />
             </FormField>
             <FormField label="Type (optional)">
               <select
                 name="unit_type_id"
-                className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2 bg-[var(--color-bg-surface)]"
                 defaultValue={stockEditing.unit_type_id ?? ""}
               >
                 <option value="">—</option>
@@ -695,7 +697,7 @@ export default function Units() {
               createUnitConversion.mutate({ from_unit, to_unit, factor });
             }}
           >
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add
           </Button>
         }
@@ -726,7 +728,7 @@ export default function Units() {
           <FormField label="From unit" required>
             <select
               name="from_unit"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               required
             >
               <option value="">Select unit</option>
@@ -740,7 +742,7 @@ export default function Units() {
           <FormField label="To unit" required>
             <select
               name="to_unit"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               required
             >
               <option value="">Select unit</option>
@@ -757,7 +759,7 @@ export default function Units() {
               type="number"
               step="any"
               min="0.0000000001"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               placeholder="e.g. 1000 for kg → g"
               required
             />
@@ -800,7 +802,7 @@ export default function Units() {
               });
             }}
           >
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Check size={20} className="mr-1.5" aria-hidden="true" />
             Save
           </Button>
         }
@@ -838,7 +840,7 @@ export default function Units() {
               <select
                 name="from_unit"
                 defaultValue={convEditing.from_unit}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 required
               >
                 {allUnitNames.map((name) => (
@@ -852,7 +854,7 @@ export default function Units() {
               <select
                 name="to_unit"
                 defaultValue={convEditing.to_unit}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 required
               >
                 {allUnitNames.map((name) => (
@@ -869,7 +871,7 @@ export default function Units() {
                 step="any"
                 min="0.0000000001"
                 defaultValue={convEditing.factor}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 required
               />
             </FormField>

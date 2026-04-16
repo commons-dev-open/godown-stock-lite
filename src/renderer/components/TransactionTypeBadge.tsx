@@ -4,9 +4,9 @@ const typeStyles: Record<
   TransactionType,
   { className: string; label: string }
 > = {
-  credit_purchase: { className: "bg-amber-100 text-amber-800", label: "Credit Purchase" },
-  settlement: { className: "bg-green-100 text-green-800", label: "Settlement" },
-  cash_purchase: { className: "bg-blue-100 text-blue-800", label: "Cash" },
+  credit_purchase: { className: "bg-[var(--color-warning-subtle)] text-[var(--color-warning-text)]", label: "Credit Purchase" },
+  settlement: { className: "bg-[var(--color-success-subtle)] text-[var(--color-success-text)]", label: "Settlement" },
+  cash_purchase: { className: "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]", label: "Cash" },
 };
 
 export default function TransactionTypeBadge({
@@ -15,12 +15,12 @@ export default function TransactionTypeBadge({
   const normalized =
     type === "lend" ? "credit_purchase" : type === "deposit" ? "settlement" : type;
   const { className, label } = typeStyles[normalized as TransactionType] ?? {
-    className: "bg-gray-100 text-gray-800",
+    className: "bg-[var(--color-bg-surface-raised)] text-[var(--color-text-primary)]",
     label: String(type),
   };
   return (
     <span
-      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${className}`}
+      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${className}`}
     >
       {label}
     </span>

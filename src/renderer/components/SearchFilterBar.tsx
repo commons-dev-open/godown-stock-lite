@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { X } from "lucide-react";
 
 interface SearchFilterBarProps {
   searchValue: string;
@@ -17,18 +17,18 @@ export default function SearchFilterBar({
   onSearchChange,
   onClearFilters,
   hasActiveFilters,
-  placeholder = "Search…",
+  placeholder = "Search...",
   rightContent,
 }: SearchFilterBarProps) {
   const showClear = onClearFilters && (searchValue || hasActiveFilters);
   return (
-    <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+    <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-lg border border-[var(--color-border-default)] overflow-hidden">
       <input
         type="search"
         placeholder={placeholder}
         value={searchValue}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0 w-64 max-w-full"
+        className="border border-[var(--color-border-strong)] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0 w-64 max-w-full"
         aria-label="Search"
       />
 
@@ -39,9 +39,9 @@ export default function SearchFilterBar({
         <button
           type="button"
           onClick={onClearFilters}
-          className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
+          className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         >
-          <XMarkIcon className="w-4 h-4" aria-hidden />
+          <X size={16} aria-hidden="true" />
           Clear filters
         </button>
       )}

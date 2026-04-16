@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PAGE_SIZE } from "../../shared/constants";
 
 interface PaginationProps {
@@ -21,8 +21,8 @@ export default function Pagination({
   if (totalPages <= 1 && total <= limit) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-gray-50 text-sm">
-      <span className="text-gray-600">
+    <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] text-sm">
+      <span className="text-[var(--color-text-secondary)]">
         Showing {start}-{end} of {total}
       </span>
       <div className="flex items-center gap-1">
@@ -30,24 +30,24 @@ export default function Pagination({
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-bg-surface-raised)]"
           aria-label="Previous page"
         >
-          <ChevronLeftIcon className="w-4 h-4" />
+          <ChevronLeft size={16} />
           Previous
         </button>
-        <span className="px-2 py-1 text-gray-700">
+        <span className="px-2 py-1 text-[var(--color-text-secondary)]">
           Page {page} of {totalPages}
         </span>
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-300 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-bg-surface-raised)]"
           aria-label="Next page"
         >
           Next
-          <ChevronRightIcon className="w-4 h-4" />
+          <ChevronRight size={16} />
         </button>
       </div>
     </div>

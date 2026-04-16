@@ -1,24 +1,165 @@
+/* ── Inter Variable Font ─────────────────────────────────── */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/InterVariable.woff2') format('woff2');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+/* ── Design Tokens: Light Theme ─────────────────────────── */
+:root {
+  /* Surfaces */
+  --color-bg-app: #FAFAF9;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-raised: #F5F5F4;
+  --color-bg-surface-sunken: #E7E5E4;
+
+  /* Sidebar */
+  --color-bg-sidebar: #F5F5F4;
+  --color-bg-sidebar-hover: #E7E5E4;
+  --color-bg-sidebar-active: #D6D3D1;
+  --color-text-sidebar: #78716C;
+  --color-text-sidebar-active: #1C1917;
+
+  /* Text */
+  --color-text-primary: #1C1917;
+  --color-text-secondary: #78716C;
+  --color-text-tertiary: #A8A29E;
+  --color-text-inverse: #FAFAF9;
+
+  /* Borders */
+  --color-border-default: #E7E5E4;
+  --color-border-subtle: #F5F5F4;
+  --color-border-strong: #D6D3D1;
+
+  /* Brand / Accent (default blue — overridden by brand_color setting) */
+  --color-accent: #2563EB;
+  --color-accent-hover: #1D4ED8;
+  --color-accent-subtle: #EFF6FF;
+  --color-accent-muted: #DBEAFE;
+  --color-accent-text: #FFFFFF;
+
+  /* Semantic status */
+  --color-success: #16A34A;
+  --color-success-subtle: #F0FDF4;
+  --color-success-text: #15803D;
+  --color-warning: #D97706;
+  --color-warning-subtle: #FFFBEB;
+  --color-warning-text: #B45309;
+  --color-danger: #DC2626;
+  --color-danger-subtle: #FEF2F2;
+  --color-danger-text: #B91C1C;
+
+  /* Financial */
+  --color-amount-payable: #DC2626;
+  --color-amount-receivable: #16A34A;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-overlay: 0 8px 30px rgba(0, 0, 0, 0.12);
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-default: 200ms ease;
+
+  /* Font */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Shared form input styling (borders, focus ring) */
+/* ── Design Tokens: Dark Theme ──────────────────────────── */
+.dark {
+  --color-bg-app: #0C0A09;
+  --color-bg-surface: #1C1917;
+  --color-bg-surface-raised: #292524;
+  --color-bg-surface-sunken: #0C0A09;
+
+  --color-bg-sidebar: #141211;
+  --color-bg-sidebar-hover: #1C1917;
+  --color-bg-sidebar-active: #292524;
+  --color-text-sidebar: #78716C;
+  --color-text-sidebar-active: #FAFAF9;
+
+  --color-text-primary: #FAFAF9;
+  --color-text-secondary: #A8A29E;
+  --color-text-tertiary: #78716C;
+  --color-text-inverse: #1C1917;
+
+  --color-border-default: #292524;
+  --color-border-subtle: #1C1917;
+  --color-border-strong: #44403C;
+
+  --color-accent-subtle: rgba(37, 99, 235, 0.15);
+  --color-accent-muted: rgba(37, 99, 235, 0.25);
+
+  --color-success-subtle: rgba(22, 163, 74, 0.15);
+  --color-success-text: #4ADE80;
+  --color-warning-subtle: rgba(217, 119, 6, 0.15);
+  --color-warning-text: #FBBF24;
+  --color-danger-subtle: rgba(220, 38, 38, 0.15);
+  --color-danger-text: #FCA5A5;
+
+  --color-amount-payable: #FCA5A5;
+  --color-amount-receivable: #4ADE80;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-overlay: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Base ────────────────────────────────────────────────── */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv01', 'cv02', 'tnum';
+}
+
+/* ── Shared form input styling ───────────────────────────── */
 @layer components {
   .input-base {
-    @apply border border-gray-300 rounded-md px-3 py-2 text-sm bg-white;
-    @apply focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500;
+    @apply rounded-lg px-3 py-2 text-sm;
+    border: 1px solid var(--color-border-default);
+    background-color: var(--color-bg-surface);
+    color: var(--color-text-primary);
+  }
+  .input-base::placeholder {
+    color: var(--color-text-tertiary);
+  }
+  .input-base:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+  .input-base:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
-/* Scrollable table: only body scrolls, sticky header (and optional footer) */
+/* ── Scrollable table: sticky header + footer ────────────── */
 @layer components {
   .table-scroll-wrap {
-    @apply overflow-auto rounded-lg border border-gray-200 bg-white;
+    @apply overflow-auto;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border-default);
+    background-color: var(--color-bg-surface);
     max-height: min(50vh, 400px);
   }
   @media (min-width: 640px) {
@@ -31,7 +172,6 @@ body {
       max-height: calc(100vh - 220px);
     }
   }
-  /* 56px shorter scroll height (e.g. for Mahajans page with extra summary strip) */
   .table-scroll-wrap.table-scroll-wrap--shorter {
     max-height: min(50vh, 346px);
   }
@@ -46,20 +186,65 @@ body {
     }
   }
   .table-scroll-wrap thead th {
-    @apply sticky top-0 z-10 border-b border-gray-200 bg-gray-50;
+    @apply sticky top-0 z-10;
+    border-bottom: 1px solid var(--color-border-default);
+    background-color: var(--color-bg-surface-raised);
+    box-shadow: var(--shadow-xs);
   }
-  /* Use class sticky-header-white on th for white header background */
   .table-scroll-wrap thead th.sticky-header-white {
-    background-color: #fff;
+    background-color: var(--color-bg-surface);
+    box-shadow: var(--shadow-xs);
   }
   .table-scroll-wrap tfoot th,
   .table-scroll-wrap tfoot td {
-    @apply sticky bottom-0 z-10 border-t border-gray-200;
-    background-color: #fff;
+    @apply sticky bottom-0 z-10;
+    border-top: 1px solid var(--color-border-default);
+    background-color: var(--color-bg-surface);
   }
 }
 
-/* Print: show only the print container (shared across Items, Mahajans, etc.) */
+/* Horizontal scroll-shadow indicators */
+@layer components {
+  .table-scroll-wrap {
+    position: relative;
+    background:
+      linear-gradient(to right, var(--color-bg-surface) 30%, transparent) left center / 40px 100% no-repeat,
+      linear-gradient(to left, var(--color-bg-surface) 30%, transparent) right center / 40px 100% no-repeat,
+      linear-gradient(to right, rgba(0, 0, 0, 0.06), transparent) left center / 14px 100% no-repeat,
+      linear-gradient(to left, rgba(0, 0, 0, 0.06), transparent) right center / 14px 100% no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+}
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.18s ease-out;
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-modal-enter {
+  animation: modalEnter 0.2s ease-out;
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.04), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ── Print: show only the print container ────────────────── */
+/* IMPORTANT: Print styles use hardcoded colors — no CSS variables */
 @media print {
   @page {
     margin: 6mm 4mm;

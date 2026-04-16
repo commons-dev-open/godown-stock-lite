@@ -16,6 +16,11 @@ import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
 import { computeProductUnits } from "../../shared/computeProductUnits";
 import { amountInWords, computeLineGst } from "../../shared/gst";
+import {
+  computeLineWithDiscounts,
+  computeOrderDiscounts,
+  roundToWholeIfEnabled,
+} from "../../shared/discounts";
 import type {
   Invoice,
   InvoiceLine,
@@ -27,14 +32,14 @@ import DateInput from "../components/DateInput";
 import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
-  CheckIcon,
-  DocumentArrowDownIcon,
-  EyeIcon,
-  PencilSquareIcon,
-  PlusIcon,
-  PrinterIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+  Check,
+  FileDown,
+  Eye,
+  Pencil,
+  Plus,
+  Printer,
+  Trash2,
+} from "lucide-react";
 
 type InvoiceWithLines = Invoice & { lines: InvoiceLine[] };
 
@@ -57,6 +62,11 @@ type LineRow = {
   gst_rate: number;
   gst_inclusive: boolean;
   hsn_code?: string | null;
+  line_discount_percent?: number;
+  line_discount_flat?: number;
+  bogo_buy_qty?: number | null;
+  bogo_get_qty?: number | null;
+  bogo_discount_percent?: number;
   _key?: number;
   id?: number;
 };
@@ -74,7 +84,10 @@ const DEFAULT_LINE_ROW: LineRow = {
 };
 
 /** Payload line sent to API. */
-type LinePayload = Omit<LineRow, "priceMode" | "totalInput" | "priceUnit"> & {
+type LinePayload = Omit<
+  LineRow,
+  "priceMode" | "totalInput" | "priceUnit"
+> & {
   amount: number;
   price_entered_as: PriceMode;
   price_unit?: string | null;
@@ -217,36 +230,36 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
           </div>
         )}
       </div>
-      <table className="w-full border-collapse border border-gray-300">
+      <table className="w-full border-collapse border border-[var(--color-border-strong)]">
         <thead>
-          <tr className="bg-gray-100">
+          <tr className="bg-[var(--color-bg-surface-raised)]">
             {useGstLayout && hasHsn && (
-              <th className="border border-gray-300 px-2 py-1 text-left">
+              <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
                 HSN
               </th>
             )}
-            <th className="border border-gray-300 px-2 py-1 text-left">
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
               Product
             </th>
-            <th className="border border-gray-300 px-2 py-1 text-right">Qty</th>
-            <th className="border border-gray-300 px-2 py-1 text-left">Unit</th>
-            <th className="border border-gray-300 px-2 py-1 text-right">
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">Qty</th>
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">Unit</th>
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
               Rate/unit
             </th>
             {useGstLayout && (
               <>
-                <th className="border border-gray-300 px-2 py-1 text-right">
+                <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   Taxable
                 </th>
-                <th className="border border-gray-300 px-2 py-1 text-right">
+                <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   CGST
                 </th>
-                <th className="border border-gray-300 px-2 py-1 text-right">
+                <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   SGST
                 </th>
               </>
             )}
-            <th className="border border-gray-300 px-2 py-1 text-right">
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
               Total
             </th>
           </tr>
@@ -261,20 +274,20 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             return (
               <tr key={line.id}>
                 {useGstLayout && hasHsn && (
-                  <td className="border border-gray-300 px-2 py-1">
+                  <td className="border border-[var(--color-border-strong)] px-2 py-1">
                     {line.hsn_code ?? ""}
                   </td>
                 )}
-                <td className="border border-gray-300 px-2 py-1">
+                <td className="border border-[var(--color-border-strong)] px-2 py-1">
                   {line.product_name ?? ""}
                 </td>
-                <td className="border border-gray-300 px-2 py-1 text-right">
+                <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   {formatDecimal(line.quantity)}
                 </td>
-                <td className="border border-gray-300 px-2 py-1">
+                <td className="border border-[var(--color-border-strong)] px-2 py-1">
                   {unitToShort(line.unit, invoiceUnits)}
                 </td>
-                <td className="border border-gray-300 px-2 py-1 text-right">
+                <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   ₹{formatDecimal(line.price)}/
                   {unitToShort(
                     (line as { price_unit?: string | null }).price_unit ??
@@ -285,18 +298,18 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
                 </td>
                 {useGstLayout && (
                   <>
-                    <td className="border border-gray-300 px-2 py-1 text-right">
+                    <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                       ₹{formatDecimal(taxable)}
                     </td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">
+                    <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                       ₹{formatDecimal(cgst)}
                     </td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">
+                    <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                       ₹{formatDecimal(sgst)}
                     </td>
                   </>
                 )}
-                <td className="border border-gray-300 px-2 py-1 text-right">
+                <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   ₹{formatDecimal(amount)}
                 </td>
               </tr>
@@ -319,7 +332,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             {useGstLayout ? "Grand Total: " : "Total: "}₹{formatDecimal(total)}
           </div>
           {useGstLayout && (
-            <div className="text-sm text-gray-700 mt-1">
+            <div className="text-sm text-[var(--color-text-secondary)] mt-1">
               {amountInWords(total)}
             </div>
           )}
@@ -407,6 +420,9 @@ export default function Invoices() {
       customer_address?: string | null;
       invoice_date: string;
       notes?: string | null;
+      order_discount_amount?: number;
+      round_to_whole?: boolean;
+      coupon_code?: string | null;
       lines: LinePayload[];
     }) => api.createInvoice(payload),
     onSuccess: () => {
@@ -430,6 +446,9 @@ export default function Invoices() {
         customer_address?: string | null;
         invoice_date: string;
         notes?: string | null;
+        order_discount_amount?: number;
+        round_to_whole?: boolean;
+        coupon_code?: string | null;
         lines: LinePayload[];
       };
     }) => api.updateInvoice(id, payload),
@@ -495,30 +514,30 @@ export default function Invoices() {
           <span className="inline-flex items-center gap-0.5">
             <button
               type="button"
-              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors shrink-0"
+              className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded transition-colors shrink-0"
               title="View"
               onClick={() => fetchAndView(r.id)}
               aria-label="View invoice"
             >
-              <EyeIcon className="w-5 h-5" />
+              <Eye size={20} />
             </button>
             <button
               type="button"
-              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded transition-colors"
               title="Edit"
               onClick={() => fetchAndEdit(r.id)}
               aria-label="Edit invoice"
             >
-              <PencilSquareIcon className="w-5 h-5" />
+              <Pencil size={20} />
             </button>
             <button
               type="button"
-              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+              className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
               title="Delete"
               onClick={() => setDeleteConfirmInvoiceId(r.id)}
               aria-label="Delete invoice"
             >
-              <TrashIcon className="w-5 h-5" />
+              <Trash2 size={20} />
             </button>
           </span>
         ),
@@ -556,10 +575,10 @@ export default function Invoices() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Invoices</h1>
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-1 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Invoices</h1>
         <Button onClick={() => setCreateOpen(true)}>
-          <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+          <Plus size={20} className="mr-1.5" aria-hidden="true" />
           Create Invoice
         </Button>
       </div>
@@ -581,7 +600,7 @@ export default function Invoices() {
         }
         rightContent={
           <>
-            <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
               From
               <DateInput
                 value={dateFrom}
@@ -589,10 +608,10 @@ export default function Invoices() {
                   setDateFrom(v);
                   setPage(1);
                 }}
-                className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
               />
             </label>
-            <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
               To
               <DateInput
                 value={dateTo}
@@ -600,7 +619,7 @@ export default function Invoices() {
                   setDateTo(v);
                   setPage(1);
                 }}
-                className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
               />
             </label>
           </>
@@ -657,6 +676,9 @@ export default function Invoices() {
         onSubmit={(payload, opts) =>
           createInvoice.mutate(payload, {
             onSuccess: (newId: number) => {
+              if (opts?.incrementCoupon) {
+                api.incrementCouponUsed(opts.incrementCoupon);
+              }
               if (opts?.print) {
                 void api.getInvoiceById(newId).then((full) => {
                   setPrintData(full as InvoiceWithLines);
@@ -685,6 +707,9 @@ export default function Invoices() {
               { id: editing.id, payload },
               {
                 onSuccess: () => {
+                  if (opts?.incrementCoupon) {
+                    api.incrementCouponUsed(opts.incrementCoupon);
+                  }
                   if (opts?.print) {
                     void api.getInvoiceById(editing.id).then((full) => {
                       setPrintData(full as InvoiceWithLines);
@@ -707,13 +732,13 @@ export default function Invoices() {
           maxWidth="max-w-2xl"
           footer={
             <div className="flex w-full items-center justify-between gap-4 flex-wrap">
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-[var(--color-text-primary)]">
                 Total: ₹
                 {formatDecimal(
                   viewing.lines.reduce(
                     (s, l) => s + (l.amount ?? l.quantity * l.price),
                     0
-                  )
+                  ) - (viewing.order_discount_amount ?? 0)
                 )}
               </span>
               <div className="flex gap-2 items-center">
@@ -723,7 +748,7 @@ export default function Invoices() {
                     dateFrom: viewing.invoice_date,
                     dateTo: viewing.invoice_date,
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
                 >
                   View daily sale for this date
                 </Link>
@@ -750,14 +775,11 @@ export default function Invoices() {
                     }
                   }}
                 >
-                  <DocumentArrowDownIcon
-                    className="w-5 h-5 mr-1.5"
-                    aria-hidden
-                  />
+                  <FileDown size={20} className="mr-1.5" aria-hidden="true" />
                   Export PDF
                 </Button>
                 <Button onClick={() => setPrintData(viewing)}>
-                  <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                  <Printer size={20} className="mr-1.5" aria-hidden="true" />
                   Print
                 </Button>
               </div>
@@ -784,7 +806,7 @@ export default function Invoices() {
               </div>
             )}
             {settings?.company_address?.trim() && (
-              <div className="text-gray-700">
+              <div className="text-[var(--color-text-secondary)]">
                 {settings.company_address.trim()}
               </div>
             )}
@@ -842,9 +864,12 @@ function InvoiceFormModal({
       customer_gstin?: string | null;
       invoice_date: string;
       notes?: string | null;
+      order_discount_amount?: number;
+      round_to_whole?: boolean;
+      coupon_code?: string | null;
       lines: Array<LinePayload>;
     },
-    opts?: { print?: boolean }
+    opts?: { print?: boolean; incrementCoupon?: string }
   ) => void;
   isPending: boolean;
 }>) {
@@ -875,6 +900,13 @@ function InvoiceFormModal({
       return invoice.lines.map((l) => {
         const priceEnteredAs = l.price_entered_as ?? "per_unit";
         const amount = l.amount ?? l.quantity * l.price;
+        const line = l as {
+          line_discount_percent?: number;
+          line_discount_flat?: number;
+          bogo_buy_qty?: number | null;
+          bogo_get_qty?: number | null;
+          bogo_discount_percent?: number;
+        };
         return {
           id: l.id,
           product_id: l.product_id ?? 0,
@@ -894,11 +926,51 @@ function InvoiceFormModal({
             (l as { gst_inclusive?: boolean }).gst_inclusive
           ),
           hsn_code: (l as { hsn_code?: string | null }).hsn_code ?? null,
+          line_discount_percent: line.line_discount_percent ?? 0,
+          line_discount_flat: line.line_discount_flat ?? 0,
+          bogo_buy_qty: line.bogo_buy_qty ?? null,
+          bogo_get_qty: line.bogo_get_qty ?? null,
+          bogo_discount_percent: (line.bogo_buy_qty && line.bogo_get_qty) ? (line.bogo_discount_percent ?? 100) : (line.bogo_discount_percent ?? undefined),
         };
       });
     }
     return [{ ...DEFAULT_LINE_ROW }];
   });
+
+  const inv = invoice as { order_discount_amount?: number; round_to_whole?: number; coupon_code?: string } | undefined;
+  const [orderDiscountPercent, setOrderDiscountPercent] = useState(0);
+  const [orderDiscountFlat, setOrderDiscountFlat] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    discount_type: "percent" | "flat";
+    discount_value: number;
+    code: string;
+  } | null>(null);
+  const [couponCodeInit, setCouponCodeInit] = useState(false);
+  useEffect(() => {
+    if (!couponCodeInit && inv?.coupon_code && open) {
+      setCouponCodeInit(true);
+      setCouponCode(inv.coupon_code);
+      getElectron()
+        .getCouponByCode(inv.coupon_code)
+        .then((c) => {
+          const row = c as {
+            discount_type?: string;
+            discount_value?: number;
+            code?: string;
+          } | null;
+          if (row) {
+            setAppliedCoupon({
+              discount_type:
+                (row.discount_type as "percent" | "flat") ?? "percent",
+              discount_value: row.discount_value ?? 0,
+              code: row.code ?? inv!.coupon_code!,
+            });
+          }
+        });
+    }
+    if (!open) setCouponCodeInit(false);
+  }, [open, inv?.coupon_code, couponCodeInit]);
 
   const getUnitsForLine = useCallback(
     (lineIdx: number): Unit[] => {
@@ -929,6 +1001,21 @@ function InvoiceFormModal({
   const gstEnabled = settings.gst_enabled === "true";
   const gstDefaultMode = settings.gst_default_mode ?? "exclusive";
   const customerGstinEnabled = settings.customer_gstin_enabled === "true";
+  const roundToWhole = settings.round_bill_to_whole === "true";
+  const discountPctEnabled = settings.discount_percentage_enabled === "true";
+  const discountFlatEnabled = settings.discount_flat_enabled === "true";
+  const discountBogoEnabled = settings.discount_bogo_enabled === "true";
+  const discountCouponEnabled = settings.discount_coupon_enabled === "true";
+  const discountTieredEnabled = settings.discount_tiered_enabled === "true";
+
+  const { data: tieredRules = [] } = useQuery({
+    queryKey: ["tieredDiscountRules"],
+    queryFn: () =>
+      getElectron().getTieredDiscountRules() as Promise<
+        { min_order_amount: number; discount_percent: number; discount_flat: number; max_discount_amount: number | null }[]
+      >,
+    enabled: open && discountTieredEnabled,
+  });
 
   const lookupCustomerByPhone = useCallback(
     (phone: string) => {
@@ -1015,7 +1102,7 @@ function InvoiceFormModal({
     e.preventDefault();
     const validLines = lines.filter((l) => {
       if (l.product_id <= 0 || l.quantity <= 0) return false;
-      if (l.priceMode === "per_unit") return l.price >= 0;
+      if (l.priceMode === "per_unit") return l.price > 0;
       const amt =
         l.totalInput !== undefined && l.totalInput !== ""
           ? Number(l.totalInput)
@@ -1028,6 +1115,98 @@ function InvoiceFormModal({
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
     const shouldPrint =
       (submitter as HTMLElement)?.getAttribute?.("data-action") === "print";
+    const discSettings = {
+      discount_percentage_enabled: settings.discount_percentage_enabled,
+      discount_flat_enabled: settings.discount_flat_enabled,
+      discount_bogo_enabled: settings.discount_bogo_enabled,
+      discount_coupon_enabled: settings.discount_coupon_enabled,
+      discount_tiered_enabled: settings.discount_tiered_enabled,
+    };
+    const linePayloads = validLines.map((l) => {
+      let gross: number;
+      let price: number;
+      let priceUnit: string | null;
+      const pricePerUnit =
+        l.priceMode === "per_unit"
+          ? l.price ?? 0
+          : (l.totalInput && l.totalInput !== "" ? Number(l.totalInput) : l.amount ?? 0) /
+            (l.quantity || 1);
+      if (l.priceMode === "per_unit") {
+        const conv = getLineConvFactor(l);
+        gross = roundDecimal(l.quantity * conv * l.price, 2);
+        price = roundDecimal(l.price, 4);
+        priceUnit = l.priceUnit || null;
+      } else {
+        gross = roundDecimal(
+          (l.totalInput !== undefined && l.totalInput !== ""
+            ? Number(l.totalInput)
+            : (l.amount ?? l.quantity * l.price)) || 0,
+          2
+        );
+        price = l.quantity > 0 ? roundDecimal(gross / l.quantity, 4) : 0;
+        priceUnit = l.unit ? l.unit : l.priceUnit || null;
+      }
+      const lineDiscResult = computeLineWithDiscounts(
+        {
+          gross,
+          quantity: l.quantity,
+          pricePerUnit,
+          line_discount_percent: l.line_discount_percent ?? 0,
+          line_discount_flat: l.line_discount_flat ?? 0,
+          bogo_buy_qty: l.bogo_buy_qty ?? null,
+          bogo_get_qty: l.bogo_get_qty ?? null,
+          bogo_discount_percent: l.bogo_discount_percent ?? 100,
+        },
+        discSettings
+      );
+      const discountedGross = lineDiscResult.discountedGross;
+      const gstResult = gstEnabled
+        ? computeLineGst(discountedGross, l.gst_rate, l.gst_inclusive)
+        : {
+            taxable_amount: discountedGross,
+            cgst_amount: 0,
+            sgst_amount: 0,
+            total_amount: discountedGross,
+          };
+      return {
+        product_id: l.product_id,
+        product_name: l.product_name,
+        quantity: l.quantity,
+        unit: l.unit || "pcs",
+        price,
+        amount: roundDecimal(gstResult.total_amount, 2),
+        price_entered_as: l.priceMode,
+        price_unit: priceUnit,
+        gst_rate: l.gst_rate,
+        gst_inclusive: l.gst_inclusive,
+        taxable_amount: gstResult.taxable_amount,
+        cgst_amount: gstResult.cgst_amount,
+        sgst_amount: gstResult.sgst_amount,
+        hsn_code: l.hsn_code ?? null,
+        line_discount_percent: l.line_discount_percent ?? 0,
+        line_discount_flat: l.line_discount_flat ?? 0,
+        bogo_buy_qty: l.bogo_buy_qty ?? null,
+        bogo_get_qty: l.bogo_get_qty ?? null,
+        bogo_discount_percent: (l.bogo_buy_qty && l.bogo_get_qty) ? (l.bogo_discount_percent ?? 100) : (l.bogo_discount_percent ?? undefined),
+      };
+    });
+    const subtotal = linePayloads.reduce((s, l) => s + l.amount, 0);
+    const orderDiscResult = computeOrderDiscounts(
+      {
+        subtotal,
+        order_discount_percent: orderDiscountPercent,
+        order_discount_flat: orderDiscountFlat,
+        coupon: appliedCoupon,
+        tieredRules: tieredRules.map((r) => ({
+          min_order_amount: r.min_order_amount,
+          discount_percent: r.discount_percent ?? 0,
+          discount_flat: r.discount_flat ?? 0,
+          max_discount_amount: r.max_discount_amount ?? null,
+        })),
+      },
+      discSettings
+    );
+    const orderDiscountAmount = orderDiscResult.total;
     onSubmit(
       {
         invoice_number: invoiceNumber.trim() || null,
@@ -1040,57 +1219,23 @@ function InvoiceFormModal({
             : null,
         invoice_date: invoiceDate,
         notes: notes.trim() || null,
-        lines: validLines.map((l) => {
-          let gross: number;
-          let price: number;
-          let priceUnit: string | null;
-          if (l.priceMode === "per_unit") {
-            const conv = getLineConvFactor(l);
-            gross = roundDecimal(l.quantity * conv * l.price, 2);
-            // Store price per price_unit (e.g. per kg), not per line unit
-            price = roundDecimal(l.price, 4);
-            priceUnit = l.priceUnit || null;
-          } else {
-            gross = roundDecimal(
-              (l.totalInput !== undefined && l.totalInput !== ""
-                ? Number(l.totalInput)
-                : (l.amount ?? l.quantity * l.price)) || 0,
-              2
-            );
-            price = l.quantity > 0 ? roundDecimal(gross / l.quantity, 4) : 0;
-            priceUnit = l.unit ? l.unit : l.priceUnit || null;
-          }
-          const gstResult = gstEnabled
-            ? computeLineGst(gross, l.gst_rate, l.gst_inclusive)
-            : {
-                taxable_amount: gross,
-                cgst_amount: 0,
-                sgst_amount: 0,
-                total_amount: gross,
-              };
-          return {
-            product_id: l.product_id,
-            product_name: l.product_name,
-            quantity: l.quantity,
-            unit: l.unit || "pcs",
-            price,
-            amount: roundDecimal(gstResult.total_amount, 2),
-            price_entered_as: l.priceMode,
-            price_unit: priceUnit,
-            gst_rate: l.gst_rate,
-            gst_inclusive: l.gst_inclusive,
-            taxable_amount: gstResult.taxable_amount,
-            cgst_amount: gstResult.cgst_amount,
-            sgst_amount: gstResult.sgst_amount,
-            hsn_code: l.hsn_code ?? null,
-          };
-        }),
+        order_discount_amount: orderDiscountAmount,
+        round_to_whole: roundToWhole,
+        coupon_code: appliedCoupon?.code ?? null,
+        lines: linePayloads,
       },
-      { print: shouldPrint }
+      { print: shouldPrint, incrementCoupon: appliedCoupon?.code }
     );
   };
 
   const formTotals = useMemo(() => {
+    const discSettings = {
+      discount_percentage_enabled: settings.discount_percentage_enabled,
+      discount_flat_enabled: settings.discount_flat_enabled,
+      discount_bogo_enabled: settings.discount_bogo_enabled,
+      discount_coupon_enabled: settings.discount_coupon_enabled,
+      discount_tiered_enabled: settings.discount_tiered_enabled,
+    };
     let taxable = 0;
     let cgst = 0;
     let sgst = 0;
@@ -1098,6 +1243,11 @@ function InvoiceFormModal({
     for (const l of lines) {
       if (l.product_id <= 0 || l.quantity <= 0) continue;
       let gross: number;
+      const pricePerUnit =
+        l.priceMode === "per_unit"
+          ? l.price ?? 0
+          : (l.totalInput && l.totalInput !== "" ? Number(l.totalInput) : l.amount ?? 0) /
+            (l.quantity || 1);
       if (l.priceMode === "per_unit") {
         const factor = getLineConvFactor(l);
         gross = (l.quantity || 0) * factor * (l.price || 0);
@@ -1107,21 +1257,78 @@ function InvoiceFormModal({
             ? Number(l.totalInput)
             : l.amount ?? (l.quantity || 0) * (l.price || 0);
       }
+      const lineDiscResult = computeLineWithDiscounts(
+        {
+          gross,
+          quantity: l.quantity,
+          pricePerUnit,
+          line_discount_percent: l.line_discount_percent ?? 0,
+          line_discount_flat: l.line_discount_flat ?? 0,
+          bogo_buy_qty: l.bogo_buy_qty ?? null,
+          bogo_get_qty: l.bogo_get_qty ?? null,
+          bogo_discount_percent: l.bogo_discount_percent ?? 100,
+        },
+        discSettings
+      );
+      const discountedGross = lineDiscResult.discountedGross;
       if (gstEnabled && l.gst_rate > 0) {
-        const r = computeLineGst(gross, l.gst_rate, l.gst_inclusive);
+        const r = computeLineGst(
+          discountedGross,
+          l.gst_rate,
+          l.gst_inclusive
+        );
         taxable += r.taxable_amount;
         cgst += r.cgst_amount;
         sgst += r.sgst_amount;
         grand += r.total_amount;
       } else {
-        taxable += gross;
-        grand += gross;
+        taxable += discountedGross;
+        grand += discountedGross;
       }
     }
-    return { taxable, cgst, sgst, grand };
-  }, [lines, getLineConvFactor, gstEnabled]);
+    taxable = roundDecimal(taxable);
+    cgst = roundDecimal(cgst);
+    sgst = roundDecimal(sgst);
+    const orderDiscResult = computeOrderDiscounts(
+      {
+        subtotal: grand,
+        order_discount_percent: orderDiscountPercent,
+        order_discount_flat: orderDiscountFlat,
+        coupon: appliedCoupon,
+        tieredRules: tieredRules.map((r) => ({
+          min_order_amount: r.min_order_amount,
+          discount_percent: r.discount_percent ?? 0,
+          discount_flat: r.discount_flat ?? 0,
+          max_discount_amount: r.max_discount_amount ?? null,
+        })),
+      },
+      discSettings
+    );
+    const orderDiscountTotal = orderDiscResult.total;
+    const beforeRound = grand - orderDiscountTotal;
+    const finalTotal = roundToWholeIfEnabled(beforeRound, roundToWhole);
+    return {
+      taxable,
+      cgst,
+      sgst,
+      grand,
+      orderDiscountTotal,
+      orderDiscBreakdown: orderDiscResult,
+      finalTotal,
+    };
+  }, [
+    lines,
+    getLineConvFactor,
+    gstEnabled,
+    settings,
+    orderDiscountPercent,
+    orderDiscountFlat,
+    appliedCoupon,
+    tieredRules,
+    roundToWhole,
+  ]);
 
-  const formTotal = formTotals.grand;
+  const formTotal = formTotals.finalTotal;
 
   return (
     <FormModal
@@ -1139,14 +1346,42 @@ function InvoiceFormModal({
                   {formatDecimal(formTotals.cgst)} | SGST: ₹
                   {formatDecimal(formTotals.sgst)}
                 </span>
-                <span className="font-medium text-gray-900">
+                {formTotals.orderDiscountTotal > 0 && (
+                  <span className="text-sm text-[var(--color-warning-text)]">
+                    Order discount: -₹
+                    {formatDecimal(formTotals.orderDiscountTotal)} | Before
+                    rounding: ₹
+                    {formatDecimal(
+                      formTotals.grand - formTotals.orderDiscountTotal
+                    )}
+                  </span>
+                )}
+                {roundToWhole && (
+                  <span className="text-xs text-[var(--color-text-tertiary)]">
+                    Rounded to nearest whole
+                  </span>
+                )}
+                <span className="font-medium text-[var(--color-text-primary)]">
                   Grand Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
                 </span>
               </>
             ) : (
-              <span className="font-medium text-gray-900">
-                Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
-              </span>
+              <>
+                {formTotals.orderDiscountTotal > 0 && (
+                  <span className="text-sm text-[var(--color-warning-text)]">
+                    Order discount: -₹
+                    {formatDecimal(formTotals.orderDiscountTotal)}
+                  </span>
+                )}
+                {roundToWhole && (
+                  <span className="text-xs text-[var(--color-text-tertiary)]">
+                    Rounded to nearest whole
+                  </span>
+                )}
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+                </span>
+              </>
             )}
           </div>
           <div className="flex gap-2">
@@ -1157,7 +1392,7 @@ function InvoiceFormModal({
               disabled={isPending}
               data-action="save"
             >
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Check size={20} className="mr-1.5" aria-hidden="true" />
               Save
             </Button>
             <Button
@@ -1166,7 +1401,7 @@ function InvoiceFormModal({
               disabled={isPending}
               data-action="print"
             >
-              <PrinterIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Printer size={20} className="mr-1.5" aria-hidden="true" />
               Save and Print
             </Button>
           </div>
@@ -1188,7 +1423,7 @@ function InvoiceFormModal({
               />
             </FormField>
           ) : (
-            <p className="text-sm text-gray-500 col-span-2">
+            <p className="text-sm text-[var(--color-text-tertiary)] col-span-2">
               Invoice # will be auto-generated as INV-YYYY-NNNN (e.g.
               INV-2025-0001).
             </p>
@@ -1248,12 +1483,117 @@ function InvoiceFormModal({
           />
         </FormField>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+        {(discountPctEnabled ||
+          discountFlatEnabled ||
+          discountCouponEnabled ||
+          discountTieredEnabled) && (
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-warning-subtle)]/50 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+              Order-level discounts
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {discountPctEnabled && (
+                <FormField label="Order % off">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={orderDiscountPercent || ""}
+                    onChange={(e) =>
+                      setOrderDiscountPercent(
+                        Number(e.target.value) || 0
+                      )
+                    }
+                    className="input-base w-full"
+                    placeholder="0"
+                  />
+                </FormField>
+              )}
+              {discountFlatEnabled && (
+                <FormField label="Order flat (Rs.) off">
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={orderDiscountFlat || ""}
+                    onChange={(e) =>
+                      setOrderDiscountFlat(Number(e.target.value) || 0)
+                    }
+                    className="input-base w-full"
+                    placeholder="0"
+                  />
+                </FormField>
+              )}
+              {discountCouponEnabled && (
+                <div className="col-span-2 flex gap-2 items-end">
+                  <FormField
+                    label="Coupon code"
+                    extra={
+                      appliedCoupon ? (
+                        <span className="text-xs text-[var(--color-success)]">
+                          Applied: {appliedCoupon.code} (
+                          {appliedCoupon.discount_type === "percent"
+                            ? `${appliedCoupon.discount_value}%`
+                            : `₹${appliedCoupon.discount_value}`}{" "}
+                          off)
+                        </span>
+                      ) : null
+                    }
+                  >
+                    <input
+                      value={couponCode}
+                      onChange={(e) =>
+                        setCouponCode(e.target.value.toUpperCase())
+                      }
+                      className="input-base w-full"
+                      placeholder="Enter code"
+                      disabled={!!appliedCoupon}
+                    />
+                  </FormField>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (appliedCoupon) {
+                        setAppliedCoupon(null);
+                        setCouponCode("");
+                        return;
+                      }
+                      const subtotal = formTotals.grand;
+                      void getElectron()
+                        .validateAndApplyCoupon(couponCode.trim(), subtotal)
+                        .then((result) => {
+                          if (result) {
+                            setAppliedCoupon(result);
+                          } else {
+                            toast.error("Invalid or expired coupon");
+                          }
+                        })
+                        .catch(() => toast.error("Coupon validation failed"));
+                    }}
+                  >
+                    {appliedCoupon ? "Remove" : "Apply"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            {discountTieredEnabled &&
+              tieredRules.length > 0 &&
+              formTotals.orderDiscBreakdown.tieredAmount > 0 && (
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Tiered discount applied (order &gt;= min amount)
+                </p>
+              )}
+          </div>
+        )}
+
+        <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
           <div className="min-w-0 overflow-x-auto">
             <div className="min-w-[36rem]">
               {lines.length > 0 && (
                 <div
-                  className={`grid gap-3 items-center text-sm font-medium text-gray-700 mb-2 px-1 ml-2 ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
+                  className={`grid gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1 ml-2 ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
                 >
                   <span>Product</span>
                   <span>Qty</span>
@@ -1282,19 +1622,45 @@ function InvoiceFormModal({
                           ? Number(line.totalInput)
                           : (line.amount ??
                             (line.quantity || 0) * (line.price || 0))) ?? 0);
+                  const pricePerUnit =
+                    line.priceMode === "per_unit"
+                      ? line.price ?? 0
+                      : (line.quantity || 0) > 0
+                        ? lineGross / (line.quantity || 1)
+                        : 0;
+                  const lineDiscResult = computeLineWithDiscounts(
+                    {
+                      gross: lineGross,
+                      quantity: line.quantity,
+                      pricePerUnit,
+                      line_discount_percent: line.line_discount_percent ?? 0,
+                      line_discount_flat: line.line_discount_flat ?? 0,
+                      bogo_buy_qty: line.bogo_buy_qty ?? null,
+                      bogo_get_qty: line.bogo_get_qty ?? null,
+                      bogo_discount_percent:
+                        line.bogo_discount_percent ?? 100,
+                    },
+                    {
+                      discount_percentage_enabled:
+                        settings.discount_percentage_enabled,
+                      discount_flat_enabled: settings.discount_flat_enabled,
+                      discount_bogo_enabled: settings.discount_bogo_enabled,
+                    }
+                  );
+                  const discountedGross = lineDiscResult.discountedGross;
                   const lineGst =
                     gstEnabled && line.gst_rate > 0
                       ? computeLineGst(
-                          lineGross,
+                          discountedGross,
                           line.gst_rate,
                           line.gst_inclusive
                         )
                       : null;
-                  const lineTotal = lineGst?.total_amount ?? lineGross;
+                  const lineTotal = lineGst?.total_amount ?? discountedGross;
                   return (
+                    <div key={line.id ?? line._key ?? idx} className="space-y-0">
                     <div
-                      key={line.id ?? line._key ?? idx}
-                      className={`grid gap-3 items-center p-3 rounded-md bg-white border border-gray-100 shadow-sm ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
+                      className={`grid gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
                     >
                       <select
                         value={line.product_id || ""}
@@ -1496,10 +1862,10 @@ function InvoiceFormModal({
                             className="input-base w-full text-right"
                             aria-label="Unit price"
                           />
-                          <span className="text-xs text-gray-600 whitespace-nowrap">
+                          <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                             ₹{formatDecimal(lineTotal)}
                             {lineGst && line.gst_rate > 0 && (
-                              <span className="block text-[10px] text-gray-500">
+                              <span className="block text-[10px] text-[var(--color-text-tertiary)]">
                                 (tax ₹
                                 {formatDecimal(
                                   lineGst.cgst_amount + lineGst.sgst_amount
@@ -1541,10 +1907,10 @@ function InvoiceFormModal({
                             title="Total amount for this line (quantity can be entered before or after)"
                             aria-label="Line total"
                           />
-                          <span className="text-xs text-gray-600 whitespace-nowrap">
+                          <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                             ₹{formatDecimal(lineTotal)}
                             {lineGst && line.gst_rate > 0 && (
-                              <span className="block text-[10px] text-gray-500">
+                              <span className="block text-[10px] text-[var(--color-text-tertiary)]">
                                 (tax ₹
                                 {formatDecimal(
                                   lineGst.cgst_amount + lineGst.sgst_amount
@@ -1560,11 +1926,137 @@ function InvoiceFormModal({
                         onClick={() =>
                           setLines((prev) => prev.filter((_, i) => i !== idx))
                         }
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
+                        className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
                         aria-label="Remove line"
                       >
-                        <TrashIcon className="w-4 h-4" aria-hidden />
+                        <Trash2 size={16} aria-hidden="true" />
                       </button>
+                    </div>
+                    {(discountPctEnabled ||
+                      discountFlatEnabled ||
+                      discountBogoEnabled) && (
+                      <div className="pl-2 pt-1 flex flex-wrap gap-4 text-xs">
+                        {discountPctEnabled && (
+                          <label className="flex items-center gap-1">
+                            <span className="text-[var(--color-text-secondary)]">% off:</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              value={
+                                (line.line_discount_percent ?? 0) || ""
+                              }
+                              onChange={(e) =>
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx
+                                      ? {
+                                          ...p,
+                                          line_discount_percent:
+                                            Number(e.target.value) || 0,
+                                        }
+                                      : p
+                                  )
+                                )
+                              }
+                              className="input-base w-14 py-1 text-right"
+                            />
+                          </label>
+                        )}
+                        {discountFlatEnabled && (
+                          <label className="flex items-center gap-1">
+                            <span className="text-[var(--color-text-secondary)]">Rs off:</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={
+                                (line.line_discount_flat ?? 0) || ""
+                              }
+                              onChange={(e) =>
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx
+                                      ? {
+                                          ...p,
+                                          line_discount_flat:
+                                            Number(e.target.value) || 0,
+                                        }
+                                      : p
+                                  )
+                                )
+                              }
+                              className="input-base w-16 py-1 text-right"
+                            />
+                          </label>
+                        )}
+                        {discountBogoEnabled && (
+                          <>
+                            <label className="flex items-center gap-1">
+                              <span className="text-[var(--color-text-secondary)]">BOGO buy:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                placeholder="—"
+                                value={
+                                  (line.bogo_buy_qty ?? "") === ""
+                                    ? ""
+                                    : line.bogo_buy_qty ?? ""
+                                }
+                                onChange={(e) =>
+                                  setLines((prev) =>
+                                    prev.map((p, i) =>
+                                      i === idx
+                                        ? {
+                                            ...p,
+                                            bogo_buy_qty:
+                                              e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value) || 0,
+                                          }
+                                        : p
+                                    )
+                                  )
+                                }
+                                className="input-base w-12 py-1 text-right"
+                              />
+                            </label>
+                            <label className="flex items-center gap-1">
+                              <span className="text-[var(--color-text-secondary)]">get:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                placeholder="—"
+                                value={
+                                  (line.bogo_get_qty ?? "") === ""
+                                    ? ""
+                                    : line.bogo_get_qty ?? ""
+                                }
+                                onChange={(e) =>
+                                  setLines((prev) =>
+                                    prev.map((p, i) =>
+                                      i === idx
+                                        ? {
+                                            ...p,
+                                            bogo_get_qty:
+                                              e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value) || 0,
+                                          }
+                                        : p
+                                    )
+                                  )
+                                }
+                                className="input-base w-12 py-1 text-right"
+                              />
+                            </label>
+                          </>
+                        )}
+                      </div>
+                    )}
                     </div>
                   );
                 })}
@@ -1585,9 +2077,9 @@ function InvoiceFormModal({
                     },
                   ])
                 }
-                className="mt-3 !text-blue-600 hover:!text-blue-700 hover:!bg-transparent focus:outline-none focus:ring-0"
+                className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
               >
-                <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <Plus size={20} className="mr-1.5" aria-hidden="true" />
                 Add item
               </Button>
             </div>

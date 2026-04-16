@@ -35,14 +35,14 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
-  ArrowDownTrayIcon,
-  ArrowLeftIcon,
-  DocumentArrowDownIcon,
-  FunnelIcon,
-  PlusIcon,
-  PrinterIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+  Download,
+  ArrowLeft,
+  FileDown,
+  Filter,
+  Plus,
+  Printer,
+  X,
+} from "lucide-react";
 import Button from "../components/Button";
 import type {
   LedgerRow,
@@ -396,28 +396,28 @@ export default function MahajanLedger() {
     };
   }, [printData]);
 
-  if (!id) return <div className="text-gray-500">Invalid Lender</div>;
+  if (!id) return <div className="text-[var(--color-text-tertiary)]">Invalid Lender</div>;
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
           >
-            <ArrowLeftIcon className="w-5 h-5" aria-hidden />
+            <ArrowLeft size={20} aria-hidden="true" />
             Back
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
             Ledger: {mahajan?.name ?? `ID ${id}`}
           </h1>
         </div>
         <div className="flex gap-2">
           <div ref={exportRefs.setReference} {...getExportRefProps()}>
             <Button variant="secondary" type="button">
-              <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Download size={20} className="mr-1.5" aria-hidden="true" />
               Export
             </Button>
           </div>
@@ -427,49 +427,49 @@ export default function MahajanLedger() {
                 ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                 style={exportFloatingStyles}
                 {...getExportFloatingProps()}
-                className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
               >
                 <button
                   type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                   onClick={handleExportCsv}
                 >
-                  <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                  <FileDown size={16} className="shrink-0" />
                   Export as CSV
                 </button>
                 <button
                   type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                   onClick={handleExportPdf}
                 >
-                  <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                  <FileDown size={16} className="shrink-0" />
                   Export as PDF
                 </button>
                 <button
                   type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                   onClick={handleExportPrint}
                 >
-                  <PrinterIcon className="w-4 h-4 shrink-0" />
+                  <Printer size={16} className="shrink-0" />
                   Print
                 </button>
               </div>
             )}
           </FloatingPortal>
           <Button variant="amber" onClick={() => setLendModalOpen(true)}>
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add Credit Purchase
           </Button>
           <Button variant="green" onClick={() => setDepositModalOpen(true)}>
-            <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
             Add Settlement
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
+      <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden mb-4">
         <select
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shrink-0 min-w-0"
+          className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
           value={filterType}
           onChange={(e) =>
             handleFilterChange({
@@ -484,12 +484,12 @@ export default function MahajanLedger() {
         <button
           type="button"
           onClick={() => setMoreFiltersOpen(true)}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
         >
-          <FunnelIcon className="w-4 h-4" aria-hidden />
+          <Filter size={16} aria-hidden="true" />
           More filters
           {(filterDateFrom || filterDateTo) && (
-            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
               1
             </span>
           )}
@@ -503,41 +503,41 @@ export default function MahajanLedger() {
             onClick={() => setMoreFiltersOpen(false)}
             aria-hidden
           />
-          <div className="relative bg-white rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+          <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">More filters</h2>
               <button
                 type="button"
                 onClick={() => setMoreFiltersOpen(false)}
-                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
                 aria-label="Close"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <X size={20} />
               </button>
             </div>
             <div className="flex flex-col gap-4">
               <label
                 htmlFor="mahajan-ledger-date-from"
-                className="flex flex-col gap-1.5 text-sm text-gray-600"
+                className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
               >
                 From date
                 <DateInput
                   id="mahajan-ledger-date-from"
                   value={filterDateFrom}
                   onChange={(v) => handleFilterChange({ dateFrom: v })}
-                  className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                  className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
                 />
               </label>
               <label
                 htmlFor="mahajan-ledger-date-to"
-                className="flex flex-col gap-1.5 text-sm text-gray-600"
+                className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
               >
                 To date
                 <DateInput
                   id="mahajan-ledger-date-to"
                   value={filterDateTo}
                   onChange={(v) => handleFilterChange({ dateTo: v })}
-                  className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white w-full"
+                  className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
                 />
               </label>
               {(filterType !== "all" || filterDateFrom || filterDateTo) && (
@@ -551,9 +551,9 @@ export default function MahajanLedger() {
                     });
                     setMoreFiltersOpen(false);
                   }}
-                  className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 self-start"
+                  className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] self-start"
                 >
-                  <XMarkIcon className="w-4 h-4" aria-hidden />
+                  <X size={16} aria-hidden="true" />
                   Clear filters
                 </button>
               )}
@@ -567,43 +567,43 @@ export default function MahajanLedger() {
         loading={balanceLoading}
         variant="row"
       />
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
         <div className="table-scroll-wrap overflow-x-auto">
           {isLoading ? (
             <TableLoader />
           ) : filteredLedger.length === 0 ? (
             <EmptyState />
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-[var(--color-border-default)]">
+              <thead className="bg-[var(--color-bg-surface-raised)]">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                     Date
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                     Type
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                     Description
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                     Amount
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-[var(--color-border-default)]">
                 {filteredLedger.map((row) => {
                   const amountColorClass =
-                    row.type === "credit_purchase" ? "text-amber-800" : "text-green-800";
+                    row.type === "credit_purchase" ? "text-[var(--color-warning-text)]" : "text-[var(--color-success)]";
                   return (
                     <tr
                       key={`${row.type}-${row.id}`}
-                      className="hover:bg-gray-50"
+                      className="hover:bg-[var(--color-bg-surface-raised)]"
                     >
-                      <td className="px-4 py-2 text-sm text-gray-900">
+                      <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
                         <Tooltip
                           content={formatDateForForm(row.transaction_date)}
                         >
@@ -613,7 +613,7 @@ export default function MahajanLedger() {
                       <td className="px-4 py-2 text-sm">
                         <TransactionTypeBadge type={row.type} />
                       </td>
-                      <td className="px-4 py-2 text-sm text-gray-900">
+                      <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
                         <span className="block">{row.description}</span>
                         {row.type === "credit_purchase" && (() => {
                           const rec = getLendRecord(row) as
@@ -627,7 +627,7 @@ export default function MahajanLedger() {
                           const invPath = rec.invoice_file_path;
                           return (
                             (invNum || invPath) && (
-                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-gray-500">
+                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
                                 {invNum && (
                                   <span title="Lender invoice">
                                     #{invNum}
@@ -639,7 +639,7 @@ export default function MahajanLedger() {
                                     onClick={() =>
                                       api.openCreditPurchaseInvoice(invPath)
                                     }
-                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
                                   >
                                     View invoice
                                   </button>
@@ -660,7 +660,7 @@ export default function MahajanLedger() {
                           const ref = rec.reference_number;
                           return (
                             (pm || ref) && (
-                              <span className="block mt-1 text-xs text-gray-500">
+                              <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
                                 {pm && (
                                   <span className="capitalize">{pm}</span>
                                 )}
@@ -742,7 +742,7 @@ export default function MahajanLedger() {
             <button
               type="submit"
               form="edit-lend-form"
-              className="px-3 py-1.5 bg-amber-600 text-white rounded"
+              className="px-3 py-1.5 bg-[var(--color-warning-text)] text-white rounded"
             >
               Review &amp; Update
             </button>
@@ -775,17 +775,17 @@ export default function MahajanLedger() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editLendDate}
                 onChange={setEditLendDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Product
               </label>
               <select
@@ -807,7 +807,7 @@ export default function MahajanLedger() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Quantity
                 {((): string => {
                   const it = itemList.find((i) => i.id === editLendProductId);
@@ -828,7 +828,7 @@ export default function MahajanLedger() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Amount *
               </label>
               <input
@@ -844,7 +844,7 @@ export default function MahajanLedger() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -904,7 +904,7 @@ export default function MahajanLedger() {
                   setEditingLend(null);
                 }}
                 disabled={updateLend.isPending}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded disabled:opacity-50"
+                className="px-3 py-1.5 bg-[var(--color-warning-text)] text-white rounded disabled:opacity-50"
               >
                 {updateLend.isPending ? "Updating…" : "Confirm Update"}
               </button>
@@ -914,13 +914,13 @@ export default function MahajanLedger() {
       >
         {confirmEditLendPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Summary of changes
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Current</th>
                     <th className="text-left p-2">After update</th>
@@ -979,8 +979,8 @@ export default function MahajanLedger() {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border border-amber-100 bg-amber-50 p-3 space-y-2 text-sm">
-              <p className="font-medium text-amber-900">Impact after update</p>
+            <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
+              <p className="font-medium text-[var(--color-warning-text)]">Impact after update</p>
               {(() => {
                 const qtyDelta =
                   confirmEditLendPayload.newValues.quantity -
@@ -991,7 +991,7 @@ export default function MahajanLedger() {
                 )
                   return null;
                 return (
-                  <p className="text-gray-700">
+                  <p className="text-[var(--color-text-secondary)]">
                     <strong>Stock:</strong>{" "}
                     {confirmEditLendPayload.record.product_id != null
                       ? (() => {
@@ -1018,9 +1018,9 @@ export default function MahajanLedger() {
                 );
               })()}
               {balanceLoading || balance == null ? (
-                <p className="text-gray-500">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
               ) : (
-                <div className="space-y-1 text-gray-700">
+                <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
                     {formatDecimal(balance.totalLends)}, Total Deposits ₹
@@ -1028,18 +1028,18 @@ export default function MahajanLedger() {
                     <span
                       className={
                         balance.balance >= 0
-                          ? "font-medium text-amber-800"
-                          : "font-medium text-green-800"
+                          ? "font-medium text-[var(--color-warning-text)]"
+                          : "font-medium text-[var(--color-success)]"
                       }
                     >
                       ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (receivable)
                         </span>
                       )}
@@ -1057,8 +1057,8 @@ export default function MahajanLedger() {
                         <p
                           className={
                             balanceAfter >= 0
-                              ? "font-medium text-amber-800"
-                              : "font-medium text-green-800"
+                              ? "font-medium text-[var(--color-warning-text)]"
+                              : "font-medium text-[var(--color-success)]"
                           }
                         >
                           After this update: Total Lends will change by ₹
@@ -1069,12 +1069,12 @@ export default function MahajanLedger() {
                           → Balance will be ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (receivable)
                             </span>
                           )}
@@ -1113,7 +1113,7 @@ export default function MahajanLedger() {
             <button
               type="submit"
               form="edit-deposit-form"
-              className="px-3 py-1.5 bg-green-600 text-white rounded"
+              className="px-3 py-1.5 bg-[var(--color-success)] text-white rounded"
             >
               Review &amp; Update
             </button>
@@ -1139,17 +1139,17 @@ export default function MahajanLedger() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editDepositDate}
                 onChange={setEditDepositDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Amount *
               </label>
               <input
@@ -1167,7 +1167,7 @@ export default function MahajanLedger() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -1221,7 +1221,7 @@ export default function MahajanLedger() {
                   setEditingDeposit(null);
                 }}
                 disabled={updateDeposit.isPending}
-                className="px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"
+                className="px-3 py-1.5 bg-[var(--color-success)] text-white rounded disabled:opacity-50"
               >
                 {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
               </button>
@@ -1231,13 +1231,13 @@ export default function MahajanLedger() {
       >
         {confirmEditDepositPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               Summary of changes
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Current</th>
                     <th className="text-left p-2">After update</th>
@@ -1280,12 +1280,12 @@ export default function MahajanLedger() {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border border-green-100 bg-green-50 p-3 space-y-2 text-sm">
-              <p className="font-medium text-green-900">Impact after update</p>
+            <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
+              <p className="font-medium text-[var(--color-success)]">Impact after update</p>
               {balanceLoading || balance == null ? (
-                <p className="text-gray-500">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
               ) : (
-                <div className="space-y-1 text-gray-700">
+                <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
                     {formatDecimal(balance.totalLends)}, Total Deposits ₹
@@ -1293,18 +1293,18 @@ export default function MahajanLedger() {
                     <span
                       className={
                         balance.balance >= 0
-                          ? "font-medium text-amber-800"
-                          : "font-medium text-green-800"
+                          ? "font-medium text-[var(--color-warning-text)]"
+                          : "font-medium text-[var(--color-success)]"
                       }
                     >
                       ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (receivable)
                         </span>
                       )}
@@ -1322,8 +1322,8 @@ export default function MahajanLedger() {
                         <p
                           className={
                             balanceAfter >= 0
-                              ? "font-medium text-amber-800"
-                              : "font-medium text-green-800"
+                              ? "font-medium text-[var(--color-warning-text)]"
+                              : "font-medium text-[var(--color-success)]"
                           }
                         >
                           After this update: Total Deposits will change by ₹
@@ -1332,12 +1332,12 @@ export default function MahajanLedger() {
                           → Balance will be ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (payable)
                             </span>
                           )}
                           {balanceAfter < 0 && (
-                            <span className="ml-1 text-gray-500 font-normal">
+                            <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                               (receivable)
                             </span>
                           )}
@@ -1383,7 +1383,7 @@ export default function MahajanLedger() {
                   setDeleteConfirmPayload(null);
                 }}
                 disabled={deleteLend.isPending || deleteDeposit.isPending}
-                className="px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"
+                className="px-3 py-1.5 bg-[var(--color-danger)] text-white rounded disabled:opacity-50"
               >
                 {deleteLend.isPending || deleteDeposit.isPending
                   ? "Deleting…"
@@ -1395,13 +1395,13 @@ export default function MahajanLedger() {
       >
         {deleteConfirmPayload && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               You are about to delete this transaction. Summary:
             </p>
-            <div className="rounded border border-gray-200 overflow-hidden text-sm">
+            <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
+                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
                     <th className="text-left p-2">Field</th>
                     <th className="text-left p-2">Value</th>
                   </tr>
@@ -1457,15 +1457,15 @@ export default function MahajanLedger() {
             <div
               className={`rounded border p-3 space-y-2 text-sm ${
                 deleteConfirmPayload.type === "credit_purchase"
-                  ? "border-amber-100 bg-amber-50"
-                  : "border-green-100 bg-green-50"
+                  ? "border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)]"
+                  : "border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)]"
               }`}
             >
               <p
                 className={`font-medium ${
                   deleteConfirmPayload.type === "credit_purchase"
-                    ? "text-amber-900"
-                    : "text-green-900"
+                    ? "text-[var(--color-warning-text)]"
+                    : "text-[var(--color-success)]"
                 }`}
               >
                 Impact after delete
@@ -1473,7 +1473,7 @@ export default function MahajanLedger() {
               {deleteConfirmPayload.type === "credit_purchase" &&
                 (deleteConfirmPayload.record as MahajanLend).product_id !=
                   null && (
-                  <p className="text-gray-700">
+                  <p className="text-[var(--color-text-secondary)]">
                     <strong>Stock:</strong>{" "}
                     {(() => {
                       const lendRecord =
@@ -1494,9 +1494,9 @@ export default function MahajanLedger() {
                   </p>
                 )}
               {balanceLoading || balance == null ? (
-                <p className="text-gray-500">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
               ) : (
-                <div className="space-y-1 text-gray-700">
+                <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
                     <strong>Mahajan balance:</strong> Total Lends ₹
                     {formatDecimal(balance.totalLends)}, Total Deposits ₹
@@ -1504,18 +1504,18 @@ export default function MahajanLedger() {
                     <span
                       className={
                         balance.balance >= 0
-                          ? "font-medium text-amber-800"
-                          : "font-medium text-green-800"
+                          ? "font-medium text-[var(--color-warning-text)]"
+                          : "font-medium text-[var(--color-success)]"
                       }
                     >
                       ₹{formatDecimal(Math.abs(balance.balance))}
                       {balance.balance > 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (payable)
                         </span>
                       )}
                       {balance.balance < 0 && (
-                        <span className="ml-1 text-gray-500 font-normal">
+                        <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                           (receivable)
                         </span>
                       )}
@@ -1530,8 +1530,8 @@ export default function MahajanLedger() {
                       <p
                         className={
                           balanceAfter >= 0
-                            ? "font-medium text-amber-800"
-                            : "font-medium text-green-800"
+                            ? "font-medium text-[var(--color-warning-text)]"
+                            : "font-medium text-[var(--color-success)]"
                         }
                       >
                         After this delete:{" "}
@@ -1542,12 +1542,12 @@ export default function MahajanLedger() {
                         {formatDecimal(deleteConfirmPayload.record.amount)} →
                         Balance will be ₹{formatDecimal(Math.abs(balanceAfter))}
                         {balanceAfter > 0 && (
-                          <span className="ml-1 text-gray-500 font-normal">
+                          <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                             (payable)
                           </span>
                         )}
                         {balanceAfter < 0 && (
-                          <span className="ml-1 text-gray-500 font-normal">
+                          <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
                             (receivable)
                           </span>
                         )}
@@ -1563,21 +1563,21 @@ export default function MahajanLedger() {
 
       {printData && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
-          <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">{appName}</p>
-            <p className="text-xs text-gray-600">Mahajan Ledger</p>
-            <p className="text-xs text-gray-700">
+          <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">Mahajan Ledger</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
               Mahajan: {printData.mahajanName}
             </p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-gray-700">Applied filters</p>
+                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
                   {printData.filterDetails.map((f) => (
-                    <p key={f.label} className="text-gray-600">
+                    <p key={f.label} className="text-[var(--color-text-secondary)]">
                       {f.label}: {f.value}
                     </p>
                   ))}
@@ -1585,19 +1585,19 @@ export default function MahajanLedger() {
               )}
             {printData.balance != null && (
               <div className="mt-2 space-y-1 text-xs">
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Total Lends</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.balance.totalLends)}
                   </span>
                 </p>
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Total Deposits</span>
                   <span className="ml-2">
                     ₹{formatDecimal(printData.balance.totalDeposits)}
                   </span>
                 </p>
-                <p className="text-gray-700">
+                <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">Balance (Lend - Deposit)</span>
                   <span className="ml-2">
                     ₹{formatDecimal(Math.abs(printData.balance.balance))}
@@ -1607,7 +1607,7 @@ export default function MahajanLedger() {
                 </p>
               </div>
             )}
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -1620,7 +1620,7 @@ export default function MahajanLedger() {
                 {printData.columns.map((col) => (
                   <th
                     key={col}
-                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                    className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
                   >
                     {col}
                   </th>
@@ -1633,7 +1633,7 @@ export default function MahajanLedger() {
                   {row.map((cell, ci) => (
                     <td
                       key={`${row[0]}-${printData.columns[ci]}`}
-                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                      className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}
                     </td>

@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
-  XMarkIcon,
-  ArrowTopRightOnSquareIcon,
-  ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+  X,
+  ExternalLink,
+  AlertTriangle,
+  FilePlus,
+  Banknote,
+} from "lucide-react";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
 import Table from "../components/Table";
@@ -37,9 +39,9 @@ function getYearStart(): string {
 }
 
 function netBalanceClass(balance: number): string {
-  if (balance > 0) return "text-red-600";
-  if (balance < 0) return "text-green-600";
-  return "text-gray-900";
+  if (balance > 0) return "text-[var(--color-danger)]";
+  if (balance < 0) return "text-[var(--color-success)]";
+  return "text-[var(--color-text-primary)]";
 }
 
 const DATE_PRESETS = [
@@ -63,29 +65,13 @@ type WeeklyRow = {
 };
 
 export default function Home() {
-  const queryClient = useQueryClient();
   const api = getElectron();
-  const currentYear = new Date().getFullYear();
   const defaultTotalFrom = useMemo(() => getMonthStart(), []);
   const defaultTotalTo = useMemo(() => todayISO(), []);
 
   const [weeklyDate, setWeeklyDate] = useState(todayISO());
   const [totalFrom, setTotalFrom] = useState(defaultTotalFrom);
   const [totalTo, setTotalTo] = useState(defaultTotalTo);
-  const [_plYear, _setPlYear] = useState(currentYear);
-  const [_openingBalance, _setOpeningBalance] = useState("");
-  const [_closingBalance, _setClosingBalance] = useState("");
-  const [_plResult, _setPlResult] = useState<{
-    openingBalance: number;
-    totalSale: number;
-    totalExpenditure: number;
-    totalLend: number;
-    totalDeposit: number;
-    closingBalance: number;
-    profitLoss: number;
-    expectedClosing: number;
-    cashVariance: number;
-  } | null>(null);
 
   const { data: reportSummary } = useQuery({
     queryKey: ["reportSummary"],
@@ -118,18 +104,6 @@ export default function Home() {
     enabled: !!totalFrom && !!totalTo,
   });
 
-  const { data: _savedOpening } = useQuery({
-    queryKey: ["openingBalance", _plYear],
-    queryFn: () => api.getOpeningBalance(_plYear),
-  });
-
-  const _setOpening = useMutation({
-    mutationFn: ({ year, amount }: { year: number; amount: number }) =>
-      api.setOpeningBalance(year, amount),
-    onSuccess: (_, { year }) =>
-      queryClient.invalidateQueries({ queryKey: ["openingBalance", year] }),
-  });
-
   const applyPreset = (preset: (typeof DATE_PRESETS)[number]) => {
     setTotalFrom(preset.getFrom());
     setTotalTo(preset.getTo());
@@ -137,40 +111,42 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Home</h1>
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-5">
+        <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Home</h1>
+      </div>
 
       {/* Executive Summary */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportSummary && (
           <>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Today&apos;s Sale</p>
-              <p className="text-xl font-semibold text-gray-900 mt-1">
+            <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+              <p className="text-sm text-[var(--color-text-tertiary)]">Today&apos;s Sale</p>
+              <p className="text-xl font-semibold text-[var(--color-text-primary)] mt-1">
                 {formatRupee(reportSummary.todaySale)}
               </p>
             </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">This Week (7 days)</p>
-              <p className="text-xl font-semibold text-gray-900 mt-1">
+            <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+              <p className="text-sm text-[var(--color-text-tertiary)]">This Week (7 days)</p>
+              <p className="text-xl font-semibold text-[var(--color-text-primary)] mt-1">
                 {formatRupee(reportSummary.weekSale)}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Expenditure: {formatRupee(reportSummary.weekExpenditure)}
               </p>
             </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">This Month</p>
-              <p className="text-xl font-semibold text-gray-900 mt-1">
+            <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+              <p className="text-sm text-[var(--color-text-tertiary)]">This Month</p>
+              <p className="text-xl font-semibold text-[var(--color-text-primary)] mt-1">
                 {formatRupee(reportSummary.monthSale)}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Expenditure: {formatRupee(reportSummary.monthExpenditure)}
               </p>
             </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Lender Net</p>
+            <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+              <p className="text-sm text-[var(--color-text-tertiary)]">Lender Net</p>
               <p
-                className={`text-xl font-semibold mt-1 ${mahajanSummary ? netBalanceClass(mahajanSummary.balance) : "text-gray-900"}`}
+                className={`text-xl font-semibold mt-1 ${mahajanSummary ? netBalanceClass(mahajanSummary.balance) : "text-[var(--color-text-primary)]"}`}
               >
                 {mahajanSummary
                   ? formatRupee(Math.abs(mahajanSummary.balance))
@@ -179,7 +155,7 @@ export default function Home() {
               {mahajanSummary &&
                 (mahajanSummary.countOweMe > 0 ||
                   mahajanSummary.countIOwe > 0) && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                     {mahajanSummary.countOweMe} receivable,{" "}
                     {mahajanSummary.countIOwe} payable
                   </p>
@@ -189,25 +165,45 @@ export default function Home() {
         )}
       </section>
 
+      {/* Quick Actions */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Link
+          to="/invoices"
+          state={{ openCreate: true }}
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl p-4 shadow-xs hover:shadow-sm transition-shadow flex items-center gap-3"
+        >
+          <FilePlus size={24} className="text-[var(--color-accent)] shrink-0" aria-hidden="true" />
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">New Invoice</span>
+        </Link>
+        <Link
+          to="/transactions"
+          state={{ openLend: true }}
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl p-4 shadow-xs hover:shadow-sm transition-shadow flex items-center gap-3"
+        >
+          <Banknote size={24} className="text-[var(--color-success)] shrink-0" aria-hidden="true" />
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">New Credit Purchase</span>
+        </Link>
+      </section>
+
       {/* Weekly Sale */}
-      <section className="bg-white rounded-lg border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-3">Weekly Sale</h2>
-        <p className="text-sm text-gray-500 mb-2">
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+        <h2 className="text-lg font-medium text-[var(--color-text-primary)] mb-3">Weekly Sale</h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-2">
           Select a date to see 7 days of entries (descending from that date).
         </p>
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-4">
-          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden mb-4">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
             Date
             <DateInput
               value={weeklyDate}
               onChange={setWeeklyDate}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
             />
           </label>
           <button
             type="button"
             onClick={() => setWeeklyDate(todayISO())}
-            className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
+            className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           >
             Today
           </button>
@@ -264,26 +260,26 @@ export default function Home() {
       </section>
 
       {/* Total Sale */}
-      <section className="bg-white rounded-lg border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-3">Total Sale</h2>
-        <p className="text-sm text-gray-500 mb-2">
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
+        <h2 className="text-lg font-medium text-[var(--color-text-primary)] mb-3">Total Sale</h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-2">
           Enter date range or use presets to get total sale and breakdown.
         </p>
-        <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+        <div className="flex flex-wrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] mb-4">
           <div className="flex items-center gap-2">
-            <label className="shrink-0 text-sm text-gray-600">From</label>
+            <label className="shrink-0 text-sm text-[var(--color-text-secondary)]">From</label>
             <DateInput
               value={totalFrom}
               onChange={setTotalFrom}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="shrink-0 text-sm text-gray-600">To</label>
+            <label className="shrink-0 text-sm text-[var(--color-text-secondary)]">To</label>
             <DateInput
               value={totalTo}
               onChange={setTotalTo}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -292,7 +288,7 @@ export default function Home() {
                 key={p.label}
                 type="button"
                 onClick={() => applyPreset(p)}
-                className="px-2.5 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
+                className="px-2.5 py-1 text-xs bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
               >
                 {p.label}
               </button>
@@ -304,9 +300,9 @@ export default function Home() {
               setTotalFrom(defaultTotalFrom);
               setTotalTo(defaultTotalTo);
             }}
-            className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
+            className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           >
-            <XMarkIcon className="w-4 h-4" aria-hidden />
+            <X size={16} aria-hidden="true" />
             Reset
           </button>
         </div>
@@ -332,92 +328,92 @@ export default function Home() {
       </section>
 
       {/* Lender Summary */}
-      <section className="bg-white rounded-lg border p-4">
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium text-gray-900">Lender Summary</h2>
+          <h2 className="text-lg font-medium text-[var(--color-text-primary)]">Lender Summary</h2>
           <Link
             to="/mahajans"
-            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
           >
             View Lenders
-            <ArrowTopRightOnSquareIcon className="w-4 h-4" aria-hidden />
+            <ExternalLink size={16} aria-hidden="true" />
           </Link>
         </div>
         {mahajanSummary ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Total Credit Purchase</p>
+              <p className="text-[var(--color-text-tertiary)]">Total Credit Purchase</p>
               <p className="font-medium">
-                {formatRupee(mahajanSummary.totalCreditPurchase ?? mahajanSummary.totalLend)}
+                {formatRupee((mahajanSummary as any).totalCreditPurchase ?? mahajanSummary.totalLend)}
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Total Settlements</p>
+              <p className="text-[var(--color-text-tertiary)]">Total Settlements</p>
               <p className="font-medium">
-                {formatRupee(mahajanSummary.totalSettlement ?? mahajanSummary.totalDeposit)}
+                {formatRupee((mahajanSummary as any).totalSettlement ?? mahajanSummary.totalDeposit)}
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Net Balance</p>
+              <p className="text-[var(--color-text-tertiary)]">Net Balance</p>
               <p
                 className={`font-medium ${netBalanceClass(mahajanSummary.balance)}`}
               >
                 {formatRupee(Math.abs(mahajanSummary.balance))}
                 {mahajanSummary.balance > 0 && (
-                  <span className="text-gray-500 font-normal"> (payable)</span>
+                  <span className="text-[var(--color-text-tertiary)] font-normal"> (payable)</span>
                 )}
                 {mahajanSummary.balance < 0 && (
-                  <span className="text-gray-500 font-normal">
+                  <span className="text-[var(--color-text-tertiary)] font-normal">
                     {" "}
                     (receivable)
                   </span>
                 )}
               </p>
               {mahajanSummary.countOweMe > 0 && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
                   {mahajanSummary.countOweMe} receivable
                 </p>
               )}
               {mahajanSummary.countIOwe > 0 && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
                   {mahajanSummary.countIOwe} payable
                 </p>
               )}
             </div>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No lender data.</p>
+          <p className="text-sm text-[var(--color-text-tertiary)]">No lender data.</p>
         )}
       </section>
 
       {/* Low Stock Alerts */}
-      <section className="bg-white rounded-lg border p-4">
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-medium text-gray-900">
+          <h2 className="text-lg font-medium text-[var(--color-text-primary)]">
             Low Stock Alerts
             {lowStockItems.length > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                <ExclamationTriangleIcon className="w-3.5 h-3.5" aria-hidden />
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-warning-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--color-warning-text)]">
+                <AlertTriangle size={14} aria-hidden="true" />
                 {lowStockItems.length}
               </span>
             )}
           </h2>
           <Link
             to="/stock"
-            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
           >
             View Stock
-            <ArrowTopRightOnSquareIcon className="w-4 h-4" aria-hidden />
+            <ExternalLink size={16} aria-hidden="true" />
           </Link>
         </div>
         {lowStockError ? (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-[var(--color-danger)]">
             Error loading low stock items. Try refreshing.
           </p>
         ) : lowStockLoading ? (
           <TableLoader />
         ) : lowStockItems.length === 0 ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--color-text-tertiary)]">
             No items below reorder level. Set a reorder level on items (Products
             & Stock page) to see alerts.
           </p>
@@ -429,7 +425,17 @@ export default function Home() {
                 key: "current_stock",
                 label: "Current",
                 align: "right",
-                render: (item) => formatDecimal(item.current_stock),
+                render: (item) => {
+                  const isZero = item.current_stock === 0;
+                  const colorClass = isZero ? "text-[var(--color-danger)]" : "text-[var(--color-warning-text)]";
+                  const dotClass = isZero ? "bg-[var(--color-danger-subtle)]0" : "bg-[var(--color-warning-subtle)]0";
+                  return (
+                    <span className={`inline-flex items-center ${colorClass}`}>
+                      <span className={`w-2 h-2 rounded-full inline-block mr-2 ${dotClass}`} />
+                      {formatDecimal(item.current_stock)}
+                    </span>
+                  );
+                },
               },
               {
                 key: "reorder_level",
@@ -445,113 +451,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Profit / Loss */}
-      {/* <section className="bg-white rounded-lg border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-3">
-          Profit / Loss
-        </h2>
-        <p className="text-sm text-gray-500 mb-2">
-          Profit/Loss = Total Sale − Total Expenditure (operating result). Lend
-          and deposit do not affect P&L. Enter closing balance to reconcile
-          cash.
-        </p>
-        <div className="space-y-3 mb-4">
-          <div className="flex gap-2 items-center">
-            <label className="w-24">Year</label>
-            <input
-              type="number"
-              value={plYear}
-              onChange={(e) => setPlYear(Number(e.target.value))}
-              className="border rounded px-3 py-1.5 w-24"
-            />
-          </div>
-          <div className="flex gap-2 items-center">
-            <label className="w-24">Opening</label>
-            <input
-              type="number"
-              step="0.01"
-              value={openingBalance}
-              onChange={(e) => setOpeningBalance(e.target.value)}
-              placeholder={savedOpening != null ? String(savedOpening) : ""}
-              className="border rounded px-3 py-1.5"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const amt = Number(openingBalance);
-                if (!Number.isFinite(amt)) return;
-                setOpening.mutate({ year: plYear, amount: amt });
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-sm hover:bg-gray-200"
-            >
-              <CheckIcon className="w-4 h-4" aria-hidden />
-              Set Opening
-            </button>
-          </div>
-          <div className="flex gap-2 items-center">
-            <label className="w-24">Closing</label>
-            <input
-              type="number"
-              step="0.01"
-              value={closingBalance}
-              onChange={(e) => setClosingBalance(e.target.value)}
-              className="border rounded px-3 py-1.5"
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                const closing =
-                  closingBalance.trim() === "" ? 0 : Number(closingBalance);
-                if (!Number.isFinite(closing)) return;
-                const result = await api.getProfitLoss(plYear, closing);
-                setPlResult(result);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-            >
-              <CalculatorIcon className="w-4 h-4" aria-hidden />
-              Calculate
-            </button>
-          </div>
-        </div>
-        d
-        {plResult && (
-          <div className="text-sm space-y-1 border-t pt-3">
-            <p>Opening Balance: {formatRupee(plResult.openingBalance)}</p>
-            <p>Total Sale: {formatRupee(plResult.totalSale)}</p>
-            <p>Total Expenditure: {formatRupee(plResult.totalExpenditure)}</p>
-            {(plResult.totalLend !== 0 || plResult.totalDeposit !== 0) && (
-              <>
-                <p>Total Lend (cash out): {formatRupee(plResult.totalLend)}</p>
-                <p>
-                  Total Deposit (cash in): {formatRupee(plResult.totalDeposit)}
-                </p>
-              </>
-            )}
-            <p>Closing Balance: {formatRupee(plResult.closingBalance)}</p>
-            <p className="font-medium pt-2">
-              Profit/Loss (Sale − Expenditure):{" "}
-              <span
-                className={
-                  plResult.profitLoss >= 0 ? "text-green-600" : "text-red-600"
-                }
-              >
-                {formatRupee(Math.abs(plResult.profitLoss))}
-              </span>
-            </p>
-            <p className="text-gray-500 pt-2">
-              Expected closing (incl. lend/deposit):{" "}
-              {formatRupee(plResult.expectedClosing)} · Cash variance:{" "}
-              <span
-                className={
-                  plResult.cashVariance >= 0 ? "text-green-600" : "text-red-600"
-                }
-              >
-                {formatRupee(Math.abs(plResult.cashVariance))}
-              </span>
-            </p>
-          </div>
-        )}
-      </section> */}
     </div>
   );
 }

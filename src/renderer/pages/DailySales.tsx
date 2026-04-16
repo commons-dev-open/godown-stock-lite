@@ -32,14 +32,14 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
-  ArrowDownTrayIcon,
-  CheckIcon,
-  DocumentArrowDownIcon,
-  DocumentTextIcon,
-  PrinterIcon,
-  PlusIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+  Download,
+  Check,
+  FileDown,
+  FileText,
+  Printer,
+  Plus,
+  X,
+} from "lucide-react";
 import type { DailySale } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 
@@ -239,13 +239,13 @@ export default function DailySales() {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 mb-4">
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Daily Sales</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Daily Sales</h1>
           <div className="flex items-center gap-2">
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
-                <ArrowDownTrayIcon className="w-5 h-5 mr-1.5" aria-hidden />
+                <Download size={20} className="mr-1.5" aria-hidden="true" />
                 Export
               </Button>
             </div>
@@ -255,43 +255,45 @@ export default function DailySales() {
                   ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
                   style={exportFloatingStyles}
                   {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                 >
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportCsv}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as CSV
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPdf}
                   >
-                    <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                    <FileDown size={16} className="shrink-0" />
                     Export as PDF
                   </button>
                   <button
                     type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
                     onClick={handleExportPrint}
                   >
-                    <PrinterIcon className="w-4 h-4 shrink-0" />
+                    <Printer size={16} className="shrink-0" />
                     Print
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
-              <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Sale
             </Button>
           </div>
         </div>
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+      </div>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
             From
             <DateInput
               value={fromDate}
@@ -299,10 +301,10 @@ export default function DailySales() {
                 setFromDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
             />
           </label>
-          <label className="flex items-center gap-1.5 shrink-0 text-sm text-gray-600">
+          <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
             To
             <DateInput
               value={toDate}
@@ -310,7 +312,7 @@ export default function DailySales() {
                 setToDate(v);
                 setPage(1);
               }}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white w-[10rem] shrink-0 min-w-0"
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
             />
           </label>
           {(fromDate || toDate) && (
@@ -321,16 +323,16 @@ export default function DailySales() {
                 setToDate("");
                 setPage(1);
               }}
-              className="inline-flex items-center gap-1 shrink-0 text-sm text-gray-600 hover:text-gray-900"
+              className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             >
-              <XMarkIcon className="w-4 h-4" aria-hidden />
+              <X size={16} aria-hidden="true" />
               Clear filters
             </button>
           )}
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
         {isLoading ? (
           <TableLoader />
         ) : sales.length === 0 ? (
@@ -381,11 +383,11 @@ export default function DailySales() {
                 <Link
                   to="/invoices"
                   state={{ dateFrom: row.sale_date, dateTo: row.sale_date }}
-                  className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
                   title="View invoices for this date"
                   aria-label="View invoices for this date"
                 >
-                  <DocumentTextIcon className="w-5 h-5" />
+                  <FileText size={20} />
                 </Link>
               )}
               emptyMessage="No sales yet. Click Add Sale or adjust filters."
@@ -418,7 +420,7 @@ export default function DailySales() {
         onClose={() => setAddOpen(false)}
         footer={
           <Button type="submit" form="add-sale-form">
-            <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+            <Check size={20} className="mr-1.5" aria-hidden="true" />
             Save
           </Button>
         }
@@ -446,23 +448,23 @@ export default function DailySales() {
           }}
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Date * (dd/mm/yyyy)
             </label>
             <DateInput
               value={addSaleDate}
               onChange={setAddSaleDate}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
             {addSaleDate && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
                 Invoice Sales for this date: ₹
                 {formatDecimal(invoiceTotalForDate?.total ?? 0)} (from invoices)
               </p>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Misc / Cash Sales (without invoice)
             </label>
             <input
@@ -476,10 +478,10 @@ export default function DailySales() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Cash in Hand *
             </label>
-            <p className="text-xs text-gray-500 mb-1">
+            <p className="text-xs text-[var(--color-text-tertiary)] mb-1">
               Amount physically in your till at end of day
             </p>
             <input
@@ -492,7 +494,7 @@ export default function DailySales() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Expenditure (if any)
             </label>
             <input
@@ -505,7 +507,7 @@ export default function DailySales() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Notes
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
@@ -520,7 +522,7 @@ export default function DailySales() {
         footer={
           editing ? (
             <Button type="submit" form="edit-sale-form">
-              <CheckIcon className="w-5 h-5 mr-1.5" aria-hidden />
+              <Check size={20} className="mr-1.5" aria-hidden="true" />
               Update
             </Button>
           ) : null
@@ -554,17 +556,17 @@ export default function DailySales() {
             }}
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Date * (dd/mm/yyyy)
               </label>
               <DateInput
                 value={editSaleDate}
                 onChange={setEditSaleDate}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Invoice Sales (read-only)
               </label>
               <input
@@ -572,11 +574,11 @@ export default function DailySales() {
                 value={formatDecimal(editing.invoice_sales ?? 0)}
                 readOnly
                 disabled
-                className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600"
+                className="w-full border rounded px-3 py-2 bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Misc / Cash Sales (without invoice) *
               </label>
               <input
@@ -590,10 +592,10 @@ export default function DailySales() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Cash in Hand *
               </label>
-              <p className="text-xs text-gray-500 mb-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mb-1">
                 Amount physically in your till at end of day
               </p>
               <input
@@ -607,7 +609,7 @@ export default function DailySales() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Expenditure
               </label>
               <input
@@ -620,7 +622,7 @@ export default function DailySales() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Notes
               </label>
               <input
@@ -635,24 +637,24 @@ export default function DailySales() {
 
       {printData && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-white p-6 print:block"
+          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
-          <header className="mb-4 border-b border-gray-200 pb-3">
-            <p className="text-sm font-semibold text-gray-900">{appName}</p>
-            <p className="text-xs text-gray-600">Daily Sales</p>
+          <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">Daily Sales</p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-gray-700">Applied filters</p>
+                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
                   {printData.filterDetails.map((f) => (
-                    <p key={f.label} className="text-gray-600">
+                    <p key={f.label} className="text-[var(--color-text-secondary)]">
                       {f.label}: {f.value}
                     </p>
                   ))}
                 </div>
               )}
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -665,7 +667,7 @@ export default function DailySales() {
                 {printData.columns.map((col) => (
                   <th
                     key={col}
-                    className="border border-gray-300 px-2 py-1.5 text-left font-medium text-white bg-gray-700"
+                    className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
                   >
                     {col}
                   </th>
@@ -678,7 +680,7 @@ export default function DailySales() {
                   {row.map((cell, ci) => (
                     <td
                       key={`${row[0]}-${printData.columns[ci]}`}
-                      className="border border-gray-300 px-2 py-1.5 text-gray-800"
+                      className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}
                     </td>

@@ -65,11 +65,17 @@ function upsertDailySalesForInvoice(
       .run(newInv, saleAmount, row.id);
   } else {
     const invoiceSales = Math.max(0, roundDecimal(delta));
+    const prevDay = database
+      .prepare(
+        "SELECT cash_in_hand FROM daily_sales WHERE sale_date < ? ORDER BY sale_date DESC LIMIT 1"
+      )
+      .get(saleDate) as { cash_in_hand: number } | undefined;
+    const openingCash = prevDay?.cash_in_hand ?? 0;
     database
       .prepare(
-        "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, invoice_sales, misc_sales) VALUES (?, ?, 0, ?, 0)"
+        "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, invoice_sales, misc_sales) VALUES (?, ?, ?, ?, 0)"
       )
-      .run(saleDate, invoiceSales, invoiceSales);
+      .run(saleDate, invoiceSales, openingCash, invoiceSales);
   }
 }
 
@@ -217,6 +223,12 @@ export function registerIpcHandlers(): void {
       }
     ) => {
       const primaryUnit = item.unit || "pcs";
+      const dupName = db().prepare("SELECT id FROM items WHERE LOWER(name) = LOWER(?) LIMIT 1").get(item.name);
+      if (dupName) throw new Error(`An item with name "${item.name}" already exists.`);
+      const VALID_GST_RATES = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28];
+      if (item.gst_rate !== undefined && item.gst_rate !== null && !VALID_GST_RATES.includes(item.gst_rate)) {
+        throw new Error(`Invalid GST rate: ${item.gst_rate}%. Must be one of: ${VALID_GST_RATES.join(', ')}%`);
+      }
       let stockPrimary: number;
       if (
         item.current_stock_unit != null &&
@@ -361,6 +373,14 @@ export function registerIpcHandlers(): void {
           }
         | undefined;
       if (!row) throw new Error("Item not found");
+      if (item.name !== undefined) {
+        const dupName = db().prepare("SELECT id FROM items WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1").get(item.name, id);
+        if (dupName) throw new Error(`An item with name "${item.name}" already exists.`);
+      }
+      const VALID_GST_RATES = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28];
+      if (item.gst_rate !== undefined && item.gst_rate !== null && !VALID_GST_RATES.includes(item.gst_rate)) {
+        throw new Error(`Invalid GST rate: ${item.gst_rate}%. Must be one of: ${VALID_GST_RATES.join(', ')}%`);
+      }
       const primaryUnit = item.unit ?? row.unit;
       const convList = item.conversions;
       const firstConv = convList?.[0];
@@ -508,6 +528,10 @@ export function registerIpcHandlers(): void {
     if (!row) throw new Error("Item not found");
     if (row.current_stock !== 0)
       throw new Error("Stock must be 0 to delete this product.");
+    const invoiceRef = db().prepare("SELECT COUNT(*) as cnt FROM invoice_lines WHERE product_id = ?").get(id) as { cnt: number };
+    if (invoiceRef.cnt > 0) {
+      throw new Error("Cannot delete this product — it appears in existing invoices. Archive it instead.");
+    }
     db().prepare("DELETE FROM items WHERE id = ?").run(id);
     return id;
   });
@@ -563,6 +587,11 @@ export function registerIpcHandlers(): void {
           "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(primaryQty, id);
+      db()
+        .prepare(
+          "INSERT INTO stock_adjustments (item_id, adjustment_type, quantity, unit, primary_quantity, reason) VALUES (?, 'add', ?, ?, ?, ?)"
+        )
+        .run(id, quantity, fromUnit ?? row.unit, primaryQty, null);
       return id;
     }
   );
@@ -621,6 +650,11 @@ export function registerIpcHandlers(): void {
           "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(primaryQty, id);
+      db()
+        .prepare(
+          "INSERT INTO stock_adjustments (item_id, adjustment_type, quantity, unit, primary_quantity, reason) VALUES (?, 'reduce', ?, ?, ?, ?)"
+        )
+        .run(id, quantity, fromUnit ?? row.unit, primaryQty, null);
       return id;
     }
   );
@@ -882,7 +916,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("unitConversions:getAll", () => {
     return db()
       .prepare(
-        "SELECT id, from_unit, to_unit, factor, created_at FROM unit_conversions ORDER BY from_unit, to_unit"
+        "SELECT id, from_unit, to_unit, factor, created_at FROM unit_conversions ORDER BY from_unit, to_unit LIMIT 500"
       )
       .all();
   });
@@ -965,6 +999,10 @@ export function registerIpcHandlers(): void {
           "UPDATE unit_conversions SET from_unit = ?, to_unit = ?, from_unit_id = ?, to_unit_id = ?, factor = ? WHERE id = ?"
         )
         .run(from, to, fromId, toId, roundDecimal(factor, 10), id);
+      // NOTE: Known limitation — changing a conversion factor does not
+      // retroactively adjust stock values for items using these units.
+      // A future enhancement could warn the user on the frontend before
+      // confirming a factor change that affects existing items.
       return id;
     }
   );
@@ -1027,10 +1065,203 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  // ---- Coupons ----
+  ipcMain.handle("coupons:getAll", () => {
+    return db().prepare("SELECT * FROM coupons ORDER BY code LIMIT 500").all();
+  });
+
+  ipcMain.handle("coupons:getByCode", (_, code: string) => {
+    const c = (code ?? "").trim().toUpperCase();
+    if (!c) return null;
+    return db()
+      .prepare("SELECT * FROM coupons WHERE UPPER(code) = ?")
+      .get(c) as Record<string, unknown> | undefined;
+  });
+
+  ipcMain.handle(
+    "coupons:validateAndApply",
+    (
+      _,
+      payload: { code: string; orderTotal: number }
+    ): { discount_type: "percent" | "flat"; discount_value: number; code: string } | null => {
+      const c = (payload?.code ?? "").trim().toUpperCase();
+      if (!c || payload?.orderTotal == null) return null;
+      const row = db()
+        .prepare("SELECT * FROM coupons WHERE UPPER(code) = ?")
+        .get(c) as
+        | {
+            id: number;
+            discount_type: "percent" | "flat";
+            discount_value: number;
+            min_order_amount: number | null;
+            valid_from: string | null;
+            valid_to: string | null;
+            usage_limit: number | null;
+            used_count: number;
+          }
+        | undefined;
+      if (!row) return null;
+      const now = new Date().toISOString().slice(0, 10);
+      if (row.valid_from && row.valid_from > now) return null;
+      if (row.valid_to && row.valid_to < now) return null;
+      if (row.min_order_amount != null && payload.orderTotal < row.min_order_amount)
+        return null;
+      if (row.usage_limit != null && row.used_count >= row.usage_limit)
+        return null;
+      return {
+        discount_type: row.discount_type,
+        discount_value: row.discount_value,
+        code: c,
+      };
+    }
+  );
+
+  ipcMain.handle(
+    "coupons:incrementUsed",
+    (_, code: string) => {
+      const c = (code ?? "").trim().toUpperCase();
+      if (!c) return;
+      db()
+        .prepare("UPDATE coupons SET used_count = used_count + 1, updated_at = datetime('now') WHERE UPPER(code) = ?")
+        .run(c);
+    }
+  );
+
+  ipcMain.handle(
+    "coupons:create",
+    (
+      _,
+      payload: {
+        code: string;
+        discount_type: "percent" | "flat";
+        discount_value: number;
+        min_order_amount?: number | null;
+        valid_from?: string | null;
+        valid_to?: string | null;
+        usage_limit?: number | null;
+      }
+    ) => {
+      const code = (payload?.code ?? "").trim().toUpperCase();
+      if (!code) throw new Error("Coupon code is required.");
+      const r = db()
+        .prepare(
+          "INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, valid_from, valid_to, usage_limit) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(
+          code,
+          payload.discount_type ?? "percent",
+          roundDecimal(payload.discount_value ?? 0),
+          payload.min_order_amount ?? null,
+          payload.valid_from ?? null,
+          payload.valid_to ?? null,
+          payload.usage_limit ?? null
+        );
+      return r.lastInsertRowid as number;
+    }
+  );
+
+  ipcMain.handle(
+    "coupons:update",
+    (
+      _,
+      id: number,
+      payload: {
+        code?: string;
+        discount_type?: "percent" | "flat";
+        discount_value?: number;
+        min_order_amount?: number | null;
+        valid_from?: string | null;
+        valid_to?: string | null;
+        usage_limit?: number | null;
+      }
+    ) => {
+      const existing = db()
+        .prepare("SELECT id FROM coupons WHERE id = ?")
+        .get(id) as { id: number } | undefined;
+      if (!existing) throw new Error("Coupon not found.");
+      const code = payload.code != null
+        ? String(payload.code).trim().toUpperCase()
+        : undefined;
+      const stmt = db().prepare(
+        "UPDATE coupons SET code = COALESCE(?, code), discount_type = COALESCE(?, discount_type), discount_value = COALESCE(?, discount_value), min_order_amount = ?, valid_from = ?, valid_to = ?, usage_limit = ?, updated_at = datetime('now') WHERE id = ?"
+      );
+      stmt.run(
+        code ?? null,
+        payload.discount_type ?? null,
+        payload.discount_value != null ? roundDecimal(payload.discount_value) : null,
+        payload.min_order_amount ?? null,
+        payload.valid_from ?? null,
+        payload.valid_to ?? null,
+        payload.usage_limit ?? null,
+        id
+      );
+      return id;
+    }
+  );
+
+  ipcMain.handle("coupons:delete", (_, id: number) => {
+    const r = db().prepare("DELETE FROM coupons WHERE id = ?").run(id);
+    if (r.changes === 0) throw new Error("Coupon not found.");
+    return id;
+  });
+
+  // ---- Tiered discount rules ----
+  ipcMain.handle("tieredDiscountRules:getAll", () => {
+    return db()
+      .prepare("SELECT * FROM tiered_discount_rules ORDER BY min_order_amount DESC")
+      .all();
+  });
+
+  ipcMain.handle(
+    "tieredDiscountRules:upsert",
+    (
+      _,
+      payload: {
+        id?: number;
+        min_order_amount: number;
+        discount_percent?: number;
+        discount_flat?: number;
+        max_discount_amount?: number | null;
+        sort_order?: number;
+      }
+    ) => {
+      const minOrder = roundDecimal(payload.min_order_amount ?? 0);
+      const pct = roundDecimal(payload.discount_percent ?? 0);
+      const flat = roundDecimal(payload.discount_flat ?? 0);
+      const maxAmt =
+        payload.max_discount_amount != null
+          ? roundDecimal(payload.max_discount_amount)
+          : null;
+      const sortOrder = payload.sort_order ?? 0;
+      if (payload.id != null && payload.id > 0) {
+        db()
+          .prepare(
+            "UPDATE tiered_discount_rules SET min_order_amount = ?, discount_percent = ?, discount_flat = ?, max_discount_amount = ?, sort_order = ? WHERE id = ?"
+          )
+          .run(minOrder, pct, flat, maxAmt, sortOrder, payload.id);
+        return payload.id;
+      }
+      const r = db()
+        .prepare(
+          "INSERT INTO tiered_discount_rules (min_order_amount, discount_percent, discount_flat, max_discount_amount, sort_order) VALUES (?, ?, ?, ?, ?)"
+        )
+        .run(minOrder, pct, flat, maxAmt, sortOrder);
+      return r.lastInsertRowid as number;
+    }
+  );
+
+  ipcMain.handle("tieredDiscountRules:delete", (_, id: number) => {
+    const r = db()
+      .prepare("DELETE FROM tiered_discount_rules WHERE id = ?")
+      .run(id);
+    if (r.changes === 0) throw new Error("Tiered discount rule not found.");
+    return id;
+  });
+
   // ---- Invoices ----
   ipcMain.handle("invoices:getAll", () => {
     return db()
-      .prepare("SELECT * FROM invoices ORDER BY invoice_date DESC, id DESC")
+      .prepare("SELECT * FROM invoices ORDER BY invoice_date DESC, id DESC LIMIT 1000")
       .all();
   });
 
@@ -1086,8 +1317,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("invoices:getTotalForDate", (_, saleDate: string) => {
     const row = db()
       .prepare(
-        `SELECT COALESCE(SUM(l.amount), 0) AS total FROM invoice_lines l
-         JOIN invoices i ON i.id = l.invoice_id WHERE i.invoice_date = ?`
+        `SELECT COALESCE(SUM(
+          CASE WHEN i.round_to_whole = 1
+            THEN ROUND((SELECT COALESCE(SUM(l.amount), 0) FROM invoice_lines l WHERE l.invoice_id = i.id) - COALESCE(i.order_discount_amount, 0))
+            ELSE ROUND(((SELECT COALESCE(SUM(l.amount), 0) FROM invoice_lines l WHERE l.invoice_id = i.id) - COALESCE(i.order_discount_amount, 0)) * 100) / 100.0
+          END
+        ), 0) AS total FROM invoices i WHERE i.invoice_date = ?`
       )
       .get(saleDate) as { total: number } | undefined;
     return { total: roundDecimal(row?.total ?? 0) };
@@ -1118,6 +1353,9 @@ export function registerIpcHandlers(): void {
         customer_gstin?: string | null;
         invoice_date: string;
         notes?: string | null;
+        order_discount_amount?: number;
+        round_to_whole?: boolean | number;
+        coupon_code?: string | null;
         lines: {
           product_id: number;
           product_name: string;
@@ -1133,22 +1371,31 @@ export function registerIpcHandlers(): void {
           cgst_amount?: number;
           sgst_amount?: number;
           hsn_code?: string | null;
+          line_discount_percent?: number;
+          line_discount_flat?: number;
+          bogo_buy_qty?: number | null;
+          bogo_get_qty?: number | null;
+          bogo_discount_percent?: number;
         }[];
       }
     ) => {
       if (!payload.lines?.length)
         throw new Error("At least one line is required.");
-      const year = payload.invoice_date.slice(0, 4);
-      const prefix = `INV-${year}-`;
-      const prefixLen = prefix.length;
-      const maxSeq = db()
-        .prepare(
-          "SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, ?) AS INTEGER)), 0) AS n FROM invoices WHERE invoice_number LIKE ?"
-        )
-        .get(prefixLen + 1, prefix + "%") as { n: number } | undefined;
-      const nextSeq = (maxSeq?.n ?? 0) + 1;
-      const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, "0")}`;
+      for (const line of payload.lines) {
+        if (line.quantity <= 0) throw new Error(`Quantity must be positive for ${line.product_name ?? 'item'}.`);
+        if (line.price < 0) throw new Error(`Price cannot be negative for ${line.product_name ?? 'item'}.`);
+      }
       const run = db().transaction(() => {
+        const year = payload.invoice_date.slice(0, 4);
+        const prefix = `INV-${year}-`;
+        const prefixLen = prefix.length;
+        const maxSeq = db()
+          .prepare(
+            "SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, ?) AS INTEGER)), 0) AS n FROM invoices WHERE invoice_number LIKE ?"
+          )
+          .get(prefixLen + 1, prefix + "%") as { n: number } | undefined;
+        const nextSeq = (maxSeq?.n ?? 0) + 1;
+        const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, "0")}`;
         const conversions = getUnitConversionsRows();
         const itemInfoStmt = db().prepare(
           "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
@@ -1176,7 +1423,7 @@ export function registerIpcHandlers(): void {
 
         const r = db()
           .prepare(
-            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes, order_discount_amount, round_to_whole, coupon_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
           .run(
             invoiceNumber,
@@ -1185,12 +1432,15 @@ export function registerIpcHandlers(): void {
             customerPhone,
             customerId,
             payload.invoice_date,
-            payload.notes ?? null
+            payload.notes ?? null,
+            roundDecimal(payload.order_discount_amount ?? 0),
+            payload.round_to_whole ? 1 : 0,
+            payload.coupon_code ?? null
           );
         const invoiceId = r.lastInsertRowid as number;
         const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code, line_discount_percent, line_discount_flat, bogo_buy_qty, bogo_get_qty, bogo_discount_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
           const unitId =
@@ -1201,6 +1451,11 @@ export function registerIpcHandlers(): void {
           const taxableAmount = line.taxable_amount ?? 0;
           const cgstAmount = line.cgst_amount ?? 0;
           const sgstAmount = line.sgst_amount ?? 0;
+          const lineDiscPct = line.line_discount_percent ?? 0;
+          const lineDiscFlat = line.line_discount_flat ?? 0;
+          const bogoBuy = line.bogo_buy_qty ?? null;
+          const bogoGet = line.bogo_get_qty ?? null;
+          const bogoPct = line.bogo_discount_percent ?? 100;
           stmt.run(
             invoiceId,
             line.product_id,
@@ -1217,7 +1472,12 @@ export function registerIpcHandlers(): void {
             roundDecimal(taxableAmount),
             roundDecimal(cgstAmount),
             roundDecimal(sgstAmount),
-            line.hsn_code ?? null
+            line.hsn_code ?? null,
+            lineDiscPct,
+            lineDiscFlat,
+            bogoBuy,
+            bogoGet,
+            bogoPct
           );
 
           if (line.product_id > 0) {
@@ -1272,7 +1532,7 @@ export function registerIpcHandlers(): void {
               | undefined;
             if (!row) continue;
             const newStock = row.current_stock + info.delta;
-            if (newStock < -1e-6) {
+            if (newStock < -0.005) {
               throw new Error(
                 `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
               );
@@ -1283,7 +1543,17 @@ export function registerIpcHandlers(): void {
           }
         }
 
-        const invoiceTotal = payload.lines.reduce((s, l) => s + roundDecimal(l.amount), 0);
+        const subtotal = payload.lines.reduce(
+          (s, l) => s + roundDecimal(l.amount),
+          0
+        );
+        const orderDisc = roundDecimal(payload.order_discount_amount ?? 0);
+        let invoiceTotal = subtotal - orderDisc;
+        if (payload.round_to_whole) {
+          invoiceTotal = Math.round(invoiceTotal);
+        } else {
+          invoiceTotal = roundDecimal(invoiceTotal);
+        }
         upsertDailySalesForInvoice(db(), payload.invoice_date, invoiceTotal);
 
         return invoiceId;
@@ -1305,6 +1575,9 @@ export function registerIpcHandlers(): void {
         customer_gstin?: string | null;
         invoice_date?: string;
         notes?: string | null;
+        order_discount_amount?: number;
+        round_to_whole?: boolean | number;
+        coupon_code?: string | null;
         lines: {
           product_id: number;
           product_name: string;
@@ -1320,42 +1593,66 @@ export function registerIpcHandlers(): void {
           cgst_amount?: number;
           sgst_amount?: number;
           hsn_code?: string | null;
+          line_discount_percent?: number;
+          line_discount_flat?: number;
+          bogo_buy_qty?: number | null;
+          bogo_get_qty?: number | null;
+          bogo_discount_percent?: number;
         }[];
       }
     ) => {
-      const existing = db()
-        .prepare("SELECT * FROM invoices WHERE id = ?")
-        .get(id) as
-        | {
-            invoice_date: string;
-            customer_id?: number | null;
-            customer_name?: string | null;
-            customer_address?: string | null;
-          }
-        | undefined;
-      if (!existing) throw new Error("Invoice not found");
       if (!payload.lines?.length)
         throw new Error("At least one line is required.");
-
-      const oldTotalRow = db()
-        .prepare(
-          "SELECT COALESCE(SUM(amount), 0) AS total FROM invoice_lines WHERE invoice_id = ?"
-        )
-        .get(id) as { total: number };
-      const oldTotal = roundDecimal(oldTotalRow?.total ?? 0);
-
-      const existingLines = db()
-        .prepare(
-          "SELECT product_id, product_name, quantity, unit FROM invoice_lines WHERE invoice_id = ?"
-        )
-        .all(id) as {
-        product_id: number | null;
-        product_name: string | null;
-        quantity: number;
-        unit: string;
-      }[];
+      for (const line of payload.lines) {
+        if (line.quantity <= 0) throw new Error(`Quantity must be positive for ${line.product_name ?? 'item'}.`);
+        if (line.price < 0) throw new Error(`Price cannot be negative for ${line.product_name ?? 'item'}.`);
+      }
 
       db().transaction(() => {
+        const existing = db()
+          .prepare("SELECT * FROM invoices WHERE id = ?")
+          .get(id) as
+          | {
+              invoice_date: string;
+              customer_id?: number | null;
+              customer_name?: string | null;
+              customer_address?: string | null;
+              order_discount_amount?: number;
+              round_to_whole?: number;
+            }
+          | undefined;
+        if (!existing) throw new Error("Invoice not found");
+
+        const invoiceDate = new Date(existing.invoice_date);
+        const daysSince = (Date.now() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince > 90) {
+          throw new Error("Cannot modify invoices older than 90 days. Contact administrator.");
+        }
+
+        const oldSubtotalRow = db()
+          .prepare(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM invoice_lines WHERE invoice_id = ?"
+          )
+          .get(id) as { total: number };
+        const oldSubtotal = roundDecimal(oldSubtotalRow?.total ?? 0);
+        const oldOrderDisc = roundDecimal(existing?.order_discount_amount ?? 0);
+        let oldTotal = oldSubtotal - oldOrderDisc;
+        if (existing?.round_to_whole) {
+          oldTotal = Math.round(oldTotal);
+        } else {
+          oldTotal = roundDecimal(oldTotal);
+        }
+
+        const existingLines = db()
+          .prepare(
+            "SELECT product_id, product_name, quantity, unit FROM invoice_lines WHERE invoice_id = ?"
+          )
+          .all(id) as {
+          product_id: number | null;
+          product_name: string | null;
+          quantity: number;
+          unit: string;
+        }[];
         const conversions = getUnitConversionsRows();
         const itemInfoStmt = db().prepare(
           "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
@@ -1444,7 +1741,38 @@ export function registerIpcHandlers(): void {
           });
         }
 
-        // Handle customer phone: upsert customer if phone provided
+        // Check invoice number uniqueness
+        if (payload.invoice_number) {
+          const existingInv = db().prepare(
+            "SELECT id FROM invoices WHERE invoice_number = ? AND id != ?"
+          ).get(payload.invoice_number, id);
+          if (existingInv) throw new Error(`Invoice number ${payload.invoice_number} already exists.`);
+        }
+
+        // Check stock availability BEFORE modifying invoice
+        if (stockDeltaByItem.size > 0) {
+          const stockCheckStmt = db().prepare(
+            "SELECT current_stock FROM items WHERE id = ?"
+          );
+          for (const [itemId, info] of stockDeltaByItem) {
+            const row = stockCheckStmt.get(itemId) as
+              | { current_stock: number }
+              | undefined;
+            if (!row) continue;
+            const newStock = row.current_stock + info.delta;
+            if (newStock < -0.005) {
+              throw new Error(
+                `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
+              );
+            }
+          }
+        }
+
+        // Handle customer phone: upsert customer if phone provided.
+        // NOTE: Changing the phone number on an invoice will create/link a new
+        // customer record. The old customer record is NOT removed or unlinked
+        // from other invoices. This is the intended behavior — each phone
+        // number maps to its own customer entity.
         let customerId: number | null = existing.customer_id ?? null;
         let customerPhone: string | null = null;
         const rawPhone = payload.customer_phone;
@@ -1463,7 +1791,7 @@ export function registerIpcHandlers(): void {
 
         db()
           .prepare(
-            "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, customer_phone = ?, customer_id = ?, invoice_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+            "UPDATE invoices SET invoice_number = ?, customer_name = ?, customer_address = ?, customer_phone = ?, customer_id = ?, invoice_date = ?, notes = ?, order_discount_amount = ?, round_to_whole = ?, coupon_code = ?, updated_at = datetime('now') WHERE id = ?"
           )
           .run(
             payload.invoice_number ?? null,
@@ -1473,12 +1801,15 @@ export function registerIpcHandlers(): void {
             customerId,
             payload.invoice_date ?? existing.invoice_date,
             payload.notes ?? null,
+            roundDecimal(payload.order_discount_amount ?? 0),
+            payload.round_to_whole ? 1 : 0,
+            payload.coupon_code ?? null,
             id
           );
         db().prepare("DELETE FROM invoice_lines WHERE invoice_id = ?").run(id);
         const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
         const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code, line_discount_percent, line_discount_flat, bogo_buy_qty, bogo_get_qty, bogo_discount_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         for (const line of payload.lines) {
           const unitId =
@@ -1489,6 +1820,11 @@ export function registerIpcHandlers(): void {
           const taxableAmount = line.taxable_amount ?? 0;
           const cgstAmount = line.cgst_amount ?? 0;
           const sgstAmount = line.sgst_amount ?? 0;
+          const lineDiscPct = line.line_discount_percent ?? 0;
+          const lineDiscFlat = line.line_discount_flat ?? 0;
+          const bogoBuy = line.bogo_buy_qty ?? null;
+          const bogoGet = line.bogo_get_qty ?? null;
+          const bogoPct = line.bogo_discount_percent ?? 100;
           stmt.run(
             id,
             line.product_id,
@@ -1505,38 +1841,38 @@ export function registerIpcHandlers(): void {
             roundDecimal(taxableAmount),
             roundDecimal(cgstAmount),
             roundDecimal(sgstAmount),
-            line.hsn_code ?? null
+            line.hsn_code ?? null,
+            lineDiscPct,
+            lineDiscFlat,
+            bogoBuy,
+            bogoGet,
+            bogoPct
           );
         }
 
+        // Apply stock changes (already validated above)
         if (stockDeltaByItem.size > 0) {
-          const stockStmt = db().prepare(
-            "SELECT current_stock FROM items WHERE id = ?"
-          );
           const updateStmt = db().prepare(
             "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
           );
           for (const [itemId, info] of stockDeltaByItem) {
-            const row = stockStmt.get(itemId) as
-              | { current_stock: number }
-              | undefined;
-            if (!row) continue;
-            const newStock = row.current_stock + info.delta;
-            if (newStock < -1e-6) {
-              throw new Error(
-                `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
-              );
-            }
             if (info.delta !== 0) {
               updateStmt.run(info.delta, itemId);
             }
           }
         }
 
-        const newTotal = payload.lines.reduce(
+        const newSubtotal = payload.lines.reduce(
           (s, l) => s + roundDecimal(l.amount),
           0
         );
+        const orderDisc = roundDecimal(payload.order_discount_amount ?? 0);
+        let newTotal = newSubtotal - orderDisc;
+        if (payload.round_to_whole) {
+          newTotal = Math.round(newTotal);
+        } else {
+          newTotal = roundDecimal(newTotal);
+        }
         const newDate = payload.invoice_date ?? existing.invoice_date;
         upsertDailySalesForInvoice(db(), existing.invoice_date, -oldTotal);
         upsertDailySalesForInvoice(db(), newDate, newTotal);
@@ -1547,16 +1883,26 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("invoices:delete", (_, id: number) => {
     const existing = db()
-      .prepare("SELECT id, invoice_date FROM invoices WHERE id = ?")
-      .get(id) as { id: number; invoice_date: string } | undefined;
+      .prepare("SELECT id, invoice_date, order_discount_amount, round_to_whole FROM invoices WHERE id = ?")
+      .get(id) as { id: number; invoice_date: string; order_discount_amount?: number; round_to_whole?: number } | undefined;
     if (!existing) throw new Error("Invoice not found");
+
+    const invoiceDateDel = new Date(existing.invoice_date);
+    const daysSinceDel = (Date.now() - invoiceDateDel.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceDel > 90) {
+      throw new Error("Cannot modify invoices older than 90 days. Contact administrator.");
+    }
 
     const totalRow = db()
       .prepare(
         "SELECT COALESCE(SUM(amount), 0) AS total FROM invoice_lines WHERE invoice_id = ?"
       )
       .get(id) as { total: number };
-    const invTotal = roundDecimal(totalRow?.total ?? 0);
+    const subtotal = roundDecimal(totalRow?.total ?? 0);
+    const orderDisc = roundDecimal(existing.order_discount_amount ?? 0);
+    let invTotal = subtotal - orderDisc;
+    if (existing.round_to_whole) invTotal = Math.round(invTotal);
+    else invTotal = roundDecimal(invTotal);
 
     const lines = db()
       .prepare(
@@ -1910,6 +2256,7 @@ export function registerIpcHandlers(): void {
         sgst_amount?: number;
       }
     ) => {
+      if (!l.amount || l.amount <= 0) throw new Error("Credit purchase amount must be positive.");
       const quantity = roundDecimal(l.quantity ?? 0);
       const amount = roundDecimal(l.amount);
       const result = db()
@@ -2058,6 +2405,13 @@ export function registerIpcHandlers(): void {
         l.lender_id !== undefined ? l.lender_id : (row.lender_id as number);
 
       db().transaction(() => {
+        const allocCount = db().prepare(
+          "SELECT COUNT(*) as cnt FROM settlement_allocations WHERE credit_purchase_id = ?"
+        ).get(id) as { cnt: number };
+        if (allocCount.cnt > 0) {
+          throw new Error("Cannot edit a credit purchase that has settlements allocated against it. Remove the settlements first.");
+        }
+
         db()
           .prepare(
             "UPDATE transactions SET lender_id = ?, product_id = ?, quantity = ?, transaction_date = ?, amount = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, gst_rate = ?, gst_inclusive = ?, taxable_amount = ?, cgst_amount = ?, sgst_amount = ?, updated_at = datetime('now') WHERE id = ?"
@@ -2111,6 +2465,13 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle("creditPurchases:delete", (_, id: number) => {
+    const allocCount = db().prepare(
+      "SELECT COUNT(*) as cnt FROM settlement_allocations WHERE credit_purchase_id = ?"
+    ).get(id) as { cnt: number };
+    if (allocCount.cnt > 0) {
+      throw new Error("Cannot delete a credit purchase that has settlements allocated against it. Remove the settlements first.");
+    }
+
     const cp = db()
       .prepare(
         "SELECT product_id, quantity FROM transactions WHERE id = ? AND type = 'credit_purchase'"
@@ -2165,6 +2526,21 @@ export function registerIpcHandlers(): void {
         allocations?: { credit_purchase_id: number; amount: number }[];
       }
     ) => {
+      if (!d.amount || d.amount <= 0) throw new Error("Settlement amount must be positive.");
+      if (d.allocations?.length) {
+        const totalAlloc = d.allocations.reduce((s, a) => s + (a.amount ?? 0), 0);
+        if (roundDecimal(totalAlloc) > roundDecimal(d.amount)) {
+          throw new Error("Total allocation amount cannot exceed settlement amount.");
+        }
+      }
+      const balanceRow = db().prepare(`
+        SELECT
+          COALESCE((SELECT SUM(amount) FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?), 0) -
+          COALESCE((SELECT SUM(amount) FROM transactions WHERE type = 'settlement' AND lender_id = ?), 0) AS outstanding
+      `).get(d.lender_id, d.lender_id) as { outstanding: number };
+      if (roundDecimal(d.amount) > roundDecimal(balanceRow.outstanding)) {
+        throw new Error("Settlement amount cannot exceed outstanding balance.");
+      }
       const run = db().transaction(() => {
         const result = db()
           .prepare(
@@ -2214,6 +2590,14 @@ export function registerIpcHandlers(): void {
         .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'settlement'")
         .get(id) as Record<string, unknown> | undefined;
       if (!row) throw new Error("Settlement not found");
+      if (d.amount !== undefined) {
+        const allocTotal = db().prepare(
+          "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_allocations WHERE settlement_id = ?"
+        ).get(id) as { total: number };
+        if (roundDecimal(allocTotal.total) > roundDecimal(d.amount)) {
+          throw new Error("Cannot reduce settlement amount below allocated total.");
+        }
+      }
       db()
         .prepare(
           "UPDATE transactions SET transaction_date = ?, amount = ?, notes = ?, payment_method = ?, reference_number = ?, updated_at = datetime('now') WHERE id = ?"
@@ -3001,6 +3385,8 @@ export function registerIpcHandlers(): void {
     const tables = [
       "invoice_lines",
       "invoices",
+      "coupons",
+      "tiered_discount_rules",
       "settlement_allocations",
       "transactions",
       "daily_sales",

@@ -21,6 +21,7 @@ import {
   useInteractions,
   FloatingPortal,
   FloatingArrow,
+  type Placement,
 } from "@floating-ui/react";
 
 type Props = Readonly<{
@@ -28,13 +29,15 @@ type Props = Readonly<{
   children: ReactElement;
   /** Delay in ms before showing tooltip (default 200) */
   delay?: number;
+  /** Tooltip placement (default "top") */
+  placement?: Placement;
 }>;
 
 /**
  * Accessible tooltip using Floating UI. Wraps a single element and shows
  * content on hover/focus with proper positioning and ARIA.
  */
-export default function Tooltip({ content, children, delay = 200 }: Props) {
+export default function Tooltip({ content, children, delay = 200, placement = "top" }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const id = useId();
   const arrowRef = useRef<SVGSVGElement>(null);
@@ -42,7 +45,7 @@ export default function Tooltip({ content, children, delay = 200 }: Props) {
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
-    placement: "top",
+    placement,
     middleware: [
       offset(10),
       arrow({ element: arrowRef }), // eslint-disable-line react-hooks/refs -- floating-ui reads ref in layout effect
@@ -88,14 +91,14 @@ export default function Tooltip({ content, children, delay = 200 }: Props) {
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps()}
-            className="relative z-50 max-w-xs rounded-md border border-gray-200 bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+            className="relative z-50 max-w-xs rounded-md border border-[var(--color-border-default)] bg-[var(--color-text-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-inverse)] shadow-lg"
           >
             {content}
             <FloatingArrow
               ref={arrowRef}
               context={context}
-              className="fill-gray-900"
-              stroke="#e5e7eb"
+              className="fill-[var(--color-text-primary)]"
+              stroke="var(--color-border-default)"
               strokeWidth={1}
             />
           </div>

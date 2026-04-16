@@ -42,7 +42,8 @@ export function createSchema(db: DbLike): void {
       selling_price_unit_id INTEGER REFERENCES units(id),
       gst_rate REAL NOT NULL DEFAULT 0,
       hsn_code TEXT,
-      current_stock REAL NOT NULL DEFAULT 0,
+      -- NOTE: CHECK constraint only enforced for newly created databases.
+      current_stock REAL NOT NULL DEFAULT 0 CHECK(current_stock >= -0.005),
       reorder_level REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -61,8 +62,10 @@ export function createSchema(db: DbLike): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       from_unit TEXT NOT NULL,
       to_unit TEXT NOT NULL,
-      from_unit_id INTEGER REFERENCES units(id),
-      to_unit_id INTEGER REFERENCES units(id),
+      -- NOTE: ON DELETE SET NULL only takes effect for newly created databases;
+      -- SQLite does not support ALTER TABLE to change FK constraints on existing databases.
+      from_unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
+      to_unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
       factor REAL NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(from_unit, to_unit)
@@ -153,6 +156,9 @@ export function createSchema(db: DbLike): void {
       customer_id INTEGER REFERENCES customers(id),
       invoice_date TEXT NOT NULL,
       notes TEXT,
+      order_discount_amount REAL NOT NULL DEFAULT 0,
+      round_to_whole INTEGER NOT NULL DEFAULT 0,
+      coupon_code TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -175,12 +181,66 @@ export function createSchema(db: DbLike): void {
       cgst_amount REAL NOT NULL DEFAULT 0,
       sgst_amount REAL NOT NULL DEFAULT 0,
       hsn_code TEXT,
+      line_discount_percent REAL NOT NULL DEFAULT 0,
+      line_discount_flat REAL NOT NULL DEFAULT 0,
+      bogo_buy_qty REAL,
+      bogo_get_qty REAL,
+      bogo_discount_percent REAL NOT NULL DEFAULT 100,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS coupons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      discount_type TEXT NOT NULL CHECK(discount_type IN ('percent', 'flat')),
+      discount_value REAL NOT NULL,
+      min_order_amount REAL,
+      valid_from TEXT,
+      valid_to TEXT,
+      usage_limit INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tiered_discount_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      min_order_amount REAL NOT NULL,
+      discount_percent REAL NOT NULL DEFAULT 0,
+      discount_flat REAL NOT NULL DEFAULT 0,
+      max_discount_amount REAL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL REFERENCES items(id),
+      adjustment_type TEXT NOT NULL CHECK(adjustment_type IN ('add', 'reduce')),
+      quantity REAL NOT NULL,
+      unit TEXT NOT NULL,
+      primary_quantity REAL NOT NULL,
+      reason TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     DROP TABLE IF EXISTS unit_sort_order;
+
+    -- Foreign-key and lookup indexes
+    CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice_id ON invoice_lines(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_invoice_lines_product_id ON invoice_lines(product_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_lender_id ON transactions(lender_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_product_id ON transactions(product_id);
+    CREATE INDEX IF NOT EXISTS idx_settlement_allocations_settlement_id ON settlement_allocations(settlement_id);
+    CREATE INDEX IF NOT EXISTS idx_settlement_allocations_credit_purchase_id ON settlement_allocations(credit_purchase_id);
+    CREATE INDEX IF NOT EXISTS idx_daily_sales_sale_date ON daily_sales(sale_date);
+    CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date ON invoices(invoice_date);
+    CREATE INDEX IF NOT EXISTS idx_item_other_units_item_id ON item_other_units(item_id);
+    CREATE INDEX IF NOT EXISTS idx_item_unit_conversions_item_id ON item_unit_conversions(item_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_adjustments_item_id ON stock_adjustments(item_id);
   `);
   ensureGstColumns(db);
+  ensureDiscountColumns(db);
 }
 
 function addColumnIfMissing(db: DbLike, table: string, sql: string): void {
@@ -205,4 +265,17 @@ function ensureGstColumns(db: DbLike): void {
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN cgst_amount REAL NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN sgst_amount REAL NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN hsn_code TEXT");
+}
+
+function ensureDiscountColumns(db: DbLike): void {
+  addColumnIfMissing(db, "invoices", "ALTER TABLE invoices ADD COLUMN order_discount_amount REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoices", "ALTER TABLE invoices ADD COLUMN round_to_whole INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoices", "ALTER TABLE invoices ADD COLUMN coupon_code TEXT");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN line_discount_percent REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN line_discount_flat REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN bogo_buy_qty REAL");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN bogo_get_qty REAL");
+  addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN bogo_discount_percent REAL NOT NULL DEFAULT 100");
+  addColumnIfMissing(db, "tiered_discount_rules", "ALTER TABLE tiered_discount_rules ADD COLUMN discount_flat REAL NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "tiered_discount_rules", "ALTER TABLE tiered_discount_rules ADD COLUMN max_discount_amount REAL");
 }

@@ -55,7 +55,10 @@ function convertBetweenUnits(
     (r) =>
       (r.from_unit ?? "").trim() === to && (r.to_unit ?? "").trim() === from
   );
-  if (rowReverse) return roundDecimal(quantity / rowReverse.factor, 10);
+  if (rowReverse) {
+    if (rowReverse.factor === 0) return null;
+    return roundDecimal(quantity / rowReverse.factor, 10);
+  }
 
   const adj = buildConversionGraph(conversions);
   const visited = new Set<string>();

@@ -33,11 +33,11 @@ export default function Table<T>({
     >
       <table className={tableClassName}>
         <thead>
-          <tr className="border-b bg-gray-50">
+          <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`py-2 px-2 ${col.align === "right" ? "text-right" : "text-left"}`}
+                className={`py-2 px-2 text-[var(--color-text-secondary)] ${col.align === "right" ? "text-right" : "text-left"}`}
               >
                 {col.label}
               </th>
@@ -46,7 +46,7 @@ export default function Table<T>({
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr key={getRowKey(row)} className="border-b">
+            <tr key={getRowKey(row)} className="border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors">
               {columns.map((col) => (
                 <td
                   key={col.key}

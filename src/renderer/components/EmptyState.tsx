@@ -1,4 +1,5 @@
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { type ReactNode } from "react";
+import { Plus } from "lucide-react";
 
 interface EmptyStateProps {
   message?: string;
@@ -8,6 +9,10 @@ interface EmptyStateProps {
   actionLabel?: string;
   /** Called when the action button is clicked. */
   onAction?: () => void;
+  /** Optional icon element displayed above the message. */
+  icon?: ReactNode;
+  /** Optional secondary description text displayed below the message. */
+  description?: string;
 }
 
 const defaultMessage = "No records match the filters.";
@@ -17,22 +22,30 @@ export default function EmptyState({
   bordered = true,
   actionLabel,
   onAction,
+  icon,
+  description,
 }: EmptyStateProps) {
   const className = bordered
-    ? "text-center py-8 text-gray-500 bg-white rounded-lg border"
-    : "text-center py-8 text-gray-500";
+    ? "text-center py-16 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)]"
+    : "text-center py-16";
 
   return (
     <div className={className}>
-      <p>{message}</p>
+      {icon && (
+        <div className="flex justify-center mb-3 text-[var(--color-text-tertiary)]">{icon}</div>
+      )}
+      <p className="font-medium text-[var(--color-text-secondary)]">{message}</p>
+      {description && (
+        <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{description}</p>
+      )}
       {actionLabel && onAction && (
         <div className="mt-4">
           <button
             type="button"
             onClick={onAction}
-            className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
           >
-            <PlusIcon className="w-5 h-5" aria-hidden />
+            <Plus size={20} aria-hidden="true" />
             {actionLabel}
           </button>
         </div>

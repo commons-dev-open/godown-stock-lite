@@ -1,4 +1,4 @@
-import { BookOpenIcon } from "@heroicons/react/24/outline";
+import { BookOpen } from "lucide-react";
 
 const Section = ({
   id,
@@ -13,10 +13,10 @@ const Section = ({
   return (
     <section
       id={id}
-      className="bg-white rounded-lg border border-gray-200 p-6 scroll-mt-6"
+      className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6 scroll-mt-6"
     >
-      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded bg-gray-100 text-gray-600 text-sm font-medium">
+      <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] text-sm font-medium">
           {shortLabel}
         </span>
         {title}
@@ -34,13 +34,13 @@ const SubSection = ({
   children: React.ReactNode;
 }) => (
   <div className="mb-6 last:mb-0">
-    <h3 className="text-base font-medium text-gray-800 mb-2">{title}</h3>
-    <div className="text-sm text-gray-600 space-y-2">{children}</div>
+    <h3 className="text-base font-medium text-[var(--color-text-primary)] mb-2">{title}</h3>
+    <div className="text-sm text-[var(--color-text-secondary)] space-y-2">{children}</div>
   </div>
 );
 
 const StepList = ({ steps }: { steps: string[] }) => (
-  <ol className="list-decimal list-inside space-y-1.5 text-gray-600">
+  <ol className="list-decimal list-inside space-y-1.5 text-[var(--color-text-secondary)]">
     {steps.map((step) => (
       <li key={step.slice(0, 80)}>{step}</li>
     ))}
@@ -48,7 +48,7 @@ const StepList = ({ steps }: { steps: string[] }) => (
 );
 
 const BulletList = ({ items }: { items: string[] }) => (
-  <ul className="list-disc list-inside space-y-1 text-gray-600">
+  <ul className="list-disc list-inside space-y-1 text-[var(--color-text-secondary)]">
     {items.map((item) => (
       <li key={item.slice(0, 80)}>{item}</li>
     ))}
@@ -70,7 +70,7 @@ const NavAnchor = ({
         block: "start",
       });
     }}
-    className="block w-full py-1.5 text-left text-sm text-blue-600 hover:text-blue-800 hover:underline"
+    className="block w-full py-1.5 text-left text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
   >
     {label}
   </button>
@@ -79,22 +79,22 @@ const NavAnchor = ({
 export default function Help() {
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-          <BookOpenIcon className="w-7 h-7" aria-hidden />
+      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-3 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-accent-subtle)] text-[var(--color-accent)]">
+          <BookOpen size={28} aria-hidden="true" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
             How to Use This App
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">
             Detailed guide to manage stock, lenders, sales, and reports
           </p>
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-        <h2 className="text-sm font-semibold text-gray-800 mb-2">
+      <div className="bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
           Quick navigation
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
@@ -112,7 +112,7 @@ export default function Help() {
       </div>
 
       <Section id="1-overview" title="Overview">
-        <p className="text-gray-600 mb-4">
+        <p className="text-[var(--color-text-secondary)] mb-4">
           This application helps you manage a godown (warehouse) or retail stock:
           products, units, stock levels, daily sales, lender (parties you receive
           credit purchase from and make settlement to) ledgers, transactions
@@ -235,7 +235,7 @@ export default function Help() {
       </Section>
 
       <Section id="5-lenders" title="Lenders">
-        <p className="text-gray-600 mb-4">
+        <p className="text-[var(--color-text-secondary)] mb-4">
           Lenders are parties you receive credit purchase from (goods/money) and
           make settlement to (pay back). Each lender has a ledger of credit
           purchase and settlement transactions and a running balance.
@@ -267,7 +267,7 @@ export default function Help() {
       </Section>
 
       <Section id="6-transactions" title="Transactions">
-        <p className="text-gray-600 mb-4">
+        <p className="text-[var(--color-text-secondary)] mb-4">
           The Transactions page shows all ledger-style entries: Credit Purchase
           from Lender, Settlement to Lender, and Cash Purchase. You can filter
           by lender and type, and export or print.
@@ -462,7 +462,7 @@ export default function Help() {
         </SubSection>
       </Section>
 
-      <div className="pt-4 pb-2 text-center text-sm text-gray-500">
+      <div className="pt-4 pb-2 text-center text-sm text-[var(--color-text-tertiary)]">
         For more support, contact your provider or refer to your purchase
         documentation.
       </div>
