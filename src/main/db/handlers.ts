@@ -46,6 +46,15 @@ function verifyPinHash(pin: string, stored: string): boolean {
   }
 }
 
+function sanitizeFileNamePart(value: string): string {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
 function logActivity(
   database: ReturnType<typeof getDb>,
   opts: {
@@ -3632,6 +3641,9 @@ export function registerIpcHandlers(): void {
       if (!/^\d{4}$/.test(payload.pin)) throw new Error("PIN must be exactly 4 digits.");
       if (!payload.companyName?.trim()) throw new Error("Company name is required.");
       if (!payload.displayName?.trim()) throw new Error("Business display name is required.");
+      if (!payload.customerMasterKey?.trim()) {
+        throw new Error("Recovery key is required.");
+      }
 
       const existing = db()
         .prepare("SELECT id FROM users WHERE role = 'superadmin' LIMIT 1")
@@ -3641,6 +3653,7 @@ export function registerIpcHandlers(): void {
       const ownerName = payload.ownerName.trim();
       const companyName = payload.companyName.trim();
       const displayName = payload.displayName.trim().slice(0, 25);
+      const customerMasterKey = payload.customerMasterKey.trim();
 
       const pinHash = createPinHash(payload.pin);
       const result = db()
@@ -3658,9 +3671,7 @@ export function registerIpcHandlers(): void {
         setBulk.run("company_name", companyName);
         setBulk.run("owner_name", ownerName);
         setBulk.run("displayName", displayName);
-        if (payload.customerMasterKey?.trim()) {
-          setBulk.run("MASTER_KEY_CUSTOMER_HASH", createPinHash(payload.customerMasterKey.trim()));
-        }
+        setBulk.run("MASTER_KEY_CUSTOMER_HASH", createPinHash(customerMasterKey));
       });
       runBulk();
 
@@ -3798,6 +3809,61 @@ export function registerIpcHandlers(): void {
         entityLabel: "Customer master key",
       });
       return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:saveRecoveryKeyToDevice",
+    (
+      _,
+      payload: {
+        ownerName: string;
+        companyName: string;
+        key: string;
+        replaceExisting?: boolean;
+      }
+    ) => {
+      const trimmedKey = payload.key?.trim();
+      if (!trimmedKey) {
+        throw new Error("Recovery key is required.");
+      }
+
+      const ownerName = payload.ownerName?.trim() || "owner";
+      const companyName = payload.companyName?.trim() || "business";
+      const safeOwner = sanitizeFileNamePart(ownerName) || "owner";
+      const safeCompany = sanitizeFileNamePart(companyName) || "business";
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `recovery-key-${safeCompany}-${safeOwner}-${timestamp}.txt`;
+      const saveDir = path.join(app.getPath("documents"), "Godown Stock Lite");
+      const fullPath = path.join(saveDir, fileName);
+
+      fs.mkdirSync(saveDir, { recursive: true });
+      if (payload.replaceExisting) {
+        const existingFiles = fs.readdirSync(saveDir);
+        for (const existingFile of existingFiles) {
+          if (!/^recovery-key-.*\.txt$/i.test(existingFile)) {
+            continue;
+          }
+          fs.rmSync(path.join(saveDir, existingFile), { force: true });
+        }
+      }
+      fs.writeFileSync(
+        fullPath,
+        [
+          "Godown Stock Lite - Owner Recovery Key",
+          "",
+          `Company: ${companyName}`,
+          `Owner: ${ownerName}`,
+          `Saved at: ${new Date().toLocaleString()}`,
+          "",
+          `Recovery Key: ${trimmedKey}`,
+          "",
+          "Important: Keep this file in a safe place. Anyone with this key can reset the owner PIN.",
+        ].join("\n"),
+        "utf8"
+      );
+
+      return { success: true, path: fullPath };
     }
   );
 

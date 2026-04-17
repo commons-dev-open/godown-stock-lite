@@ -38,19 +38,29 @@ export default function Onboarding() {
     if (!trimmedDisplay) return setError("Business display name is required.");
     if (!/^\d{4}$/.test(pin)) return setError("PIN must be exactly 4 digits.");
     if (pin !== confirmPin) return setError("PINs do not match.");
-    if (customerKey.trim() && customerKey !== confirmCustomerKey) {
-      return setError("Owner Master Keys do not match.");
+    const trimmedCustomerKey = customerKey.trim();
+    if (!trimmedCustomerKey) return setError("Recovery key is required.");
+    if (trimmedCustomerKey !== confirmCustomerKey.trim()) {
+      return setError("Recovery keys do not match.");
     }
 
     setPending(true);
     try {
+      const saveRes = await window.electron.auth.saveRecoveryKeyToDevice({
+        ownerName: trimmedOwner,
+        companyName: trimmedCompany,
+        key: trimmedCustomerKey,
+      });
       await window.electron.auth.setupSuperAdmin({
         companyName: trimmedCompany,
         ownerName: trimmedOwner,
         displayName: trimmedDisplay,
         pin,
-        customerMasterKey: customerKey.trim() || undefined,
+        customerMasterKey: trimmedCustomerKey,
       });
+      window.alert(
+        `Recovery key saved to:\n${saveRes.path}\n\nKeep this file somewhere safe. You will need this key to recover owner access.`
+      );
       completeOnboarding(trimmedDisplay);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Setup failed. Try again.");
@@ -198,37 +208,34 @@ export default function Onboarding() {
               </div>
             </div>
 
-            {/* Customer Master Key (optional) */}
-            <details className="group">
-              <summary className="cursor-pointer text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] select-none">
-                Advanced: Set owner recovery key (optional)
-              </summary>
-              <div className="mt-2">
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                  Owner Master Key
-                </label>
-                <input
-                  type="password"
-                  value={customerKey}
-                  onChange={(e) => setCustomerKey(e.target.value)}
-                  placeholder="Leave blank to skip"
-                  className="input-base w-full text-sm"
-                />
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 mt-3">
-                  Confirm Owner Master Key
-                </label>
-                <input
-                  type="password"
-                  value={confirmCustomerKey}
-                  onChange={(e) => setConfirmCustomerKey(e.target.value)}
-                  placeholder="Re-enter key"
-                  className="input-base w-full text-sm"
-                />
-                <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-                  Use this key to recover your PIN if you forget it. Keep it somewhere safe.
-                </p>
-              </div>
-            </details>
+            {/* Owner Recovery Key */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                Owner Recovery Key <span className="text-[var(--color-danger)]">*</span>
+              </label>
+              <input
+                type="password"
+                value={customerKey}
+                onChange={(e) => setCustomerKey(e.target.value)}
+                placeholder="Create a strong recovery key"
+                required
+                className="input-base w-full text-sm"
+              />
+              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 mt-3">
+                Confirm Owner Recovery Key <span className="text-[var(--color-danger)]">*</span>
+              </label>
+              <input
+                type="password"
+                value={confirmCustomerKey}
+                onChange={(e) => setConfirmCustomerKey(e.target.value)}
+                placeholder="Re-enter recovery key"
+                required
+                className="input-base w-full text-sm"
+              />
+              <p className="text-xs text-[var(--color-warning)] mt-1">
+                This key is required for owner PIN recovery and will be saved to this computer after setup. Keep it somewhere safe.
+              </p>
+            </div>
 
             {/* Error */}
             {error && (

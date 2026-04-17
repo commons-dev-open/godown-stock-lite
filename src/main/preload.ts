@@ -556,6 +556,16 @@ const electronAPI = {
       ipcRenderer.invoke("auth:resetSuperAdminPin", payload) as Promise<{ success: boolean }>,
     setCustomerMasterKey: (payload: { key: string; userId: number }) =>
       ipcRenderer.invoke("auth:setCustomerMasterKey", payload) as Promise<{ success: boolean }>,
+    saveRecoveryKeyToDevice: (payload: {
+      ownerName: string;
+      companyName: string;
+      key: string;
+      replaceExisting?: boolean;
+    }) =>
+      ipcRenderer.invoke("auth:saveRecoveryKeyToDevice", payload) as Promise<{
+        success: boolean;
+        path: string;
+      }>,
     forcePinChange: (payload: { userId: number; newPin: string }) =>
       ipcRenderer.invoke("auth:forcePinChange", payload) as Promise<{ success: boolean }>,
   },

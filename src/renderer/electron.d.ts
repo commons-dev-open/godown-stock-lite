@@ -505,6 +505,12 @@ export interface ElectronAPI {
     verifyMasterKey: (key: string) => Promise<{ valid: boolean; keyType: "customer" | "developer" | null }>;
     resetSuperAdminPin: (payload: { newPin: string }) => Promise<{ success: boolean }>;
     setCustomerMasterKey: (payload: { key: string; userId: number }) => Promise<{ success: boolean }>;
+    saveRecoveryKeyToDevice: (payload: {
+      ownerName: string;
+      companyName: string;
+      key: string;
+      replaceExisting?: boolean;
+    }) => Promise<{ success: boolean; path: string }>;
     forcePinChange: (payload: { userId: number; newPin: string }) => Promise<{ success: boolean }>;
   };
 

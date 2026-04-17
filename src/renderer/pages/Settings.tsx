@@ -1557,6 +1557,8 @@ export default function Settings() {
           ) : activeTab === "security" && currentUser ? (
             <SecurityTab
               currentUserId={currentUser.id}
+              currentUserName={currentUser.name}
+              companyName={companyHeroName.length > 0 ? companyHeroName : "business"}
               onLock={lock}
               isSuperAdmin={currentUser.role === "superadmin"}
             />
@@ -1572,10 +1574,14 @@ export default function Settings() {
 // ---- Security Tab ----
 function SecurityTab({
   currentUserId,
+  currentUserName,
+  companyName,
   onLock,
   isSuperAdmin,
 }: {
   currentUserId: number;
+  currentUserName: string;
+  companyName: string;
   onLock: () => void;
   isSuperAdmin: boolean;
 }) {
@@ -1630,6 +1636,15 @@ function SecurityTab({
         key: customerKey.trim(),
         userId: currentUserId,
       });
+      const saveRes = await window.electron.auth.saveRecoveryKeyToDevice({
+        key: customerKey.trim(),
+        ownerName: currentUserName,
+        companyName,
+        replaceExisting: true,
+      });
+      window.alert(
+        `Recovery key saved to:\n${saveRes.path}\n\nKeep this file somewhere safe. You will need this key to recover owner access.`
+      );
       setKeySuccess(true);
       setCustomerKey("");
       setConfirmCustomerKey("");
