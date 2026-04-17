@@ -8,7 +8,7 @@ interface SearchFilterBarProps {
   /** When true, Clear button shows even if search is empty (e.g. when only other filters like date are set) */
   hasActiveFilters?: boolean;
   placeholder?: string;
-  /** Optional content on the right (e.g. checkboxes, extra controls) */
+  /** Optional content on the right (e.g. toggles, extra controls) */
   rightContent?: ReactNode;
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Building2, Lock, Tag, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import AppleToggle from "../components/AppleToggle";
 
 const DISPLAY_NAME_MAX = 25;
 
@@ -18,7 +19,7 @@ export default function Onboarding() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
-  // Keep displayName synced with companyName when checkbox is on
+  // Keep displayName synced with companyName when toggle is on
   useEffect(() => {
     if (displaySameAsCompany) {
       setDisplayName(companyName.slice(0, DISPLAY_NAME_MAX));
@@ -137,11 +138,10 @@ export default function Onboarding() {
                   Business Display Name <span className="text-[var(--color-danger)]">*</span>
                 </label>
                 <label className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] cursor-pointer select-none">
-                  <input
-                    type="checkbox"
+                  <AppleToggle
                     checked={displaySameAsCompany}
-                    onChange={(e) => setDisplaySameAsCompany(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+                    onChange={setDisplaySameAsCompany}
+                    aria-label="Same as company name"
                   />
                   Same as company name
                 </label>

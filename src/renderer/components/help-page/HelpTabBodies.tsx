@@ -228,7 +228,7 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
         <HelpBulletList
           items={[
             "Per row you can request a single lender’s balance on demand when “Show balance” is off—useful on large lists.",
-            "Enable the “Show balance” checkbox in the search bar to pull every lender balance in one batch (slightly heavier query, clearer overview).",
+            "Enable the “Show balance” toggle in the search bar to pull every lender balance in one batch (slightly heavier query, clearer overview).",
             "Positive balance means you still owe the lender; negative means they owe you—same colour language as Home.",
           ]}
         />

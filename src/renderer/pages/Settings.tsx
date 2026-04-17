@@ -42,6 +42,7 @@ import {
   SettingsSegmentedTabs,
   type SettingsTabId,
 } from "../components/settings-page";
+import AppleToggle from "../components/AppleToggle";
 
 type DangerAction =
   | "export"
@@ -201,9 +202,14 @@ function AppearanceTab() {
     });
   };
 
-  const saveNumberAbbreviation = () => {
+  const handleNumberAbbreviationChange = (value: string) => {
+    const nextStyle = parseNumberAbbreviationStyle(value);
+    setNumberAbbreviation(nextStyle);
+    if (nextStyle === numberAbbreviation) {
+      return;
+    }
     setSettingsMutation.mutate({
-      [NUMBER_ABBREVIATION_STYLE_KEY]: numberAbbreviation,
+      [NUMBER_ABBREVIATION_STYLE_KEY]: nextStyle,
     });
   };
 
@@ -344,12 +350,9 @@ function AppearanceTab() {
         <FormField label="Style">
           <select
             value={numberAbbreviation}
-            onChange={(e) =>
-              setNumberAbbreviation(
-                parseNumberAbbreviationStyle(e.target.value)
-              )
-            }
+            onChange={(e) => handleNumberAbbreviationChange(e.target.value)}
             className="input-base w-full"
+            disabled={setSettingsMutation.isPending}
           >
             {NUMBER_ABBREVIATION_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -365,16 +368,6 @@ function AppearanceTab() {
             )?.hint
           }
         </p>
-        <div className="mt-4">
-          <Button
-            type="button"
-            onClick={saveNumberAbbreviation}
-            disabled={setSettingsMutation.isPending}
-          >
-            <Check size={16} className="mr-1" aria-hidden="true" />
-            Save
-          </Button>
-        </div>
       </section>
     </div>
   );
@@ -1103,28 +1096,43 @@ export default function Settings() {
     setSettingsMutation.mutate({ ...form });
   };
 
-  const saveGstSettings = () => {
-    const payload: Record<string, string> = {
-      gst_enabled: form.gst_enabled ?? "false",
-      gst_default_rate: form.gst_default_rate ?? "0",
-      gst_default_mode: form.gst_default_mode ?? "exclusive",
-      place_of_supply: (form.place_of_supply ?? "").trim(),
-      customer_gstin_enabled: form.customer_gstin_enabled ?? "false",
-      hsn_enabled: form.hsn_enabled ?? "true",
-    };
-    setSettingsMutation.mutate(payload);
+  const updateAndSaveGstField = (key: string, value: string) => {
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        [key]: value,
+      };
+      const payload: Record<string, string> = {
+        gst_enabled: next.gst_enabled ?? "false",
+        gst_default_rate: next.gst_default_rate ?? "0",
+        gst_default_mode: next.gst_default_mode ?? "exclusive",
+        place_of_supply: (next.place_of_supply ?? "").trim(),
+        customer_gstin_enabled: next.customer_gstin_enabled ?? "false",
+        hsn_enabled: next.hsn_enabled ?? "true",
+      };
+      setSettingsMutation.mutate(payload);
+      return next;
+    });
   };
 
-  const saveDiscountSettings = () => {
-    const payload: Record<string, string> = {
-      discount_percentage_enabled: form.discount_percentage_enabled ?? "false",
-      discount_flat_enabled: form.discount_flat_enabled ?? "false",
-      discount_bogo_enabled: form.discount_bogo_enabled ?? "false",
-      discount_coupon_enabled: form.discount_coupon_enabled ?? "false",
-      discount_tiered_enabled: form.discount_tiered_enabled ?? "false",
-      round_bill_to_whole: form.round_bill_to_whole ?? "false",
-    };
-    setSettingsMutation.mutate(payload);
+  const updateAndSaveDiscountField = (key: string, value: string) => {
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        [key]: value,
+      };
+      const payload: Record<string, string> = {
+        discount_percentage_enabled:
+          next.discount_percentage_enabled ?? "false",
+        discount_flat_enabled: next.discount_flat_enabled ?? "false",
+        discount_bogo_enabled: next.discount_bogo_enabled ?? "false",
+        discount_coupon_enabled: next.discount_coupon_enabled ?? "false",
+        discount_tiered_enabled: next.discount_tiered_enabled ?? "false",
+        round_bill_to_whole: next.round_bill_to_whole ?? "false",
+      };
+      setSettingsMutation.mutate(payload);
+      return next;
+    });
   };
 
   const gstEnabled = form.gst_enabled === "true";
@@ -1270,16 +1278,15 @@ export default function Settings() {
               ) : activeTab === "tax" ? (
                 <div className="space-y-4">
                   <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
+                    <AppleToggle
                       checked={gstEnabled}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          gst_enabled: e.target.checked ? "true" : "false",
-                        }))
-                      }
-                      className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                      onChange={(isChecked) => {
+                        updateAndSaveGstField(
+                          "gst_enabled",
+                          isChecked ? "true" : "false"
+                        );
+                      }}
+                      aria-label="Enable GST"
                     />
                     <span className="text-sm font-medium text-[var(--color-text-secondary)]">
                       Enable GST
@@ -1291,12 +1298,12 @@ export default function Settings() {
                     <FormField label="Default GST Rate">
                       <select
                         value={form.gst_default_rate ?? "0"}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            gst_default_rate: e.target.value,
-                          }))
-                        }
+                        onChange={(e) => {
+                          updateAndSaveGstField(
+                            "gst_default_rate",
+                            e.target.value
+                          );
+                        }}
                         className="input-base w-full"
                       >
                         {GST_RATES.map((r) => (
@@ -1309,12 +1316,12 @@ export default function Settings() {
                     <FormField label="Default Price Mode">
                       <select
                         value={form.gst_default_mode ?? "exclusive"}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            gst_default_mode: e.target.value,
-                          }))
-                        }
+                        onChange={(e) => {
+                          updateAndSaveGstField(
+                            "gst_default_mode",
+                            e.target.value
+                          );
+                        }}
                         className="input-base w-full"
                       >
                         {GST_MODES.map((m) => (
@@ -1334,60 +1341,52 @@ export default function Settings() {
                     >
                       <input
                         value={form.place_of_supply ?? ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setForm((prev) => ({
                             ...prev,
                             place_of_supply: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
+                        onBlur={(e) => {
+                          updateAndSaveGstField(
+                            "place_of_supply",
+                            e.target.value
+                          );
+                        }}
                         className="input-base w-full"
                         placeholder="e.g. Maharashtra"
                       />
                     </FormField>
                     <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <AppleToggle
                         checked={form.customer_gstin_enabled === "true"}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            customer_gstin_enabled: e.target.checked
-                              ? "true"
-                              : "false",
-                          }))
-                        }
-                        className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                        onChange={(isChecked) => {
+                          updateAndSaveGstField(
+                            "customer_gstin_enabled",
+                            isChecked ? "true" : "false"
+                          );
+                        }}
+                        aria-label="Show Customer GSTIN field"
                       />
                       <span className="text-sm text-[var(--color-text-secondary)]">
                         Show Customer GSTIN field (B2B mode)
                       </span>
                     </label>
                     <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <AppleToggle
                         checked={form.hsn_enabled !== "false"}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            hsn_enabled: e.target.checked ? "true" : "false",
-                          }))
-                        }
-                        className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                        onChange={(isChecked) => {
+                          updateAndSaveGstField(
+                            "hsn_enabled",
+                            isChecked ? "true" : "false"
+                          );
+                        }}
+                        aria-label="Enable HSN code"
                       />
                       <span className="text-sm text-[var(--color-text-secondary)]">
                         Enable HSN (Harmonized System of Nomenclature) code
                       </span>
                     </label>
-                  </div>
-                  <div className="mt-4">
-                    <Button
-                      type="button"
-                      onClick={saveGstSettings}
-                      disabled={setSettingsMutation.isPending}
-                    >
-                      <Check size={16} className="mr-1" aria-hidden="true" />
-                      Save GST settings
-                    </Button>
                   </div>
                 </div>
               ) : (
@@ -1407,32 +1406,21 @@ export default function Settings() {
                         ) as (keyof typeof DISCOUNT_SETTING_KEYS)[]
                       ).map((key) => (
                         <label key={key} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
+                          <AppleToggle
                             checked={form[key] === "true"}
-                            onChange={(e) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                [key]: e.target.checked ? "true" : "false",
-                              }))
-                            }
-                            className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                            onChange={(isChecked) => {
+                              updateAndSaveDiscountField(
+                                key,
+                                isChecked ? "true" : "false"
+                              );
+                            }}
+                            aria-label={DISCOUNT_SETTING_KEYS[key]}
                           />
                           <span className="text-sm text-[var(--color-text-secondary)]">
                             {DISCOUNT_SETTING_KEYS[key]}
                           </span>
                         </label>
                       ))}
-                    </div>
-                    <div className="mt-4">
-                      <Button
-                        type="button"
-                        onClick={saveDiscountSettings}
-                        disabled={setSettingsMutation.isPending}
-                      >
-                        <Check size={16} className="mr-1" aria-hidden="true" />
-                        Save discount settings
-                      </Button>
                     </div>
                   </div>
 

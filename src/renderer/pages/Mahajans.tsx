@@ -28,6 +28,7 @@ import DataTable from "../components/DataTable";
 import FormField from "../components/FormField";
 import FormModal from "../components/FormModal";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
+import AppleToggle from "../components/AppleToggle";
 import {
   buildMahajanTableColumns,
   MahajansAsyncPanel,
@@ -527,16 +528,15 @@ export default function Mahajans() {
               placeholder="Search by name, address, or phone…"
               rightContent={
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <AppleToggle
                     checked={showBalanceAll}
-                    onChange={(e) => {
-                      setShowBalanceAll(e.target.checked);
-                      if (e.target.checked) {
+                    onChange={(isChecked) => {
+                      setShowBalanceAll(isChecked);
+                      if (isChecked) {
                         void refetchAllBalances();
                       }
                     }}
-                    className="rounded border-[var(--color-border-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                    aria-label="Show balance"
                   />
                   <span className="text-sm text-[var(--color-text-secondary)]">
                     Show balance
