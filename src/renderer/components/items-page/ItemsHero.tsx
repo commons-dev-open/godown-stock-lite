@@ -1,5 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import Button from "../Button";
 import {
   formatAbbreviatedInteger,
@@ -25,13 +26,15 @@ function ItemsHeroComponent({
   onPrimary,
   toolbar,
 }: Readonly<ItemsHeroProps>) {
+  const { t } = useTranslation("items");
+
   return (
     <div className="dashboard-hero-sticky dashboard-hero-sticky--compact">
       <div className="dashboard-hero rounded-2xl border border-[var(--color-border-default)]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between dashboard-hero-row--compact">
           <div className="flex min-w-0 flex-col justify-center gap-1 lg:max-w-[13rem] shrink-0">
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
-              Products & stock
+              {t("hero.title")}
             </h1>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
@@ -39,7 +42,7 @@ function ItemsHeroComponent({
               <div className="grid w-full max-w-full grid-cols-3 gap-2 sm:gap-2.5 lg:w-max lg:grid-cols-none lg:grid-flow-col lg:auto-cols-max">
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    In catalog
+                    {t("hero.metrics.inCatalog")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)] tabular-nums">
                     {formatAbbreviatedInteger(catalogCount, abbreviationStyle)}
@@ -47,7 +50,7 @@ function ItemsHeroComponent({
                 </div>
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Low stock
+                    {t("hero.metrics.lowStock")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)] tabular-nums">
                     {formatAbbreviatedInteger(lowStockCount, abbreviationStyle)}
@@ -55,7 +58,7 @@ function ItemsHeroComponent({
                 </div>
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Units
+                    {t("hero.metrics.units")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)] tabular-nums">
                     {formatAbbreviatedInteger(unitsCount, abbreviationStyle)}

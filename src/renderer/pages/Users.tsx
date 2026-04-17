@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useAuth, useCurrentUser } from "../context/AuthContext";
 import { getElectron } from "../api/client";
 import Button from "../components/Button";
@@ -32,6 +33,7 @@ export interface UserRow {
 }
 
 export default function Users() {
+  const { t } = useTranslation("users");
   const queryClient = useQueryClient();
   const { updateCurrentUser } = useAuth();
   const currentUser = useCurrentUser();
@@ -96,11 +98,11 @@ export default function Users() {
       return;
     }
     if (!addForm.name.trim()) {
-      setAddError("Name required.");
+      setAddError(t("validation.nameRequired"));
       return;
     }
     if (!/^\d{4}$/.test(addForm.pin)) {
-      setAddError("PIN must be 4 digits.");
+      setAddError(t("validation.pinDigits"));
       return;
     }
     setAddPending(true);
@@ -114,9 +116,9 @@ export default function Users() {
       setAddForm({ name: "", pin: "", role: "user" });
       setAddOpen(false);
       invalidateUsers();
-      toast.success("User created.");
+      toast.success(t("toasts.memberCreated"));
     } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : "Failed.");
+      setAddError(err instanceof Error ? err.message : t("toasts.genericFailed"));
     } finally {
       setAddPending(false);
     }
@@ -128,7 +130,7 @@ export default function Users() {
     }
     const trimmed = renameValue.trim();
     if (!trimmed) {
-      toast.error("Name cannot be empty.");
+      toast.error(t("toasts.nameEmpty"));
       return;
     }
     if (trimmed === renameUser.name) {
@@ -145,12 +147,12 @@ export default function Users() {
       if (renameUser.id === currentUser.id) {
         updateCurrentUser({ name: trimmed });
       }
-      toast.success("Name updated.");
+      toast.success(t("toasts.nameUpdated"));
       setRenameUser(null);
       invalidateUsers();
     } catch (err: unknown) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to update name."
+        err instanceof Error ? err.message : t("toasts.updateNameFailed")
       );
     } finally {
       setRenamePending(false);
@@ -163,7 +165,7 @@ export default function Users() {
     }
     const pin = resetPinValue.replace(/\D/g, "").slice(0, 4);
     if (!/^\d{4}$/.test(pin)) {
-      toast.error("PIN must be 4 digits.");
+      toast.error(t("validation.pinDigits"));
       return;
     }
     setResetPinPending(true);
@@ -173,12 +175,14 @@ export default function Users() {
         newPin: pin,
         resetBy: currentUser.id,
       });
-      toast.success("PIN reset.");
+      toast.success(t("toasts.pinReset"));
       setResetPinUser(null);
       setResetPinValue("");
       invalidateUsers();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to reset PIN.");
+      toast.error(
+        err instanceof Error ? err.message : t("toasts.resetPinFailed")
+      );
     } finally {
       setResetPinPending(false);
     }
@@ -200,25 +204,34 @@ export default function Users() {
     }
   }
 
-  function roleLabel(role: string): string {
-    if (role === "superadmin") {
-      return "Owner";
-    }
-    return role;
-  }
+  const roleLabel = useCallback(
+    (role: string) => {
+      if (role === "superadmin") {
+        return t("roles.owner");
+      }
+      if (role === "admin") {
+        return t("roles.admin");
+      }
+      if (role === "user") {
+        return t("roles.member");
+      }
+      return role;
+    },
+    [t]
+  );
 
   const columns = useMemo(() => {
     return [
       {
         key: "name",
-        label: "Name",
+        label: t("columns.name"),
         sortable: true,
         render: (row: UserRow) => (
           <span className="font-medium text-[var(--color-text-primary)]">
             {row.name}
             {row.id === currentUser.id ? (
               <span className="ml-1.5 text-xs font-normal text-[var(--color-text-tertiary)]">
-                (you)
+                {t("you")}
               </span>
             ) : null}
           </span>
@@ -226,7 +239,7 @@ export default function Users() {
       },
       {
         key: "role",
-        label: "Role",
+        label: t("columns.role"),
         sortable: true,
         render: (row: UserRow) => (
           <span className="capitalize text-[var(--color-text-secondary)]">
@@ -236,22 +249,22 @@ export default function Users() {
       },
       {
         key: "is_active",
-        label: "Status",
+        label: t("columns.status"),
         sortable: true,
         render: (row: UserRow) => (
           <div className="flex flex-wrap items-center gap-1.5">
             {row.is_active === 0 ? (
               <span className="text-xs text-[var(--color-danger)] bg-[var(--color-danger-subtle)] px-1.5 py-0.5 rounded">
-                Inactive
+                {t("statusLabels.inactive")}
               </span>
             ) : (
               <span className="text-xs text-[var(--color-success)] bg-[var(--color-success-subtle)] px-1.5 py-0.5 rounded">
-                Active
+                {t("statusLabels.active")}
               </span>
             )}
             {row.pin_is_temporary === 1 ? (
               <span className="text-xs text-[var(--color-warning)] bg-[var(--color-warning-subtle)] px-1.5 py-0.5 rounded">
-                Temp PIN
+                {t("statusLabels.tempPin")}
               </span>
             ) : null}
           </div>
@@ -259,7 +272,7 @@ export default function Users() {
       },
       {
         key: "created_at",
-        label: "Created",
+        label: t("columns.created"),
         sortable: true,
         render: (row: UserRow) => (
           <span className="text-xs text-[var(--color-text-tertiary)] tabular-nums">
@@ -268,7 +281,7 @@ export default function Users() {
         ),
       },
     ];
-  }, [currentUser]);
+  }, [currentUser, roleLabel, t]);
 
   const countBadge = (
     <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
@@ -290,7 +303,7 @@ export default function Users() {
       />
 
       <DashboardSectionBoundary
-        sectionTitle="Team members"
+        sectionTitle={t("section.title")}
         containerClassName="dashboard-panel"
         resetKeys={[
           usersQuery.isPending,
@@ -299,8 +312,8 @@ export default function Users() {
         ]}
       >
         <UsersSectionPanel
-          title="Team members"
-          description="Manage who can sign in, their roles, and temporary PINs. Owners cannot be deactivated here."
+          title={t("section.title")}
+          description={t("section.description")}
           badge={countBadge}
         >
           <AsyncDataPanel
@@ -312,9 +325,9 @@ export default function Users() {
             isEmpty={isListEmpty}
             empty={
               <UsersEmptyState
-                title="No team members"
-                description="Add users so each person can sign in with their own PIN."
-                actionLabel={canManage ? "Add user" : undefined}
+                title={t("empty.title")}
+                description={t("empty.message")}
+                actionLabel={canManage ? t("empty.cta") : undefined}
                 onAction={canManage ? () => setAddOpen(true) : undefined}
               />
             }
@@ -349,7 +362,7 @@ export default function Users() {
                             setRenameValue(row.name);
                           }}
                         >
-                          Edit name
+                          {t("rowActions.editName")}
                         </Button>
                       ) : null}
                       {showAdminActions ? (
@@ -361,7 +374,7 @@ export default function Users() {
                             className="!py-1 !px-2 text-xs"
                             onClick={() => setResetConfirmUser(row)}
                           >
-                            Reset PIN
+                            {t("rowActions.resetPin")}
                           </Button>
                           <Button
                             size="sm"
@@ -372,14 +385,16 @@ export default function Users() {
                               void handleToggleActive(row);
                             }}
                           >
-                            {row.is_active ? "Deactivate" : "Activate"}
+                            {row.is_active
+                              ? t("rowActions.deactivate")
+                              : t("rowActions.activate")}
                           </Button>
                         </>
                       ) : null}
                     </span>
                   );
                 }}
-                emptyMessage="No users on this page."
+                emptyMessage={t("table.emptyMessage")}
                 pagination={{ type: "client", pageSize: PAGE_SIZE }}
               />
           </AsyncDataPanel>
@@ -387,7 +402,7 @@ export default function Users() {
       </DashboardSectionBoundary>
 
       <FormModal
-        title="Add user"
+        title={t("addModal.title")}
         open={addOpen}
         onClose={() => {
           setAddOpen(false);
@@ -396,24 +411,24 @@ export default function Users() {
         footer={
           <Button type="submit" form="form-add-user" disabled={addPending}>
             <Check size={16} className="mr-1" aria-hidden="true" />
-            Create
+            {t("addModal.create")}
           </Button>
         }
       >
         <form id="form-add-user" onSubmit={handleAdd} className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FormField label="Name">
+            <FormField label={t("addModal.nameLabel")}>
               <input
                 value={addForm.name}
                 onChange={(e) =>
                   setAddForm((f) => ({ ...f, name: e.target.value }))
                 }
                 className="input-base w-full"
-                placeholder="Full name"
+                placeholder={t("addModal.namePlaceholder")}
                 autoFocus
               />
             </FormField>
-            <FormField label="Role">
+            <FormField label={t("addModal.roleLabel")}>
               <select
                 value={addForm.role}
                 onChange={(e) =>
@@ -421,14 +436,14 @@ export default function Users() {
                 }
                 className="input-base w-full"
               >
-                <option value="user">User</option>
+                <option value="user">{t("roleOptions.member")}</option>
                 {currentUser.role === "superadmin" ? (
-                  <option value="admin">Admin</option>
+                  <option value="admin">{t("roleOptions.admin")}</option>
                 ) : null}
               </select>
             </FormField>
           </div>
-          <FormField label="Temporary PIN (4 digits)">
+          <FormField label={t("addModal.pinLabel")}>
             <input
               type="password"
               inputMode="numeric"
@@ -440,7 +455,7 @@ export default function Users() {
                   pin: e.target.value.replace(/\D/g, "").slice(0, 4),
                 }))
               }
-              placeholder="••••"
+              placeholder={t("addModal.pinPlaceholder")}
               className="input-base w-full tracking-[0.5em]"
             />
           </FormField>
@@ -451,7 +466,7 @@ export default function Users() {
       </FormModal>
 
       <FormModal
-        title="Rename"
+        title={t("renameModal.title")}
         open={renameUser !== null}
         onClose={() => setRenameUser(null)}
         footer={
@@ -461,7 +476,7 @@ export default function Users() {
               type="button"
               onClick={() => setRenameUser(null)}
             >
-              Cancel
+              {t("renameModal.cancel")}
             </Button>
             <Button
               type="button"
@@ -470,12 +485,12 @@ export default function Users() {
               }}
               disabled={renamePending}
             >
-              Save
+              {t("renameModal.save")}
             </Button>
           </div>
         }
       >
-        <FormField label="Name">
+        <FormField label={t("renameModal.nameLabel")}>
           <input
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
@@ -493,9 +508,11 @@ export default function Users() {
       <ConfirmModal
         open={resetConfirmUser !== null}
         onClose={() => setResetConfirmUser(null)}
-        title="Reset PIN"
-        message={`Reset ${resetConfirmUser?.name ?? ""}'s PIN? They will use a temporary PIN and must choose a new one on next login.`}
-        confirmLabel="Continue"
+        title={t("resetPin.confirmTitle")}
+        message={t("resetPin.confirmMessage", {
+          name: resetConfirmUser?.name ?? "",
+        })}
+        confirmLabel={t("resetPin.confirmContinue")}
         confirmVariant="danger"
         onConfirm={() => {
           if (resetConfirmUser) {
@@ -509,8 +526,8 @@ export default function Users() {
       <FormModal
         title={
           resetPinUser
-            ? `New temporary PIN for ${resetPinUser.name}`
-            : "Reset PIN"
+            ? t("resetPin.formTitleWithName", { name: resetPinUser.name })
+            : t("resetPin.formTitle")
         }
         open={resetPinUser !== null}
         onClose={() => {
@@ -525,11 +542,11 @@ export default function Users() {
             }}
             disabled={resetPinPending}
           >
-            Reset PIN
+            {t("resetPin.submit")}
           </Button>
         }
       >
-        <FormField label="Temporary PIN (4 digits)">
+        <FormField label={t("resetPin.pinLabel")}>
           <input
             type="password"
             inputMode="numeric"
@@ -538,7 +555,7 @@ export default function Users() {
             onChange={(e) =>
               setResetPinValue(e.target.value.replace(/\D/g, "").slice(0, 4))
             }
-            placeholder="••••"
+            placeholder={t("resetPin.pinPlaceholder")}
             className="input-base w-full tracking-[0.5em]"
             disabled={resetPinPending}
             autoFocus

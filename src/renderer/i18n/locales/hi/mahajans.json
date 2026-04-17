@@ -1,7 +1,13 @@
 {
   "hero": {
     "title": "महाजन",
-    "subtitle": "किसे देना है और किससे लेना है, इसे ट्रैक करें"
+    "subtitle": "किसे देना है और किससे लेना है, इसे ट्रैक करें",
+    "creditPurchase": "उधार खरीद",
+    "settlements": "भुगतान",
+    "balance": "बैलेंस",
+    "fetchLatest": "ताज़ा डेटा लाएं",
+    "fetchLatestHintChanged": "कुल बदल सकते हैं — रिफ्रेश करने के लिए क्लिक करें",
+    "fetchLatestHintDefault": "कुल रिफ्रेश करें"
   },
   "actions": {
     "addMahajan": "महाजन जोड़ें",
@@ -9,17 +15,26 @@
     "deleteMahajan": "महाजन डिलीट करें",
     "viewLedger": "बही-खाता देखें",
     "addLend": "उधार दें",
-    "addDeposit": "जमा करें"
+    "addDeposit": "जमा करें",
+    "export": "एक्सपोर्ट",
+    "exportAsCsv": "CSV में एक्सपोर्ट",
+    "exportAsPdf": "PDF में एक्सपोर्ट",
+    "print": "प्रिंट",
+    "showBalance": "बैलेंस दिखाएं",
+    "viewBalance": "बैलेंस देखें"
   },
   "search": {
     "placeholder": "महाजन खोजें…"
   },
   "columns": {
     "name": "नाम",
+    "address": "पता",
     "phone": "फ़ोन",
     "openingBalance": "ओपनिंग बैलेंस",
     "balance": "शेष",
-    "lastActivity": "आखिरी गतिविधि"
+    "lastActivity": "आखिरी गतिविधि",
+    "balanceWithFormula": "बैलेंस (उधार - जमा)",
+    "details": "विवरण"
   },
   "summary": {
     "totalPayable": "कुल देना",
@@ -39,12 +54,57 @@
     "closing": "समापन",
     "debit": "डेबिट",
     "credit": "जमा",
-    "filtersBar": "फ़िल्टर"
+    "filtersBar": "फ़िल्टर",
+    "sectionTitle": "महाजन लेजर",
+    "entriesTitle": "लेजर एंट्री",
+    "entriesDescription": "टाइप या तारीख से फ़िल्टर करें, उधार खरीद या सेटलमेंट जोड़ें, और जरूरत पर एक्सपोर्ट करें।",
+    "invalidLender": "अमान्य महाजन",
+    "columns": {
+      "date": "तारीख",
+      "type": "टाइप",
+      "description": "विवरण",
+      "amount": "राशि"
+    },
+    "descriptions": {
+      "settlement": "भुगतान",
+      "cashPurchase": "नकद खरीद",
+      "creditPurchase": "उधार खरीद"
+    },
+    "filters": {
+      "type": "टाइप",
+      "dateFrom": "तारीख से",
+      "dateTo": "तारीख तक"
+    },
+    "empty": {
+      "matchingEntriesTitle": "कोई मिलती-जुलती एंट्री नहीं",
+      "noEntriesTitle": "अभी कोई लेजर एंट्री नहीं",
+      "matchingEntriesDescription": "फ़िल्टर हटाएँ या तारीख सीमा बढ़ाएँ।",
+      "noEntriesDescription": "ऊपर के बटन से उधार खरीद या भुगतान जोड़ें।"
+    },
+    "actions": {
+      "clearFilters": "फ़िल्टर साफ करें"
+    },
+    "lenderInvoice": "महाजन बिल",
+    "viewInvoice": "बिल देखें",
+    "toasts": {
+      "creditPurchaseUpdated": "उधार खरीद अपडेट हुई",
+      "creditPurchaseUpdateFailed": "उधार खरीद अपडेट नहीं हुई",
+      "settlementUpdated": "भुगतान अपडेट हुआ",
+      "settlementUpdateFailed": "भुगतान अपडेट नहीं हुआ",
+      "creditPurchaseDeleted": "उधार खरीद हट गई",
+      "creditPurchaseDeleteFailed": "उधार खरीद हट नहीं सकी",
+      "settlementDeleted": "भुगतान हट गया",
+      "settlementDeleteFailed": "भुगतान हट नहीं सका"
+    }
   },
   "empty": {
     "title": "अभी कोई महाजन नहीं",
     "message": "उधार और जमा ट्रैक करने के लिए महाजन जोड़ें।",
-    "cta": "पहला महाजन जोड़ें"
+    "cta": "पहला महाजन जोड़ें",
+    "matchingLendersTitle": "कोई मिलते-जुलते महाजन नहीं",
+    "noLendersTitle": "अभी कोई महाजन नहीं",
+    "matchingLendersDescription": "अलग खोज करें या फ़िल्टर साफ करें।",
+    "noLendersDescription": "लेजर में उधार और भुगतान दर्ज करने के लिए महाजन जोड़ें।"
   },
   "toast": {
     "created": "महाजन बन गया",
@@ -52,5 +112,66 @@
     "deleted": "महाजन डिलीट हो गया",
     "lendAdded": "उधार दर्ज हो गया",
     "depositAdded": "जमा दर्ज हो गया"
+  },
+  "errors": {
+    "lenderListLoad": "महाजन सूची लोड नहीं हो सकी। कनेक्शन जांचें और फिर कोशिश करें।"
+  },
+  "labels": {
+    "payable": "(देय)",
+    "receivable": "(प्राप्य)",
+    "payableShort": "देय",
+    "receivableShort": "प्राप्य"
+  },
+  "directory": {
+    "sectionTitle": "महाजन डायरेक्टरी",
+    "title": "महाजन डायरेक्टरी",
+    "description": "सूची खोजें, लेजर खोलें या ज़रूरत पर बैलेंस लोड करें। \"बैलेंस दिखाएं\" चालू करने पर सभी बैलेंस साथ में आएंगे।"
+  },
+  "table": {
+    "noLendersMessage": "अभी कोई महाजन नहीं। महाजन जोड़ें।",
+    "settledValue": "₹0.00 (सेटल्ड)"
+  },
+  "modals": {
+    "deleteLender": {
+      "title": "महाजन हटाएं",
+      "message": "क्या इस महाजन को हटाना है? बैलेंस 0 होना चाहिए।"
+    }
+  },
+  "form": {
+    "name": "नाम",
+    "address": "पता",
+    "phone": "फ़ोन",
+    "gstin": "GSTIN"
+  },
+  "common": {
+    "save": "सेव",
+    "update": "अपडेट",
+    "delete": "डिलीट",
+    "edit": "एडिट",
+    "loading": "लोड हो रहा है..."
+  },
+  "export": {
+    "noData": "एक्सपोर्ट के लिए डेटा नहीं है।",
+    "csvSuccess": "CSV में एक्सपोर्ट हो गया।",
+    "pdfSuccess": "PDF में एक्सपोर्ट हो गया।",
+    "pdfFailed": "PDF सहेजा नहीं जा सका।",
+    "columns": {
+      "id": "आईडी",
+      "createdAt": "बनने का समय",
+      "updatedAt": "अपडेट का समय"
+    }
+  },
+  "print": {
+    "fileNamePrefix": "महाजन",
+    "ledgerFileNamePrefix": "महाजन_लेजर",
+    "totalCreditPurchase": "कुल उधार खरीद",
+    "totalSettlements": "कुल भुगतान",
+    "balanceFormula": "बैलेंस (उधार खरीद - भुगतान)",
+    "mahajanLedger": "महाजन लेजर",
+    "mahajanLabel": "महाजन",
+    "appliedFilters": "लागू फ़िल्टर",
+    "totalLends": "कुल उधार",
+    "totalDeposits": "कुल जमा",
+    "balanceLendDeposit": "बैलेंस (उधार - जमा)"
   }
 }

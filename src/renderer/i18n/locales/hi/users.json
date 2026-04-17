@@ -1,26 +1,92 @@
 {
   "hero": {
     "title": "टीम",
-    "subtitle": "टीम मेंबर और एक्सेस मैनेज करें"
+    "subtitle": "टीम सदस्य और एक्सेस मैनेज करें",
+    "metrics": {
+      "members": "सदस्य",
+      "active": "सक्रिय"
+    }
   },
   "actions": {
-    "addUser": "मेंबर जोड़ें",
-    "editUser": "मेंबर एडिट करें",
+    "addUser": "सदस्य जोड़ें",
+    "editUser": "सदस्य एडिट करें",
     "deleteUser": "रिमूव करें"
+  },
+  "section": {
+    "title": "टीम सदस्य",
+    "description": "कौन साइन इन कर सकता है, उनके रोल और टेम्पररी PIN मैनेज करें। मालिक को यहाँ डीएक्टिवेट नहीं किया जा सकता।"
   },
   "columns": {
     "name": "नाम",
     "role": "रोल",
-    "status": "स्थिति"
+    "status": "स्थिति",
+    "created": "बनाया गया"
   },
   "roles": {
-    "owner": "ओनर",
+    "owner": "मालिक",
     "admin": "एडमिन",
     "member": "सदस्य"
   },
+  "you": "(आप)",
+  "statusLabels": {
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय",
+    "tempPin": "टेम्प. PIN"
+  },
+  "table": {
+    "emptyMessage": "इस पेज पर कोई सदस्य नहीं।"
+  },
+  "rowActions": {
+    "editName": "नाम बदलें",
+    "resetPin": "PIN रीसेट",
+    "deactivate": "डीएक्टिवेट",
+    "activate": "एक्टिवेट"
+  },
+  "addModal": {
+    "title": "सदस्य जोड़ें",
+    "create": "बनाएँ",
+    "nameLabel": "नाम",
+    "namePlaceholder": "पूरा नाम",
+    "roleLabel": "रोल",
+    "pinLabel": "टेम्पररी PIN (4 अंक)",
+    "pinPlaceholder": "••••"
+  },
+  "renameModal": {
+    "title": "नाम बदलें",
+    "cancel": "रद्द करें",
+    "save": "सेव करें",
+    "nameLabel": "नाम"
+  },
+  "resetPin": {
+    "confirmTitle": "PIN रीसेट",
+    "confirmMessage": "{{name}} का PIN रीसेट करें? वे टेम्पररी PIN इस्तेमाल करेंगे और अगली बार लॉगिन पर नया चुनना होगा।",
+    "confirmContinue": "जारी रखें",
+    "formTitle": "PIN रीसेट",
+    "formTitleWithName": "{{name}} के लिए नया टेम्पररी PIN",
+    "submit": "PIN रीसेट",
+    "pinLabel": "टेम्पररी PIN (4 अंक)",
+    "pinPlaceholder": "••••"
+  },
+  "roleOptions": {
+    "member": "सदस्य",
+    "admin": "एडमिन"
+  },
+  "validation": {
+    "nameRequired": "नाम ज़रूरी है।",
+    "pinDigits": "PIN ठीक 4 अंकों का होना चाहिए।"
+  },
+  "toasts": {
+    "memberCreated": "सदस्य बन गया।",
+    "nameEmpty": "नाम खाली नहीं हो सकता।",
+    "nameUpdated": "नाम अपडेट हो गया।",
+    "updateNameFailed": "नाम अपडेट नहीं हो सका।",
+    "pinReset": "PIN रीसेट हो गया।",
+    "resetPinFailed": "PIN रीसेट नहीं हो सका।",
+    "genericFailed": "नहीं हो सका।"
+  },
   "empty": {
-    "title": "अभी कोई मेंबर नहीं",
-    "message": "साथ मिलकर काम करने के लिए टीम मेंबर जोड़ें।",
-    "cta": "मेंबर जोड़ें"
+    "title": "अभी कोई सदस्य नहीं",
+    "message": "हर व्यक्ति अपने PIN से साइन इन कर सके, इसलिए सदस्य जोड़ें।",
+    "cta": "सदस्य जोड़ें"
   }
 }

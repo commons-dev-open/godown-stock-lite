@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useFloating,
@@ -28,12 +30,15 @@ import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import {
   exportTransactionsToCsv,
-  exportTransactionsToPdf,
   getPrintTableBody,
   type TransactionExportRow,
 } from "../lib/exportTransactions";
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 import {
   type LenderLedgerPageRow,
   toLendRecord,
@@ -106,16 +111,17 @@ function amountColorClass(type: string): string {
 function buildDeleteConfirmModalRows(p: {
   type: "credit_purchase" | "settlement" | "cash_purchase";
   row: LenderLedgerPageRow;
+  t: (key: string) => string;
 }): ModalKVRow[] {
   const rows: ModalKVRow[] = [
     {
       id: 1,
-      fieldLabel: "Type",
+      fieldLabel: p.t("columns.type"),
       value: <TransactionTypeBadge type={p.type as TransactionType} />,
     },
     {
       id: 2,
-      fieldLabel: "Date",
+      fieldLabel: p.t("columns.date"),
       value: formatDateForView(p.row.transaction_date),
     },
   ];
@@ -124,19 +130,19 @@ function buildDeleteConfirmModalRows(p: {
     if (p.type === "credit_purchase") {
       rows.push({
         id: nextId++,
-        fieldLabel: "Lender",
+        fieldLabel: p.t("columns.mahajan"),
         value: p.row.lender_name ?? p.row.mahajan_name ?? "—",
       });
     }
     rows.push(
       {
         id: nextId++,
-        fieldLabel: "Product",
+        fieldLabel: p.t("columns.product"),
         value: p.row.product_name ?? "—",
       },
       {
         id: nextId++,
-        fieldLabel: "Quantity",
+        fieldLabel: p.t("columns.qty"),
         value: p.row.quantity ?? "—",
       }
     );
@@ -144,12 +150,12 @@ function buildDeleteConfirmModalRows(p: {
   rows.push(
     {
       id: nextId++,
-      fieldLabel: "Amount (₹)",
+      fieldLabel: p.t("columns.amount_inr"),
       value: formatDecimal(p.row.amount),
     },
     {
       id: nextId++,
-      fieldLabel: "Notes",
+      fieldLabel: p.t("columns.notes"),
       value: p.row.notes ?? "—",
     }
   );
@@ -165,43 +171,26 @@ interface CashPurchasePreviewRow {
   amountDisplay: string;
 }
 
-const CASH_PURCHASE_PREVIEW_COLUMNS = [
-  { key: "product", label: "Product" },
-  {
-    key: "oldStock",
-    label: "Old stock",
-    align: "right" as const,
-    render: (r: CashPurchasePreviewRow) => (
-      <span className="tabular-nums">{r.oldStock}</span>
-    ),
-  },
-  {
-    key: "qty",
-    label: "Qty",
-    align: "right" as const,
-    render: (r: CashPurchasePreviewRow) => (
-      <span className="tabular-nums">{r.qty}</span>
-    ),
-  },
-  {
-    key: "totalAfter",
-    label: "Total after",
-    align: "right" as const,
-    render: (r: CashPurchasePreviewRow) => (
-      <span className="tabular-nums">{r.totalAfter}</span>
-    ),
-  },
-  {
-    key: "amountDisplay",
-    label: "Amount (₹)",
-    align: "right" as const,
-    render: (r: CashPurchasePreviewRow) => (
-      <span className="tabular-nums">{r.amountDisplay}</span>
-    ),
-  },
-];
+function withLocalizedTransactionExportRows(
+  rows: TransactionExportRow[],
+  t: TFunction<"transactions">
+): TransactionExportRow[] {
+  return rows.map((row) => ({
+    ...row,
+    type: String(t(`types.${row.type}`, { defaultValue: row.type })),
+    payment_method: row.payment_method
+      ? String(
+          t(
+            `modals.shared.payment_methods.${row.payment_method}.label`,
+            { defaultValue: row.payment_method }
+          )
+        )
+      : null,
+  }));
+}
 
 export default function Transactions() {
+  const { t } = useTranslation("transactions");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { data: settings = {} } = useQuery({
@@ -279,11 +268,12 @@ export default function Transactions() {
   } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [printData, setPrintData] = useState<{
+  type TransactionsPrintJob = null | (HtmlPrintJobBase & {
     columns: string[];
     rows: string[][];
     filterDetails?: { label: string; value: string }[];
-  } | null>(null);
+  });
+  const [printJob, setPrintJob] = useState<TransactionsPrintJob>(null);
 
   const {
     refs: exportRefs,
@@ -472,10 +462,10 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setEditingLend(null);
-      toast.success("Credit purchase updated");
+      toast.success(t("toasts.credit_purchase_updated"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update credit purchase"),
+      toast.error(err.message ?? t("toasts.credit_purchase_update_failed")),
   });
 
   const updateDeposit = useMutation({
@@ -493,10 +483,10 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
-      toast.success("Settlement updated");
+      toast.success(t("toasts.settlement_updated"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update settlement"),
+      toast.error(err.message ?? t("toasts.settlement_update_failed")),
   });
 
   const deleteLend = useMutation({
@@ -509,10 +499,10 @@ export default function Transactions() {
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
-      toast.success("Credit purchase deleted");
+      toast.success(t("toasts.credit_purchase_deleted"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete credit purchase"),
+      toast.error(err.message ?? t("toasts.credit_purchase_delete_failed")),
   });
 
   const deleteDeposit = useMutation({
@@ -523,10 +513,10 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
-      toast.success("Settlement deleted");
+      toast.success(t("toasts.settlement_deleted"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete settlement"),
+      toast.error(err.message ?? t("toasts.settlement_delete_failed")),
   });
 
   const createPurchaseBatch = useMutation({
@@ -543,10 +533,10 @@ export default function Transactions() {
       setConfirmPurchaseOpen(false);
       setConfirmPurchasePayload(null);
       setPurchaseLines([emptyPurchaseLine()]);
-      toast.success("Cash purchases saved");
+      toast.success(t("toasts.cash_purchases_saved"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to save cash purchases"),
+      toast.error(err.message ?? t("toasts.cash_purchases_save_failed")),
   });
 
   const updatePurchase = useMutation({
@@ -587,16 +577,36 @@ export default function Transactions() {
     if (filterMahajanId !== "") {
       const m = mahajanList.find((x) => x.id === filterMahajanId);
       list.push({
-        label: "Lender",
+        label: t("filters.lender"),
         value: m?.name ?? String(filterMahajanId),
       });
     }
-    if (filterType !== "all") list.push({ label: "Type", value: filterType });
+    if (filterType !== "all") {
+      list.push({
+        label: t("filters.type"),
+        value: t(`types.${filterType}`),
+      });
+    }
     if (filterDateFrom)
-      list.push({ label: "Date From", value: filterDateFrom });
-    if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
+      list.push({ label: t("filters.date_from"), value: filterDateFrom });
+    if (filterDateTo) list.push({ label: t("filters.date_to"), value: filterDateTo });
     return list;
-  }, [filterMahajanId, filterType, filterDateFrom, filterDateTo, mahajanList]);
+  }, [filterMahajanId, filterType, filterDateFrom, filterDateTo, mahajanList, t]);
+
+  const transactionExportColumnLabels = useMemo(
+    () => [
+      t("columns.type"),
+      t("columns.date"),
+      t("columns.mahajan"),
+      t("columns.product"),
+      t("columns.qty"),
+      t("columns.unit"),
+      t("columns.amount_inr"),
+      t("columns.notes"),
+      t("columns.payment"),
+    ],
+    [t]
+  );
 
   async function getExportData(): Promise<TransactionExportRow[]> {
     const result = (await api.getMahajanLedgerPage({
@@ -637,50 +647,71 @@ export default function Transactions() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("toasts.no_data_to_export"));
       return;
     }
-    exportTransactionsToCsv(data, appliedFilters);
-    toast.success("Exported as CSV.");
+    const displayRows = withLocalizedTransactionExportRows(data, t);
+    exportTransactionsToCsv(
+      displayRows,
+      appliedFilters,
+      transactionExportColumnLabels,
+      t("filters.applied")
+    );
+    toast.success(t("toasts.exported_csv"));
   }
 
   async function handleExportPdf() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("toasts.no_data_to_export"));
       return;
     }
-    exportTransactionsToPdf(data, appliedFilters, appName);
-    toast.success("Exported as PDF.");
+    const displayRows = withLocalizedTransactionExportRows(data, t);
+    const body = getPrintTableBody(
+      displayRows,
+      appliedFilters,
+      transactionExportColumnLabels
+    );
+    setPrintJob({
+      mode: "pdf",
+      documentTitle: `${t("hero.title")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `transactions-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
   async function handleExportPrint() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("toasts.no_data_to_export"));
       return;
     }
-    setPrintData(getPrintTableBody(data, appliedFilters));
+    const displayRows = withLocalizedTransactionExportRows(data, t);
+    const body = getPrintTableBody(
+      displayRows,
+      appliedFilters,
+      transactionExportColumnLabels
+    );
+    setPrintJob({
+      mode: "browser",
+      documentTitle: `${t("hero.title")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `transactions-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
-  useEffect(() => {
-    if (!printData) return;
-    const previousTitle = document.title;
-    document.title = `Transactions_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const timeoutId = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(timeoutId);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  useElectronHtmlPrintJob(printJob, setPrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("toasts.exported_pdf"));
+      }
+    },
+    onPdfError: () => {
+      toast.error(t("toasts.export_pdf_failed"));
+    },
+  });
 
   const handleFilterChange = (updates: {
     mahajanId?: number | "";
@@ -713,18 +744,57 @@ export default function Transactions() {
     </span>
   );
 
+  const cashPurchasePreviewColumns = useMemo(
+    () => [
+      { key: "product", label: String(t("columns.product")) },
+      {
+        key: "oldStock",
+        label: String(t("preview.old_stock")),
+        align: "right" as const,
+        render: (r: CashPurchasePreviewRow) => (
+          <span className="tabular-nums">{r.oldStock}</span>
+        ),
+      },
+      {
+        key: "qty",
+        label: String(t("columns.qty")),
+        align: "right" as const,
+        render: (r: CashPurchasePreviewRow) => (
+          <span className="tabular-nums">{r.qty}</span>
+        ),
+      },
+      {
+        key: "totalAfter",
+        label: String(t("preview.total_after")),
+        align: "right" as const,
+        render: (r: CashPurchasePreviewRow) => (
+          <span className="tabular-nums">{r.totalAfter}</span>
+        ),
+      },
+      {
+        key: "amountDisplay",
+        label: String(t("columns.amount_inr")),
+        align: "right" as const,
+        render: (r: CashPurchasePreviewRow) => (
+          <span className="tabular-nums">{r.amountDisplay}</span>
+        ),
+      },
+    ],
+    [t]
+  );
+
   const ledgerColumns = useMemo(
     () => [
       {
         key: "type",
-        label: "Type",
+        label: t("columns.type"),
         render: (row: LenderLedgerPageRow) => (
           <TransactionTypeBadge type={row.type as TransactionType} />
         ),
       },
       {
         key: "transaction_date",
-        label: "Date",
+        label: t("columns.date"),
         render: (row: LenderLedgerPageRow) => (
           <Tooltip content={formatDateForForm(row.transaction_date)}>
             <span>{formatDateForView(row.transaction_date)}</span>
@@ -733,7 +803,7 @@ export default function Transactions() {
       },
       {
         key: "lender",
-        label: "Lender",
+        label: t("columns.mahajan"),
         render: (row: LenderLedgerPageRow) =>
           (row.lender_id ?? row.mahajan_id) == null ? (
             <span className="font-medium text-[var(--color-text-primary)]">
@@ -750,7 +820,7 @@ export default function Transactions() {
       },
       {
         key: "product_name",
-        label: "Product",
+        label: t("columns.product"),
         render: (row: LenderLedgerPageRow) => (
           <span className="text-[var(--color-text-secondary)]">
             {row.type === "settlement" || row.type === "deposit"
@@ -761,7 +831,7 @@ export default function Transactions() {
       },
       {
         key: "quantity",
-        label: "Qty",
+        label: t("columns.qty"),
         align: "right" as const,
         render: (row: LenderLedgerPageRow) => (
           <span className="block text-right text-[var(--color-text-primary)]">
@@ -775,7 +845,7 @@ export default function Transactions() {
       },
       {
         key: "unit",
-        label: "Unit",
+        label: t("columns.unit"),
         render: (row: LenderLedgerPageRow) => {
           if (row.type === "settlement" || row.type === "deposit") {
             return (
@@ -795,7 +865,7 @@ export default function Transactions() {
       },
       {
         key: "amount",
-        label: "Amount (₹)",
+        label: t("columns.amount_inr"),
         align: "right" as const,
         render: (row: LenderLedgerPageRow) => (
           <span
@@ -807,7 +877,7 @@ export default function Transactions() {
       },
       {
         key: "notes",
-        label: "Notes",
+        label: t("columns.notes"),
         render: (row: LenderLedgerPageRow) => (
           <div
             className="max-w-[12rem] text-sm text-[var(--color-text-secondary)]"
@@ -828,7 +898,7 @@ export default function Transactions() {
                       }
                       className="text-[var(--color-accent)] hover:underline"
                     >
-                      View invoice
+                      {t("actions.view_invoice")}
                     </button>
                   )}
                 </span>
@@ -853,20 +923,20 @@ export default function Transactions() {
         ),
       },
     ],
-    [items, api]
+    [items, api, t]
   );
 
   return (
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
-        title="Transactions"
+        title={t("hero.title")}
         metrics={[]}
         actions={
           <>
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
                 <Download size={20} className="mr-1.5" aria-hidden="true" />
-                Export
+                {t("actions.export")}
               </Button>
             </div>
             <FloatingPortal>
@@ -883,7 +953,7 @@ export default function Transactions() {
                     onClick={handleExportCsv}
                   >
                     <FileDown size={16} className="shrink-0" />
-                    Export as CSV
+                    {t("actions.export_csv")}
                   </button>
                   <button
                     type="button"
@@ -891,7 +961,7 @@ export default function Transactions() {
                     onClick={handleExportPdf}
                   >
                     <FileDown size={16} className="shrink-0" />
-                    Export as PDF
+                    {t("actions.export_pdf")}
                   </button>
                   <button
                     type="button"
@@ -899,7 +969,7 @@ export default function Transactions() {
                     onClick={handleExportPrint}
                   >
                     <Printer size={16} className="shrink-0" />
-                    Print
+                    {t("actions.print")}
                   </button>
                 </div>
               )}
@@ -910,21 +980,21 @@ export default function Transactions() {
               className="!bg-[var(--color-accent)] hover:!bg-[var(--color-accent-hover)]"
             >
               <Banknote size={20} className="mr-1.5" aria-hidden="true" />
-              Cash Purchase
+              {t("actions.cash_purchase")}
             </Button>
             <Button variant="amber" onClick={() => setLendOpen(true)}>
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add Credit Purchase
+              {t("actions.add_credit_purchase")}
             </Button>
             <Button variant="green" onClick={() => setDepositOpen(true)}>
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add Settlement
+              {t("actions.add_settlement")}
             </Button>
           </>
         }
       />
       <DashboardSectionBoundary
-        sectionTitle="Transaction ledger"
+        sectionTitle={t("ledger.section_title")}
         containerClassName="dashboard-panel"
         resetKeys={[
           filterMahajanId,
@@ -938,8 +1008,8 @@ export default function Transactions() {
         ]}
       >
         <SalesListSectionPanel
-          title="Ledger"
-          description="Credit purchases, settlements, and cash purchases appear here with the latest first within your filters."
+          title={t("ledger.title")}
+          description={t("ledger.description")}
           badge={ledgerCountBadge}
         >
           <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
@@ -957,11 +1027,11 @@ export default function Transactions() {
               }
             >
               <option value="all">
-                All (Credit Purchase + Settlement + Cash purchase)
+                {t("filters.type_all")}
               </option>
-              <option value="credit_purchase">Credit Purchase only</option>
-              <option value="settlement">Settlement only</option>
-              <option value="cash_purchase">Cash purchase only</option>
+              <option value="credit_purchase">{t("filters.credit_purchase_only")}</option>
+              <option value="settlement">{t("filters.settlement_only")}</option>
+              <option value="cash_purchase">{t("filters.cash_purchase_only")}</option>
             </select>
             <select
               className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
@@ -973,7 +1043,7 @@ export default function Transactions() {
               }
               disabled={filterType === "cash_purchase"}
             >
-              <option value="">All Lenders</option>
+              <option value="">{t("filters.all_lenders")}</option>
               {mahajanList.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -986,7 +1056,7 @@ export default function Transactions() {
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
             >
               <Filter size={16} aria-hidden="true" />
-              More filters
+              {t("filters.more_filters")}
               {(filterDateFrom || filterDateTo) && (
                 <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
                   1
@@ -1004,12 +1074,12 @@ export default function Transactions() {
               />
               <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">More filters</h2>
+                  <h2 className="text-lg font-semibold">{t("filters.more_filters")}</h2>
                   <button
                     type="button"
                     onClick={() => setMoreFiltersOpen(false)}
                     className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
-                    aria-label="Close"
+                    aria-label={t("actions.close")}
                   >
                     <X size={20} />
                   </button>
@@ -1019,7 +1089,7 @@ export default function Transactions() {
                     htmlFor="more-filters-date-from"
                     className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
                   >
-                    From date
+                    {t("filters.from_date")}
                     <DateInput
                       id="more-filters-date-from"
                       value={filterDateFrom}
@@ -1031,7 +1101,7 @@ export default function Transactions() {
                     htmlFor="more-filters-date-to"
                     className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
                   >
-                    To date
+                    {t("filters.to_date")}
                     <DateInput
                       id="more-filters-date-to"
                       value={filterDateTo}
@@ -1056,7 +1126,7 @@ export default function Transactions() {
                       }}
                       className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline self-start"
                     >
-                      Clear filters
+                      {t("filters.clear")}
                     </button>
                   )}
                 </div>
@@ -1074,16 +1144,16 @@ export default function Transactions() {
               isEmpty={isLedgerEmpty}
               emptyTitle={
                 ledgerHasActiveFilters
-                  ? "No matching transactions"
-                  : "No transactions yet"
+                  ? t("empty.no_matching_title")
+                  : t("empty.title")
               }
               emptyDescription={
                 ledgerHasActiveFilters
-                  ? "Try clearing filters or widening the date range."
-                  : "Record cash purchases, credit purchases from lenders, or settlement payments. Use the buttons in the header to add an entry."
+                  ? t("empty.no_matching_message")
+                  : t("empty.message")
               }
               emptyActionLabel={
-                ledgerHasActiveFilters ? "Clear filters" : "Cash purchase"
+                ledgerHasActiveFilters ? t("filters.clear") : t("actions.cash_purchase")
               }
               onEmptyAction={
                 ledgerHasActiveFilters
@@ -1091,7 +1161,9 @@ export default function Transactions() {
                   : () => setPurchaseAddOpen(true)
               }
               emptySecondaryLabel={
-                ledgerHasActiveFilters ? "Cash purchase" : "Credit purchase"
+                ledgerHasActiveFilters
+                  ? t("actions.cash_purchase")
+                  : t("actions.credit_purchase")
               }
               onEmptySecondary={
                 ledgerHasActiveFilters
@@ -1128,8 +1200,8 @@ export default function Transactions() {
                         }
                       }}
                       className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                      title="Edit"
-                      aria-label="Edit"
+                      title={t("actions.edit")}
+                      aria-label={t("actions.edit")}
                     >
                       <Pencil size={20} />
                     </button>
@@ -1146,8 +1218,8 @@ export default function Transactions() {
                         setDeleteConfirmOpen(true);
                       }}
                       className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                      title="Delete"
-                      aria-label="Delete"
+                      title={t("actions.delete")}
+                      aria-label={t("actions.delete")}
                     >
                       <Trash2 size={20} />
                     </button>
@@ -1174,7 +1246,7 @@ export default function Transactions() {
       />
 
       <FormModal
-        title="Edit Credit Purchase"
+        title={t("modals.edit_credit_purchase.title")}
         open={!!editingLend && !confirmEditLendOpen}
         onClose={() => {
           setEditingLend(null);
@@ -1190,7 +1262,7 @@ export default function Transactions() {
                 form="transactions-edit-lend-form"
                 variant="amber"
               >
-                Review &amp; Update
+                {t("modals.shared.actions.review_update")}
               </Button>
             </>
           ) : undefined
@@ -1228,7 +1300,7 @@ export default function Transactions() {
           >
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Lender *
+                {t("modals.shared.fields.lender_required")}
               </label>
               <select
                 name="mahajan_id"
@@ -1241,7 +1313,7 @@ export default function Transactions() {
                   )
                 }
               >
-                <option value="">Select</option>
+                <option value="">{t("modals.shared.placeholders.select")}</option>
                 {mahajanList.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -1251,7 +1323,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Date * (dd/mm/yyyy)
+                {t("modals.shared.fields.date_required")}
               </label>
               <DateInput
                 value={editLendDate}
@@ -1261,7 +1333,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Product
+                {t("columns.product")}
               </label>
               <select
                 name="product_id"
@@ -1283,7 +1355,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Quantity
+                {t("columns.qty")}
                 {((): string => {
                   const it = (itemList as Item[]).find(
                     (i) => i.id === editLendProductId
@@ -1306,7 +1378,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Amount *
+                {t("modals.shared.fields.amount_required")}
               </label>
               <input
                 name="amount"
@@ -1322,7 +1394,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Notes
+                {t("columns.notes")}
               </label>
               <input
                 name="notes"
@@ -1336,7 +1408,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Review & Update Lend"
+        title={t("modals.edit_credit_purchase.review_title")}
         open={confirmEditLendOpen}
         onClose={() => {
           setConfirmEditLendOpen(false);
@@ -1352,7 +1424,7 @@ export default function Transactions() {
                 setConfirmEditLendPayload(null);
               }}
             >
-              Back
+              {t("modals.shared.actions.back")}
             </Button>
             <Button
               variant="amber"
@@ -1379,7 +1451,9 @@ export default function Transactions() {
               }}
               disabled={updateLend.isPending}
             >
-              {updateLend.isPending ? "Updating…" : "Confirm Update"}
+              {updateLend.isPending
+                ? t("modals.shared.actions.updating")
+                : t("modals.shared.actions.confirm_update")}
             </Button>
           </>
         }
@@ -1387,7 +1461,7 @@ export default function Transactions() {
         {confirmEditLendPayload && (
           <div className="space-y-4">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              Summary of changes
+              {t("modals.shared.messages.summary_of_changes")}
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <DataTable<ModalFieldDiffRow>
@@ -1398,7 +1472,7 @@ export default function Transactions() {
                 data={[
                   {
                     id: 1,
-                    fieldLabel: "Date",
+                    fieldLabel: t("columns.date"),
                     current: formatDateForView(
                       confirmEditLendPayload.record.transaction_date
                     ),
@@ -1408,7 +1482,7 @@ export default function Transactions() {
                   },
                   {
                     id: 2,
-                    fieldLabel: "Lender",
+                    fieldLabel: t("columns.mahajan"),
                     current:
                       mahajanList.find(
                         (m) => m.id === confirmEditLendPayload.record.lender_id
@@ -1417,19 +1491,19 @@ export default function Transactions() {
                   },
                   {
                     id: 3,
-                    fieldLabel: "Product",
+                    fieldLabel: t("columns.product"),
                     current: confirmEditLendPayload.record.product_name ?? "—",
                     after: confirmEditLendPayload.newValues.product_name ?? "—",
                   },
                   {
                     id: 4,
-                    fieldLabel: "Quantity",
+                    fieldLabel: t("columns.qty"),
                     current: confirmEditLendPayload.record.quantity ?? 0,
                     after: confirmEditLendPayload.newValues.quantity,
                   },
                   {
                     id: 5,
-                    fieldLabel: "Amount (₹)",
+                    fieldLabel: t("columns.amount_inr"),
                     current: formatDecimal(
                       confirmEditLendPayload.record.amount
                     ),
@@ -1439,7 +1513,7 @@ export default function Transactions() {
                   },
                   {
                     id: 6,
-                    fieldLabel: "Notes",
+                    fieldLabel: t("columns.notes"),
                     current: confirmEditLendPayload.record.notes ?? "—",
                     after: confirmEditLendPayload.newValues.notes ?? "—",
                   },
@@ -1450,7 +1524,7 @@ export default function Transactions() {
             </div>
             <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-warning-text)]">
-                Impact after update
+                {t("modals.shared.messages.impact_after_update")}
               </p>
               {(() => {
                 const qtyDelta =
@@ -1463,7 +1537,7 @@ export default function Transactions() {
                   return null;
                 return (
                   <p className="text-[var(--color-text-secondary)]">
-                    <strong>Stock:</strong>{" "}
+                    <strong>{t("modals.shared.labels.stock")}</strong>{" "}
                     {confirmEditLendPayload.record.product_id != null
                       ? (() => {
                           const item = (
@@ -1477,27 +1551,32 @@ export default function Transactions() {
                           const newStock = oldStock + qtyDelta;
                           return (
                             <>
-                              Current stock {oldStock} →{" "}
+                              {t("modals.shared.messages.current_stock", {
+                                stock: oldStock,
+                              })}{" "}
                               {qtyDelta >= 0 ? "+" : ""}
-                              {qtyDelta} → <strong>{newStock}</strong> after
-                              update
+                              {qtyDelta} → <strong>{newStock}</strong>{" "}
+                              {t("modals.shared.messages.after_update")}
                             </>
                           );
                         })()
-                      : "Product changed; stock impact applies to new product."}
+                      : t("modals.edit_credit_purchase.messages.product_changed")}
                   </p>
                 );
               })()}
               {editReviewBalanceLoading ? (
                 <p className="text-[var(--color-text-tertiary)]">
-                  Loading balance…
+                  {t("modals.shared.messages.loading_balance")}
                 </p>
               ) : editReviewBalance != null ? (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
-                    <strong>Lender balance:</strong> Total Credit Purchase ₹
-                    {formatDecimal(editReviewBalance.totalLends)}, Total
-                    Deposits ₹{formatDecimal(editReviewBalance.totalDeposits)} →{" "}
+                    <strong>{t("modals.shared.labels.lender_balance")}</strong>{" "}
+                    {t("modals.shared.messages.total_credit_purchase")} ₹
+                    {formatDecimal(editReviewBalance.totalLends)},{" "}
+                    {t("modals.shared.messages.total")}
+                    {t("modals.shared.messages.total_deposits")} ₹
+                    {formatDecimal(editReviewBalance.totalDeposits)} →{" "}
                     <span
                       className={
                         editReviewBalance.balance >= 0
@@ -1508,12 +1587,12 @@ export default function Transactions() {
                       ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
                         <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                          (payable)
+                          ({t("modals.shared.balance.payable")})
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
                         <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                          (receivable)
+                          ({t("modals.shared.balance.receivable")})
                         </span>
                       )}
                     </span>
@@ -1534,22 +1613,23 @@ export default function Transactions() {
                               : "font-medium text-[var(--color-success)]"
                           }
                         >
-                          After this update: Total Credit Purchase will change
-                          by ₹
+                          {t("modals.edit_credit_purchase.messages.after_update_prefix")}{" "}
+                          {t("modals.shared.messages.total_credit_purchase")}{" "}
+                          {t("modals.shared.messages.will_change_by")} ₹
                           {formatDecimal(
                             confirmEditLendPayload.newValues.amount -
                               confirmEditLendPayload.record.amount
                           )}{" "}
-                          → Balance will be ₹
+                          → {t("modals.shared.messages.balance_will_be")} ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (payable)
+                              ({t("modals.shared.balance.payable")})
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (receivable)
+                              ({t("modals.shared.balance.receivable")})
                             </span>
                           )}
                         </p>
@@ -1563,7 +1643,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Edit Settlement"
+        title={t("modals.edit_settlement.title")}
         open={!!editingDeposit && !confirmEditDepositOpen}
         onClose={() => {
           setEditingDeposit(null);
@@ -1578,7 +1658,7 @@ export default function Transactions() {
                 form="transactions-edit-deposit-form"
                 variant="green"
               >
-                Review &amp; Update
+                {t("modals.shared.actions.review_update")}
               </Button>
             </>
           ) : undefined
@@ -1604,7 +1684,7 @@ export default function Transactions() {
           >
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Date * (dd/mm/yyyy)
+                {t("modals.shared.fields.date_required")}
               </label>
               <DateInput
                 value={editDepositDate}
@@ -1614,7 +1694,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Amount *
+                {t("modals.shared.fields.amount_required")}
               </label>
               <input
                 name="amount"
@@ -1632,7 +1712,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Notes
+                {t("columns.notes")}
               </label>
               <input
                 name="notes"
@@ -1646,7 +1726,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Review & Update Deposit"
+        title={t("modals.edit_settlement.review_title")}
         open={confirmEditDepositOpen}
         onClose={() => {
           setConfirmEditDepositOpen(false);
@@ -1662,7 +1742,7 @@ export default function Transactions() {
                 setConfirmEditDepositPayload(null);
               }}
             >
-              Back
+              {t("modals.shared.actions.back")}
             </Button>
             <Button
               variant="green"
@@ -1684,7 +1764,9 @@ export default function Transactions() {
               }}
               disabled={updateDeposit.isPending}
             >
-              {updateDeposit.isPending ? "Updating…" : "Confirm Update"}
+              {updateDeposit.isPending
+                ? t("modals.shared.actions.updating")
+                : t("modals.shared.actions.confirm_update")}
             </Button>
           </>
         }
@@ -1692,7 +1774,7 @@ export default function Transactions() {
         {confirmEditDepositPayload && (
           <div className="space-y-4">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              Summary of changes
+              {t("modals.shared.messages.summary_of_changes")}
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <DataTable<ModalFieldDiffRow>
@@ -1703,7 +1785,7 @@ export default function Transactions() {
                 data={[
                   {
                     id: 1,
-                    fieldLabel: "Date",
+                    fieldLabel: t("columns.date"),
                     current: formatDateForView(
                       confirmEditDepositPayload.record.transaction_date
                     ),
@@ -1713,7 +1795,7 @@ export default function Transactions() {
                   },
                   {
                     id: 2,
-                    fieldLabel: "Amount (₹)",
+                    fieldLabel: t("columns.amount_inr"),
                     current: formatDecimal(
                       confirmEditDepositPayload.record.amount
                     ),
@@ -1723,7 +1805,7 @@ export default function Transactions() {
                   },
                   {
                     id: 3,
-                    fieldLabel: "Notes",
+                    fieldLabel: t("columns.notes"),
                     current: confirmEditDepositPayload.record.notes ?? "—",
                     after: confirmEditDepositPayload.newValues.notes ?? "—",
                   },
@@ -1734,18 +1816,21 @@ export default function Transactions() {
             </div>
             <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-success)]">
-                Impact after update
+                {t("modals.shared.messages.impact_after_update")}
               </p>
               {editReviewBalanceLoading ? (
                 <p className="text-[var(--color-text-tertiary)]">
-                  Loading balance…
+                  {t("modals.shared.messages.loading_balance")}
                 </p>
               ) : editReviewBalance != null ? (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
-                    <strong>Lender balance:</strong> Total Credit Purchase ₹
-                    {formatDecimal(editReviewBalance.totalLends)}, Total
-                    Deposits ₹{formatDecimal(editReviewBalance.totalDeposits)} →{" "}
+                    <strong>{t("modals.shared.labels.lender_balance")}</strong>{" "}
+                    {t("modals.shared.messages.total_credit_purchase")} ₹
+                    {formatDecimal(editReviewBalance.totalLends)},{" "}
+                    {t("modals.shared.messages.total")}
+                    {t("modals.shared.messages.total_deposits")} ₹
+                    {formatDecimal(editReviewBalance.totalDeposits)} →{" "}
                     <span
                       className={
                         editReviewBalance.balance >= 0
@@ -1756,12 +1841,12 @@ export default function Transactions() {
                       ₹{formatDecimal(Math.abs(editReviewBalance.balance))}
                       {editReviewBalance.balance > 0 && (
                         <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                          (payable)
+                          ({t("modals.shared.balance.payable")})
                         </span>
                       )}
                       {editReviewBalance.balance < 0 && (
                         <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                          (receivable)
+                          ({t("modals.shared.balance.receivable")})
                         </span>
                       )}
                     </span>
@@ -1782,21 +1867,23 @@ export default function Transactions() {
                               : "font-medium text-[var(--color-success)]"
                           }
                         >
-                          After this update: Total Settlements will change by ₹
+                          {t("modals.edit_settlement.messages.after_update_prefix")}{" "}
+                          {t("modals.shared.messages.total_settlements")}{" "}
+                          {t("modals.shared.messages.will_change_by")} ₹
                           {formatDecimal(
                             confirmEditDepositPayload.newValues.amount -
                               confirmEditDepositPayload.record.amount
                           )}{" "}
-                          → Balance will be ₹
+                          → {t("modals.shared.messages.balance_will_be")} ₹
                           {formatDecimal(Math.abs(balanceAfter))}
                           {balanceAfter > 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (payable)
+                              ({t("modals.shared.balance.payable")})
                             </span>
                           )}
                           {balanceAfter < 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (receivable)
+                              ({t("modals.shared.balance.receivable")})
                             </span>
                           )}
                         </p>
@@ -1810,7 +1897,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Cash Purchase"
+        title={t("modals.cash_purchase.title")}
         open={purchaseAddOpen}
         onClose={() => {
           setPurchaseAddOpen(false);
@@ -1824,7 +1911,7 @@ export default function Transactions() {
               form="transactions-cash-purchase-form"
               variant="primary"
             >
-              Review &amp; confirm
+              {t("modals.shared.actions.review_confirm")}
             </Button>
           </>
         }
@@ -1867,7 +1954,7 @@ export default function Transactions() {
               .filter((l): l is PurchaseLine => l != null);
             if (!lines.length) {
               toast.error(
-                "Add at least one product with Qty and amount (integer)."
+                t("modals.cash_purchase.toasts.add_one_item")
               );
               return;
             }
@@ -1881,7 +1968,7 @@ export default function Transactions() {
         >
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Date * (dd/mm/yyyy)
+              {t("modals.shared.fields.date_required")}
             </label>
             <DateInput
               value={purchaseFormDate}
@@ -1894,10 +1981,10 @@ export default function Transactions() {
               <div className="min-w-[32rem]">
                 {purchaseLines.length > 0 && (
                   <div className="grid grid-cols-[12rem_6rem_4rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1">
-                    <span>Product</span>
-                    <span>Qty</span>
-                    <span>Unit</span>
-                    <span>Amount</span>
+                    <span>{t("columns.product")}</span>
+                    <span>{t("columns.qty")}</span>
+                    <span>{t("columns.unit")}</span>
+                    <span>{t("columns.amount")}</span>
                     <span aria-hidden="true" />
                   </div>
                 )}
@@ -1929,9 +2016,11 @@ export default function Transactions() {
                             });
                           }}
                           className="input-base w-full min-w-0"
-                          aria-label="Product"
+                          aria-label={t("columns.product")}
                         >
-                          <option value="">Select product</option>
+                          <option value="">
+                            {t("modals.shared.placeholders.select_product")}
+                          </option>
                           {itemList.map((i) => (
                             <option key={i.id} value={i.id}>
                               {i.name}
@@ -1944,7 +2033,7 @@ export default function Transactions() {
                           inputMode="numeric"
                           min="0"
                           step="1"
-                          placeholder="0"
+                          placeholder={t("modals.shared.placeholders.zero")}
                           value={line.quantity === 0 ? "" : line.quantity}
                           onChange={(e) =>
                             setPurchaseLines((prev) => {
@@ -1960,7 +2049,7 @@ export default function Transactions() {
                           aria-label={
                             selectedItem?.unit
                               ? `Quantity (${selectedItem.unit})`
-                              : "Quantity"
+                              : t("modals.shared.fields.quantity")
                           }
                         />
                         <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
@@ -1973,7 +2062,7 @@ export default function Transactions() {
                           min="0"
                           step="1"
                           required={idx === 0}
-                          placeholder="0"
+                          placeholder={t("modals.shared.placeholders.zero")}
                           value={line.amount === 0 ? "" : line.amount}
                           onChange={(e) =>
                             setPurchaseLines((prev) => {
@@ -1985,7 +2074,7 @@ export default function Transactions() {
                             })
                           }
                           className="input-base w-full text-right"
-                          aria-label="Amount"
+                          aria-label={t("columns.amount")}
                         />
                         <button
                           type="button"
@@ -1995,7 +2084,7 @@ export default function Transactions() {
                             )
                           }
                           className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1 disabled:invisible"
-                          aria-label="Remove line"
+                          aria-label={t("modals.shared.actions.remove_line")}
                           disabled={purchaseLines.length <= 1}
                         >
                           <Trash2 size={16} aria-hidden="true" />
@@ -2013,14 +2102,14 @@ export default function Transactions() {
                   className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
                 >
                   <Plus size={20} className="mr-1.5" aria-hidden="true" />
-                  Add item
+                  {t("modals.shared.actions.add_item")}
                 </Button>
               </div>
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Notes
+              {t("columns.notes")}
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
           </div>
@@ -2028,7 +2117,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Confirm Cash Purchase"
+        title={t("modals.cash_purchase.confirm_title")}
         open={confirmPurchaseOpen}
         onClose={() => {
           setConfirmPurchaseOpen(false);
@@ -2044,7 +2133,7 @@ export default function Transactions() {
                 setConfirmPurchasePayload(null);
               }}
             >
-              Back
+              {t("modals.shared.actions.back")}
             </Button>
             <Button
               variant="primary"
@@ -2064,7 +2153,9 @@ export default function Transactions() {
                 createPurchaseBatch.isPending || !confirmPurchasePayload
               }
             >
-              {createPurchaseBatch.isPending ? "Saving…" : "Confirm"}
+              {createPurchaseBatch.isPending
+                ? t("modals.shared.actions.saving")
+                : t("modals.shared.actions.confirm")}
             </Button>
           </>
         }
@@ -2072,7 +2163,7 @@ export default function Transactions() {
         {confirmPurchasePayload && (
           <div className="space-y-4">
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Cash purchase on{" "}
+              {t("modals.cash_purchase.messages.on_date")}{" "}
               <Tooltip
                 content={formatDateForForm(
                   confirmPurchasePayload.transaction_date
@@ -2090,7 +2181,7 @@ export default function Transactions() {
               scrollMaxHeight="15rem"
               tableClassName="min-w-full text-sm border-collapse"
               rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
-              columns={CASH_PURCHASE_PREVIEW_COLUMNS}
+              columns={cashPurchasePreviewColumns}
               data={confirmPurchasePayload.lines.map((line, idx) => {
                 const item = (
                   items as {
@@ -2113,7 +2204,7 @@ export default function Transactions() {
               tableFrame={false}
             />
             <p className="text-sm font-medium">
-              Total amount: ₹
+              {t("modals.cash_purchase.messages.total_amount")}: ₹
               {formatDecimal(
                 confirmPurchasePayload.lines.reduce((s, l) => s + l.amount, 0)
               )}
@@ -2123,7 +2214,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Edit Cash purchase"
+        title={t("modals.edit_cash_purchase.title")}
         open={!!editingPurchase && !confirmEditPurchaseOpen}
         onClose={() => {
           setEditingPurchase(null);
@@ -2137,7 +2228,7 @@ export default function Transactions() {
               form="transactions-edit-purchase-form"
               variant="primary"
             >
-              Review &amp; Update
+              {t("modals.shared.actions.review_update")}
             </Button>
           ) : null
         }
@@ -2163,7 +2254,7 @@ export default function Transactions() {
           >
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Date * (dd/mm/yyyy)
+                {t("modals.shared.fields.date_required")}
               </label>
               <DateInput
                 value={editPurchaseDate}
@@ -2173,7 +2264,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Product
+                {t("columns.product")}
               </label>
               <input
                 type="text"
@@ -2184,7 +2275,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Quantity *
+                {t("modals.shared.fields.quantity_required")}
                 {((): string => {
                   const it = (itemList as Item[]).find(
                     (i) => i.id === editingPurchase.product_id
@@ -2208,7 +2299,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Amount *
+                {t("modals.shared.fields.amount_required")}
               </label>
               <input
                 name="amount"
@@ -2226,7 +2317,7 @@ export default function Transactions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Notes
+                {t("columns.notes")}
               </label>
               <input
                 name="notes"
@@ -2240,7 +2331,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Review & Update Cash purchase"
+        title={t("modals.edit_cash_purchase.review_title")}
         open={confirmEditPurchaseOpen}
         onClose={() => {
           setConfirmEditPurchaseOpen(false);
@@ -2257,7 +2348,7 @@ export default function Transactions() {
                   setConfirmEditPurchasePayload(null);
                 }}
               >
-                Back
+                {t("modals.shared.actions.back")}
               </Button>
               <Button
                 variant="primary"
@@ -2280,7 +2371,9 @@ export default function Transactions() {
                 }}
                 disabled={updatePurchase.isPending}
               >
-                {updatePurchase.isPending ? "Updating…" : "Confirm Update"}
+                {updatePurchase.isPending
+                  ? t("modals.shared.actions.updating")
+                  : t("modals.shared.actions.confirm_update")}
               </Button>
             </>
           ) : null
@@ -2289,7 +2382,7 @@ export default function Transactions() {
         {confirmEditPurchasePayload && (
           <div className="space-y-4">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              Summary of changes
+              {t("modals.shared.messages.summary_of_changes")}
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <DataTable<ModalFieldDiffRow>
@@ -2300,7 +2393,7 @@ export default function Transactions() {
                 data={[
                   {
                     id: 1,
-                    fieldLabel: "Date",
+                    fieldLabel: t("columns.date"),
                     current: formatDateForView(
                       confirmEditPurchasePayload.record.transaction_date
                     ),
@@ -2310,7 +2403,7 @@ export default function Transactions() {
                   },
                   {
                     id: 2,
-                    fieldLabel: "Product",
+                    fieldLabel: t("columns.product"),
                     current:
                       confirmEditPurchasePayload.record.product_name ?? "—",
                     after:
@@ -2318,13 +2411,13 @@ export default function Transactions() {
                   },
                   {
                     id: 3,
-                    fieldLabel: "Quantity",
+                    fieldLabel: t("columns.qty"),
                     current: confirmEditPurchasePayload.record.quantity,
                     after: confirmEditPurchasePayload.newValues.quantity,
                   },
                   {
                     id: 4,
-                    fieldLabel: "Amount (₹)",
+                    fieldLabel: t("columns.amount_inr"),
                     current: formatDecimal(
                       confirmEditPurchasePayload.record.amount
                     ),
@@ -2334,7 +2427,7 @@ export default function Transactions() {
                   },
                   {
                     id: 5,
-                    fieldLabel: "Notes",
+                    fieldLabel: t("columns.notes"),
                     current: confirmEditPurchasePayload.record.notes ?? "—",
                     after: confirmEditPurchasePayload.newValues.notes ?? "—",
                   },
@@ -2345,7 +2438,7 @@ export default function Transactions() {
             </div>
             <div className="rounded border border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-accent)]">
-                Impact after update
+                {t("modals.shared.messages.impact_after_update")}
               </p>
               {(() => {
                 const qtyDelta =
@@ -2361,9 +2454,13 @@ export default function Transactions() {
                 const newStock = oldStock + qtyDelta;
                 return (
                   <p className="text-[var(--color-text-secondary)]">
-                    <strong>Stock:</strong> Current stock {oldStock} →{" "}
+                    <strong>{t("modals.shared.labels.stock")}</strong>{" "}
+                    {t("modals.shared.messages.current_stock", {
+                      stock: oldStock,
+                    })}{" "}
                     {qtyDelta >= 0 ? "+" : ""}
-                    {qtyDelta} → <strong>{newStock}</strong> after update
+                    {qtyDelta} → <strong>{newStock}</strong>{" "}
+                    {t("modals.shared.messages.after_update")}
                   </p>
                 );
               })()}
@@ -2373,7 +2470,7 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title="Review & Delete"
+        title={t("modals.delete_transaction.title")}
         open={deleteConfirmOpen}
         onClose={() => {
           setDeleteConfirmOpen(false);
@@ -2390,7 +2487,7 @@ export default function Transactions() {
                   setDeleteConfirmPayload(null);
                 }}
               >
-                Back
+                {t("modals.shared.actions.back")}
               </Button>
               <Button
                 variant="danger"
@@ -2413,8 +2510,8 @@ export default function Transactions() {
                 {deleteLend.isPending ||
                 deleteDeposit.isPending ||
                 deletePurchase.isPending
-                  ? "Deleting…"
-                  : "Confirm Delete"}
+                  ? t("modals.shared.actions.deleting")
+                  : t("modals.shared.actions.confirm_delete")}
               </Button>
             </>
           ) : null
@@ -2423,7 +2520,7 @@ export default function Transactions() {
         {deleteConfirmPayload && (
           <div className="space-y-4">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              You are about to delete this transaction. Summary:
+              {t("modals.delete_transaction.messages.summary")}
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
               <DataTable<ModalKVRow>
@@ -2431,7 +2528,10 @@ export default function Transactions() {
                 tableClassName="w-full text-sm border-collapse"
                 rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
                 columns={MODAL_KV_COLUMNS}
-                data={buildDeleteConfirmModalRows(deleteConfirmPayload)}
+                data={buildDeleteConfirmModalRows({
+                  ...deleteConfirmPayload,
+                  t: (key) => t(key as never),
+                })}
                 pagination={{ type: "client" }}
                 tableFrame={false}
               />
@@ -2454,13 +2554,13 @@ export default function Transactions() {
                       : "text-[var(--color-accent)]"
                 }`}
               >
-                Impact after delete
+                {t("modals.shared.messages.impact_after_delete")}
               </p>
               {(deleteConfirmPayload.type === "credit_purchase" ||
                 deleteConfirmPayload.type === "cash_purchase") &&
                 deleteConfirmPayload.row.product_id != null && (
                   <p className="text-[var(--color-text-secondary)]">
-                    <strong>Stock:</strong>{" "}
+                    <strong>{t("modals.shared.labels.stock")}</strong>{" "}
                     {(() => {
                       const item = (
                         items as { id: number; current_stock: number }[]
@@ -2472,8 +2572,11 @@ export default function Transactions() {
                       const newStock = oldStock - qty;
                       return (
                         <>
-                          Current stock {oldStock} → -{qty} →{" "}
-                          <strong>{newStock}</strong> after delete
+                          {t("modals.shared.messages.current_stock", {
+                            stock: oldStock,
+                          })}{" "}
+                          → -{qty} → <strong>{newStock}</strong>{" "}
+                          {t("modals.shared.messages.after_delete")}
                         </>
                       );
                     })()}
@@ -2484,14 +2587,16 @@ export default function Transactions() {
                 <>
                   {deleteReviewBalanceLoading ? (
                     <p className="text-[var(--color-text-tertiary)]">
-                      Loading balance…
+                      {t("modals.shared.messages.loading_balance")}
                     </p>
                   ) : deleteReviewBalance != null ? (
                     <div className="space-y-1 text-[var(--color-text-secondary)]">
                       <p>
-                        <strong>Lender balance:</strong> Total Credit Purchase ₹
-                        {formatDecimal(deleteReviewBalance.totalLends)}, Total
-                        Deposits ₹
+                        <strong>{t("modals.shared.labels.lender_balance")}</strong>{" "}
+                        {t("modals.shared.messages.total_credit_purchase")} ₹
+                        {formatDecimal(deleteReviewBalance.totalLends)},{" "}
+                        {t("modals.shared.messages.total")}
+                        {t("modals.shared.messages.total_deposits")} ₹
                         {formatDecimal(deleteReviewBalance.totalDeposits)} →{" "}
                         <span
                           className={
@@ -2504,12 +2609,12 @@ export default function Transactions() {
                           {formatDecimal(Math.abs(deleteReviewBalance.balance))}
                           {deleteReviewBalance.balance > 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (payable)
+                              ({t("modals.shared.balance.payable")})
                             </span>
                           )}
                           {deleteReviewBalance.balance < 0 && (
                             <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                              (receivable)
+                              ({t("modals.shared.balance.receivable")})
                             </span>
                           )}
                         </span>
@@ -2529,22 +2634,22 @@ export default function Transactions() {
                                 : "font-medium text-[var(--color-success)]"
                             }
                           >
-                            After this delete:{" "}
+                            {t("modals.delete_transaction.messages.after_delete_prefix")}{" "}
                             {deleteConfirmPayload.type === "credit_purchase"
-                              ? "Total Credit Purchase"
-                              : "Total Settlements"}{" "}
-                            will decrease by ₹
+                              ? t("modals.shared.messages.total_credit_purchase")
+                              : t("modals.shared.messages.total_settlements")}{" "}
+                            {t("modals.shared.messages.will_decrease_by")} ₹
                             {formatDecimal(deleteConfirmPayload.row.amount)} →
-                            Balance will be ₹
+                            {t("modals.shared.messages.balance_will_be")} ₹
                             {formatDecimal(Math.abs(balanceAfter))}
                             {balanceAfter > 0 && (
                               <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                                (payable)
+                                ({t("modals.shared.balance.payable")})
                               </span>
                             )}
                             {balanceAfter < 0 && (
                               <span className="ml-1 text-[var(--color-text-tertiary)] font-normal">
-                                (receivable)
+                                ({t("modals.shared.balance.receivable")})
                               </span>
                             )}
                           </p>
@@ -2559,9 +2664,9 @@ export default function Transactions() {
         )}
       </FormModal>
 
-      {printData && (
+      {printJob && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
+          className="app-print-container daily-sales-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
@@ -2569,15 +2674,15 @@ export default function Transactions() {
               {appName}
             </p>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              Transactions
+              {t("hero.title")}
             </p>
-            {printData.filterDetails != null &&
-              printData.filterDetails.length > 0 && (
+            {printJob.filterDetails != null &&
+              printJob.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
                   <p className="font-medium text-[var(--color-text-secondary)]">
-                    Applied filters
+                    {t("filters.applied")}
                   </p>
-                  {printData.filterDetails.map((f) => (
+                  {printJob.filterDetails.map((f) => (
                     <p
                       key={f.label}
                       className="text-[var(--color-text-secondary)]"
@@ -2597,7 +2702,7 @@ export default function Transactions() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr>
-                {printData.columns.map((col) => (
+                {printJob.columns.map((col) => (
                   <th
                     key={col}
                     className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
@@ -2608,11 +2713,11 @@ export default function Transactions() {
               </tr>
             </thead>
             <tbody>
-              {printData.rows.map((row) => (
+              {printJob.rows.map((row) => (
                 <tr key={row[0]}>
                   {row.map((cell, ci) => (
                     <td
-                      key={`${row[0]}-${printData.columns[ci]}`}
+                      key={`${row[0]}-${printJob.columns[ci]}`}
                       className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}

@@ -1,24 +1,49 @@
 {
   "hero": {
     "title": "প্রোডাক্টস ও স্টক",
-    "subtitle": "আপনার ইনভেন্টরি ম্যানেজ করুন"
+    "subtitle": "আপনার ইনভেন্টরি ম্যানেজ করুন",
+    "metrics": {
+      "inCatalog": "ক্যাটালগে",
+      "lowStock": "লো স্টক",
+      "units": "ইউনিট"
+    }
   },
   "actions": {
     "addItem": "আইটেম অ্যাড",
+    "addProduct": "প্রোডাক্ট অ্যাড",
+    "addStock": "স্টক অ্যাড",
+    "reduceStock": "স্টক কমান",
+    "clearSearch": "সার্চ ক্লিয়ার",
+    "save": "সেভ",
+    "update": "আপডেট",
+    "add": "অ্যাড",
+    "reduce": "কমান",
+    "delete": "ডিলিট",
+    "export": "এক্সপোর্ট",
+    "print": "প্রিন্ট",
+    "import": "ইমপোর্ট",
+    "importFromProduct": "প্রোডাক্ট থেকে ইমপোর্ট",
     "editItem": "আইটেম এডিট",
     "deleteItem": "আইটেম ডিলিট",
     "adjustStock": "স্টক অ্যাডজাস্ট",
     "toggleArchive": "আর্কাইভ",
-    "toggleUnarchive": "আনআর্কাইভ"
+    "toggleUnarchive": "আনআর্কাইভ",
+    "remove": "রিমুভ"
   },
   "search": {
     "placeholder": "নাম বা কোড দিয়ে সার্চ করুন…"
   },
   "columns": {
+    "product": "প্রোডাক্ট",
     "name": "নাম",
     "code": "কোড",
     "unit": "ইউনিট",
     "stock": "স্টক",
+    "currentStock": "বর্তমান স্টক",
+    "sellingPrice": "বিক্রয় মূল্য",
+    "gst": "GST",
+    "hsn": "HSN",
+    "reorderLevel": "রিঅর্ডার লেভেল",
     "price": "দাম",
     "lowStockAt": "লো স্টক লেভেল",
     "status": "স্ট্যাটাস"
@@ -30,17 +55,41 @@
     "lowStock": "লো স্টক"
   },
   "form": {
+    "none": "কোনোটি নয়",
+    "basicDetails": "বেসিক তথ্য",
+    "unitsAndConversions": "ইউনিট ও কনভার্সন",
+    "unitsHelpAdd": "এই প্রোডাক্ট কীভাবে কিনবেন, স্টোর করবেন ও বিক্রি করবেন তা নির্বাচন করুন।",
+    "missingUnitPrefix": "আপনার ইউনিট দেখছেন না?",
+    "manageAllUnits": "সব ইউনিট ম্যানেজ করুন",
+    "missingUnitSuffix": "— স্টক (গোডাউন) বা ইনভয়েসে যোগ করে এখানে ফিরে আসুন।",
+    "primaryUnitHelp": "প্রাইমারি স্টক ইউনিট এবং অপশনাল রিটেইল/অন্যান্য ইউনিট।",
+    "primaryStockUnit": "প্রাইমারি স্টক ইউনিট",
+    "retailPrimaryUnitOptional": "রিটেইল প্রাইমারি ইউনিট (অপশনাল)",
+    "selectUnit": "ইউনিট বাছুন",
     "namePlaceholder": "আইটেমের নাম",
     "codePlaceholder": "SKU / কোড",
     "pricePlaceholder": "বিক্রয় মূল্য",
     "stockPlaceholder": "বর্তমান স্টক",
     "lowStockPlaceholder": "লো স্টক থ্রেশহোল্ড",
-    "notesPlaceholder": "অপশনাল নোট"
+    "notesPlaceholder": "অপশনাল নোট",
+    "conversionOptional": "কনভার্সন (অপশনাল)",
+    "example25": "যেমন 25",
+    "example50": "যেমন 50",
+    "sellingPriceOptional": "বিক্রয় মূল্য (অপশনাল)",
+    "sellingPriceUnit": "বিক্রয় মূল্য ইউনিট",
+    "gstRate": "GST রেট",
+    "hsnCodeOptional": "HSN কোড (অপশনাল)",
+    "exampleHsn": "যেমন 1006"
   },
   "empty": {
     "title": "এখনও কোনো আইটেম নেই",
     "message": "স্টক ট্র্যাকিং শুরু করতে প্রথম প্রোডাক্ট অ্যাড করুন।",
-    "cta": "প্রথম আইটেম অ্যাড করুন"
+    "cta": "প্রথম আইটেম অ্যাড করুন",
+    "tableMessage": "এখনও কোনো প্রোডাক্ট নেই। Add Product ক্লিক করুন।",
+    "noMatchesTitle": "কোনো মিল পাওয়া যায়নি",
+    "noMatchesDescription": "এই সার্চে ক্যাটালগে কিছু পাওয়া যায়নি। অন্য কীওয়ার্ড দিন বা ফিল্টার ক্লিয়ার করুন।",
+    "noProductsTitle": "এখনও কোনো প্রোডাক্ট নেই",
+    "noProductsDescription": "প্রাইমারি ইউনিট ও রিঅর্ডার লেভেল দিয়ে প্রথম প্রোডাক্ট যোগ করুন। পরে অন্য ইউনিট ও কনভার্সন যোগ করতে পারবেন।"
   },
   "toast": {
     "created": "আইটেম তৈরি হয়েছে",
@@ -51,6 +100,57 @@
   },
   "confirmDelete": {
     "title": "আইটেম ডিলিট করবেন?",
-    "body": "এতে আইটেম ও তার স্টক হিস্ট্রি স্থায়ীভাবে মুছে যাবে।"
+    "body": "এতে আইটেম ও তার স্টক হিস্ট্রি স্থায়ীভাবে মুছে যাবে।",
+    "stockMustBeZero": "এই প্রোডাক্ট ডিলিট করবেন? স্টক ০ হতে হবে।"
+  },
+  "catalog": {
+    "sectionTitle": "প্রোডাক্ট ক্যাটালগ",
+    "description": "প্রোডাক্ট সার্চ, এডিট ও এক্সপোর্ট করুন। স্টক পরিবর্তন ইনভয়েস ও ড্যাশবোর্ডে সিঙ্ক হয়।"
+  },
+  "async": {
+    "errorTitle": "কিছু সমস্যা হয়েছে",
+    "errorDescription": "প্রোডাক্ট লোড করা যায়নি। কানেকশন চেক করে আবার চেষ্টা করুন।",
+    "retry": "আবার চেষ্টা করুন"
+  },
+  "export": {
+    "asCsv": "CSV হিসেবে এক্সপোর্ট",
+    "asPdf": "PDF হিসেবে এক্সপোর্ট",
+    "noData": "এক্সপোর্ট করার মতো ডেটা নেই।",
+    "csvSuccess": "CSV এক্সপোর্ট সম্পন্ন।",
+    "pdfSuccess": "PDF এক্সপোর্ট সম্পন্ন।",
+    "pdfFailed": "PDF সংরক্ষণ করা যায়নি।",
+    "columns": {
+      "id": "আইডি",
+      "createdAt": "তৈরির সময়",
+      "updatedAt": "আপডেটের সময়"
+    }
+  },
+  "validation": {
+    "quantityPositive": "পরিমাণ অবশ্যই ধনাত্মক হতে হবে।"
+  },
+  "print": {
+    "reportTitle": "প্রোডাক্টস ও স্টক"
+  },
+  "modals": {
+    "addProduct": {
+      "title": "প্রোডাক্ট অ্যাড"
+    },
+    "editProduct": {
+      "title": "প্রোডাক্ট এডিট"
+    },
+    "importUnits": {
+      "title": "প্রোডাক্ট থেকে ইউনিট ইমপোর্ট",
+      "selectProductToCopy": "ইউনিট কপি করার জন্য একটি প্রোডাক্ট বাছুন…"
+    },
+    "addStock": {
+      "title": "স্টক অ্যাড",
+      "selectProduct": "প্রোডাক্ট বাছুন",
+      "quantityToAdd": "যতটা যোগ করবেন"
+    },
+    "reduceStock": {
+      "title": "স্টক কমান",
+      "selectProduct": "প্রোডাক্ট বাছুন",
+      "quantityToDeduct": "যতটা কমাবেন"
+    }
   }
 }

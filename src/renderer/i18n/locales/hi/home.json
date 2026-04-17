@@ -1,21 +1,90 @@
 {
   "hero": {
     "title": "होम",
-    "subtitle": "आपका बिज़नेस एक नज़र में"
+    "subtitle": "आपका बिज़नेस एक नज़र में",
+    "dashboardTitle": "होम डैशबोर्ड",
+    "metrics": {
+      "today": "आज",
+      "thisWeek": "इस सप्ताह",
+      "thisMonth": "इस माह",
+      "lenderNet": "महाजन नेट"
+    }
   },
   "sections": {
     "quickActions": "क्विक एक्शन",
-    "weeklyMomentum": "साप्ताहिक मोमेंटम",
-    "weeklyDetails": "साप्ताहिक डिटेल",
+    "weeklyMomentum": "7-दिवसीय बिक्री मोमेंटम",
+    "weeklyDetails": "साप्ताहिक बिक्री विवरण",
     "rangeComposition": "रेंज कंपोजिशन",
     "lenderSummary": "महाजन सारांश",
     "lowStockAlerts": "लो स्टॉक अलर्ट"
+  },
+  "actions": {
+    "createInvoice": "बिल बनाएं"
   },
   "quickActions": {
     "addItem": "आइटम जोड़ें",
     "recordSale": "बिक्री दर्ज करें",
     "addLender": "महाजन जोड़ें",
-    "viewInvoices": "बिल देखें"
+    "viewInvoices": "बिल देखें",
+    "createInvoice": {
+      "title": "बिल बनाएं",
+      "subtitle": "नई बिक्री एंट्री शुरू करें।"
+    },
+    "creditPurchase": {
+      "title": "उधार खरीद",
+      "subtitle": "महाजन लेनदेन जल्दी दर्ज करें।"
+    },
+    "cashVsExpenditure": "नकद बनाम खर्च (साप्ताहिक)",
+    "cashTrendEmptyTitle": "साप्ताहिक नकद ट्रेंड नहीं",
+    "cashTrendEmptyDescription": "साप्ताहिक बिक्री रिकॉर्ड उपलब्ध होने पर नकद और खर्च का चार्ट दिखेगा।"
+  },
+  "weeklyMomentum": {
+    "title": "7-दिवसीय बिक्री मोमेंटम",
+    "subtitle": "चयनित सप्ताह (समाप्ति: {{date}}) की बिक्री और खर्च का ट्रेंड।",
+    "liveTrend": "लाइव ट्रेंड",
+    "weekSale": "साप्ताहिक बिक्री",
+    "weekExpenditure": "साप्ताहिक खर्च",
+    "peakDay": "सर्वोच्च दिन",
+    "entries": "एंट्री",
+    "errorTitle": "साप्ताहिक ट्रेंड लोड नहीं हुआ",
+    "errorDescription": "साप्ताहिक बिक्री लोड करते समय समस्या हुई। कृपया रिफ्रेश करके फिर कोशिश करें।",
+    "emptyTitle": "इस सप्ताह बिक्री नहीं",
+    "emptyDescription": "चयनित तारीख विंडो में बिक्री एंट्री नहीं मिली। ट्रेंड देखने के लिए बिल या अन्य बिक्री जोड़ें।"
+  },
+  "rangeComposition": {
+    "title": "रेंज कंपोजिशन",
+    "subtitle": "चयनित अवधि के लिए बिल, अन्य बिक्री और खर्च।",
+    "emptyTitle": "अभी रेंज डेटा नहीं",
+    "emptyDescription": "चयनित तारीख सीमा में बिल, अन्य बिक्री या खर्च का रिकॉर्ड नहीं है।",
+    "presets": {
+      "today": "आज",
+      "yesterday": "कल",
+      "last7Days": "पिछले 7 दिन",
+      "last14Days": "पिछले 14 दिन",
+      "thisMonth": "यह माह",
+      "lastMonth": "पिछला माह",
+      "last30Days": "पिछले 30 दिन",
+      "last90Days": "पिछले 90 दिन",
+      "thisQuarter": "यह तिमाही",
+      "thisYear": "यह वर्ष"
+    }
+  },
+  "weeklyDetails": {
+    "subtitle": "किसी तारीख को चुनें और उस तारीख से 7 दिनों की एंट्री देखें।",
+    "date": "तारीख",
+    "today": "आज",
+    "table": {
+      "date": "तारीख",
+      "sale": "बिक्री",
+      "invoice": "बिल",
+      "misc": "अन्य",
+      "cashInHand": "हाथ में नकद",
+      "expenditure": "खर्च"
+    },
+    "errorTitle": "बिक्री विवरण लोड नहीं हुआ",
+    "errorDescription": "साप्ताहिक एंट्री अभी लोड नहीं हो सकीं। रिफ्रेश करके फिर कोशिश करें।",
+    "emptyTitle": "कोई बिक्री एंट्री नहीं मिली",
+    "emptyDescription": "चयनित तारीख के लिए 7-दिवसीय एंट्री उपलब्ध नहीं है। तारीख बदलें या नया बिल जोड़ें।"
   },
   "empty": {
     "title": "गोदाम स्टॉक में आपका स्वागत है",
@@ -24,16 +93,50 @@
   "lowStock": {
     "noAlerts": "अभी कोई आइटम कम नहीं है",
     "itemsAtOrBelow": "जो आइटम लो स्टॉक लिमिट पर हैं या उससे नीचे हैं",
-    "seeAll": "सभी आइटम देखें"
+    "seeAll": "सभी आइटम देखें",
+    "viewStock": "स्टॉक देखें",
+    "errorLoading": "लो स्टॉक आइटम लोड नहीं हो सके। कृपया रिफ्रेश करें।",
+    "emptyTitle": "कोई लो स्टॉक आइटम नहीं",
+    "emptyDescription": "सभी ट्रैक किए गए आइटम अभी रीऑर्डर स्तर से ऊपर हैं। एक्शन योग्य अलर्ट के लिए प्रोडक्ट्स और स्टॉक में रीऑर्डर वैल्यू अपडेट करें।",
+    "goToStock": "स्टॉक पर जाएं",
+    "table": {
+      "item": "आइटम",
+      "current": "मौजूदा",
+      "reorderAt": "रीऑर्डर स्तर",
+      "unit": "इकाई"
+    }
   },
   "lender": {
     "totalOwed": "कुल देना",
     "totalReceivable": "कुल लेना",
-    "seeAll": "सभी महाजन देखें"
+    "seeAll": "सभी महाजन देखें",
+    "viewLenders": "महाजन देखें",
+    "totalCreditPurchase": "कुल उधार खरीद",
+    "totalSettlements": "कुल भुगतान",
+    "netBalance": "नेट बैलेंस",
+    "payable": "देय",
+    "receivable": "प्राप्य",
+    "receivablePayableStats": "{{receivable}} प्राप्य, {{payable}} देय",
+    "emptyTitle": "महाजन डेटा नहीं",
+    "emptyDescription": "उधार खरीद या भुगतान दर्ज होने के बाद महाजन सारांश दिखाई देगा।"
   },
   "momentum": {
     "thisWeek": "इस सप्ताह",
     "lastWeek": "पिछला सप्ताह",
     "change": "बदलाव"
+  },
+  "charts": {
+    "totalSale": "कुल बिक्री",
+    "invoice": "बिल",
+    "misc": "अन्य",
+    "expenditure": "खर्च",
+    "rangeTotal": "रेंज कुल",
+    "cashInHand": "हाथ में नकद"
+  },
+  "sectionError": {
+    "badge": "सेक्शन त्रुटि",
+    "description": "यह सेक्शन रेंडर नहीं हो सका। पूरा पेज रीलोड किए बिना फिर से कोशिश कर सकते हैं।",
+    "fallbackMessage": "अनपेक्षित रेंडरिंग त्रुटि",
+    "retry": "सेक्शन पुनः प्रयास करें"
   }
 }

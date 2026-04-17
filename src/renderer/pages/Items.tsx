@@ -12,6 +12,7 @@ import {
   FloatingPortal,
 } from "@floating-ui/react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getElectron } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/DataTable";
@@ -30,11 +31,7 @@ import type { LowStockItem } from "../components/home-dashboard/types";
 import { PAGE_SIZE } from "../../shared/constants";
 import toast from "react-hot-toast";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
-import {
-  exportItemsToCsv,
-  exportItemsToPdf,
-  getPrintTableBody,
-} from "../lib/exportItems";
+import { exportItemsToCsv, getPrintTableBody } from "../lib/exportItems";
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
@@ -59,6 +56,10 @@ import {
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 
 type ItemWithUnits = Item & {
   other_units?: { id?: number; unit: string; sort_order: number }[];
@@ -70,6 +71,7 @@ const GST_SLABS = [0, 5, 12, 18, 28] as const;
 type ConversionRow = { to_unit: string; factor: number };
 
 export default function Items() {
+  const { t } = useTranslation("items");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { authState } = useAuth();
@@ -129,10 +131,11 @@ export default function Items() {
       setReduceStockUnitModal(reduceStockItem.unit);
   }, [reduceStockOpen, reduceStockItem]);
   const [exportOpen, setExportOpen] = useState(false);
-  const [printData, setPrintData] = useState<{
+  type ItemsPrintJob = null | (HtmlPrintJobBase & {
     columns: string[];
     rows: string[][];
-  } | null>(null);
+  });
+  const [printJob, setPrintJob] = useState<ItemsPrintJob>(null);
   const [importUnitsPopupOpen, setImportUnitsPopupOpen] = useState(false);
   const [importUnitsTarget, setImportUnitsTarget] = useState<
     "add" | "edit" | null
@@ -168,6 +171,20 @@ export default function Items() {
   const abbreviationStyle = useMemo(
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
+  );
+
+  const itemsExportColumnLabels = useMemo(
+    () => [
+      t("export.columns.id"),
+      t("columns.name"),
+      t("columns.code"),
+      t("columns.unit"),
+      t("columns.currentStock"),
+      t("columns.reorderLevel"),
+      t("export.columns.createdAt"),
+      t("export.columns.updatedAt"),
+    ],
+    [t]
   );
 
   const { data: units = [] } = useQuery({
@@ -375,50 +392,55 @@ export default function Items() {
     setExportOpen(false);
     const allItems = await getExportData();
     if (allItems.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    exportItemsToCsv(allItems);
-    toast.success("Exported as CSV.");
+    exportItemsToCsv(allItems, itemsExportColumnLabels);
+    toast.success(t("export.csvSuccess"));
   }
 
   async function handleExportPdf() {
     setExportOpen(false);
     const allItems = await getExportData();
     if (allItems.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    exportItemsToPdf(allItems, appName);
-    toast.success("Exported as PDF.");
+    const body = getPrintTableBody(allItems, itemsExportColumnLabels);
+    setPrintJob({
+      mode: "pdf",
+      documentTitle: `${t("print.reportTitle")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `products-stock-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
   async function handleExportPrint() {
     setExportOpen(false);
     const allItems = await getExportData();
     if (allItems.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    setPrintData(getPrintTableBody(allItems));
+    const body = getPrintTableBody(allItems, itemsExportColumnLabels);
+    setPrintJob({
+      mode: "browser",
+      documentTitle: `${t("print.reportTitle")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `products-stock-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
-  useEffect(() => {
-    if (!printData) return;
-    const previousTitle = document.title;
-    document.title = `Products_&_Stock_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const timeoutId = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(timeoutId);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  useElectronHtmlPrintJob(printJob, setPrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("export.pdfSuccess"));
+      }
+    },
+    onPdfError: () => {
+      toast.error(t("export.pdfFailed"));
+    },
+  });
 
   const loaderColumns = useMemo(() => {
     let n = 5;
@@ -438,22 +460,20 @@ export default function Items() {
 
   const noMatchesMeta = useMemo(
     () => ({
-      title: "No matches",
-      description:
-        "Nothing in the catalog matches this search. Try another keyword or clear the filter to see all products.",
-      actionLabel: "Clear search",
+      title: t("empty.noMatchesTitle"),
+      description: t("empty.noMatchesDescription"),
+      actionLabel: t("actions.clearSearch"),
     }),
-    []
+    [t]
   );
 
   const emptyCatalogMeta = useMemo(
     () => ({
-      title: "No products yet",
-      description:
-        "Add your first product with its base unit and reorder level. You can attach alternate units and conversions after units are set up.",
-      actionLabel: "Add product",
+      title: t("empty.noProductsTitle"),
+      description: t("empty.noProductsDescription"),
+      actionLabel: t("actions.addProduct"),
     }),
-    []
+    [t]
   );
 
   const awaitingCatalogForEmptyState =
@@ -496,7 +516,7 @@ export default function Items() {
       <div ref={exportRefs.setReference} {...getExportRefProps()}>
         <Button variant="secondary" type="button" className="w-full sm:w-auto">
           <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-          Export
+          {t("actions.export")}
         </Button>
       </div>
       <FloatingPortal>
@@ -513,7 +533,7 @@ export default function Items() {
               onClick={handleExportCsv}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as CSV
+              {t("export.asCsv")}
             </button>
             <button
               type="button"
@@ -521,7 +541,7 @@ export default function Items() {
               onClick={handleExportPdf}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as PDF
+              {t("export.asPdf")}
             </button>
             <button
               type="button"
@@ -529,7 +549,7 @@ export default function Items() {
               onClick={handleExportPrint}
             >
               <Printer size={16} className="shrink-0" />
-              Print
+              {t("actions.print")}
             </button>
           </div>
         )}
@@ -541,7 +561,7 @@ export default function Items() {
         onClick={() => setAddStockOpen(true)}
       >
         <ArrowUp size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-        Add stock
+        {t("actions.addStock")}
       </Button>
       <Button
         variant="secondary"
@@ -550,7 +570,7 @@ export default function Items() {
         onClick={() => setReduceStockOpen(true)}
       >
         <ArrowDown size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-        Reduce stock
+        {t("actions.reduceStock")}
       </Button>
     </>
   );
@@ -562,13 +582,13 @@ export default function Items() {
         catalogCount={items.length}
         lowStockCount={lowStockItems.length}
         unitsCount={units.length}
-        primaryLabel="Add product"
+        primaryLabel={t("actions.addProduct")}
         onPrimary={() => setAddProductOpen(true)}
         toolbar={heroToolbar}
       />
 
       <DashboardSectionBoundary
-        sectionTitle="Product catalog"
+        sectionTitle={t("catalog.sectionTitle")}
         containerClassName="dashboard-panel"
         resetKeys={[
           search,
@@ -581,8 +601,8 @@ export default function Items() {
         ]}
       >
         <ItemsSectionPanel
-          title="Product catalog"
-          description="Search, edit, and export products. Stock changes sync across invoices and the dashboard."
+          title={t("catalog.sectionTitle")}
+          description={t("catalog.description")}
           badge={countBadge}
         >
           <div className="mb-4">
@@ -600,7 +620,7 @@ export default function Items() {
                     }
                   : undefined
               }
-              placeholder="Search by name or code…"
+              placeholder={t("search.placeholder")}
             />
           </div>
 
@@ -621,24 +641,24 @@ export default function Items() {
             <DataTable<Item>
               scrollMaxHeight={`calc(100vh - 20.5rem)`}
               columns={[
-                { key: "name", label: "Name" },
-                { key: "code", label: "Code" },
+                { key: "name", label: t("columns.name") },
+                { key: "code", label: t("columns.code") },
                 {
                   key: "current_stock",
-                  label: "Current Stock",
+                  label: t("columns.currentStock"),
                   align: "right",
                   render: (r) => formatDecimal(r.current_stock),
                 },
                 {
                   key: "unit",
-                  label: "Unit",
+                  label: t("columns.unit"),
                   render: (r) => unitDisplay(r.unit),
                 },
                 ...(gstEnabled
                   ? [
                       {
                         key: "selling_price" as const,
-                        label: "Selling Price",
+                        label: t("columns.sellingPrice"),
                         align: "right" as const,
                         render: (r: Item) =>
                           r.selling_price != null && r.selling_price > 0
@@ -647,7 +667,7 @@ export default function Items() {
                       },
                       {
                         key: "gst_rate" as const,
-                        label: "GST",
+                        label: t("columns.gst"),
                         align: "right" as const,
                         render: (r: Item) =>
                           (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
@@ -656,7 +676,7 @@ export default function Items() {
                         ? [
                             {
                               key: "hsn_code" as const,
-                              label: "HSN",
+                              label: t("columns.hsn"),
                               render: (r: Item) => r.hsn_code ?? "",
                             },
                           ]
@@ -665,7 +685,7 @@ export default function Items() {
                   : []),
                 {
                   key: "reorder_level",
-                  label: "Reorder Level",
+                  label: t("columns.reorderLevel"),
                   align: "right",
                   render: (r) =>
                     r.reorder_level != null
@@ -706,7 +726,7 @@ export default function Items() {
                 );
               }}
               onDelete={(row) => setDeleteConfirmItem(row)}
-              emptyMessage="No products yet. Click Add Product."
+              emptyMessage={t("empty.tableMessage")}
               pagination={{
                 type: "controlled",
                 page,
@@ -722,9 +742,9 @@ export default function Items() {
       <ConfirmModal
         open={deleteConfirmItem != null}
         onClose={() => setDeleteConfirmItem(null)}
-        title="Delete product"
-        message="Delete this product? Stock must be 0."
-        confirmLabel="Delete"
+        title={t("confirmDelete.title")}
+        message={t("confirmDelete.stockMustBeZero")}
+        confirmLabel={t("actions.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmItem) deleteItem.mutate(deleteConfirmItem.id);
@@ -732,7 +752,7 @@ export default function Items() {
       />
 
       <FormModal
-        title="Add Product"
+        title={t("modals.addProduct.title")}
         open={addProductOpen}
         onClose={() => {
           setAddProductOpen(false);
@@ -752,7 +772,7 @@ export default function Items() {
         footer={
           <Button variant="primary" type="submit" form="add-product-form">
             <Check size={20} className="mr-1.5" aria-hidden="true" />
-            Save
+            {t("actions.save")}
           </Button>
         }
       >
@@ -806,17 +826,17 @@ export default function Items() {
         >
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Basic details
+              {t("form.basicDetails")}
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
-              <FormField label="Name" required>
+              <FormField label={t("columns.name")} required>
                 <input
                   name="name"
                   required
                   className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                 />
               </FormField>
-              <FormField label="Code">
+              <FormField label={t("columns.code")}>
                 <input
                   name="code"
                   className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -829,10 +849,10 @@ export default function Items() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  Units & conversions
+                  {t("form.unitsAndConversions")}
                 </h3>
                 <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
-                  Choose how you buy, store and sell this product.
+                  {t("form.unitsHelpAdd")}
                 </p>
               </div>
               <Button
@@ -845,27 +865,27 @@ export default function Items() {
                 }}
               >
                 <FileDown size={20} className="mr-1.5" aria-hidden="true" />
-                Import from product
+                {t("actions.importFromProduct")}
               </Button>
             </div>
 
             <div className="space-y-3">
               <p className="text-sm text-[var(--color-text-tertiary)]">
-                Don't see your unit?{" "}
+                {t("form.missingUnitPrefix")}{" "}
                 <Link
                   to="/units"
                   className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] underline"
                 >
-                  Manage all units
+                  {t("form.manageAllUnits")}
                 </Link>{" "}
-                — add to Stock (godown) or Invoice and return here.
+                {t("form.missingUnitSuffix")}
               </p>
               <div className="border-t border-[var(--color-border-default)] pt-3">
                 <span className="mb-2 block text-sm text-[var(--color-text-tertiary)]">
-                  Primary stock unit and optional retail/other units.
+                  {t("form.primaryUnitHelp")}
                 </span>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <FormField label="Primary stock unit" required>
+                  <FormField label={t("form.primaryStockUnit")} required>
                     <select
                       name="unit"
                       value={addUnitSelect}
@@ -877,7 +897,7 @@ export default function Items() {
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                       required
                     >
-                      <option value="">Select unit</option>
+                      <option value="">{t("form.selectUnit")}</option>
                       {units.map((u) => (
                         <option key={u.id} value={u.name}>
                           {unitDisplay(u.name)}
@@ -885,13 +905,13 @@ export default function Items() {
                       ))}
                     </select>
                   </FormField>
-                  <FormField label="Retail primary unit (optional)">
+                  <FormField label={t("form.retailPrimaryUnitOptional")}>
                     <select
                       value={addRetailPrimary}
                       onChange={(e) => setAddRetailPrimary(e.target.value)}
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     >
-                      <option value="">None</option>
+                      <option value="">{t("form.none")}</option>
                       {units.map((u) => (
                         <option key={u.id} value={u.name}>
                           {unitDisplay(u.name)}
@@ -933,7 +953,7 @@ export default function Items() {
                         }
                         className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                       >
-                        <option value="">Select unit</option>
+                        <option value="">{t("form.selectUnit")}</option>
                         {units.map((u) => (
                           <option key={u.id} value={u.name}>
                             {unitDisplay(u.name)}
@@ -948,8 +968,8 @@ export default function Items() {
                           )
                         }
                         className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                        title="Remove"
-                        aria-label="Remove"
+                        title={t("actions.remove", { defaultValue: "Remove" })}
+                        aria-label={t("actions.remove", { defaultValue: "Remove" })}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -958,7 +978,11 @@ export default function Items() {
                 </div>
               </div>
 
-              <FormField label="Conversion (optional)">
+              <FormField
+                label={t("form.conversionOptional", {
+                  defaultValue: "Conversion (optional)",
+                })}
+              >
                 <p className="mb-2 text-sm text-[var(--color-text-tertiary)]">
                   e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
                   multiple rows for several units.
@@ -976,7 +1000,7 @@ export default function Items() {
                         type="number"
                         min="0.0001"
                         step="any"
-                        placeholder="e.g. 25"
+                        placeholder={t("form.example25", { defaultValue: "e.g. 25" })}
                         value={row.factor || ""}
                         onChange={(e) =>
                           setAddConversions((prev) =>
@@ -1021,8 +1045,8 @@ export default function Items() {
                           )
                         }
                         className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                        title="Remove"
-                        aria-label="Remove"
+                        title={t("actions.remove", { defaultValue: "Remove" })}
+                        aria-label={t("actions.remove", { defaultValue: "Remove" })}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1052,18 +1076,26 @@ export default function Items() {
                 GST & Selling Price
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
-                <FormField label="Selling Price (optional)">
+                <FormField
+                  label={t("form.sellingPriceOptional", {
+                    defaultValue: "Selling Price (optional)",
+                  })}
+                >
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="e.g. 50"
+                    placeholder={t("form.example50", { defaultValue: "e.g. 50" })}
                     value={addSellingPrice}
                     onChange={(e) => setAddSellingPrice(e.target.value)}
                     className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
-                <FormField label="Selling Price Unit">
+                <FormField
+                  label={t("form.sellingPriceUnit", {
+                    defaultValue: "Selling Price Unit",
+                  })}
+                >
                   <select
                     value={addSellingPriceUnit}
                     onChange={(e) => setAddSellingPriceUnit(e.target.value)}
@@ -1077,7 +1109,7 @@ export default function Items() {
                     ))}
                   </select>
                 </FormField>
-                <FormField label="GST Rate">
+                <FormField label={t("form.gstRate", { defaultValue: "GST Rate" })}>
                   <select
                     value={addGstRate}
                     onChange={(e) => setAddGstRate(Number(e.target.value))}
@@ -1091,10 +1123,14 @@ export default function Items() {
                   </select>
                 </FormField>
                 {hsnEnabled && (
-                  <FormField label="HSN Code (optional)">
+                  <FormField
+                    label={t("form.hsnCodeOptional", {
+                      defaultValue: "HSN Code (optional)",
+                    })}
+                  >
                     <input
                       type="text"
-                      placeholder="e.g. 1006"
+                      placeholder={t("form.exampleHsn", { defaultValue: "e.g. 1006" })}
                       value={addHsnCode}
                       onChange={(e) => setAddHsnCode(e.target.value)}
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -1110,7 +1146,7 @@ export default function Items() {
               Stock & reorder
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
-              <FormField label="Current Stock">
+              <FormField label={t("columns.currentStock")}>
                 <div className="flex gap-2">
                   <input
                     name="current_stock"
@@ -1141,7 +1177,7 @@ export default function Items() {
                   </select>
                 </div>
               </FormField>
-              <FormField label="Reorder Level">
+              <FormField label={t("columns.reorderLevel")}>
                 <input
                   name="reorder_level"
                   type="number"
@@ -1155,7 +1191,7 @@ export default function Items() {
       </FormModal>
 
       <FormModal
-        title="Import units from product"
+        title={t("modals.importUnits.title")}
         open={importUnitsPopupOpen}
         onClose={() => {
           setImportUnitsPopupOpen(false);
@@ -1201,17 +1237,17 @@ export default function Items() {
             }}
           >
             <FileDown size={20} className="mr-1.5" aria-hidden="true" />
-            Import
+            {t("actions.import")}
           </Button>
         }
       >
-        <FormField label="Product">
+        <FormField label={t("columns.product")}>
           <select
             value={importProductId}
             onChange={(e) => setImportProductId(e.target.value)}
             className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
           >
-            <option value="">Select a product to copy units…</option>
+            <option value="">{t("modals.importUnits.selectProductToCopy")}</option>
             {(importUnitsTarget === "edit" && editing
               ? items.filter((i) => i.id !== editing.id)
               : items
@@ -1225,7 +1261,7 @@ export default function Items() {
       </FormModal>
 
       <FormModal
-        title="Edit Product"
+        title={t("modals.editProduct.title")}
         open={!!editing}
         onClose={() => {
           setEditing(null);
@@ -1247,7 +1283,7 @@ export default function Items() {
           editing ? (
             <Button variant="primary" type="submit" form="edit-product-form">
               <Check size={20} className="mr-1.5" aria-hidden="true" />
-              Update
+              {t("actions.update")}
             </Button>
           ) : null
         }
@@ -1309,10 +1345,10 @@ export default function Items() {
           >
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Basic details
+              {t("form.basicDetails")}
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
-                <FormField label="Name" required>
+                <FormField label={t("columns.name")} required>
                   <input
                     name="name"
                     defaultValue={editing.name}
@@ -1320,7 +1356,7 @@ export default function Items() {
                     className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                   />
                 </FormField>
-                <FormField label="Code">
+                <FormField label={t("columns.code")}>
                   <input
                     name="code"
                     defaultValue={editing.code ?? ""}
@@ -1370,7 +1406,7 @@ export default function Items() {
                     Primary stock unit and optional retail/other units.
                   </span>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <FormField label="Unit" required>
+                    <FormField label={t("columns.unit")} required>
                       <select
                         name="unit"
                         value={editUnitSelect || editing.unit}
@@ -1378,7 +1414,7 @@ export default function Items() {
                         className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                         required
                       >
-                        <option value="">Select unit</option>
+                        <option value="">{t("form.selectUnit")}</option>
                         {(units.some((u) => u.name === editing.unit)
                           ? units
                           : [
@@ -1400,13 +1436,13 @@ export default function Items() {
                         ))}
                       </select>
                     </FormField>
-                    <FormField label="Retail primary unit (optional)">
+                    <FormField label={t("form.retailPrimaryUnitOptional")}>
                       <select
                         value={editRetailPrimary}
                         onChange={(e) => setEditRetailPrimary(e.target.value)}
                         className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                       >
-                        <option value="">None</option>
+                        <option value="">{t("form.none")}</option>
                         {units.map((u) => (
                           <option key={u.id} value={u.name}>
                             {unitDisplay(u.name)}
@@ -1448,7 +1484,7 @@ export default function Items() {
                           }
                           className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
                         >
-                          <option value="">Select unit</option>
+                          <option value="">{t("form.selectUnit")}</option>
                           {units.map((u) => (
                             <option key={u.id} value={u.name}>
                               {unitDisplay(u.name)}
@@ -1463,8 +1499,8 @@ export default function Items() {
                             )
                           }
                           className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                          title="Remove"
-                          aria-label="Remove"
+                          title={t("actions.remove", { defaultValue: "Remove" })}
+                          aria-label={t("actions.remove", { defaultValue: "Remove" })}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1473,7 +1509,11 @@ export default function Items() {
                   </div>
                 </div>
 
-                <FormField label="Conversion (optional)">
+                <FormField
+                  label={t("form.conversionOptional", {
+                    defaultValue: "Conversion (optional)",
+                  })}
+                >
                   <p className="mb-2 text-sm text-[var(--color-text-tertiary)]">
                     e.g. 1 bag = 25 kg — lets you enter stock in kg or gram. Add
                     multiple rows for several units.
@@ -1491,7 +1531,7 @@ export default function Items() {
                           type="number"
                           min="0.0001"
                           step="any"
-                          placeholder="e.g. 25"
+                          placeholder={t("form.example25", { defaultValue: "e.g. 25" })}
                           value={row.factor || ""}
                           onChange={(e) =>
                             setEditConversions((prev) =>
@@ -1520,7 +1560,7 @@ export default function Items() {
                           }
                           className="border border-[var(--color-border-strong)] rounded px-3 py-2"
                         >
-                          <option value="">Select unit</option>
+                          <option value="">{t("form.selectUnit")}</option>
                           {units
                             .map((u) => u.name)
                             .sort()
@@ -1538,8 +1578,8 @@ export default function Items() {
                             )
                           }
                           className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                          title="Remove"
-                          aria-label="Remove"
+                          title={t("actions.remove", { defaultValue: "Remove" })}
+                          aria-label={t("actions.remove", { defaultValue: "Remove" })}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1569,18 +1609,26 @@ export default function Items() {
                   GST & Selling Price
                 </h3>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <FormField label="Selling Price (optional)">
+                  <FormField
+                    label={t("form.sellingPriceOptional", {
+                      defaultValue: "Selling Price (optional)",
+                    })}
+                  >
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="e.g. 50"
+                      placeholder={t("form.example50", { defaultValue: "e.g. 50" })}
                       value={editSellingPrice}
                       onChange={(e) => setEditSellingPrice(e.target.value)}
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
                     />
                   </FormField>
-                  <FormField label="Selling Price Unit">
+                  <FormField
+                    label={t("form.sellingPriceUnit", {
+                      defaultValue: "Selling Price Unit",
+                    })}
+                  >
                     <select
                       value={editSellingPriceUnit}
                       onChange={(e) => setEditSellingPriceUnit(e.target.value)}
@@ -1594,7 +1642,7 @@ export default function Items() {
                       ))}
                     </select>
                   </FormField>
-                  <FormField label="GST Rate">
+                  <FormField label={t("form.gstRate", { defaultValue: "GST Rate" })}>
                     <select
                       value={editGstRate}
                       onChange={(e) => setEditGstRate(Number(e.target.value))}
@@ -1608,10 +1656,14 @@ export default function Items() {
                     </select>
                   </FormField>
                   {hsnEnabled && (
-                    <FormField label="HSN Code (optional)">
+                    <FormField
+                      label={t("form.hsnCodeOptional", {
+                        defaultValue: "HSN Code (optional)",
+                      })}
+                    >
                       <input
                         type="text"
-                        placeholder="e.g. 1006"
+                        placeholder={t("form.exampleHsn", { defaultValue: "e.g. 1006" })}
                         value={editHsnCode}
                         onChange={(e) => setEditHsnCode(e.target.value)}
                         className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -1627,7 +1679,7 @@ export default function Items() {
                 Stock & reorder
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
-                <FormField label="Current Stock">
+                <FormField label={t("columns.currentStock")}>
                   <div className="flex gap-2">
                     <input
                       name="current_stock"
@@ -1656,7 +1708,7 @@ export default function Items() {
                     </select>
                   </div>
                 </FormField>
-                <FormField label="Reorder Level">
+                <FormField label={t("columns.reorderLevel")}>
                   <input
                     name="reorder_level"
                     type="number"
@@ -1672,7 +1724,7 @@ export default function Items() {
       </FormModal>
 
       <FormModal
-        title="Add Stock"
+        title={t("modals.addStock.title")}
         open={addStockOpen}
         onClose={() => {
           setAddStockOpen(false);
@@ -1681,7 +1733,7 @@ export default function Items() {
         footer={
           <Button variant="primary" type="submit" form="add-stock-form">
             <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add
+            {t("actions.add")}
           </Button>
         }
       >
@@ -1693,7 +1745,7 @@ export default function Items() {
             if (!addStockItem) return;
             const qty = Number((e.target as HTMLFormElement).quantity.value);
             if (qty <= 0) {
-              toast.error("Quantity must be positive.");
+              toast.error(t("validation.quantityPositive"));
               return;
             }
             addStock.mutate({
@@ -1706,7 +1758,7 @@ export default function Items() {
             });
           }}
         >
-          <FormField label="Product">
+          <FormField label={t("columns.product")}>
             <select
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               value={addStockItem?.id ?? ""}
@@ -1717,7 +1769,7 @@ export default function Items() {
               }
               required
             >
-              <option value="">Select product</option>
+              <option value="">{t("modals.addStock.selectProduct")}</option>
               {items.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.name} ({formatDecimal(i.current_stock)}{" "}
@@ -1726,7 +1778,7 @@ export default function Items() {
               ))}
             </select>
           </FormField>
-          <FormField label="Quantity to add">
+          <FormField label={t("modals.addStock.quantityToAdd")}>
             <div className="flex gap-2">
               <input
                 name="quantity"
@@ -1760,7 +1812,7 @@ export default function Items() {
       </FormModal>
 
       <FormModal
-        title="Reduce Stock"
+        title={t("modals.reduceStock.title")}
         open={reduceStockOpen}
         onClose={() => {
           setReduceStockOpen(false);
@@ -1769,7 +1821,7 @@ export default function Items() {
         footer={
           <Button variant="primary" type="submit" form="reduce-stock-form">
             <ArrowDown size={20} className="mr-1.5" aria-hidden="true" />
-            Reduce
+            {t("actions.reduce")}
           </Button>
         }
       >
@@ -1781,7 +1833,7 @@ export default function Items() {
             if (!reduceStockItem) return;
             const qty = Number((e.target as HTMLFormElement).quantity.value);
             if (qty <= 0) {
-              toast.error("Quantity must be positive.");
+              toast.error(t("validation.quantityPositive"));
               return;
             }
             reduceStock.mutate({
@@ -1795,7 +1847,7 @@ export default function Items() {
             });
           }}
         >
-          <FormField label="Product">
+          <FormField label={t("columns.product")}>
             <select
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               value={reduceStockItem?.id ?? ""}
@@ -1806,7 +1858,7 @@ export default function Items() {
               }
               required
             >
-              <option value="">Select product</option>
+              <option value="">{t("modals.reduceStock.selectProduct")}</option>
               {items.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.name} ({formatDecimal(i.current_stock)}{" "}
@@ -1815,7 +1867,7 @@ export default function Items() {
               ))}
             </select>
           </FormField>
-          <FormField label="Quantity to deduct">
+          <FormField label={t("modals.reduceStock.quantityToDeduct")}>
             <div className="flex gap-2">
               <input
                 name="quantity"
@@ -1848,9 +1900,9 @@ export default function Items() {
         </form>
       </FormModal>
 
-      {printData && (
+      {printJob && (
         <div
-          className="app-print-container items-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
+          className="app-print-container items-print-container daily-sales-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
           <header className="items-print-header mb-4 border-b border-[var(--color-border-default)] pb-3">
@@ -1858,7 +1910,7 @@ export default function Items() {
               {appName}
             </p>
             <p className="items-print-report text-xs text-[var(--color-text-secondary)]">
-              Products & Stock
+              {t("print.reportTitle")}
             </p>
             <p className="items-print-datetime mt-1 text-xs text-[var(--color-text-tertiary)]">
               {new Date().toLocaleString(undefined, {
@@ -1870,7 +1922,7 @@ export default function Items() {
           <table className="items-print-table w-full border-collapse text-xs">
             <thead>
               <tr className="items-print-thead">
-                {printData.columns.map((col) => (
+                {printJob.columns.map((col) => (
                   <th
                     key={col}
                     className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white"
@@ -1881,11 +1933,11 @@ export default function Items() {
               </tr>
             </thead>
             <tbody>
-              {printData.rows.map((row) => (
+              {printJob.rows.map((row) => (
                 <tr key={row[0]} className="items-print-tbody-tr">
                   {row.map((cell, ci) => (
                     <td
-                      key={`${row[0]}-${printData.columns[ci]}`}
+                      key={`${row[0]}-${printJob.columns[ci]}`}
                       className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}

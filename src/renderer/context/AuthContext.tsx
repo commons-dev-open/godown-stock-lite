@@ -15,6 +15,12 @@ export interface CurrentUser {
   role: UserRole;
 }
 
+interface UserEntry {
+  id: number;
+  name: string;
+  is_active: number;
+}
+
 type AuthState =
   | { status: "loading" }
   | { status: "onboarding" }
@@ -51,7 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isOnboarded) {
           setAuthState({ status: "onboarding" });
         } else {
-          setAuthState({ status: "selecting", businessName });
+          const users = (await window.electron.auth.listUsers()) as UserEntry[];
+          const activeUsers = users.filter((user) => user.is_active !== 0);
+          if (activeUsers.length === 1) {
+            const singleUser = activeUsers[0];
+            setAuthState({
+              status: "entering_pin",
+              userId: singleUser.id,
+              userName: singleUser.name,
+              businessName,
+            });
+          } else {
+            setAuthState({ status: "selecting", businessName });
+          }
         }
       } catch {
         setAuthState({ status: "onboarding" });
@@ -95,7 +113,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         prev.status === "selecting"
           ? prev.businessName
           : "";
-      return { status: "selecting", businessName };
+
+      void window.electron.auth
+        .listUsers()
+        .then((users) => {
+          const activeUsers = (users as UserEntry[]).filter(
+            (user) => user.is_active !== 0
+          );
+          if (activeUsers.length === 1) {
+            const singleUser = activeUsers[0];
+            setAuthState({
+              status: "entering_pin",
+              userId: singleUser.id,
+              userName: singleUser.name,
+              businessName,
+            });
+            return;
+          }
+          setAuthState({ status: "selecting", businessName });
+        })
+        .catch(() => {
+          setAuthState({ status: "selecting", businessName });
+        });
+
+      return { status: "loading" };
     });
   }, []);
 

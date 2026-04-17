@@ -1,24 +1,49 @@
 {
   "hero": {
     "title": "प्रोडक्ट और स्टॉक",
-    "subtitle": "अपना इन्वेंटरी मैनेज करें"
+    "subtitle": "अपना इन्वेंटरी मैनेज करें",
+    "metrics": {
+      "inCatalog": "कैटलॉग में",
+      "lowStock": "लो स्टॉक",
+      "units": "इकाइयाँ"
+    }
   },
   "actions": {
     "addItem": "आइटम जोड़ें",
+    "addProduct": "प्रोडक्ट जोड़ें",
+    "addStock": "स्टॉक जोड़ें",
+    "reduceStock": "स्टॉक घटाएँ",
+    "clearSearch": "खोज साफ करें",
+    "save": "सेव करें",
+    "update": "अपडेट करें",
+    "add": "जोड़ें",
+    "reduce": "घटाएँ",
+    "delete": "डिलीट",
+    "export": "एक्सपोर्ट",
+    "print": "प्रिंट",
+    "import": "इम्पोर्ट",
+    "importFromProduct": "प्रोडक्ट से इम्पोर्ट",
     "editItem": "आइटम एडिट करें",
     "deleteItem": "आइटम डिलीट करें",
     "adjustStock": "स्टॉक एडजस्ट करें",
     "toggleArchive": "आर्काइव करें",
-    "toggleUnarchive": "अनआर्काइव करें"
+    "toggleUnarchive": "अनआर्काइव करें",
+    "remove": "हटाएँ"
   },
   "search": {
     "placeholder": "नाम या कोड से खोजें…"
   },
   "columns": {
+    "product": "प्रोडक्ट",
     "name": "नाम",
     "code": "कोड",
     "unit": "इकाई",
     "stock": "स्टॉक",
+    "currentStock": "वर्तमान स्टॉक",
+    "sellingPrice": "सेलिंग प्राइस",
+    "gst": "GST",
+    "hsn": "HSN",
+    "reorderLevel": "रीऑर्डर लेवल",
     "price": "मूल्य",
     "lowStockAt": "लो स्टॉक लिमिट",
     "status": "स्थिति"
@@ -30,17 +55,41 @@
     "lowStock": "लो स्टॉक"
   },
   "form": {
+    "none": "कोई नहीं",
+    "basicDetails": "बुनियादी जानकारी",
+    "unitsAndConversions": "इकाइयाँ और कन्वर्ज़न",
+    "unitsHelpAdd": "इस प्रोडक्ट को कैसे खरीदें, स्टोर करें और बेचें, यह चुनें।",
+    "missingUnitPrefix": "आपकी इकाई नहीं दिख रही?",
+    "manageAllUnits": "सभी इकाइयाँ मैनेज करें",
+    "missingUnitSuffix": "— इसे स्टॉक (गोदाम) या इनवॉइस में जोड़ें और यहाँ लौटें।",
+    "primaryUnitHelp": "प्राइमरी स्टॉक यूनिट और वैकल्पिक रिटेल/अन्य इकाइयाँ।",
+    "primaryStockUnit": "प्राइमरी स्टॉक यूनिट",
+    "retailPrimaryUnitOptional": "रिटेल प्राइमरी यूनिट (वैकल्पिक)",
+    "selectUnit": "इकाई चुनें",
     "namePlaceholder": "आइटम का नाम",
     "codePlaceholder": "SKU / कोड",
     "pricePlaceholder": "सेलिंग प्राइस",
     "stockPlaceholder": "वर्तमान स्टॉक",
     "lowStockPlaceholder": "लो स्टॉक लिमिट",
-    "notesPlaceholder": "वैकल्पिक नोट्स"
+    "notesPlaceholder": "वैकल्पिक नोट्स",
+    "conversionOptional": "कन्वर्ज़न (वैकल्पिक)",
+    "example25": "उदा. 25",
+    "example50": "उदा. 50",
+    "sellingPriceOptional": "सेलिंग प्राइस (वैकल्पिक)",
+    "sellingPriceUnit": "सेलिंग प्राइस यूनिट",
+    "gstRate": "GST रेट",
+    "hsnCodeOptional": "HSN कोड (वैकल्पिक)",
+    "exampleHsn": "उदा. 1006"
   },
   "empty": {
     "title": "अभी कोई आइटम नहीं",
     "message": "स्टॉक ट्रैक करने के लिए पहला प्रोडक्ट जोड़ें।",
-    "cta": "पहला आइटम जोड़ें"
+    "cta": "पहला आइटम जोड़ें",
+    "tableMessage": "अभी कोई प्रोडक्ट नहीं है। Add Product पर क्लिक करें।",
+    "noMatchesTitle": "कोई मैच नहीं मिला",
+    "noMatchesDescription": "इस खोज से कैटलॉग में कुछ नहीं मिला। दूसरा कीवर्ड आज़माएँ या फ़िल्टर साफ करें।",
+    "noProductsTitle": "अभी कोई प्रोडक्ट नहीं",
+    "noProductsDescription": "बेस यूनिट और रीऑर्डर लेवल के साथ पहला प्रोडक्ट जोड़ें। बाद में अन्य इकाइयाँ और कन्वर्ज़न जोड़ सकते हैं।"
   },
   "toast": {
     "created": "आइटम बन गया",
@@ -51,6 +100,57 @@
   },
   "confirmDelete": {
     "title": "आइटम डिलीट करें?",
-    "body": "इससे आइटम और उसकी स्टॉक हिस्ट्री हमेशा के लिए हट जाएगी।"
+    "body": "इससे आइटम और उसकी स्टॉक हिस्ट्री हमेशा के लिए हट जाएगी।",
+    "stockMustBeZero": "क्या यह प्रोडक्ट डिलीट करें? स्टॉक 0 होना चाहिए।"
+  },
+  "catalog": {
+    "sectionTitle": "प्रोडक्ट कैटलॉग",
+    "description": "प्रोडक्ट खोजें, एडिट करें और एक्सपोर्ट करें। स्टॉक बदलाव इनवॉइस और डैशबोर्ड में सिंक होते हैं।"
+  },
+  "async": {
+    "errorTitle": "कुछ गलत हुआ",
+    "errorDescription": "प्रोडक्ट लोड नहीं हो सके। कनेक्शन जांचें और फिर से प्रयास करें।",
+    "retry": "फिर से प्रयास करें"
+  },
+  "export": {
+    "asCsv": "CSV के रूप में एक्सपोर्ट",
+    "asPdf": "PDF के रूप में एक्सपोर्ट",
+    "noData": "एक्सपोर्ट करने के लिए कोई डेटा नहीं है।",
+    "csvSuccess": "CSV के रूप में एक्सपोर्ट किया गया।",
+    "pdfSuccess": "PDF के रूप में एक्सपोर्ट किया गया।",
+    "pdfFailed": "PDF सहेजा नहीं जा सका।",
+    "columns": {
+      "id": "आईडी",
+      "createdAt": "बनने का समय",
+      "updatedAt": "अपडेट का समय"
+    }
+  },
+  "validation": {
+    "quantityPositive": "मात्रा धनात्मक होनी चाहिए।"
+  },
+  "print": {
+    "reportTitle": "प्रोडक्ट और स्टॉक"
+  },
+  "modals": {
+    "addProduct": {
+      "title": "प्रोडक्ट जोड़ें"
+    },
+    "editProduct": {
+      "title": "प्रोडक्ट एडिट करें"
+    },
+    "importUnits": {
+      "title": "प्रोडक्ट से इकाइयाँ इम्पोर्ट करें",
+      "selectProductToCopy": "इकाइयाँ कॉपी करने के लिए प्रोडक्ट चुनें…"
+    },
+    "addStock": {
+      "title": "स्टॉक जोड़ें",
+      "selectProduct": "प्रोडक्ट चुनें",
+      "quantityToAdd": "जोड़ने की मात्रा"
+    },
+    "reduceStock": {
+      "title": "स्टॉक घटाएँ",
+      "selectProduct": "प्रोडक्ट चुनें",
+      "quantityToDeduct": "घटाने की मात्रा"
+    }
   }
 }

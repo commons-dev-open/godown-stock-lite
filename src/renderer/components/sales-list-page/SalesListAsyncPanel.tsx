@@ -14,6 +14,9 @@ interface SalesListAsyncPanelProps {
   emptySecondaryLabel?: string;
   onEmptySecondary?: () => void;
   loaderColumns?: number;
+  errorTitle?: string;
+  errorDescription?: string;
+  retryLabel?: string;
   children: ReactNode;
 }
 
@@ -29,6 +32,9 @@ export function SalesListAsyncPanel({
   emptySecondaryLabel,
   onEmptySecondary,
   loaderColumns = 4,
+  errorTitle,
+  errorDescription = "This list could not be loaded. Check your connection and try again.",
+  retryLabel,
   children,
 }: Readonly<SalesListAsyncPanelProps>) {
   return (
@@ -38,7 +44,9 @@ export function SalesListAsyncPanel({
       onRetry={onRetry}
       isEmpty={isEmpty}
       loaderColumns={loaderColumns}
-      errorDescription="This list could not be loaded. Check your connection and try again."
+      errorTitle={errorTitle}
+      errorDescription={errorDescription}
+      retryLabel={retryLabel}
       empty={
         <SalesListEmptyState
           title={emptyTitle}

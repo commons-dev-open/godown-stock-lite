@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
@@ -16,15 +17,27 @@ import { formatDecimal } from "../../shared/numbers";
 import { computeLineGst, GST_SLABS } from "../../shared/gst";
 
 const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash", refLabel: "Receipt No. / Voucher No." },
+  {
+    value: "cash",
+    labelKey: "modals.shared.payment_methods.cash.label",
+    refLabelKey: "modals.shared.payment_methods.cash.reference_label",
+  },
   {
     value: "bank",
-    label: "Bank (NEFT/RTGS/IMPS)",
-    refLabel: "UTR No.",
-    placeholder: "e.g. 123456789012",
+    labelKey: "modals.shared.payment_methods.bank.label",
+    refLabelKey: "modals.shared.payment_methods.bank.reference_label",
+    placeholderKey: "modals.shared.payment_methods.bank.placeholder",
   },
-  { value: "upi", label: "UPI", refLabel: "UPI Reference ID" },
-  { value: "cheque", label: "Cheque", refLabel: "Cheque No." },
+  {
+    value: "upi",
+    labelKey: "modals.shared.payment_methods.upi.label",
+    refLabelKey: "modals.shared.payment_methods.upi.reference_label",
+  },
+  {
+    value: "cheque",
+    labelKey: "modals.shared.payment_methods.cheque.label",
+    refLabelKey: "modals.shared.payment_methods.cheque.reference_label",
+  },
 ] as const;
 
 export type LendLine = {
@@ -68,6 +81,7 @@ export default function AddLendModal({
   fixedMahajanId,
   fixedMahajanName = "",
 }: AddLendModalProps) {
+  const { t } = useTranslation("transactions");
   const queryClient = useQueryClient();
   const api = getElectron();
   const [lendLines, setLendLines] = useState<LendLine[]>([emptyLine()]);
@@ -237,7 +251,7 @@ export default function AddLendModal({
           mahajan_id: payload.mahajan_id,
           transaction_date: payload.transaction_date,
           amount: payNow,
-          notes: `Paid at credit purchase (partial)`,
+          notes: t("modals.add_credit_purchase.defaults.pay_now_note"),
           payment_method:
             payload.pay_now_payment_method || undefined,
           reference_number:
@@ -261,12 +275,14 @@ export default function AddLendModal({
       onClose();
       toast.success(
         data?.hadPayNow
-          ? "Credit purchase and partial payment saved"
-          : "Credit purchase saved"
+          ? t("modals.add_credit_purchase.toasts.saved_with_partial")
+          : t("modals.add_credit_purchase.toasts.saved")
       );
     },
     onError: (err: Error) => {
-      toast.error(err.message ?? "Failed to save credit purchase");
+      toast.error(
+        err.message ?? t("modals.add_credit_purchase.toasts.save_failed")
+      );
     },
   });
 
@@ -321,14 +337,14 @@ export default function AddLendModal({
       })
       .filter((l): l is LendLine => l != null);
     if (!lines.length) {
-      toast.error("Add at least one product with quantity and amount.");
+      toast.error(t("modals.add_credit_purchase.toasts.add_one_item"));
       return;
     }
     const mahajan = mahajanList.find((m) => m.id === mahajanId);
     const totalAmount = buildLinesWithGst(lines).reduce((s, l) => s + l.amount, 0);
     const payNow = payNowAmount || 0;
     if (payNow > 0 && payNow > totalAmount) {
-      toast.error("Pay now amount cannot exceed total credit purchase amount.");
+      toast.error(t("modals.add_credit_purchase.toasts.pay_now_exceeds_total"));
       return;
     }
     setConfirmPayload({
@@ -349,7 +365,7 @@ export default function AddLendModal({
   return (
     <>
       <FormModal
-        title="Add Credit Purchase"
+        title={t("modals.add_credit_purchase.title")}
         open={open && !confirmLendOpen}
         onClose={handleClose}
         maxWidth="max-w-3xl"
@@ -360,7 +376,7 @@ export default function AddLendModal({
               className="mr-1.5"
               aria-hidden="true"
             />
-            Review &amp; confirm
+            {t("modals.shared.actions.review_confirm")}
           </Button>
         }
       >
@@ -368,10 +384,10 @@ export default function AddLendModal({
           {fixedMahajanId == null && (
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
-                Lender *
+                {t("modals.shared.fields.lender_required")}
               </label>
               <select name="mahajan_id" required className="input-base w-full">
-                <option value="">Select</option>
+                <option value="">{t("modals.shared.placeholders.select")}</option>
                 {mahajanList.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -382,7 +398,7 @@ export default function AddLendModal({
           )}
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
-              Date * (dd/mm/yyyy)
+              {t("modals.shared.fields.date_required")}
             </label>
             <DateInput
               value={lendFormDate}
@@ -401,10 +417,10 @@ export default function AddLendModal({
                         : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
                     }`}
                   >
-                    <span>Product</span>
-                    <span>Qty</span>
-                    <span>Unit</span>
-                    <span>Amount</span>
+                    <span>{t("columns.product")}</span>
+                    <span>{t("columns.qty")}</span>
+                    <span>{t("columns.unit")}</span>
+                    <span>{t("columns.amount")}</span>
                     {gstEnabled && (
                       <>
                         <span>GST %</span>
@@ -451,7 +467,9 @@ export default function AddLendModal({
                           className="input-base w-full min-w-0"
                           aria-label="Product"
                         >
-                          <option value="">Select product</option>
+                        <option value="">
+                          {t("modals.shared.placeholders.select_product")}
+                        </option>
                           {itemList.map((i) => (
                             <option key={i.id} value={i.id}>
                               {i.name}
@@ -464,7 +482,7 @@ export default function AddLendModal({
                           inputMode="numeric"
                           min="0"
                           step="1"
-                          placeholder="0"
+                          placeholder={t("modals.shared.placeholders.zero")}
                           value={line.quantity || ""}
                           onChange={(e) =>
                             setLendLines((prev) => {
@@ -480,7 +498,7 @@ export default function AddLendModal({
                           aria-label={
                             selectedItem?.unit
                               ? `Quantity (${selectedItem.unit})`
-                              : "Quantity"
+                              : t("modals.shared.fields.quantity")
                           }
                         />
                         <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
@@ -492,7 +510,7 @@ export default function AddLendModal({
                           inputMode="decimal"
                           min="0"
                           step="0.01"
-                          placeholder="0"
+                          placeholder={t("modals.shared.placeholders.zero")}
                           value={line.amount || ""}
                           onChange={(e) =>
                             setLendLines((prev) => {
@@ -505,7 +523,7 @@ export default function AddLendModal({
                             })
                           }
                           className="input-base w-full text-right"
-                          aria-label="Amount"
+                          aria-label={t("columns.amount")}
                         />
                         {gstEnabled && (
                           <>
@@ -548,8 +566,12 @@ export default function AddLendModal({
                               className="input-base w-full"
                               aria-label="GST mode"
                             >
-                              <option value="exclusive">Exclusive</option>
-                              <option value="inclusive">Inclusive</option>
+                              <option value="exclusive">
+                                {t("modals.add_credit_purchase.gst.exclusive")}
+                              </option>
+                              <option value="inclusive">
+                                {t("modals.add_credit_purchase.gst.inclusive")}
+                              </option>
                             </select>
                           </>
                         )}
@@ -561,7 +583,7 @@ export default function AddLendModal({
                             )
                           }
                           className="text-[var(--color-danger)] hover:text-[var(--color-danger-text)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded-lg transition-colors inline-flex items-center gap-1 disabled:invisible"
-                          aria-label="Remove line"
+                          aria-label={t("modals.shared.actions.remove_line")}
                           disabled={lendLines.length <= 1}
                         >
                           <Trash2 size={16} aria-hidden="true" />
@@ -577,30 +599,30 @@ export default function AddLendModal({
                   className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
                 >
                   <Plus size={20} className="mr-1.5" aria-hidden="true" />
-                  Add item
+                  {t("modals.shared.actions.add_item")}
                 </Button>
               </div>
             </div>
           </div>
           <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              Invoice details (optional)
+              {t("modals.add_credit_purchase.sections.invoice_details_optional")}
             </p>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Lender&apos;s Invoice Number
+                {t("modals.add_credit_purchase.fields.lender_invoice_number")}
               </label>
               <input
                 type="text"
                 value={lenderInvoiceNumber}
                 onChange={(e) => setLenderInvoiceNumber(e.target.value)}
-                placeholder="e.g. INV-2024-001"
+                placeholder={t("modals.add_credit_purchase.placeholders.invoice_number")}
                 className="input-base w-full"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Upload Invoice
+                {t("modals.add_credit_purchase.fields.upload_invoice")}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -619,36 +641,37 @@ export default function AddLendModal({
                   <FileUp size={20} aria-hidden="true" />
                   {invoiceFile
                     ? invoiceFile.name
-                    : "Choose file (PDF, images)"}
+                    : t("modals.add_credit_purchase.placeholders.choose_file")}
                 </label>
                 {invoiceFile && (
                   <button
                     type="button"
                     onClick={() => setInvoiceFile(null)}
                     className="text-[var(--color-danger)] hover:text-[var(--color-danger-text)] p-1 rounded-lg"
-                    aria-label="Remove file"
+                    aria-label={t("modals.add_credit_purchase.actions.remove_file")}
                   >
                     <X size={20} aria-hidden="true" />
                   </button>
                 )}
               </div>
               <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-                Max 10 MB. Stored in app data.
+                {t("modals.add_credit_purchase.messages.max_file_size")}
               </p>
             </div>
           </div>
           <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
-            <p className="text-sm font-medium text-[var(--color-text-secondary)]">Pay now (optional)</p>
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+              {t("modals.add_credit_purchase.sections.pay_now_optional")}
+            </p>
             <p className="text-xs text-[var(--color-text-tertiary)]">
-              Pay part of this credit purchase immediately. Remaining amount stays
-              as liability.
+              {t("modals.add_credit_purchase.messages.pay_now_help")}
             </p>
             <div>
               <label
                 htmlFor="pay-now-amount"
                 className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
               >
-                Amount to pay now
+                {t("modals.add_credit_purchase.fields.amount_to_pay_now")}
               </label>
               <input
                 id="pay-now-amount"
@@ -660,7 +683,7 @@ export default function AddLendModal({
                 onChange={(e) =>
                   setPayNowAmount(Number(e.target.value) || 0)
                 }
-                placeholder="0"
+                placeholder={t("modals.shared.placeholders.zero")}
                 className="input-base w-full"
               />
             </div>
@@ -671,7 +694,7 @@ export default function AddLendModal({
                     htmlFor="pay-now-method"
                     className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
                   >
-                    Payment Method
+                    {t("modals.shared.fields.payment_method")}
                   </label>
                   <select
                     id="pay-now-method"
@@ -679,10 +702,10 @@ export default function AddLendModal({
                     onChange={(e) => setPayNowPaymentMethod(e.target.value)}
                     className="input-base w-full"
                   >
-                    <option value="">None</option>
+                    <option value="">{t("modals.shared.placeholders.none")}</option>
                     {PAYMENT_METHODS.map((pm) => (
                       <option key={pm.value} value={pm.value}>
-                        {pm.label}
+                        {t(pm.labelKey)}
                       </option>
                     ))}
                   </select>
@@ -695,7 +718,13 @@ export default function AddLendModal({
                     >
                       {PAYMENT_METHODS.find(
                         (p) => p.value === payNowPaymentMethod
-                      )?.refLabel ?? "Reference"}
+                      )
+                        ? t(
+                            PAYMENT_METHODS.find(
+                              (p) => p.value === payNowPaymentMethod
+                            )!.refLabelKey
+                          )
+                        : t("modals.shared.fields.reference")}
                     </label>
                     <input
                       id="pay-now-reference"
@@ -704,11 +733,16 @@ export default function AddLendModal({
                       onChange={(e) =>
                         setPayNowReferenceNumber(e.target.value)
                       }
-                      placeholder={
-                        PAYMENT_METHODS.find(
+                      placeholder={(() => {
+                        const pm = PAYMENT_METHODS.find(
                           (p) => p.value === payNowPaymentMethod
-                        )?.placeholder
-                      }
+                        );
+                        return pm &&
+                          "placeholderKey" in pm &&
+                          pm.placeholderKey
+                          ? t(pm.placeholderKey)
+                          : undefined;
+                      })()}
                       className="input-base w-full"
                     />
                   </div>
@@ -718,12 +752,12 @@ export default function AddLendModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
-              Notes
+              {t("modals.shared.fields.notes")}
             </label>
             <textarea
               name="notes"
               rows={3}
-              placeholder="Optional notes for this transaction"
+              placeholder={t("modals.shared.placeholders.optional_notes")}
               className="input-base w-full resize-y min-h-[4.5rem]"
             />
           </div>
@@ -731,7 +765,7 @@ export default function AddLendModal({
       </FormModal>
 
       <FormModal
-        title="Confirm Credit Purchase"
+        title={t("modals.add_credit_purchase.confirm.title")}
         open={confirmLendOpen}
         onClose={() => {
           setConfirmLendOpen(false);
@@ -748,7 +782,7 @@ export default function AddLendModal({
                   setConfirmPayload(null);
                 }}
               >
-                Back
+                {t("modals.shared.actions.back")}
               </Button>
               <Button
                 variant="amber"
@@ -772,7 +806,9 @@ export default function AddLendModal({
                 }}
                 disabled={createLendBatch.isPending}
               >
-                {createLendBatch.isPending ? "Saving..." : "Confirm"}
+                {createLendBatch.isPending
+                  ? t("modals.shared.actions.saving")
+                  : t("modals.shared.actions.confirm")}
               </Button>
             </>
           ) : null
@@ -781,7 +817,9 @@ export default function AddLendModal({
         {confirmPayload && (
           <div className="space-y-4">
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Receive credit purchase from <strong>{confirmPayload.mahajanName}</strong> on{" "}
+              {t("modals.add_credit_purchase.confirm.receive_from", {
+                lender: confirmPayload.mahajanName,
+              })}{" "}
               <Tooltip
                 content={formatDateForForm(confirmPayload.transaction_date)}
               >
@@ -816,7 +854,7 @@ export default function AddLendModal({
               tableFrame={false}
             />
             <p className="text-sm font-medium">
-              Total credit purchase amount (this transaction): ₹
+              {t("modals.add_credit_purchase.confirm.total_amount")}: ₹
               {formatDecimal(
                 buildLinesWithGst(confirmPayload.lines).reduce(
                   (s, l) => s + l.amount,
@@ -826,9 +864,16 @@ export default function AddLendModal({
             </p>
             {confirmPayload.pay_now_amount > 0 && (
               <p className="text-sm text-[var(--color-text-secondary)]">
-                Paying ₹{formatDecimal(confirmPayload.pay_now_amount)} now
+                {t("modals.add_credit_purchase.confirm.paying_now", {
+                  amount: formatDecimal(confirmPayload.pay_now_amount),
+                })}
                 {confirmPayload.pay_now_payment_method && (
-                  <> via {confirmPayload.pay_now_payment_method}</>
+                  <>
+                    {" "}
+                    {t("modals.add_credit_purchase.confirm.via_method", {
+                      method: confirmPayload.pay_now_payment_method,
+                    })}
+                  </>
                 )}
               </p>
             )}
@@ -846,7 +891,7 @@ export default function AddLendModal({
                     (confirmPayload.pay_now_amount ?? 0)
                   : undefined
               }
-              balanceAfterLabel="After this credit purchase:"
+              balanceAfterLabel={t("modals.add_credit_purchase.confirm.balance_after")}
             />
           </div>
         )}

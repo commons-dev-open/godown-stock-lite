@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth, type UserRole } from "../context/AuthContext";
 import PinDots from "../components/PinDots";
 import PinPad from "../components/PinPad";
@@ -17,7 +17,8 @@ function getInitials(name: string) {
 }
 
 export default function PinEntry() {
-  const { authState, lock, unlock, requirePinChange } = useAuth();
+  const { authState, unlock, requirePinChange } = useAuth();
+  const { t } = useTranslation("onboarding");
 
   const userId = authState.status === "entering_pin" ? authState.userId : 0;
   const userName = authState.status === "entering_pin" ? authState.userName : "";
@@ -66,18 +67,18 @@ export default function PinEntry() {
           }
         } else {
           setHasError(true);
-          setErrorMsg("Incorrect PIN");
+          setErrorMsg(t("pinEntry.wrongPin"));
           setPin("");
         }
       } catch {
         setHasError(true);
-        setErrorMsg("Something went wrong");
+        setErrorMsg(t("pinEntry.somethingWentWrong"));
         setPin("");
       } finally {
         setPending(false);
       }
     },
-    [userId, userName, pending, unlock, requirePinChange]
+    [userId, userName, pending, unlock, requirePinChange, t]
   );
 
   const handleDigit = useCallback(
@@ -150,15 +151,6 @@ export default function PinEntry() {
         `,
       }}
     >
-      {/* Back button */}
-      <button
-        type="button"
-        onClick={lock}
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-      >
-        <ArrowLeft size={16} /> All users
-      </button>
-
       {/* Business name */}
       <div className="absolute top-6 right-6 flex items-center gap-3">
         <p className="text-sm text-[var(--color-text-tertiary)]">{businessName}</p>
@@ -172,7 +164,9 @@ export default function PinEntry() {
           {getInitials(userName)}
         </div>
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{userName}</h2>
-        <p className="text-sm text-[var(--color-text-secondary)]">Enter your PIN</p>
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          {t("pinEntry.enterYourPin")}
+        </p>
       </div>
 
       {/* PIN dots */}
@@ -197,11 +191,11 @@ export default function PinEntry() {
           onClick={() => setShowRecovery(true)}
           className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors underline-offset-2 hover:underline"
         >
-          Forgot PIN?
+          {t("pinEntry.forgotPin")}
         </button>
       ) : userRole ? (
         <p className="text-xs text-[var(--color-text-tertiary)] text-center max-w-xs">
-          Forgot PIN? Ask your admin to reset it.
+          {t("pinEntry.forgotPinContactAdmin")}
         </p>
       ) : null}
     </div>

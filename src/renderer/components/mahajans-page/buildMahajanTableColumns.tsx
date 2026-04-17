@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import type { TFunction } from "i18next";
 import type { Mahajan } from "../../../shared/types";
 import { formatDecimal } from "../../../shared/numbers";
 
@@ -10,6 +11,7 @@ export interface MahajanBalanceColumnDeps {
   isLoadingAllBalances: boolean;
   loadingBalanceId: number | null;
   onLoadBalance: (mahajanId: number) => void;
+  t: TFunction<"mahajans">;
 }
 
 interface ColumnShape {
@@ -29,15 +31,16 @@ export function buildMahajanTableColumns(
     isLoadingAllBalances,
     loadingBalanceId,
     onLoadBalance,
+    t,
   } = deps;
 
   return [
-    { key: "name", label: "Name" },
-    { key: "address", label: "Address" },
-    { key: "phone", label: "Phone" },
+    { key: "name", label: t("columns.name") },
+    { key: "address", label: t("columns.address") },
+    { key: "phone", label: t("columns.phone") },
     {
       key: "balance",
-      label: "Balance (Lend - Deposit)",
+      label: t("columns.balanceWithFormula"),
       align: "right",
       render: (row) => {
         const bal = showBalanceAll ? allBalances[row.id] : balances[row.id];
@@ -50,9 +53,9 @@ export function buildMahajanTableColumns(
           }
           let hint = "";
           if (bal > 0) {
-            hint = " (payable)";
+            hint = ` ${t("labels.payable")}`;
           } else if (bal < 0) {
-            hint = " (receivable)";
+            hint = ` ${t("labels.receivable")}`;
           }
           return (
             <span className={colorClass}>
@@ -68,14 +71,14 @@ export function buildMahajanTableColumns(
         if (showBalanceAll && isLoadingAllBalances) {
           return (
             <span className="text-[var(--color-text-tertiary)] text-sm">
-              Loading…
+              {t("common.loading")}
             </span>
           );
         }
         if (showBalanceAll) {
           return (
             <span className="text-[var(--color-text-tertiary)] text-sm">
-              ₹0.00 (Settled)
+              {t("table.settledValue")}
             </span>
           );
         }
@@ -87,20 +90,20 @@ export function buildMahajanTableColumns(
             disabled={loading}
             className="text-sm text-[var(--color-accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Loading…" : "View balance"}
+            {loading ? t("common.loading") : t("actions.viewBalance")}
           </button>
         );
       },
     },
     {
       key: "id",
-      label: "Details",
+      label: t("columns.details"),
       render: (row) => (
         <Link
           to={`/mahajans/ledger/${row.id}`}
           className="text-[var(--color-accent)] hover:underline"
         >
-          Ledger
+          {t("actions.viewLedger")}
         </Link>
       ),
     },

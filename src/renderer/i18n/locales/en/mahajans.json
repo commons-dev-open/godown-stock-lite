@@ -1,7 +1,13 @@
 {
   "hero": {
     "title": "Lenders",
-    "subtitle": "Track who you owe and who owes you"
+    "subtitle": "Track who you owe and who owes you",
+    "creditPurchase": "Credit purchase",
+    "settlements": "Settlements",
+    "balance": "Balance",
+    "fetchLatest": "Fetch latest",
+    "fetchLatestHintChanged": "Totals may have changed — click to refresh",
+    "fetchLatestHintDefault": "Refresh totals"
   },
   "actions": {
     "addMahajan": "Add Lender",
@@ -9,17 +15,26 @@
     "deleteMahajan": "Delete Lender",
     "viewLedger": "View Ledger",
     "addLend": "Lend",
-    "addDeposit": "Deposit"
+    "addDeposit": "Deposit",
+    "export": "Export",
+    "exportAsCsv": "Export as CSV",
+    "exportAsPdf": "Export as PDF",
+    "print": "Print",
+    "showBalance": "Show balance",
+    "viewBalance": "View balance"
   },
   "search": {
     "placeholder": "Search lenders…"
   },
   "columns": {
     "name": "Name",
+    "address": "Address",
     "phone": "Phone",
     "openingBalance": "Opening Balance",
     "balance": "Balance",
-    "lastActivity": "Last Activity"
+    "balanceWithFormula": "Balance (Lend - Deposit)",
+    "lastActivity": "Last Activity",
+    "details": "Details"
   },
   "summary": {
     "totalPayable": "Total Payable",
@@ -39,12 +54,57 @@
     "closing": "Closing",
     "debit": "Debit",
     "credit": "Credit",
-    "filtersBar": "Filters"
+    "filtersBar": "Filters",
+    "sectionTitle": "Lender ledger",
+    "entriesTitle": "Ledger entries",
+    "entriesDescription": "Filter by type or date, add credit purchases or settlements, and export when you need a file or printout.",
+    "invalidLender": "Invalid lender",
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "description": "Description",
+      "amount": "Amount"
+    },
+    "descriptions": {
+      "settlement": "Settlement",
+      "cashPurchase": "Cash purchase",
+      "creditPurchase": "Credit purchase"
+    },
+    "filters": {
+      "type": "Type",
+      "dateFrom": "Date From",
+      "dateTo": "Date To"
+    },
+    "empty": {
+      "matchingEntriesTitle": "No matching entries",
+      "noEntriesTitle": "No ledger entries yet",
+      "matchingEntriesDescription": "Try clearing filters or widening the date range.",
+      "noEntriesDescription": "Add a credit purchase or settlement using the buttons above."
+    },
+    "actions": {
+      "clearFilters": "Clear filters"
+    },
+    "lenderInvoice": "Lender invoice",
+    "viewInvoice": "View invoice",
+    "toasts": {
+      "creditPurchaseUpdated": "Credit purchase updated",
+      "creditPurchaseUpdateFailed": "Failed to update credit purchase",
+      "settlementUpdated": "Settlement updated",
+      "settlementUpdateFailed": "Failed to update settlement",
+      "creditPurchaseDeleted": "Credit purchase deleted",
+      "creditPurchaseDeleteFailed": "Failed to delete credit purchase",
+      "settlementDeleted": "Settlement deleted",
+      "settlementDeleteFailed": "Failed to delete settlement"
+    }
   },
   "empty": {
     "title": "No lenders yet",
     "message": "Add lenders to track payments and deposits.",
-    "cta": "Add First Lender"
+    "cta": "Add First Lender",
+    "matchingLendersTitle": "No matching lenders",
+    "noLendersTitle": "No lenders yet",
+    "matchingLendersDescription": "Try a different search, or clear filters to see the full list.",
+    "noLendersDescription": "Add a lender to start recording credit purchases and settlements in their ledger."
   },
   "toast": {
     "created": "Lender created",
@@ -52,5 +112,66 @@
     "deleted": "Lender deleted",
     "lendAdded": "Lend recorded",
     "depositAdded": "Deposit recorded"
+  },
+  "errors": {
+    "lenderListLoad": "The lender list could not be loaded. Check your connection and try again."
+  },
+  "labels": {
+    "payable": "(payable)",
+    "receivable": "(receivable)",
+    "payableShort": "Payable",
+    "receivableShort": "Receivable"
+  },
+  "directory": {
+    "sectionTitle": "Lender directory",
+    "title": "Lender directory",
+    "description": "Search the list, open a ledger, or load balances when you need them. Enable \"Show balance\" to fetch all balances at once."
+  },
+  "table": {
+    "noLendersMessage": "No Lenders yet. Click Add Lender.",
+    "settledValue": "₹0.00 (Settled)"
+  },
+  "modals": {
+    "deleteLender": {
+      "title": "Delete Lender",
+      "message": "Delete this Lender? Balance must be 0."
+    }
+  },
+  "form": {
+    "name": "Name",
+    "address": "Address",
+    "phone": "Phone",
+    "gstin": "GSTIN"
+  },
+  "common": {
+    "save": "Save",
+    "update": "Update",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading..."
+  },
+  "export": {
+    "noData": "No data to export.",
+    "csvSuccess": "Exported as CSV.",
+    "pdfSuccess": "Exported as PDF.",
+    "pdfFailed": "Could not save PDF.",
+    "columns": {
+      "id": "ID",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
+    }
+  },
+  "print": {
+    "fileNamePrefix": "Lenders",
+    "ledgerFileNamePrefix": "Lender_Ledger",
+    "totalCreditPurchase": "Total Credit Purchase",
+    "totalSettlements": "Total Settlements",
+    "balanceFormula": "Balance (Credit Purchase - Settlement)",
+    "mahajanLedger": "Mahajan Ledger",
+    "mahajanLabel": "Mahajan",
+    "appliedFilters": "Applied filters",
+    "totalLends": "Total Lends",
+    "totalDeposits": "Total Deposits",
+    "balanceLendDeposit": "Balance (Lend - Deposit)"
   }
 }

@@ -49,30 +49,59 @@ export function getLastMonthEnd(): string {
 }
 
 export const DATE_PRESETS: readonly DatePreset[] = [
-  { label: "Today", getFrom: () => todayISO(), getTo: () => todayISO() },
-  { label: "Yesterday", getFrom: getYesterday, getTo: getYesterday },
-  { label: "Last 7 Days", getFrom: getWeekStart, getTo: () => todayISO() },
   {
+    key: "today",
+    label: "Today",
+    getFrom: () => todayISO(),
+    getTo: () => todayISO(),
+  },
+  {
+    key: "yesterday",
+    label: "Yesterday",
+    getFrom: getYesterday,
+    getTo: getYesterday,
+  },
+  {
+    key: "last7Days",
+    label: "Last 7 Days",
+    getFrom: getWeekStart,
+    getTo: () => todayISO(),
+  },
+  {
+    key: "last14Days",
     label: "Last 14 Days",
     getFrom: () => getDaysAgo(13),
     getTo: () => todayISO(),
   },
-  { label: "This Month", getFrom: getMonthStart, getTo: () => todayISO() },
   {
+    key: "thisMonth",
+    label: "This Month",
+    getFrom: getMonthStart,
+    getTo: () => todayISO(),
+  },
+  {
+    key: "lastMonth",
     label: "Last Month",
     getFrom: getLastMonthStart,
     getTo: getLastMonthEnd,
   },
   {
+    key: "last30Days",
     label: "Last 30 Days",
     getFrom: () => getDaysAgo(29),
     getTo: () => todayISO(),
   },
   {
+    key: "last90Days",
     label: "Last 90days",
     getFrom: () => getDaysAgo(89),
     getTo: () => todayISO(),
   },
-  { label: "This Quarter", getFrom: getQuarterStart, getTo: () => todayISO() },
-  { label: "This Year", getFrom: getYearStart, getTo: () => todayISO() },
+  {
+    key: "thisQuarter",
+    label: "This Quarter",
+    getFrom: getQuarterStart,
+    getTo: () => todayISO(),
+  },
+  { key: "thisYear", label: "This Year", getFrom: getYearStart, getTo: () => todayISO() },
 ];

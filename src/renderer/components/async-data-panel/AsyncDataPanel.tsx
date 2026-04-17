@@ -12,6 +12,7 @@ interface AsyncDataPanelProps {
   loaderRows?: number;
   errorTitle?: string;
   errorDescription?: string;
+  retryLabel?: string;
 }
 
 export function AsyncDataPanel({
@@ -25,6 +26,7 @@ export function AsyncDataPanel({
   loaderRows = 6,
   errorTitle = "Something went wrong",
   errorDescription = "This content could not be loaded. Check your connection and try again.",
+  retryLabel = "Retry",
 }: Readonly<AsyncDataPanelProps>) {
   if (isLoading) {
     return <TableLoader columns={loaderColumns} rows={loaderRows} />;
@@ -46,7 +48,7 @@ export function AsyncDataPanel({
           onClick={onRetry}
           className="mt-4 rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]"
         >
-          Retry
+          {retryLabel}
         </button>
       </div>
     );

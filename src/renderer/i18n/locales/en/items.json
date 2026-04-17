@@ -1,24 +1,49 @@
 {
   "hero": {
     "title": "Products & Stock",
-    "subtitle": "Manage your inventory"
+    "subtitle": "Manage your inventory",
+    "metrics": {
+      "inCatalog": "In catalog",
+      "lowStock": "Low stock",
+      "units": "Units"
+    }
   },
   "actions": {
     "addItem": "Add Item",
+    "addProduct": "Add product",
+    "addStock": "Add stock",
+    "reduceStock": "Reduce stock",
+    "clearSearch": "Clear search",
+    "save": "Save",
+    "update": "Update",
+    "add": "Add",
+    "reduce": "Reduce",
+    "delete": "Delete",
+    "export": "Export",
+    "print": "Print",
+    "import": "Import",
+    "importFromProduct": "Import from product",
     "editItem": "Edit Item",
     "deleteItem": "Delete Item",
     "adjustStock": "Adjust Stock",
     "toggleArchive": "Archive",
-    "toggleUnarchive": "Unarchive"
+    "toggleUnarchive": "Unarchive",
+    "remove": "Remove"
   },
   "search": {
     "placeholder": "Search by name or code…"
   },
   "columns": {
+    "product": "Product",
     "name": "Name",
     "code": "Code",
     "unit": "Unit",
     "stock": "Stock",
+    "currentStock": "Current Stock",
+    "sellingPrice": "Selling Price",
+    "gst": "GST",
+    "hsn": "HSN",
+    "reorderLevel": "Reorder Level",
     "price": "Price",
     "lowStockAt": "Low Stock At",
     "status": "Status"
@@ -30,17 +55,41 @@
     "lowStock": "Low Stock"
   },
   "form": {
+    "none": "None",
+    "basicDetails": "Basic details",
+    "unitsAndConversions": "Units & conversions",
+    "unitsHelpAdd": "Choose how you buy, store and sell this product.",
+    "missingUnitPrefix": "Don't see your unit?",
+    "manageAllUnits": "Manage all units",
+    "missingUnitSuffix": "— add to Stock (godown) or Invoice and return here.",
+    "primaryUnitHelp": "Primary stock unit and optional retail/other units.",
+    "primaryStockUnit": "Primary stock unit",
+    "retailPrimaryUnitOptional": "Retail primary unit (optional)",
+    "selectUnit": "Select unit",
     "namePlaceholder": "Item name",
     "codePlaceholder": "SKU / code",
     "pricePlaceholder": "Selling price",
     "stockPlaceholder": "Current stock",
     "lowStockPlaceholder": "Low stock threshold",
-    "notesPlaceholder": "Optional notes"
+    "notesPlaceholder": "Optional notes",
+    "conversionOptional": "Conversion (optional)",
+    "example25": "e.g. 25",
+    "example50": "e.g. 50",
+    "sellingPriceOptional": "Selling Price (optional)",
+    "sellingPriceUnit": "Selling Price Unit",
+    "gstRate": "GST Rate",
+    "hsnCodeOptional": "HSN Code (optional)",
+    "exampleHsn": "e.g. 1006"
   },
   "empty": {
     "title": "No items yet",
     "message": "Add your first product to start tracking stock.",
-    "cta": "Add First Item"
+    "cta": "Add First Item",
+    "tableMessage": "No products yet. Click Add Product.",
+    "noMatchesTitle": "No matches",
+    "noMatchesDescription": "Nothing in the catalog matches this search. Try another keyword or clear the filter to see all products.",
+    "noProductsTitle": "No products yet",
+    "noProductsDescription": "Add your first product with its base unit and reorder level. You can attach alternate units and conversions after units are set up."
   },
   "toast": {
     "created": "Item created",
@@ -51,6 +100,57 @@
   },
   "confirmDelete": {
     "title": "Delete item?",
-    "body": "This will permanently remove the item and its stock history."
+    "body": "This will permanently remove the item and its stock history.",
+    "stockMustBeZero": "Delete this product? Stock must be 0."
+  },
+  "catalog": {
+    "sectionTitle": "Product catalog",
+    "description": "Search, edit, and export products. Stock changes sync across invoices and the dashboard."
+  },
+  "async": {
+    "errorTitle": "Something went wrong",
+    "errorDescription": "Products could not be loaded. Check your connection and try again.",
+    "retry": "Retry"
+  },
+  "export": {
+    "asCsv": "Export as CSV",
+    "asPdf": "Export as PDF",
+    "noData": "No data to export.",
+    "csvSuccess": "Exported as CSV.",
+    "pdfSuccess": "Exported as PDF.",
+    "pdfFailed": "Could not save PDF.",
+    "columns": {
+      "id": "ID",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
+    }
+  },
+  "validation": {
+    "quantityPositive": "Quantity must be positive."
+  },
+  "print": {
+    "reportTitle": "Products & Stock"
+  },
+  "modals": {
+    "addProduct": {
+      "title": "Add Product"
+    },
+    "editProduct": {
+      "title": "Edit Product"
+    },
+    "importUnits": {
+      "title": "Import units from product",
+      "selectProductToCopy": "Select a product to copy units…"
+    },
+    "addStock": {
+      "title": "Add Stock",
+      "selectProduct": "Select product",
+      "quantityToAdd": "Quantity to add"
+    },
+    "reduceStock": {
+      "title": "Reduce Stock",
+      "selectProduct": "Select product",
+      "quantityToDeduct": "Quantity to deduct"
+    }
   }
 }

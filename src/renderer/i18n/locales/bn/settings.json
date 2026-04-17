@@ -1,65 +1,289 @@
 {
   "hero": {
     "title": "সেটিংস",
-    "subtitle": "প্রেফারেন্স, ডেটা এবং আপনার ব্যবসার প্রোফাইল"
+    "subtitle": "প্রেফারেন্স, ডেটা এবং আপনার ব্যবসার প্রোফাইল",
+    "company": "কোম্পানি",
+    "gst": "GST",
+    "gstOn": "চালু",
+    "gstOff": "বন্ধ"
   },
   "tabs": {
-    "general": "জেনারেল",
-    "business": "বিজনেস",
-    "preferences": "প্রেফারেন্স",
-    "data": "ডেটা",
-    "security": "সিকিউরিটি",
-    "activity": "অ্যাক্টিভিটি",
-    "danger": "ডেঞ্জার জোন"
+    "business": "ব্যবসা",
+    "tax": "কর ও GST",
+    "discounts": "ছাড়",
+    "appearance": "চেহারা",
+    "security": "নিরাপত্তা",
+    "activity": "কার্যকলাপ",
+    "data": "ডেটা"
+  },
+  "sections": {
+    "business": {
+      "title": "কোম্পানি ও ব্যবসা",
+      "description": "আইনি ও যোগাযোগের তথ্য যা ইনভয়েস ও অ্যাপে দেখায়।"
+    },
+    "tax": {
+      "title": "GST ও কর",
+      "description": "ডিফল্ট GST হার, মূল্য মোড, সরবরাহ স্থান ও ইনভয়েস ফিল্ড বিকল্প।"
+    },
+    "discounts": {
+      "title": "ছাড়",
+      "description": "ইনভয়েসে ছাড়ের ধরন চালু/বন্ধ করুন এবং কুপন ও স্তরীয় নিয়ম পরিচালনা করুন।"
+    },
+    "appearance": {
+      "title": "চেহারা",
+      "description": "থিম, একসেন্ট রঙ, প্রদর্শন নাম ও সংখ্যা ফরম্যাট।"
+    },
+    "security": {
+      "title": "নিরাপত্তা",
+      "description": "PIN, মাস্টার কী এবং এই ডিভাইসে অ্যাপ লক করা।"
+    },
+    "activity": {
+      "title": "কার্যকলাপ লগ",
+      "description": "অ্যাপে সাম্প্রতিক পরিবর্তন। নিচের তালিকায় ফিল্টার প্রযোজ্য।"
+    },
+    "data": {
+      "title": "ডেটা ও ব্যাকআপ",
+      "description": "ডাটাবেস এক্সপোর্ট, ইমপোর্ট বা রিসেট। ফিরিয়ে আনা যায় না এমন পদক্ষেপে নিশ্চিতকরণ লাগবে।"
+    }
+  },
+  "placeholders": {
+    "optional": "ঐচ্ছিক"
   },
   "preferences": {
     "language": "ভাষা",
     "languageHint": "অ্যাপের জন্য আপনার পছন্দের ভাষা বেছে নিন।",
     "theme": "থিম",
-    "brandColor": "ব্র্যান্ড কালার",
-    "numberAbbreviation": "নাম্বার শর্ট ফরম্যাট",
-    "numberAbbreviationHint": "সারাংশ কার্ডে বড় সংখ্যা কীভাবে ছোট করে দেখাবে।",
+    "themeHint": "লাইট, ডার্ক বেছে নিন অথবা সিস্টেম অনুসরণ করুন।",
+    "themeModes": {
+      "light": "লাইট",
+      "dark": "ডার্ক",
+      "system": "সিস্টেম"
+    },
+    "brandColor": "ব্র্যান্ড রঙ",
+    "brandColorHint": "পুরো অ্যাপে ব্যবহৃত একসেন্ট রঙ বেছে নিন।",
+    "brandColors": {
+      "blue": "নীল",
+      "indigo": "ইন্ডিগো",
+      "violet": "বেগুনি",
+      "emerald": "পান্না",
+      "rose": "গোলাপি",
+      "amber": "অ্যাম্বার"
+    },
+    "appDisplayName": "অ্যাপ প্রদর্শন নাম",
+    "appDisplayNameHint": "সাইডবার হেডার, PDF ও প্রিন্টে দেখায়। সর্বোচ্চ {{max}} অক্ষর। খালি রাখলে ডিফল্ট।",
+    "numberAbbreviation": "সংখ্যা সংক্ষিপ্ত রূপ",
+    "numberAbbreviationHint": "ড্যাশবোর্ড হিরোতে (হোম, পণ্য, একক, মহাজন) বড় সংখ্যা কীভাবে ছোট দেখাবে। সীমার নিচে পূর্ণ লেখা থাকে।",
+    "numberAbbreviationStyle": "শৈলী",
     "abbreviation": {
-      "indian": "Indian (লাখ, কোটি)",
+      "indian": "ভারতীয় (লাখ, কোটি)",
       "us": "US (M, B)",
       "si": "SI (K, M, B)"
+    },
+    "abbreviationHints": {
+      "indian": "১ লাখের নিচে পূর্ণ; তারপর লাখ ও কোটি।",
+      "us": "১ মিলিয়নের নিচে পূর্ণ; তারপর M ও B।",
+      "si": "হাজারের জন্য K, তারপর M ও B (১০০০ের ঘাত)।"
     }
   },
   "business": {
     "companyName": "কোম্পানির নাম",
-    "ownerName": "ওনারের নাম",
+    "ownerName": "মালিকের নাম",
     "gstin": "GSTIN",
     "gstEnabled": "GST চালু",
     "address": "ঠিকানা",
     "phone": "ফোন",
-    "email": "ইমেইল"
+    "email": "ইমেইল",
+    "fields": {
+      "company_name": "কোম্পানির নাম",
+      "company_address": "ঠিকানা",
+      "gstin": "GSTIN",
+      "owner_name": "মালিকের নাম",
+      "owner_phone": "ফোন"
+    }
+  },
+  "tax": {
+    "enableGst": "GST চালু করুন",
+    "enableGstAria": "GST চালু করুন",
+    "defaultGstRate": "ডিফল্ট GST হার",
+    "defaultPriceMode": "ডিফল্ট মূল্য মোড",
+    "placeOfSupply": "সরবরাহের স্থান",
+    "placeOfSupplyExtra": "বিক্রেতার রাজ্য; ট্যাক্স ইনভয়েস PDF-তে দেখায়",
+    "placeOfSupplyPlaceholder": "যেমন মহারাষ্ট্র",
+    "customerGstin": "গ্রাহক GSTIN ফিল্ড দেখান (B2B মোড)",
+    "customerGstinAria": "গ্রাহক GSTIN ফিল্ড দেখান",
+    "hsn": "HSN (হারমোনাইজড সিস্টেম অফ নোমেনক্লেচার) কোড চালু করুন",
+    "hsnAria": "HSN কোড চালু করুন",
+    "gstMode": {
+      "exclusive": "এক্সক্লুসিভ",
+      "inclusive": "ইনক্লুসিভ"
+    }
+  },
+  "discounts": {
+    "togglesTitle": "ছাড় টগল",
+    "togglesHint": "প্রতিটি ছাড়ের ধরন চালু বা বন্ধ করুন। বন্ধ থাকলে চালান ফর্মে দেখাবে না।",
+    "couponsSectionTitle": "কুপন ও স্তরীয় নিয়ম",
+    "couponsSectionHint": "কুপন কোড ও স্তরীয় (ভলিউম) ছাড়ের নিয়ম পরিচালনা করুন। উপরে কুপন ও স্তরীয় ছাড় চালু করুন।",
+    "fields": {
+      "discount_percentage_enabled": "শতাংশ ছাড় চালু করুন",
+      "discount_flat_enabled": "ফ্ল্যাট অঙ্ক ছাড় চালু করুন",
+      "discount_bogo_enabled": "BOGO ছাড় চালু করুন",
+      "discount_coupon_enabled": "কুপন চালু করুন",
+      "discount_tiered_enabled": "স্তরীয়/ভলিউম ছাড় চালু করুন",
+      "round_bill_to_whole": "চূড়ান্ত বিল নিকটতম পূর্ণ সংখ্যায় রাউন্ড করুন"
+    },
+    "coupons": {
+      "title": "কুপন",
+      "add": "কুপন যোগ করুন",
+      "empty": "এখনও কোনো কুপন নেই।",
+      "modalAdd": "কুপন যোগ করুন",
+      "modalEdit": "কুপন সম্পাদনা",
+      "deleteTitle": "কুপন মুছুন",
+      "deleteMessage": "এই কুপন মুছবেন? মুছলে আর ব্যবহার করা যাবে না।",
+      "columns": {
+        "code": "কোড",
+        "type": "ধরন",
+        "value": "মান",
+        "minOrder": "সর্বনিম্ন অর্ডার",
+        "used": "ব্যবহৃত"
+      },
+      "typePercent": "শতাংশ",
+      "typeFlat": "ফ্ল্যাট অঙ্ক (₹)",
+      "discountPercent": "ছাড় %",
+      "discountAmount": "ছাড়ের অঙ্ক (₹)",
+      "minOrder": "সর্বনিম্ন অর্ডার (₹)",
+      "validFrom": "বৈধ শুরু (YYYY-MM-DD)",
+      "validTo": "বৈধ শেষ (YYYY-MM-DD)",
+      "usageLimit": "ব্যবহারের সীমা",
+      "tieredHint": "প্রতি নিয়মে % বা ফ্ল্যাট। সর্বোচ্চ অঙ্ক দিয়ে ছাড় সীমিত করুন। সর্বোচ্চ যোগ্য স্তর প্রযোজ্য।"
+    },
+    "tiered": {
+      "title": "স্তরীয় নিয়ম",
+      "add": "নিয়ম যোগ করুন",
+      "empty": "এখনও কোনো স্তরীয় নিয়ম নেই।",
+      "modalAdd": "স্তরীয় নিয়ম যোগ করুন",
+      "modalEdit": "স্তরীয় নিয়ম সম্পাদনা",
+      "deleteTitle": "স্তরীয় নিয়ম মুছুন",
+      "deleteMessage": "এই নিয়ম মুছবেন?",
+      "columns": {
+        "minOrder": "সর্বনিম্ন অর্ডার (₹)",
+        "discount": "ছাড়",
+        "max": "সর্বোচ্চ (₹)"
+      },
+      "minOrderAmount": "সর্বনিম্ন অর্ডার অঙ্ক (₹)",
+      "discountType": "ছাড়ের ধরন",
+      "discountPercent": "ছাড় %",
+      "flatAmount": "ফ্ল্যাট অঙ্ক (₹)",
+      "maxDiscount": "সর্বোচ্চ ছাড়ের অঙ্ক (₹)",
+      "maxDiscountExtra": "এই নিয়ম থেকে মোট ছাড়ের ঐচ্ছিক সীমা",
+      "maxDiscountPlaceholder": "কোনো সীমা নেই",
+      "typePercent": "শতাংশ",
+      "typeFlat": "ফ্ল্যাট অঙ্ক"
+    }
   },
   "data": {
     "exportDb": "ডাটাবেস এক্সপোর্ট",
     "exportDbHint": "সব ডেটার ব্যাকআপ ফাইলে সেভ করুন।",
     "importDb": "ডাটাবেস ইমপোর্ট",
     "importDbHint": "ব্যাকআপ ফাইল থেকে ডেটা রিস্টোর করুন।",
-    "clearAll": "সব ডেটা ক্লিয়ার",
+    "clearAll": "সব ডেটা ক্লিয়ার",
     "clearAllHint": "সব রেকর্ড মুছে দিন, তবে সেটিংস থাকবে।",
     "resetDb": "ডাটাবেস রিসেট",
-    "resetDbHint": "সব মুছে নতুনভাবে শুরু করুন।"
+    "resetDbHint": "সব মুছে নতুনভাবে শুরু করুন।",
+    "dangerZone": "ডেঞ্জার জোন",
+    "dangerIntro": "এই কাজগুলো আপনার ডাটাবেসে প্রভাব ফেলে। সাবধানে ব্যবহার করুন।",
+    "dbFileLocation": "ডাটাবেস ফাইলের অবস্থান",
+    "exportTitle": "ডাটাবেস এক্সপোর্ট",
+    "exportMessage": "আপনি ডাটাবেসের সম্পূর্ণ কপি একটি ফাইলে সেভ করবেন। ব্যাকআপ নিরাপদ জায়গায় রাখুন। বর্তমান ডেটা অপরিবর্তিত থাকে; এটি শুধু স্ন্যাপশট তৈরি করে।",
+    "importTitle": "ডাটাবেস ইমপোর্ট",
+    "importMessage": "নির্বাচিত ফাইল দিয়ে অ্যাপের সব ডেটা প্রতিস্থাপিত হবে। বর্তমান ডাটাবেস ওভাররাইট হবে এবং ফেরত আসবে না। প্রয়োজনে আগে এক্সপোর্ট করুন।",
+    "clearTablesTitle": "সব ডেটা ক্লিয়ার",
+    "clearTablesMessage": "সব টেবিল খালি হবে। কাঠামো থাকবে। এটি ফিরিয়ে আনা যাবে না।",
+    "clearEntireDbTitle": "ডাটাবেস রিসেট",
+    "clearEntireDbMessage": "ডাটাবেস ফাইল মুছে নতুন খালি ডাটাবেস তৈরি হবে। সব কিছু চিরতরে চলে যাবে। আগে ব্যাকআপ এক্সপোর্ট করুন।",
+    "populateSampleTitle": "নমুনা ডেটা দিয়ে পূরণ",
+    "populateSampleMessage": "খালি ডাটাবেসে নমুনা আইটেম, মহাজন, ইনভয়েস ইত্যাদি যোগ হবে। শুধু যখন কোনো ব্যবসায়িক ডেটা নেই তখনই চলবে।",
+    "exportButtonTitle": "ডাটাবেসের কপি ফাইলে সেভ করুন",
+    "importButtonTitle": "ব্যাকআপ ফাইল দিয়ে বর্তমান ডাটাবেস বদলান",
+    "clearButtonTitle": "সব টেবিলের সারি মুছুন; কাঠামো রাখুন",
+    "resetButtonTitle": "ডাটাবেস ফাইল মুছে নতুন খালি তৈরি করুন",
+    "sampleButtonTitle": "মূল টেবিলে নমুনা ডেটা (শুধু খালি থাকলে)",
+    "clearing": "ক্লিয়ার হচ্ছে…",
+    "resetting": "রিসেট হচ্ছে…",
+    "fillingSample": "নমুনা ডেটা ভরা হচ্ছে…",
+    "fillSample": "নমুনা ডেটা দিয়ে পূরণ করুন",
+    "footerNote": "সব ডেটা ক্লিয়ার: সব টেবিল খালি, কাঠামো থাকে। ডাটাবেস রিসেট: ফাইল মুছে নতুন খালি ডাটাবেস।"
   },
   "security": {
     "changePin": "PIN পরিবর্তন",
+    "currentPin": "বর্তমান PIN",
+    "newPin": "নতুন PIN",
+    "confirmNewPin": "নতুন PIN নিশ্চিত করুন",
+    "updatePin": "PIN আপডেট",
+    "pinUpdated": "PIN আপডেট হয়েছে।",
+    "pinChangeFailed": "PIN বদলাতে ব্যর্থ।",
+    "ownerRecoveryKey": "মালিক রিকভারি কী",
+    "ownerRecoveryHint": "মালিক হিসেবে রিকভারি কী সেট করুন। PIN ভুলে গেলে এটি দিয়ে রিসেট করুন। বদলালে পুরনো কী অকেজো হয়ে যায়।",
+    "newRecoveryKey": "নতুন রিকভারি কী",
+    "confirmRecoveryKey": "রিকভারি কী নিশ্চিত করুন",
+    "recoveryKeyPlaceholder": "রিকভারি কী লিখুন",
+    "recoveryKeyConfirmPlaceholder": "রিকভারি কী আবার লিখুন",
+    "saveKey": "কী সেভ",
+    "keySaved": "কী সেভ হয়েছে।",
+    "keySetFailed": "কী সেট করতে ব্যর্থ।",
+    "keyEmpty": "কী খালি থাকতে পারে না।",
+    "keysMismatch": "কী মিলছে না।",
+    "recoverySavedAlert": "রিকভারি কী এখানে সেভ হয়েছে:\n{{path}}\n\nফাইলটি নিরাপদে রাখুন। মালিক অ্যাক্সেস ফেরাতে এটি লাগবে।",
+    "session": "সেশন",
+    "sessionHint": "অবিলম্বে অ্যাপ লক করুন। ফিরতে PIN লাগবে।",
+    "lockAppNow": "এখনই অ্যাপ লক করুন",
     "recoveryKey": "রিকভারি কী",
     "saveRecoveryKey": "রিকভারি কী সেভ",
     "regenerateRecoveryKey": "রিজেনারেট"
   },
+  "activityLog": {
+    "headingPrivileged": "কার্যকলাপ লগ",
+    "headingSelf": "আপনার কার্যকলাপ",
+    "entries": "এন্ট্রি",
+    "filterAction": "কাজ অনুযায়ী ফিল্টার",
+    "filterEntity": "এন্টিটি অনুযায়ী ফিল্টার",
+    "allActions": "সব কাজ",
+    "allEntities": "সব এন্টিটি",
+    "actionCreate": "তৈরি",
+    "actionUpdate": "আপডেট",
+    "actionDelete": "মুছুন",
+    "entityItem": "আইটেম",
+    "entityInvoice": "ইনভয়েস",
+    "entityLender": "মহাজন",
+    "entityDailySale": "দৈনিক বিক্রয়",
+    "entityUser": "ব্যবহারকারী",
+    "emptyTitle": "এখনও কোনো কার্যকলাপ নেই",
+    "emptyFiltered": "আরো এন্ট্রি দেখতে কাজ বা এন্টিটি ফিল্টার সরিয়ে দিন।",
+    "emptyDefault": "অ্যাপে যা পরিবর্তন করবেন তা এখানে দেখাবে।",
+    "columns": {
+      "action": "কাজ",
+      "entity": "এন্টিটি",
+      "type": "ধরন",
+      "user": "ব্যবহারকারী",
+      "when": "কখন"
+    },
+    "systemUser": "সিস্টেম",
+    "noRowsPage": "এই পৃষ্ঠায় কোনো সারি নেই।"
+  },
   "toast": {
-    "saved": "সেটিংস সেভ হয়েছে",
-    "exported": "ডাটাবেস এক্সপোর্ট হয়েছে",
-    "imported": "ডাটাবেস ইমপোর্ট হয়েছে",
-    "cleared": "ডেটা ক্লিয়ার হয়েছে",
-    "reset": "ডাটাবেস রিসেট হয়েছে"
+    "saved": "সেটিংস সেভ হয়েছে",
+    "exported": "ডাটাবেস এক্সপোর্ট হয়েছে",
+    "imported": "ডাটাবেস ইমপোর্ট হয়েছে",
+    "cleared": "ডেটা ক্লিয়ার হয়েছে",
+    "reset": "ডাটাবেস রিসেট হয়েছে",
+    "exportedTo": "ডাটাবেস এক্সপোর্ট: {{path}}",
+    "importReplaced": "ডাটাবেস ইমপোর্ট হয়েছে। ডেটা প্রতিস্থাপিত হয়েছে।",
+    "clearTablesSuccess": "সব ডেটা ক্লিয়ার। টেবিল খালি।",
+    "resetDbSuccess": "ডাটাবেস রিসেট। নতুন ডাটাবেস তৈরি।",
+    "sampleDataSuccess": "খালি টেবিলে নমুনা ডেটা ভরা হয়েছে।"
   },
   "confirm": {
-    "clearTitle": "সব ডেটা ক্লিয়ার করবেন?",
-    "clearBody": "সব আইটেম, মহাজন, ট্রানজ্যাকশন ও ইনভয়েস মুছে যাবে। সেটিংস থাকবে।",
+    "clearTitle": "সব ডেটা ক্লিয়ার করবেন?",
+    "clearBody": "সব আইটেম, মহাজন, ট্রানজ্যাকশন ও ইনভয়েস মুছে যাবে। সেটিংস থাকবে।",
     "resetTitle": "ডাটাবেস রিসেট করবেন?",
     "resetBody": "আপনার বিজনেস প্রোফাইলসহ সব কিছু মুছে যাবে।"
   }

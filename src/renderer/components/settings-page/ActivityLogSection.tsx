@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { CurrentUser } from "../../context/AuthContext";
 import DataTable from "../DataTable";
 import { AsyncDataPanel } from "../async-data-panel";
@@ -37,15 +38,16 @@ function actionColorClass(action: string): string {
 function ActivityLogEmpty({
   hasFilters,
 }: Readonly<{ hasFilters: boolean }>): ReactNode {
+  const { t } = useTranslation("settings");
   return (
     <div className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-surface-raised)] px-4 py-6 text-center">
       <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-        No activity yet
+        {t("activityLog.emptyTitle")}
       </p>
       <p className="mt-1 max-w-md text-xs text-[var(--color-text-secondary)]">
         {hasFilters
-          ? "Try clearing action or entity filters to see more entries."
-          : "Changes you make across the app will show up here."}
+          ? t("activityLog.emptyFiltered")
+          : t("activityLog.emptyDefault")}
       </p>
     </div>
   );
@@ -54,6 +56,7 @@ function ActivityLogEmpty({
 export function ActivityLogSection({
   currentUser,
 }: Readonly<ActivityLogSectionProps>) {
+  const { t } = useTranslation("settings");
   const [page, setPage] = useState(1);
   const [filterAction, setFilterAction] = useState("");
   const [filterEntity, setFilterEntity] = useState("");
@@ -88,7 +91,7 @@ export function ActivityLogSection({
     () => [
       {
         key: "action",
-        label: "Action",
+        label: t("activityLog.columns.action"),
         sortable: true,
         render: (row: ActivityLogEntry) => (
           <span
@@ -100,7 +103,7 @@ export function ActivityLogSection({
       },
       {
         key: "entity_label",
-        label: "Entity",
+        label: t("activityLog.columns.entity"),
         sortable: true,
         render: (row: ActivityLogEntry) => (
           <span className="text-sm font-medium text-[var(--color-text-primary)]">
@@ -110,7 +113,7 @@ export function ActivityLogSection({
       },
       {
         key: "entity_type",
-        label: "Type",
+        label: t("activityLog.columns.type"),
         sortable: true,
         render: (row: ActivityLogEntry) => (
           <span className="text-xs capitalize text-[var(--color-text-tertiary)] bg-[var(--color-bg-surface-raised)] px-1.5 py-0.5 rounded">
@@ -120,17 +123,17 @@ export function ActivityLogSection({
       },
       {
         key: "user_name",
-        label: "User",
+        label: t("activityLog.columns.user"),
         sortable: true,
         render: (row: ActivityLogEntry) => (
           <span className="text-sm text-[var(--color-text-primary)]">
-            {row.user_name ?? "System"}
+            {row.user_name ?? t("activityLog.systemUser")}
           </span>
         ),
       },
       {
         key: "created_at",
-        label: "When",
+        label: t("activityLog.columns.when"),
         sortable: true,
         render: (row: ActivityLogEntry) => (
           <span className="text-xs text-[var(--color-text-tertiary)] tabular-nums">
@@ -139,7 +142,7 @@ export function ActivityLogSection({
         ),
       },
     ],
-    []
+    [t]
   );
 
   const hasFilters = Boolean(filterAction || filterEntity);
@@ -149,9 +152,12 @@ export function ActivityLogSection({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[var(--color-text-secondary)]">
-          {isPrivileged ? "Activity log" : "Your activity"} —{" "}
+          {isPrivileged
+            ? t("activityLog.headingPrivileged")
+            : t("activityLog.headingSelf")}{" "}
+          —{" "}
           <span className="tabular-nums text-[var(--color-text-tertiary)]">
-            {logQuery.isSuccess ? total : "—"} entries
+            {logQuery.isSuccess ? total : "—"} {t("activityLog.entries")}
           </span>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -162,12 +168,12 @@ export function ActivityLogSection({
               setPage(1);
             }}
             className="input-base text-sm min-w-[8rem]"
-            aria-label="Filter by action"
+            aria-label={t("activityLog.filterAction")}
           >
-            <option value="">All actions</option>
-            <option value="create">Create</option>
-            <option value="update">Update</option>
-            <option value="delete">Delete</option>
+            <option value="">{t("activityLog.allActions")}</option>
+            <option value="create">{t("activityLog.actionCreate")}</option>
+            <option value="update">{t("activityLog.actionUpdate")}</option>
+            <option value="delete">{t("activityLog.actionDelete")}</option>
           </select>
           <select
             value={filterEntity}
@@ -176,14 +182,16 @@ export function ActivityLogSection({
               setPage(1);
             }}
             className="input-base text-sm min-w-[8rem]"
-            aria-label="Filter by entity"
+            aria-label={t("activityLog.filterEntity")}
           >
-            <option value="">All entities</option>
-            <option value="item">Item</option>
-            <option value="invoice">Invoice</option>
-            <option value="lender">Lender</option>
-            <option value="daily_sale">Daily Sale</option>
-            <option value="user">User</option>
+            <option value="">{t("activityLog.allEntities")}</option>
+            <option value="item">{t("activityLog.entityItem")}</option>
+            <option value="invoice">{t("activityLog.entityInvoice")}</option>
+            <option value="lender">{t("activityLog.entityLender")}</option>
+            <option value="daily_sale">
+              {t("activityLog.entityDailySale")}
+            </option>
+            <option value="user">{t("activityLog.entityUser")}</option>
           </select>
         </div>
       </div>
@@ -203,7 +211,7 @@ export function ActivityLogSection({
           scrollHeightPreset="compact"
           columns={columns}
           data={rows}
-          emptyMessage="No rows on this page."
+          emptyMessage={t("activityLog.noRowsPage")}
           pagination={{
             type: "controlled",
             page,

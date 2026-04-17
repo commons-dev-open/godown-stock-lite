@@ -19,7 +19,20 @@ export interface ThemePalette {
   warning: string;
 }
 
+export type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "last7Days"
+  | "last14Days"
+  | "thisMonth"
+  | "lastMonth"
+  | "last30Days"
+  | "last90Days"
+  | "thisQuarter"
+  | "thisYear";
+
 export interface DatePreset {
+  key: DatePresetKey;
   label: string;
   getFrom: () => string;
   getTo: () => string;

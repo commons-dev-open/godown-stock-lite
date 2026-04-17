@@ -24,5 +24,98 @@
     "title": "আজ এখনো কোনো সেলস নেই",
     "message": "শুরু করতে প্রথম সেল রেকর্ড করুন।",
     "cta": "সেল রেকর্ড করুন"
+  },
+  "dailyRegister": {
+    "title": "ডেইলি সেলস",
+    "metrics": {
+      "matchingDays": "মিলে যাওয়া দিন",
+      "onThisPage": "এই পাতায়",
+      "pageTotalSale": "পাতার মোট বিক্রি"
+    },
+    "export": {
+      "button": "এক্সপোর্ট",
+      "asCsv": "CSV হিসেবে এক্সপোর্ট",
+      "asPdf": "PDF হিসেবে এক্সপোর্ট",
+      "print": "প্রিন্ট"
+    },
+    "toasts": {
+      "noData": "এক্সপোর্ট করার মতো কোনো ডেটা নেই।",
+      "exportedCsv": "CSV হিসেবে এক্সপোর্ট হয়েছে।",
+      "exportedPdf": "PDF হিসেবে এক্সপোর্ট হয়েছে।",
+      "exportPdfFailed": "PDF সংরক্ষণ করা যায়নি।",
+      "exportTooManyRows": "প্রিন্ট/PDF-এর জন্য সারি বেশি (সর্বোচ্চ {{max}} দিন)। তারিখের পরিসর কমান বা CSV এক্সপোর্ট ব্যবহার করুন।"
+    },
+    "filters": {
+      "from": "থেকে",
+      "to": "পর্যন্ত",
+      "fromDate": "শুরুর তারিখ",
+      "toDate": "শেষের তারিখ",
+      "clear": "ফিল্টার মুছুন"
+    },
+    "section": {
+      "listTitle": "ডেইলি সেলস তালিকা"
+    },
+    "panel": {
+      "title": "দৈনিক মোট",
+      "description": "প্রতিটি সারি একটি ক্যালেন্ডার দিন: ইনভয়েস মোট, বিবিধ নগদ বিক্রি, হাতে নগদ এবং খরচ।"
+    },
+    "emptyState": {
+      "noSalesInRange": {
+        "title": "এই সময়ে কোনো বিক্রি নেই",
+        "description": "তারিখ ফিল্টার সরান বা বড় রেঞ্জ বেছে নিন।"
+      },
+      "noSalesYet": {
+        "title": "এখনো কোনো ডেইলি সেলস নেই",
+        "description": "আজকের জন্য সেল যোগ করুন বা ইতিহাস ইমপোর্ট করুন যাতে এই রেজিস্টার আপনার টিল ও ইনভয়েসের সঙ্গে মিলে।"
+      },
+      "clearDateFilters": "তারিখ ফিল্টার মুছুন",
+      "addSale": "সেল যোগ করুন"
+    },
+    "table": {
+      "date": "তারিখ",
+      "totalSale": "মোট বিক্রি",
+      "invoiceSales": "ইনভয়েস বিক্রি",
+      "miscCashSales": "বিবিধ / নগদ বিক্রি",
+      "cashInHand": "হাতে নগদ",
+      "expenditure": "খরচ",
+      "notes": "নোট",
+      "viewInvoicesTitle": "এই তারিখের ইনভয়েস দেখুন",
+      "viewInvoicesAria": "এই তারিখের ইনভয়েস দেখুন",
+      "emptyInline": "এখনো কোনো বিক্রি নেই। সেল যোগ করুন বা ফিল্টার ঠিক করুন।"
+    },
+    "errors": {
+      "listTitle": "কিছু ভুল হয়েছে",
+      "listDescription": "এই তালিকা লোড করা যায়নি। সংযোগ দেখে আবার চেষ্টা করুন।"
+    },
+    "deleteModal": {
+      "title": "সেল মুছুন",
+      "message": "এই সেল মুছবেন?"
+    },
+    "addModal": {
+      "title": "সেল যোগ করুন"
+    },
+    "editModal": {
+      "title": "সেল সম্পাদনা"
+    },
+    "form": {
+      "dateLabel": "তারিখ * (dd/mm/yyyy)",
+      "invoiceSalesHint": "এই তারিখের ইনভয়েস বিক্রি: {{amount}} (ইনভয়েস থেকে)",
+      "miscCashLabel": "বিবিধ / নগদ বিক্রি (ইনভয়েস ছাড়া)",
+      "miscCashLabelEdit": "বিবিধ / নগদ বিক্রি (ইনভয়েস ছাড়া) *",
+      "miscCashInputTitle": "ইনভয়েসের সঙ্গে নয় এমন বিক্রি (যেমন নগদ, ছোট জিনিস)",
+      "cashInHandLabel": "হাতে নগদ *",
+      "cashInHandHint": "দিন শেষে আপনার টিলে আসলে কত টাকা",
+      "expenditureOptional": "খরচ (যদি থাকে)",
+      "expenditure": "খরচ",
+      "notes": "নোট",
+      "invoiceSalesReadonly": "ইনভয়েস বিক্রি (শুধু পড়া যাবে)"
+    },
+    "actions": {
+      "addSale": "সেল যোগ করুন"
+    },
+    "print": {
+      "appliedFilters": "প্রয়োগ করা ফিল্টার",
+      "browserTitle": "ডেইলি_সেলস_{{date}}"
+    }
   }
 }

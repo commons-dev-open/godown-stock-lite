@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Building2, Shield, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import ThemeSwitcher from "../components/ThemeSwitcher";
 
 interface UserEntry {
   id: number;
@@ -21,29 +24,32 @@ function getInitials(name: string) {
 }
 
 function RoleBadge({ role }: { role: string }) {
+  const { t } = useTranslation("onboarding");
+
   if (role === "superadmin") {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium">
-        <Shield size={10} /> Owner
+        <Shield size={10} /> {t("userSelector.roleOwner")}
       </span>
     );
   }
   if (role === "admin") {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--color-warning-subtle)] text-[var(--color-warning)] font-medium">
-        Admin
+        {t("userSelector.roleAdmin")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] font-medium">
-      <User size={10} /> User
+      <User size={10} /> {t("userSelector.roleUser")}
     </span>
   );
 }
 
 export default function UserSelector() {
   const { authState, selectUser } = useAuth();
+  const { t } = useTranslation("onboarding");
   const businessName =
     authState.status === "selecting" ? authState.businessName : "";
 
@@ -53,7 +59,9 @@ export default function UserSelector() {
   useEffect(() => {
     window.electron.auth
       .listUsers()
-      .then((list) => setUsers(list as UserEntry[]))
+      .then((list) =>
+        setUsers((list as UserEntry[]).filter((user) => user.is_active !== 0))
+      )
       .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   }, []);
@@ -69,6 +77,11 @@ export default function UserSelector() {
         `,
       }}
     >
+      <div className="absolute right-6 top-6 flex items-center gap-2">
+        <ThemeSwitcher variant="compact" />
+        <LanguageSwitcher variant="compact" compactTone="surface" />
+      </div>
+
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--color-accent)] text-white mb-3 shadow-md">
@@ -78,7 +91,7 @@ export default function UserSelector() {
           {businessName}
         </h1>
         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Who is logging in?
+          {t("userSelector.whoIsLoggingIn")}
         </p>
       </div>
 
@@ -86,11 +99,11 @@ export default function UserSelector() {
       {loading ? (
         <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] text-sm">
           <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          Loading…
+          {t("userSelector.loading")}
         </div>
       ) : users.length === 0 ? (
         <p className="text-[var(--color-text-tertiary)] text-sm">
-          No users found.
+          {t("userSelector.noUsersFound")}
         </p>
       ) : (
         <div

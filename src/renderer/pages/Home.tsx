@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import ReactECharts from "echarts-for-react";
+import { useTranslation } from "react-i18next";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
 import DataTable from "../components/DataTable";
@@ -70,6 +71,7 @@ function netBalanceClass(balance: number): string {
 }
 
 export default function Home() {
+  const { t } = useTranslation("home");
   const api = getElectron();
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
@@ -224,23 +226,37 @@ export default function Home() {
       );
 
   const weeklyTrendOption = useMemo(
-    () => createWeeklyTrendOption(orderedWeeklyData, palette),
-    [orderedWeeklyData, palette]
+    () =>
+      createWeeklyTrendOption(orderedWeeklyData, palette, {
+        totalSale: t("charts.totalSale"),
+        expenditure: t("charts.expenditure"),
+      }),
+    [orderedWeeklyData, palette, t]
   );
   const breakdownOption = useMemo(
-    () => createRangeBreakdownOption(totalSaleResult ?? {}, palette),
-    [totalSaleResult, palette]
+    () =>
+      createRangeBreakdownOption(totalSaleResult ?? {}, palette, {
+        invoice: t("charts.invoice"),
+        misc: t("charts.misc"),
+        expenditure: t("charts.expenditure"),
+        rangeTotal: t("charts.rangeTotal"),
+      }),
+    [totalSaleResult, palette, t]
   );
   const cashExpenditureOption = useMemo(
-    () => createCashExpenditureOption(orderedWeeklyData, palette),
-    [orderedWeeklyData, palette]
+    () =>
+      createCashExpenditureOption(orderedWeeklyData, palette, {
+        cashInHand: t("charts.cashInHand"),
+        expenditure: t("charts.expenditure"),
+      }),
+    [orderedWeeklyData, palette, t]
   );
 
   const lowStockContent = useMemo(() => {
     if (lowStockError) {
       return (
         <p className="text-sm text-[var(--color-danger)]">
-          Error loading low stock items. Try refreshing.
+          {t("lowStock.errorLoading")}
         </p>
       );
     }
@@ -250,9 +266,9 @@ export default function Home() {
     if (lowStockItems.length === 0) {
       return (
         <DashboardEmptyState
-          title="No low stock items"
-          description="All tracked items are above reorder level right now. Update reorder values in Products & Stock to get actionable alerts."
-          actionLabel="Go to Stock"
+          title={t("lowStock.emptyTitle")}
+          description={t("lowStock.emptyDescription")}
+          actionLabel={t("lowStock.goToStock")}
           actionTo="/stock"
         />
       );
@@ -261,10 +277,10 @@ export default function Home() {
       <DataTable<LowStockItem>
         scrollHeightPreset="compact"
         columns={[
-          { key: "name", label: "Item" },
+          { key: "name", label: t("lowStock.table.item") },
           {
             key: "current_stock",
-            label: "Current",
+            label: t("lowStock.table.current"),
             align: "right" as const,
             render: (item: LowStockItem) => {
               const isZero = item.current_stock === 0;
@@ -286,17 +302,17 @@ export default function Home() {
           },
           {
             key: "reorder_level",
-            label: "Reorder At",
+            label: t("lowStock.table.reorderAt"),
             align: "right" as const,
             render: (item: LowStockItem) => formatDecimal(item.reorder_level),
           },
-          { key: "unit", label: "Unit" },
+          { key: "unit", label: t("lowStock.table.unit") },
         ]}
         data={lowStockItems}
         pagination={{ type: "client" }}
       />
     );
-  }, [lowStockError, lowStockItems, lowStockLoading]);
+  }, [lowStockError, lowStockItems, lowStockLoading, t]);
 
   let weeklyTrendContent: ReactNode;
   if (weeklyLoading) {
@@ -304,8 +320,8 @@ export default function Home() {
   } else if (weeklyError) {
     weeklyTrendContent = (
       <DashboardEmptyState
-        title="Unable to load weekly trend"
-        description="Something went wrong while fetching weekly sales. Please refresh and try again."
+        title={t("weeklyMomentum.errorTitle")}
+        description={t("weeklyMomentum.errorDescription")}
       />
     );
   } else if (hasWeeklySales) {
@@ -320,9 +336,9 @@ export default function Home() {
   } else {
     weeklyTrendContent = (
       <DashboardEmptyState
-        title="No sales in this week"
-        description="No sale entries were found for the selected date window. Add invoices or misc sales to populate this trend."
-        actionLabel="Create Invoice"
+        title={t("weeklyMomentum.emptyTitle")}
+        description={t("weeklyMomentum.emptyDescription")}
+        actionLabel={t("actions.createInvoice")}
         actionTo="/invoices"
       />
     );
@@ -335,21 +351,19 @@ export default function Home() {
     );
   } else if (totalSaleResult && hasRangeData) {
     rangeCompositionContent = (
-      <>
-        <ReactECharts
-          option={breakdownOption}
-          notMerge
-          lazyUpdate
-          style={{ height: 228 }}
-        />
-      </>
+      <ReactECharts
+        option={breakdownOption}
+        notMerge
+        lazyUpdate
+        style={{ height: 228 }}
+      />
     );
   } else {
     rangeCompositionContent = (
       <DashboardEmptyState
-        title="No range data yet"
-        description="There are no invoices, misc sales, or expenditure records for the selected date range."
-        actionLabel="Create Invoice"
+        title={t("rangeComposition.emptyTitle")}
+        description={t("rangeComposition.emptyDescription")}
+        actionLabel={t("actions.createInvoice")}
         actionTo="/invoices"
       />
     );
@@ -372,8 +386,8 @@ export default function Home() {
   } else {
     cashExpenditureContent = (
       <DashboardEmptyState
-        title="No weekly cash trend"
-        description="Cash in hand and expenditure chart appears when weekly sales records are available."
+        title={t("quickActions.cashTrendEmptyTitle")}
+        description={t("quickActions.cashTrendEmptyDescription")}
       />
     );
   }
@@ -384,8 +398,8 @@ export default function Home() {
   } else if (weeklyError) {
     weeklyDetailsContent = (
       <DashboardEmptyState
-        title="Unable to load sale details"
-        description="Weekly entries could not be loaded right now. Refresh and try again."
+        title={t("weeklyDetails.errorTitle")}
+        description={t("weeklyDetails.errorDescription")}
       />
     );
   } else if (hasWeeklySales) {
@@ -394,7 +408,7 @@ export default function Home() {
         columns={[
           {
             key: "sale_date",
-            label: "Date",
+            label: t("weeklyDetails.table.date"),
             render: (sale) => (
               <Tooltip content={formatDateForForm(sale.sale_date)}>
                 <span>{formatDateForView(sale.sale_date)}</span>
@@ -403,7 +417,7 @@ export default function Home() {
           },
           {
             key: "sale_amount",
-            label: "Sale",
+            label: t("weeklyDetails.table.sale"),
             align: "right" as const,
             render: (sale) => (
               <span className="tabular-nums">{formatRupee(sale.sale_amount)}</span>
@@ -411,7 +425,7 @@ export default function Home() {
           },
           {
             key: "invoice_sales",
-            label: "Invoice",
+            label: t("weeklyDetails.table.invoice"),
             align: "right" as const,
             render: (sale) => (
               <span className="tabular-nums">
@@ -421,7 +435,7 @@ export default function Home() {
           },
           {
             key: "misc_sales",
-            label: "Misc",
+            label: t("weeklyDetails.table.misc"),
             align: "right" as const,
             render: (sale) => (
               <span className="tabular-nums">
@@ -431,7 +445,7 @@ export default function Home() {
           },
           {
             key: "cash_in_hand",
-            label: "Cash in Hand",
+            label: t("weeklyDetails.table.cashInHand"),
             align: "right" as const,
             render: (sale) => (
               <span className="tabular-nums">
@@ -441,7 +455,7 @@ export default function Home() {
           },
           {
             key: "expenditure_amount",
-            label: "Expenditure",
+            label: t("weeklyDetails.table.expenditure"),
             align: "right" as const,
             render: (sale) => (
               <span className="tabular-nums">
@@ -457,9 +471,9 @@ export default function Home() {
   } else {
     weeklyDetailsContent = (
       <DashboardEmptyState
-        title="No sale entries found"
-        description="No 7-day entries exist for the selected date. Change the date or add a new invoice."
-        actionLabel="Create Invoice"
+        title={t("weeklyDetails.emptyTitle")}
+        description={t("weeklyDetails.emptyDescription")}
+        actionLabel={t("actions.createInvoice")}
         actionTo="/invoices"
       />
     );
@@ -479,7 +493,7 @@ export default function Home() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         <div className="dashboard-mini-stat">
           <p className="text-[var(--color-text-tertiary)]">
-            Total Credit Purchase
+            {t("lender.totalCreditPurchase")}
           </p>
           <p className="font-medium text-[var(--color-text-primary)]">
             {formatRupee(
@@ -488,7 +502,9 @@ export default function Home() {
           </p>
         </div>
         <div className="dashboard-mini-stat">
-          <p className="text-[var(--color-text-tertiary)]">Total Settlements</p>
+          <p className="text-[var(--color-text-tertiary)]">
+            {t("lender.totalSettlements")}
+          </p>
           <p className="font-medium text-[var(--color-text-primary)]">
             {formatRupee(
               mahajanSummary.totalSettlement ?? mahajanSummary.totalDeposit
@@ -496,7 +512,7 @@ export default function Home() {
           </p>
         </div>
         <div className="dashboard-mini-stat sm:col-span-2">
-          <p className="text-[var(--color-text-tertiary)]">Net Balance</p>
+          <p className="text-[var(--color-text-tertiary)]">{t("lender.netBalance")}</p>
           <p
             className={`font-semibold ${netBalanceClass(mahajanSummary.balance)}`}
           >
@@ -504,20 +520,22 @@ export default function Home() {
             {mahajanSummary.balance > 0 ? (
               <span className="text-[var(--color-text-tertiary)] font-normal">
                 {" "}
-                (payable)
+                ({t("lender.payable")})
               </span>
             ) : null}
             {mahajanSummary.balance < 0 ? (
               <span className="text-[var(--color-text-tertiary)] font-normal">
                 {" "}
-                (receivable)
+                ({t("lender.receivable")})
               </span>
             ) : null}
           </p>
           {mahajanSummary.countOweMe > 0 || mahajanSummary.countIOwe > 0 ? (
             <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
-              {mahajanSummary.countOweMe} receivable, {mahajanSummary.countIOwe}{" "}
-              payable
+              {t("lender.receivablePayableStats", {
+                receivable: mahajanSummary.countOweMe,
+                payable: mahajanSummary.countIOwe,
+              })}
             </p>
           ) : null}
         </div>
@@ -526,9 +544,9 @@ export default function Home() {
   } else {
     lenderSummaryContent = (
       <DashboardEmptyState
-        title="No lender data"
-        description="Lender summary appears after credit purchases or settlements are recorded."
-        actionLabel="View Lenders"
+        title={t("lender.emptyTitle")}
+        description={t("lender.emptyDescription")}
+        actionLabel={t("lender.viewLenders")}
         actionTo="/mahajans"
       />
     );
@@ -545,7 +563,7 @@ export default function Home() {
       />
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <DashboardSectionBoundary
-          sectionTitle="7-Day Sale Momentum"
+          sectionTitle={t("weeklyMomentum.title")}
           containerClassName="dashboard-panel xl:col-span-2 min-h-[23rem]"
           resetKeys={[weeklyDate, orderedWeeklyData.length]}
         >
@@ -559,7 +577,7 @@ export default function Home() {
           />
         </DashboardSectionBoundary>
         <DashboardSectionBoundary
-          sectionTitle="Range Composition"
+          sectionTitle={t("sections.rangeComposition")}
           containerClassName="dashboard-panel min-h-[23rem]"
           resetKeys={[totalFrom, totalTo, totalSaleResult?.total ?? 0]}
         >
@@ -576,7 +594,7 @@ export default function Home() {
       </section>
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <DashboardSectionBoundary
-          sectionTitle="Quick Actions"
+          sectionTitle={t("sections.quickActions")}
           containerClassName="dashboard-panel xl:col-span-4"
           resetKeys={[weeklyDate, orderedWeeklyData.length]}
         >
@@ -585,7 +603,7 @@ export default function Home() {
           />
         </DashboardSectionBoundary>
         <DashboardSectionBoundary
-          sectionTitle="Low Stock Alerts"
+          sectionTitle={t("sections.lowStockAlerts")}
           containerClassName="dashboard-panel xl:col-span-8"
           resetKeys={[lowStockItems.length, lowStockLoading, lowStockError]}
         >
@@ -597,7 +615,7 @@ export default function Home() {
       </section>
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <DashboardSectionBoundary
-          sectionTitle="Weekly Sale Detail"
+          sectionTitle={t("sections.weeklyDetails")}
           containerClassName="dashboard-panel xl:col-span-2"
           resetKeys={[weeklyDate, orderedWeeklyData.length, weeklyLoading]}
         >
@@ -609,7 +627,7 @@ export default function Home() {
           />
         </DashboardSectionBoundary>
         <DashboardSectionBoundary
-          sectionTitle="Lender Summary"
+          sectionTitle={t("sections.lenderSummary")}
           containerClassName="dashboard-panel"
           resetKeys={[mahajanSummaryLoading, mahajanSummary?.balance ?? 0]}
         >

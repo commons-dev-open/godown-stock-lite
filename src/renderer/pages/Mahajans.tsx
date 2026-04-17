@@ -11,8 +11,9 @@ import {
 } from "@floating-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, FileDown, Printer } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import {
   formatAbbreviatedInteger,
   formatAbbreviatedRupee,
@@ -42,17 +43,22 @@ import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import { getAppDisplayName } from "../lib/displayName";
 import {
   exportMahajansToCsv,
-  exportMahajansToPdf,
   getPrintTableBody,
   type MahajanSummaryForExport,
+  type MahajansExportText,
 } from "../lib/exportMahajans";
 import { formatDateForFile } from "../lib/exportUtils";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 import {
   getLedgerUpdatesAvailable,
   setLedgerUpdatesAvailable,
 } from "../lib/ledgerUpdatesFlag";
 
 export default function Mahajans() {
+  const { t } = useTranslation("mahajans");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { authState } = useAuth();
@@ -67,6 +73,32 @@ export default function Mahajans() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+
+  const mahajansExportTexts = useMemo(
+    (): MahajansExportText => ({
+      columns: [
+        t("export.columns.id"),
+        t("form.name"),
+        t("form.address"),
+        t("form.phone"),
+        t("form.gstin"),
+        t("export.columns.createdAt"),
+        t("export.columns.updatedAt"),
+        t("columns.balance"),
+      ],
+      balanceHints: {
+        payable: t("labels.payable"),
+        receivable: t("labels.receivable"),
+      },
+      csvSummaryLabels: {
+        totalCreditPurchase: t("print.totalCreditPurchase"),
+        totalSettlements: t("print.totalSettlements"),
+        balance: t("print.balanceFormula"),
+      },
+    }),
+    [t]
+  );
+
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Mahajan | null>(null);
   const [page, setPage] = useState(1);
@@ -78,11 +110,12 @@ export default function Mahajans() {
     getLedgerUpdatesAvailable
   );
   const [exportOpen, setExportOpen] = useState(false);
-  const [printData, setPrintData] = useState<{
+  type MahajansPrintJob = null | (HtmlPrintJobBase & {
     columns: string[];
     rows: string[][];
     summary: MahajanSummaryForExport | null;
-  } | null>(null);
+  });
+  const [printJob, setPrintJob] = useState<MahajansPrintJob>(null);
   const [deleteConfirmMahajan, setDeleteConfirmMahajan] =
     useState<Mahajan | null>(null);
 
@@ -180,6 +213,7 @@ export default function Mahajans() {
         isLoadingAllBalances,
         loadingBalanceId,
         onLoadBalance: loadBalance,
+        t,
       }),
     [
       showBalanceAll,
@@ -188,6 +222,7 @@ export default function Mahajans() {
       isLoadingAllBalances,
       loadingBalanceId,
       loadBalance,
+      t,
     ]
   );
 
@@ -262,64 +297,77 @@ export default function Mahajans() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
     const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    exportMahajansToCsv(data, summaryForExport, balances);
-    toast.success("Exported as CSV.");
+    exportMahajansToCsv(data, summaryForExport, balances, mahajansExportTexts);
+    toast.success(t("export.csvSuccess"));
   }
 
   async function handleExportPdf() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
     const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    exportMahajansToPdf(data, summaryForExport, balances, appName);
-    toast.success("Exported as PDF.");
+    const body = getPrintTableBody(
+      data,
+      summaryForExport,
+      balances,
+      mahajansExportTexts
+    );
+    setPrintJob({
+      mode: "pdf",
+      documentTitle: `${t("print.fileNamePrefix")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `lenders-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
   async function handleExportPrint() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
     const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    setPrintData(getPrintTableBody(data, summaryForExport, balances));
+    const body = getPrintTableBody(
+      data,
+      summaryForExport,
+      balances,
+      mahajansExportTexts
+    );
+    setPrintJob({
+      mode: "browser",
+      documentTitle: `${t("print.fileNamePrefix")}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `lenders-${formatDateForFile(new Date())}.pdf`,
+      ...body,
+    });
   }
 
-  useEffect(() => {
-    if (!printData) {
-      return;
-    }
-    const previousTitle = document.title;
-    document.title = `Lenders_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const timeoutId = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(timeoutId);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  useElectronHtmlPrintJob(printJob, setPrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("export.pdfSuccess"));
+      }
+    },
+    onPdfError: () => {
+      toast.error(t("export.pdfFailed"));
+    },
+  });
 
   const totalLendersDisplay =
     isLoadingPage && pageResult == null
@@ -364,10 +412,10 @@ export default function Mahajans() {
       return "";
     }
     if (summary.balance > 0) {
-      return "(payable)";
+      return t("labels.payable");
     }
     if (summary.balance < 0) {
-      return "(receivable)";
+      return t("labels.receivable");
     }
     return "";
   }, [summary]);
@@ -388,10 +436,12 @@ export default function Mahajans() {
   const isListEmpty =
     mahajansPageQuery.isSuccess && mahajansPage.length === 0 && !isPageError;
   const hasSearch = search.trim().length > 0;
-  const emptyTitle = hasSearch ? "No matching lenders" : "No lenders yet";
+  const emptyTitle = hasSearch
+    ? t("empty.matchingLendersTitle")
+    : t("empty.noLendersTitle");
   const emptyDescription = hasSearch
-    ? "Try a different search, or clear filters to see the full list."
-    : "Add a lender to start recording credit purchases and settlements in their ledger.";
+    ? t("empty.matchingLendersDescription")
+    : t("empty.noLendersDescription");
 
   const receivableCountDisplay =
     isLoadingSummary && summary == null
@@ -412,13 +462,17 @@ export default function Mahajans() {
         {totalMahajans}
       </span>
       <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium tabular-nums inline-flex items-center gap-1">
-        <span className="text-[var(--color-text-tertiary)]">Receivable</span>
+        <span className="text-[var(--color-text-tertiary)]">
+          {t("labels.receivableShort")}
+        </span>
         <span className="text-[var(--color-success)]">
           {receivableCountDisplay}
         </span>
       </span>
       <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium tabular-nums inline-flex items-center gap-1">
-        <span className="text-[var(--color-text-tertiary)]">Payable</span>
+        <span className="text-[var(--color-text-tertiary)]">
+          {t("labels.payableShort")}
+        </span>
         <span className="text-[var(--color-danger)]">
           {payableCountDisplay}
         </span>
@@ -431,7 +485,7 @@ export default function Mahajans() {
       <div ref={exportRefs.setReference} {...getExportRefProps()}>
         <Button variant="secondary" type="button" className="w-full sm:w-auto">
           <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-          Export
+          {t("actions.export")}
         </Button>
       </div>
       <FloatingPortal>
@@ -448,7 +502,7 @@ export default function Mahajans() {
               onClick={handleExportCsv}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as CSV
+              {t("actions.exportAsCsv")}
             </button>
             <button
               type="button"
@@ -456,7 +510,7 @@ export default function Mahajans() {
               onClick={handleExportPdf}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as PDF
+              {t("actions.exportAsPdf")}
             </button>
             <button
               type="button"
@@ -464,7 +518,7 @@ export default function Mahajans() {
               onClick={handleExportPrint}
             >
               <Printer size={16} className="shrink-0" />
-              Print
+              {t("actions.print")}
             </button>
           </div>
         )}
@@ -494,7 +548,7 @@ export default function Mahajans() {
       />
 
       <DashboardSectionBoundary
-        sectionTitle="Lender directory"
+        sectionTitle={t("directory.sectionTitle")}
         containerClassName="dashboard-panel"
         resetKeys={[
           search,
@@ -506,8 +560,8 @@ export default function Mahajans() {
         ]}
       >
         <MahajansSectionPanel
-          title="Lender directory"
-          description="Search the list, open a ledger, or load balances when you need them. Enable “Show balance” to fetch all balances at once."
+          title={t("directory.title")}
+          description={t("directory.description")}
           badge={countBadge}
         >
           <div className="mb-4">
@@ -525,7 +579,7 @@ export default function Mahajans() {
                     }
                   : undefined
               }
-              placeholder="Search by name, address, or phone…"
+              placeholder={t("search.placeholder")}
               rightContent={
                 <label className="flex items-center gap-2 cursor-pointer">
                   <AppleToggle
@@ -536,10 +590,10 @@ export default function Mahajans() {
                         void refetchAllBalances();
                       }
                     }}
-                    aria-label="Show balance"
+                    aria-label={t("actions.showBalance")}
                   />
                   <span className="text-sm text-[var(--color-text-secondary)]">
-                    Show balance
+                    {t("actions.showBalance")}
                   </span>
                 </label>
               }
@@ -555,7 +609,7 @@ export default function Mahajans() {
             isEmpty={isListEmpty}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
-            emptyActionLabel={hasSearch ? undefined : "Add lender"}
+            emptyActionLabel={hasSearch ? undefined : t("actions.addMahajan")}
             onEmptyAction={hasSearch ? undefined : () => setAddOpen(true)}
             loaderColumns={5}
           >
@@ -565,7 +619,7 @@ export default function Mahajans() {
               data={mahajansPage}
               onEdit={setEditing}
               onDelete={(row) => setDeleteConfirmMahajan(row)}
-              emptyMessage="No Lenders yet. Click Add Lender."
+              emptyMessage={t("table.noLendersMessage")}
               pagination={{
                 type: "controlled",
                 page,
@@ -581,9 +635,9 @@ export default function Mahajans() {
       <ConfirmModal
         open={deleteConfirmMahajan != null}
         onClose={() => setDeleteConfirmMahajan(null)}
-        title="Delete Lender"
-        message="Delete this Lender? Balance must be 0."
-        confirmLabel="Delete"
+        title={t("modals.deleteLender.title")}
+        message={t("modals.deleteLender.message")}
+        confirmLabel={t("common.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmMahajan) {
@@ -593,12 +647,12 @@ export default function Mahajans() {
       />
 
       <FormModal
-        title="Add Lender"
+        title={t("actions.addMahajan")}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         footer={
           <Button variant="primary" type="submit" form="add-mahajan-form">
-            Save
+            {t("common.save")}
           </Button>
         }
       >
@@ -619,26 +673,26 @@ export default function Mahajans() {
             });
           }}
         >
-          <FormField label="Name" required>
+          <FormField label={t("form.name")} required>
             <input
               name="name"
               required
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
-          <FormField label="Address">
+          <FormField label={t("form.address")}>
             <input
               name="address"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
-          <FormField label="Phone">
+          <FormField label={t("form.phone")}>
             <input
               name="phone"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </FormField>
-          <FormField label="GSTIN">
+          <FormField label={t("form.gstin")}>
             <input
               name="gstin"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -648,13 +702,13 @@ export default function Mahajans() {
       </FormModal>
 
       <FormModal
-        title="Edit Lender"
+        title={t("actions.editMahajan")}
         open={!!editing}
         onClose={() => setEditing(null)}
         footer={
           editing ? (
             <Button variant="primary" type="submit" form="edit-mahajan-form">
-              Update
+              {t("common.update")}
             </Button>
           ) : null
         }
@@ -680,7 +734,7 @@ export default function Mahajans() {
               });
             }}
           >
-            <FormField label="Name" required>
+            <FormField label={t("form.name")} required>
               <input
                 name="name"
                 defaultValue={editing.name}
@@ -688,21 +742,21 @@ export default function Mahajans() {
                 className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
-            <FormField label="Address">
+            <FormField label={t("form.address")}>
               <input
                 name="address"
                 defaultValue={editing.address ?? ""}
                 className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
-            <FormField label="Phone">
+            <FormField label={t("form.phone")}>
               <input
                 name="phone"
                 defaultValue={editing.phone ?? ""}
                 className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               />
             </FormField>
-            <FormField label="GSTIN">
+            <FormField label={t("form.gstin")}>
               <input
                 name="gstin"
                 defaultValue={editing.gstin ?? ""}
@@ -713,9 +767,9 @@ export default function Mahajans() {
         )}
       </FormModal>
 
-      {printData && (
+      {printJob && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
+          className="app-print-container daily-sales-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
@@ -723,30 +777,30 @@ export default function Mahajans() {
               {appName}
             </p>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              Lenders
+              {t("hero.title")}
             </p>
-            {printData.summary != null && (
+            {printJob.summary != null && (
               <div className="mt-2 space-y-1 text-xs">
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Total Credit Purchase</span>
+                  <span className="font-medium">{t("print.totalCreditPurchase")}</span>
                   <span className="ml-2">
-                    ₹{formatDecimal(printData.summary.totalLend)}
+                    ₹{formatDecimal(printJob.summary.totalLend)}
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Total Settlements</span>
+                  <span className="font-medium">{t("print.totalSettlements")}</span>
                   <span className="ml-2">
-                    ₹{formatDecimal(printData.summary.totalDeposit)}
+                    ₹{formatDecimal(printJob.summary.totalDeposit)}
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
                   <span className="font-medium">
-                    Balance (Credit Purchase − Settlement)
+                    {t("print.balanceFormula")}
                   </span>
                   <span className="ml-2">
-                    ₹{formatDecimal(Math.abs(printData.summary.balance))}
-                    {printData.summary.balance > 0 && " (payable)"}
-                    {printData.summary.balance < 0 && " (receivable)"}
+                    ₹{formatDecimal(Math.abs(printJob.summary.balance))}
+                    {printJob.summary.balance > 0 && ` ${t("labels.payable")}`}
+                    {printJob.summary.balance < 0 && ` ${t("labels.receivable")}`}
                   </span>
                 </p>
               </div>
@@ -761,7 +815,7 @@ export default function Mahajans() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr>
-                {printData.columns.map((col) => (
+                {printJob.columns.map((col) => (
                   <th
                     key={col}
                     className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
@@ -772,11 +826,11 @@ export default function Mahajans() {
               </tr>
             </thead>
             <tbody>
-              {printData.rows.map((row) => (
+              {printJob.rows.map((row) => (
                 <tr key={row[0]}>
                   {row.map((cell, ci) => (
                     <td
-                      key={`${row[0]}-${printData.columns[ci]}`}
+                      key={`${row[0]}-${printJob.columns[ci]}`}
                       className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}

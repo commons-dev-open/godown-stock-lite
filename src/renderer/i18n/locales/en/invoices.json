@@ -15,7 +15,9 @@
     "date": "Date",
     "customer": "Customer",
     "amount": "Amount",
-    "status": "Status"
+    "total": "Total",
+    "status": "Status",
+    "actions": "Actions"
   },
   "form": {
     "customerPlaceholder": "Customer name",
@@ -27,5 +29,170 @@
     "title": "No invoices yet",
     "message": "Create your first invoice.",
     "cta": "New Invoice"
+  },
+  "page": {
+    "title": "Invoices",
+    "createInvoice": "Create Invoice",
+    "sectionListTitle": "Invoices list",
+    "registerTitle": "Invoice register",
+    "registerDescription": "Search by number or customer, narrow by issue date, then view or edit full line items.",
+    "searchPlaceholder": "Search by invoice # or customer...",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "metricMatching": "Matching invoices",
+    "metricOnPage": "On this page",
+    "metricPageTotal": "Page total",
+    "emptyFilteredTitle": "No invoices match",
+    "emptyDefaultTitle": "No invoices yet",
+    "emptyFilteredDescription": "Try clearing search or widening the date range.",
+    "emptyDefaultDescription": "Create your first invoice to print a bill and feed daily sales automatically.",
+    "clearFilters": "Clear filters",
+    "createInvoiceCta": "Create invoice",
+    "tableEmptyMessage": "No invoices."
+  },
+  "confirmDelete": {
+    "title": "Delete invoice",
+    "message": "Delete this invoice?"
+  },
+  "viewModal": {
+    "title": "Invoice {{id}}",
+    "total": "Total: ₹{{amount}}",
+    "linkDailySale": "View daily sale for this date",
+    "exportPdf": "Export PDF",
+    "print": "Print",
+    "printLanguage": "Print / PDF language"
+  },
+  "printLanguageOption": {
+    "en": "English",
+    "hi": "हिन्दी",
+    "bn": "বাংলা"
+  },
+  "printHeader": {
+    "phone": "Phone:",
+    "gstin": "GST No.:"
+  },
+  "toasts": {
+    "exportedPdf": "Exported as PDF.",
+    "exportPdfFailed": "Failed to export PDF.",
+    "invalidCoupon": "Invalid or expired coupon",
+    "couponValidationFailed": "Coupon validation failed"
+  },
+  "view": {
+    "invoiceNumber": "Invoice #:",
+    "placeOfSupply": "Place of Supply:",
+    "date": "Date:",
+    "phone": "Phone:",
+    "customer": "Customer:",
+    "address": "Address:",
+    "table": {
+      "hsn": "HSN",
+      "product": "Product",
+      "qty": "Qty",
+      "unit": "Unit",
+      "ratePerUnit": "Rate/unit",
+      "taxable": "Taxable",
+      "cgst": "CGST",
+      "sgst": "SGST",
+      "total": "Total"
+    },
+    "subtotalLines": "Subtotal (lines): ₹{{amount}}",
+    "taxableAmount": "Taxable Amount: ₹{{amount}}",
+    "cgstAmount": "CGST: ₹{{amount}}",
+    "sgstAmount": "SGST: ₹{{amount}}",
+    "subtotal": "Subtotal: ₹{{amount}}",
+    "orderDiscount": "Order discount: -₹{{amount}}",
+    "couponApplied": "Coupon {{code}}: applied",
+    "roundedWhole": "Rounded to nearest whole",
+    "grandTotal": "Grand Total: ₹{{amount}}",
+    "total": "Total: ₹{{amount}}"
+  },
+  "formModal": {
+    "createTitle": "Create Invoice",
+    "editTitle": "Edit Invoice",
+    "printLanguage": "Print / PDF language",
+    "autoNumberHint": "Invoice # will be auto-generated as INV-YYYY-NNNN (e.g. INV-2025-0001).",
+    "fields": {
+      "invoiceNumber": "Invoice #",
+      "date": "Date",
+      "customerPhone": "Customer phone",
+      "customerName": "Customer name",
+      "customerAddress": "Customer address",
+      "customerGstin": "Customer GSTIN",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "customerPhone": "Optional - enter to auto-fill name/address",
+      "customerGstin": "Optional",
+      "notes": "Optional notes for this invoice",
+      "numericZero": "0",
+      "couponCode": "Enter code",
+      "orderDiscount": "0"
+    },
+    "lineHeaders": {
+      "product": "Product",
+      "qty": "Qty",
+      "unit": "Unit",
+      "gstPercent": "GST%",
+      "mode": "Mode",
+      "type": "Type",
+      "amount": "Amount",
+      "lineTotal": "Total"
+    },
+    "line": {
+      "selectProduct": "Select product",
+      "gstModeExclusive": "Excl.",
+      "gstModeInclusive": "Incl.",
+      "perUnit": "Per {{unit}}",
+      "perUnitFallback": "Per unit",
+      "unitFallbackWord": "unit",
+      "totalMode": "Total",
+      "priceTypeTitle": "Enter price per unit or total for this line",
+      "lineTotalTitle": "Total amount for this line (quantity can be entered before or after)",
+      "taxParenthetical": "(tax ₹{{amount}})",
+      "removeLineAria": "Remove line"
+    },
+    "discounts": {
+      "percentOff": "% off:",
+      "rsOff": "Rs off:",
+      "bogoBuy": "BOGO buy:",
+      "bogoGet": "get:"
+    },
+    "addItem": "Add item",
+    "orderDiscountsTitle": "Order-level discounts",
+    "orderPercentOff": "Order % off",
+    "orderFlatOff": "Order flat (Rs.) off",
+    "couponCode": "Coupon code",
+    "couponAppliedExtra": "Applied: {{code}} ({{discountText}})",
+    "couponDiscountPercent": "{{value}}% off",
+    "couponDiscountFlat": "₹{{value}} off",
+    "tieredDiscountHint": "Tiered discount applied (order >= min amount)",
+    "footer": {
+      "subtotalCgstSgst": "Subtotal: ₹{{taxable}} | CGST: ₹{{cgst}} | SGST: ₹{{sgst}}",
+      "orderDiscountBeforeRound": "Order discount: -₹{{discount}} | Before rounding: ₹{{before}}",
+      "orderDiscountOnly": "Order discount: -₹{{discount}}",
+      "roundedWhole": "Rounded to nearest whole",
+      "grandTotal": "Grand Total: ₹{{amount}}",
+      "total": "Total: ₹{{amount}}",
+      "save": "Save",
+      "saveAndPrint": "Save and Print",
+      "remove": "Remove",
+      "apply": "Apply"
+    }
+  },
+  "tableActions": {
+    "viewTitle": "View",
+    "editTitle": "Edit",
+    "deleteTitle": "Delete",
+    "viewInvoiceAria": "View invoice",
+    "editInvoiceAria": "Edit invoice",
+    "deleteInvoiceAria": "Delete invoice",
+    "emptyCell": "—"
+  },
+  "lineNotes": {
+    "percentOff": "{{pct}}% off",
+    "flatOff": "Flat ₹{{amount}}",
+    "bogo": "BOGO {{buy}}+{{get}} @ {{pct}}%",
+    "defaultItemName": "Item",
+    "listJoin": ", "
   }
 }

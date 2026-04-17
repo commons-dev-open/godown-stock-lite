@@ -27,24 +27,36 @@ export interface LenderLedgerPageRow {
 
 export type PurchaseTableRow = Purchase & { product_name?: string };
 
-export function ledgerDescriptionFromPageRow(row: LenderLedgerPageRow): string {
+export interface LedgerDescriptionLabels {
+  settlement: string;
+  cashPurchase: string;
+  creditPurchase: string;
+}
+
+export function ledgerDescriptionFromPageRow(
+  row: LenderLedgerPageRow,
+  labels?: LedgerDescriptionLabels
+): string {
   if (row.type === "settlement") {
-    return "Settlement";
+    return labels?.settlement ?? "Settlement";
   }
   if (row.type === "cash_purchase") {
-    return row.product_name?.trim() || "Cash purchase";
+    return row.product_name?.trim() || labels?.cashPurchase || "Cash purchase";
   }
-  return row.product_name?.trim() || "Credit purchase";
+  return row.product_name?.trim() || labels?.creditPurchase || "Credit purchase";
 }
 
 /** Minimal `LedgerRow` for CSV/PDF/print helpers that expect `description`. */
-export function pageRowToLedgerRow(row: LenderLedgerPageRow): LedgerRow {
+export function pageRowToLedgerRow(
+  row: LenderLedgerPageRow,
+  labels?: LedgerDescriptionLabels
+): LedgerRow {
   return {
     id: row.id,
     type: row.type as LedgerRow["type"],
     transaction_date: row.transaction_date,
     amount: row.amount,
-    description: ledgerDescriptionFromPageRow(row),
+    description: ledgerDescriptionFromPageRow(row, labels),
   };
 }
 

@@ -17,23 +17,8 @@ export const SETTINGS_TAB_ORDER: SettingsTabId[] = [
   "data",
 ];
 
+import i18n from "../../i18n";
+
 export function settingsTabLabel(id: SettingsTabId): string {
-  switch (id) {
-    case "business":
-      return "Business";
-    case "tax":
-      return "Tax & GST";
-    case "discounts":
-      return "Discounts";
-    case "appearance":
-      return "Appearance";
-    case "security":
-      return "Security";
-    case "activity":
-      return "Activity log";
-    case "data":
-      return "Data";
-    default:
-      return id;
-  }
+  return i18n.t(`settings:tabs.${id}`);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   useFloating,
   autoUpdate,
@@ -38,12 +39,15 @@ import { formatDateForView } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import {
   exportMahajanLedgerToCsv,
-  exportMahajanLedgerToPdf,
   getPrintTableBody,
   type MahajanBalanceForExport,
 } from "../lib/exportMahajanLedger";
 import { getAppDisplayName } from "../lib/displayName";
-import { formatDateForFile } from "../lib/exportUtils";
+import { formatDateForFile, sanitizeForFilename } from "../lib/exportUtils";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 import { Download, FileDown, Printer } from "lucide-react";
 import Button from "../components/Button";
 import type { MahajanLend, MahajanDeposit, Item } from "../../shared/types";
@@ -115,6 +119,8 @@ function buildMahajanLedgerDeleteRows(p: {
 }
 
 export default function MahajanLedger() {
+  const { t } = useTranslation("mahajans");
+  const { t: tTx } = useTranslation("transactions");
   const { mahajanId } = useParams<{ mahajanId: string }>();
   const navigate = useNavigate();
   const api = getElectron();
@@ -129,6 +135,31 @@ export default function MahajanLedger() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+
+  const ledgerDescriptionLabels = useMemo(
+    () => ({
+      settlement: t("ledger.descriptions.settlement"),
+      cashPurchase: t("ledger.descriptions.cashPurchase"),
+      creditPurchase: t("ledger.descriptions.creditPurchase"),
+    }),
+    [t]
+  );
+
+  const ledgerExportColumnLabels = useMemo(
+    () => [
+      t("ledger.columns.date"),
+      t("ledger.columns.type"),
+      t("ledger.columns.description"),
+      t("ledger.columns.amount"),
+    ],
+    [t]
+  );
+
+  const translateLedgerType = useCallback(
+    (ty: string) => String(tTx(`types.${ty}`, { defaultValue: ty })),
+    [tTx]
+  );
+
   const [page, setPage] = useState(1);
   const id = Number(mahajanId);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
@@ -173,13 +204,14 @@ export default function MahajanLedger() {
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [printData, setPrintData] = useState<{
+  type MahajanLedgerPrintJob = null | (HtmlPrintJobBase & {
     columns: string[];
     rows: string[][];
     mahajanName: string;
     balance: MahajanBalanceForExport | null;
     filterDetails?: { label: string; value: string }[];
-  } | null>(null);
+  });
+  const [printJob, setPrintJob] = useState<MahajanLedgerPrintJob>(null);
 
   const {
     refs: exportRefs,
@@ -317,10 +349,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       setEditingLend(null);
-      toast.success("Credit purchase updated");
+      toast.success(t("ledger.toasts.creditPurchaseUpdated"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update credit purchase"),
+      toast.error(err.message ?? t("ledger.toasts.creditPurchaseUpdateFailed")),
   });
 
   const updateDeposit = useMutation({
@@ -338,10 +370,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
-      toast.success("Settlement updated");
+      toast.success(t("ledger.toasts.settlementUpdated"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to update settlement"),
+      toast.error(err.message ?? t("ledger.toasts.settlementUpdateFailed")),
   });
 
   const deleteLend = useMutation({
@@ -354,10 +386,10 @@ export default function MahajanLedger() {
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
-      toast.success("Credit purchase deleted");
+      toast.success(t("ledger.toasts.creditPurchaseDeleted"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete credit purchase"),
+      toast.error(err.message ?? t("ledger.toasts.creditPurchaseDeleteFailed")),
   });
 
   const deleteDeposit = useMutation({
@@ -368,10 +400,10 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
-      toast.success("Settlement deleted");
+      toast.success(t("ledger.toasts.settlementDeleted"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to delete settlement"),
+      toast.error(err.message ?? t("ledger.toasts.settlementDeleteFailed")),
   });
 
   const handleFilterChange = (updates: {
@@ -399,24 +431,24 @@ export default function MahajanLedger() {
 
   const filterTypeDisplay =
     filterType === "credit_purchase"
-      ? "Credit purchase"
+      ? t("hero.creditPurchase")
       : filterType === "settlement"
-        ? "Settlement"
+        ? t("hero.settlements")
         : filterType;
 
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
     if (filterType !== "all") {
-      list.push({ label: "Type", value: filterTypeDisplay });
+      list.push({ label: t("ledger.filters.type"), value: filterTypeDisplay });
     }
     if (filterDateFrom) {
-      list.push({ label: "Date From", value: filterDateFrom });
+      list.push({ label: t("ledger.filters.dateFrom"), value: filterDateFrom });
     }
     if (filterDateTo) {
-      list.push({ label: "Date To", value: filterDateTo });
+      list.push({ label: t("ledger.filters.dateTo"), value: filterDateTo });
     }
     return list;
-  }, [filterType, filterTypeDisplay, filterDateFrom, filterDateTo]);
+  }, [filterType, filterTypeDisplay, filterDateFrom, filterDateTo, t]);
 
   const fetchLedgerRowsForExport = useCallback(async () => {
     const result = (await api.getMahajanLedgerPage({
@@ -427,8 +459,17 @@ export default function MahajanLedger() {
       page: 1,
       limit: 999_999,
     })) as { data: LenderLedgerPageRow[]; total: number };
-    return (result.data ?? []).map(pageRowToLedgerRow);
-  }, [api, id, filterType, filterDateFrom, filterDateTo]);
+    return (result.data ?? []).map((row) =>
+      pageRowToLedgerRow(row, ledgerDescriptionLabels)
+    );
+  }, [
+    api,
+    id,
+    filterType,
+    filterDateFrom,
+    filterDateTo,
+    ledgerDescriptionLabels,
+  ]);
 
   const ledgerHasActiveFilters =
     filterType !== "all" || Boolean(filterDateFrom) || Boolean(filterDateTo);
@@ -476,10 +517,10 @@ export default function MahajanLedger() {
       return "";
     }
     if (balance.balance > 0) {
-      return "(payable)";
+      return t("labels.payable");
     }
     if (balance.balance < 0) {
-      return "(receivable)";
+      return t("labels.receivable");
     }
     return "";
   }, [balance]);
@@ -495,69 +536,91 @@ export default function MahajanLedger() {
     setExportOpen(false);
     const rows = await fetchLedgerRowsForExport();
     if (rows.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    exportMahajanLedgerToCsv(rows, mahajanLabel, appliedFilters);
-    toast.success("Exported as CSV.");
+    exportMahajanLedgerToCsv(rows, mahajanLabel, appliedFilters, {
+      columnLabels: ledgerExportColumnLabels,
+      filterSectionTitle: t("print.appliedFilters"),
+      translateType: translateLedgerType,
+    });
+    toast.success(t("export.csvSuccess"));
   }
 
   async function handleExportPdf() {
     setExportOpen(false);
     const rows = await fetchLedgerRowsForExport();
     if (rows.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    exportMahajanLedgerToPdf(
+    const safeName = sanitizeForFilename(mahajanLabel);
+    const table = getPrintTableBody(
       rows,
-      mahajanLabel,
-      balance ?? null,
       appliedFilters,
-      appName
+      ledgerExportColumnLabels,
+      translateLedgerType
     );
-    toast.success("Exported as PDF.");
+    const name = (mahajanLabel ?? "")
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, "_");
+    const base = name
+      ? `${t("print.ledgerFileNamePrefix")}_${name}`
+      : t("print.ledgerFileNamePrefix");
+    setPrintJob({
+      mode: "pdf",
+      documentTitle: `${base}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `lender-ledger-${safeName}-${formatDateForFile(new Date())}.pdf`,
+      ...table,
+      mahajanName: mahajanLabel,
+      balance: balance ?? null,
+    });
   }
 
   async function handleExportPrint() {
     setExportOpen(false);
     const rows = await fetchLedgerRowsForExport();
     if (rows.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("export.noData"));
       return;
     }
-    setPrintData({
-      ...getPrintTableBody(rows, appliedFilters),
+    const table = getPrintTableBody(
+      rows,
+      appliedFilters,
+      ledgerExportColumnLabels,
+      translateLedgerType
+    );
+    const name = (mahajanLabel ?? "")
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, "_");
+    const base = name
+      ? `${t("print.ledgerFileNamePrefix")}_${name}`
+      : t("print.ledgerFileNamePrefix");
+    setPrintJob({
+      mode: "browser",
+      documentTitle: `${base}_${formatDateForFile(new Date())}`,
+      defaultPdfPath: `lender-ledger-${sanitizeForFilename(mahajanLabel)}-${formatDateForFile(new Date())}.pdf`,
+      ...table,
       mahajanName: mahajanLabel,
       balance: balance ?? null,
     });
   }
 
-  useEffect(() => {
-    if (!printData) return;
-    const previousTitle = document.title;
-    const name = (printData.mahajanName ?? "")
-      .replace(/[/\\:*?"<>|]/g, "-")
-      .replace(/\s+/g, "_");
-    const base = name ? `Lender_Ledger_${name}` : "Lender_Ledger";
-    document.title = `${base}_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const timeoutId = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(timeoutId);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  useElectronHtmlPrintJob(printJob, setPrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("export.pdfSuccess"));
+      }
+    },
+    onPdfError: () => {
+      toast.error(t("export.pdfFailed"));
+    },
+  });
 
   if (!Number.isFinite(id) || id <= 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-[var(--color-text-tertiary)]">
-        Invalid lender
+        {t("ledger.invalidLender")}
       </div>
     );
   }
@@ -579,7 +642,7 @@ export default function MahajanLedger() {
       <div ref={exportRefs.setReference} {...getExportRefProps()}>
         <Button variant="secondary" type="button" className="shrink-0 whitespace-nowrap">
           <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-          Export
+          {t("actions.export")}
         </Button>
       </div>
       <FloatingPortal>
@@ -598,7 +661,7 @@ export default function MahajanLedger() {
               }}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as CSV
+              {t("actions.exportAsCsv")}
             </button>
             <button
               type="button"
@@ -608,7 +671,7 @@ export default function MahajanLedger() {
               }}
             >
               <FileDown size={16} className="shrink-0" />
-              Export as PDF
+              {t("actions.exportAsPdf")}
             </button>
             <button
               type="button"
@@ -618,7 +681,7 @@ export default function MahajanLedger() {
               }}
             >
               <Printer size={16} className="shrink-0" />
-              Print
+              {t("actions.print")}
             </button>
           </div>
         )}
@@ -658,7 +721,7 @@ export default function MahajanLedger() {
       ) : null}
 
       <DashboardSectionBoundary
-        sectionTitle="Lender ledger"
+        sectionTitle={t("ledger.sectionTitle")}
         containerClassName="dashboard-panel"
         resetKeys={[
           id,
@@ -672,8 +735,8 @@ export default function MahajanLedger() {
         ]}
       >
         <MahajansSectionPanel
-          title="Ledger entries"
-          description="Filter by type or date, add credit purchases or settlements, and export when you need a file or printout."
+          title={t("ledger.entriesTitle")}
+          description={t("ledger.entriesDescription")}
           badge={countBadge}
         >
           <MahajanLedgerFiltersBar
@@ -695,16 +758,18 @@ export default function MahajanLedger() {
               isEmpty={isLedgerEmpty}
               emptyTitle={
                 ledgerHasActiveFilters
-                  ? "No matching entries"
-                  : "No ledger entries yet"
+                  ? t("ledger.empty.matchingEntriesTitle")
+                  : t("ledger.empty.noEntriesTitle")
               }
               emptyDescription={
                 ledgerHasActiveFilters
-                  ? "Try clearing filters or widening the date range."
-                  : "Add a credit purchase or settlement using the buttons above."
+                  ? t("ledger.empty.matchingEntriesDescription")
+                  : t("ledger.empty.noEntriesDescription")
               }
               emptyActionLabel={
-                ledgerHasActiveFilters ? "Clear filters" : "Credit purchase"
+                ledgerHasActiveFilters
+                  ? t("ledger.actions.clearFilters")
+                  : t("hero.creditPurchase")
               }
               onEmptyAction={
                 ledgerHasActiveFilters
@@ -714,7 +779,9 @@ export default function MahajanLedger() {
                     }
               }
               emptySecondaryLabel={
-                ledgerHasActiveFilters ? "Credit purchase" : "Settlement"
+                ledgerHasActiveFilters
+                  ? t("hero.creditPurchase")
+                  : t("hero.settlements")
               }
               onEmptySecondary={
                 ledgerHasActiveFilters
@@ -1538,48 +1605,52 @@ export default function MahajanLedger() {
         )}
       </FormModal>
 
-      {printData && (
+      {printJob && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
+          className="app-print-container daily-sales-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">Mahajan Ledger</p>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              Mahajan: {printData.mahajanName}
+              {t("print.mahajanLedger")}
             </p>
-            {printData.filterDetails != null &&
-              printData.filterDetails.length > 0 && (
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              {t("print.mahajanLabel")}: {printJob.mahajanName}
+            </p>
+            {printJob.filterDetails != null &&
+              printJob.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
-                  {printData.filterDetails.map((f) => (
+                  <p className="font-medium text-[var(--color-text-secondary)]">
+                    {t("print.appliedFilters")}
+                  </p>
+                  {printJob.filterDetails.map((f) => (
                     <p key={f.label} className="text-[var(--color-text-secondary)]">
                       {f.label}: {f.value}
                     </p>
                   ))}
                 </div>
               )}
-            {printData.balance != null && (
+            {printJob.balance != null && (
               <div className="mt-2 space-y-1 text-xs">
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Total Lends</span>
+                  <span className="font-medium">{t("print.totalLends")}</span>
                   <span className="ml-2">
-                    ₹{formatDecimal(printData.balance.totalLends)}
+                    ₹{formatDecimal(printJob.balance.totalLends)}
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Total Deposits</span>
+                  <span className="font-medium">{t("print.totalDeposits")}</span>
                   <span className="ml-2">
-                    ₹{formatDecimal(printData.balance.totalDeposits)}
+                    ₹{formatDecimal(printJob.balance.totalDeposits)}
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Balance (Lend - Deposit)</span>
+                  <span className="font-medium">{t("print.balanceLendDeposit")}</span>
                   <span className="ml-2">
-                    ₹{formatDecimal(Math.abs(printData.balance.balance))}
-                    {printData.balance.balance > 0 && " (payable)"}
-                    {printData.balance.balance < 0 && " (receivable)"}
+                    ₹{formatDecimal(Math.abs(printJob.balance.balance))}
+                    {printJob.balance.balance > 0 && ` ${t("labels.payable")}`}
+                    {printJob.balance.balance < 0 && ` ${t("labels.receivable")}`}
                   </span>
                 </p>
               </div>
@@ -1594,7 +1665,7 @@ export default function MahajanLedger() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr>
-                {printData.columns.map((col) => (
+                {printJob.columns.map((col) => (
                   <th
                     key={col}
                     className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
@@ -1605,11 +1676,11 @@ export default function MahajanLedger() {
               </tr>
             </thead>
             <tbody>
-              {printData.rows.map((row) => (
+              {printJob.rows.map((row) => (
                 <tr key={row[0]}>
                   {row.map((cell, ci) => (
                     <td
-                      key={`${row[0]}-${printData.columns[ci]}`}
+                      key={`${row[0]}-${printJob.columns[ci]}`}
                       className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}

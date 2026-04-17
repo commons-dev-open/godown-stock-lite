@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n, {
+  INVOICE_PRINT_LOCALE_STORAGE_KEY,
+  readStoredInvoicePrintLocale,
+  SUPPORTED_LOCALES,
+  type SupportedLocale,
+} from "../i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -12,7 +19,6 @@ import SearchFilterBar from "../components/SearchFilterBar";
 import { PAGE_SIZE } from "../../shared/constants";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
-import { exportInvoiceToPdf } from "../lib/exportInvoice";
 import {
   formatInvoiceLineDiscountNote,
   invoiceLinesSubtotal,
@@ -33,12 +39,19 @@ import type {
   UnitConversion,
 } from "../../shared/types";
 import DateInput from "../components/DateInput";
-import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
+import {
+  formatBillDateTime,
+  formatDateForFile,
+  sanitizeForFilename,
+} from "../lib/exportUtils";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 import {
   formatDecimal,
   roundDecimal,
   formatAbbreviatedInteger,
-  formatAbbreviatedRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
@@ -59,6 +72,25 @@ import {
 } from "lucide-react";
 
 type InvoiceWithLines = Invoice & { lines: InvoiceLine[] };
+
+function invoicePrintDocumentTitle(inv: InvoiceWithLines): string {
+  const invNum = (inv.invoice_number ?? `INV-${inv.id}`)
+    .replace(/[/\\:*?"<>|]/g, "-")
+    .replace(/\s+/g, "_");
+  const customer = (inv.customer_name ?? "")
+    .trim()
+    .replace(/[/\\:*?"<>|]/g, "-")
+    .replace(/\s+/g, "_");
+  const base = customer ? `Invoice_${invNum}_${customer}` : `Invoice_${invNum}`;
+  return `${base}_${formatDateForFile(new Date())}`;
+}
+
+function invoicePrintDefaultPdfPath(inv: InvoiceWithLines): string {
+  const safeNum = inv.invoice_number
+    ? sanitizeForFilename(inv.invoice_number)
+    : `invoice-${inv.id}`;
+  return `invoice-${safeNum}-${formatDateForFile(new Date())}.pdf`;
+}
 
 type InvoiceRow = Invoice & { total?: number };
 
@@ -173,14 +205,27 @@ function getLineTotalDisplay(line: LineRow): string {
 const ViewInvoiceContent = memo(function ViewInvoiceContent({
   invoice,
   isPrint,
+  printLocale,
   invoiceUnits = [],
   settings = {},
 }: {
   invoice: InvoiceWithLines;
   isPrint?: boolean;
+  /** When printing/PDF, labels use this locale (independent of app UI language). */
+  printLocale?: SupportedLocale;
   invoiceUnits?: Unit[];
   settings?: Record<string, string>;
 }) {
+  const { t, i18n: i18nInstance } = useTranslation("invoices");
+  const tView = useMemo(() => {
+    if (isPrint && printLocale) {
+      return i18nInstance.getFixedT(printLocale, "invoices") as (
+        k: string,
+        o?: Record<string, unknown>
+      ) => string;
+    }
+    return t;
+  }, [isPrint, printLocale, i18nInstance, t]);
   const linesSubtotal = invoiceLinesSubtotal(invoice.lines);
   const netTotal = invoiceNetTotal(invoice, invoice.lines);
   const orderDiscAmount = invoice.order_discount_amount ?? 0;
@@ -210,34 +255,35 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
       >
         {invoice.invoice_number && (
           <div>
-            <span className="font-medium">Invoice #:</span>{" "}
+            <span className="font-medium">{tView("view.invoiceNumber")}</span>{" "}
             {invoice.invoice_number}
           </div>
         )}
         {gstEnabled && settings.place_of_supply?.trim() && (
           <div className="col-span-2">
-            <span className="font-medium">Place of Supply:</span>{" "}
+            <span className="font-medium">{tView("view.placeOfSupply")}</span>{" "}
             {settings.place_of_supply.trim()}
           </div>
         )}
         <div className="col-span-2">
-          <span className="font-medium">Date:</span>{" "}
+          <span className="font-medium">{tView("view.date")}</span>{" "}
           {formatBillDateTime(new Date())}
         </div>
         {invoice.customer_phone && (
           <div className="col-span-2">
-            <span className="font-medium">Phone:</span> {invoice.customer_phone}
+            <span className="font-medium">{tView("view.phone")}</span>{" "}
+            {invoice.customer_phone}
           </div>
         )}
         {invoice.customer_name && (
           <div className="col-span-2">
-            <span className="font-medium">Customer:</span>{" "}
+            <span className="font-medium">{tView("view.customer")}</span>{" "}
             {invoice.customer_name}
           </div>
         )}
         {invoice.customer_address && (
           <div className="col-span-2">
-            <span className="font-medium">Address:</span>{" "}
+            <span className="font-medium">{tView("view.address")}</span>{" "}
             {invoice.customer_address}
           </div>
         )}
@@ -247,36 +293,36 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
           <tr className="bg-[var(--color-bg-surface-raised)]">
             {useGstLayout && hasHsn && (
               <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
-                HSN
+                {tView("view.table.hsn")}
               </th>
             )}
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
-              Product
+              {tView("view.table.product")}
             </th>
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-              Qty
+              {tView("view.table.qty")}
             </th>
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
-              Unit
+              {tView("view.table.unit")}
             </th>
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-              Rate/unit
+              {tView("view.table.ratePerUnit")}
             </th>
             {useGstLayout && (
               <>
                 <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-                  Taxable
+                  {tView("view.table.taxable")}
                 </th>
                 <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-                  CGST
+                  {tView("view.table.cgst")}
                 </th>
                 <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-                  SGST
+                  {tView("view.table.sgst")}
                 </th>
               </>
             )}
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
-              Total
+              {tView("view.table.total")}
             </th>
           </tr>
         </thead>
@@ -287,7 +333,12 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             const taxable = line.taxable_amount ?? amount;
             const cgst = line.cgst_amount ?? 0;
             const sgst = line.sgst_amount ?? 0;
-            const lineDiscNote = formatInvoiceLineDiscountNote(line);
+            const lineDiscNote = formatInvoiceLineDiscountNote(
+              line,
+              isPrint && printLocale
+                ? { lineNotesLocale: printLocale }
+                : undefined
+            );
             return (
               <tr key={line.id}>
                 {useGstLayout && hasHsn && (
@@ -342,40 +393,52 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
       <div className="mt-2 space-y-0.5">
         {useGstLayout && orderDiscAmount > 0 && (
           <div className="text-sm">
-            Subtotal (lines): ₹{formatDecimal(linesSubtotal)}
+            {tView("view.subtotalLines", {
+              amount: formatDecimal(linesSubtotal),
+            })}
           </div>
         )}
         {useGstLayout && (
           <>
             <div className="text-sm">
-              Taxable Amount: ₹{formatDecimal(taxableTotal)}
+              {tView("view.taxableAmount", {
+                amount: formatDecimal(taxableTotal),
+              })}
             </div>
-            <div className="text-sm">CGST: ₹{formatDecimal(cgstTotal)}</div>
-            <div className="text-sm">SGST: ₹{formatDecimal(sgstTotal)}</div>
+            <div className="text-sm">
+              {tView("view.cgstAmount", { amount: formatDecimal(cgstTotal) })}
+            </div>
+            <div className="text-sm">
+              {tView("view.sgstAmount", { amount: formatDecimal(sgstTotal) })}
+            </div>
           </>
         )}
         {!useGstLayout && orderDiscAmount > 0 && (
           <div className="text-sm">
-            Subtotal: ₹{formatDecimal(linesSubtotal)}
+            {tView("view.subtotal", { amount: formatDecimal(linesSubtotal) })}
           </div>
         )}
         {orderDiscAmount > 0 && (
           <div className="text-sm text-[var(--color-warning-text)]">
-            Order discount: -₹{formatDecimal(orderDiscAmount)}
+            {tView("view.orderDiscount", {
+              amount: formatDecimal(orderDiscAmount),
+            })}
           </div>
         )}
         {orderDiscAmount > 0 && invoice.coupon_code?.trim() && (
           <div className="text-sm text-[var(--color-text-secondary)]">
-            Coupon {invoice.coupon_code.trim()}: applied
+            {tView("view.couponApplied", { code: invoice.coupon_code.trim() })}
           </div>
         )}
         {Boolean(invoice.round_to_whole) && (
           <div className="text-xs text-[var(--color-text-tertiary)]">
-            Rounded to nearest whole
+            {tView("view.roundedWhole")}
           </div>
         )}
         <div className="font-medium">
-          {useGstLayout ? "Grand Total: " : "Total: "}₹{formatDecimal(netTotal)}
+          {useGstLayout
+            ? tView("view.grandTotal", { amount: formatDecimal(netTotal) })
+            : tView("view.total", { amount: formatDecimal(netTotal) })}
         </div>
         {useGstLayout && (
           <div className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -388,6 +451,8 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
 });
 
 export default function Invoices() {
+  const { t } = useTranslation("invoices");
+  const { t: tc } = useTranslation("common");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { authState } = useAuth();
@@ -409,7 +474,26 @@ export default function Invoices() {
     if (state?.dateFrom) setDateFrom(state.dateFrom); // eslint-disable-line react-hooks/set-state-in-effect -- sync nav state to form
     if (state?.dateTo) setDateTo(state.dateTo); // eslint-disable-line react-hooks/set-state-in-effect -- sync nav state to form
   }, [location.state]);
-  const [printData, setPrintData] = useState<InvoiceWithLines | null>(null);
+  type InvoiceHtmlPrintJob =
+    | null
+    | (HtmlPrintJobBase & {
+        invoice: InvoiceWithLines;
+        printLocale: SupportedLocale;
+        pdfLandscape?: boolean;
+      });
+  const [invoicePrintJob, setInvoicePrintJob] =
+    useState<InvoiceHtmlPrintJob>(null);
+  const [invoicePrintLocale, setInvoicePrintLocale] = useState<SupportedLocale>(
+    readStoredInvoicePrintLocale
+  );
+  const persistInvoicePrintLocale = useCallback((l: SupportedLocale) => {
+    setInvoicePrintLocale(l);
+    try {
+      window.localStorage.setItem(INVOICE_PRINT_LOCALE_STORAGE_KEY, l);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [deleteConfirmInvoiceId, setDeleteConfirmInvoiceId] = useState<
     number | null
   >(null);
@@ -468,15 +552,6 @@ export default function Invoices() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
-  const pageInvoiceSum = useMemo(
-    () =>
-      invoicesPage.reduce((sum, row) => {
-        const t = row.total;
-        return sum + (t != null && Number.isFinite(t) ? t : 0);
-      }, 0),
-    [invoicesPage]
-  );
-
   const createInvoice = useMutationWithToast({
     mutationFn: (payload: {
       invoice_number?: string | null;
@@ -556,51 +631,55 @@ export default function Invoices() {
     () => [
       {
         key: "invoice_number" as const,
-        label: "Invoice #",
-        render: (r: InvoiceRow) => r.invoice_number ?? "—",
+        label: t("columns.number"),
+        render: (r: InvoiceRow) =>
+          r.invoice_number ?? t("tableActions.emptyCell"),
       },
-      { key: "invoice_date" as const, label: "Date" },
+      { key: "invoice_date" as const, label: t("columns.date") },
       {
         key: "customer_name" as const,
-        label: "Customer",
-        render: (r: InvoiceRow) => r.customer_name ?? "—",
+        label: t("columns.customer"),
+        render: (r: InvoiceRow) =>
+          r.customer_name ?? t("tableActions.emptyCell"),
       },
       {
         key: "total" as const,
-        label: "Total",
+        label: t("columns.total"),
         align: "right" as const,
         render: (r: InvoiceRow) =>
-          r.total != null && r.total > 0 ? `₹${formatDecimal(r.total)}` : "—",
+          r.total != null && r.total > 0
+            ? `₹${formatDecimal(r.total)}`
+            : t("tableActions.emptyCell"),
       },
       {
         key: "actions" as const,
-        label: "Actions",
+        label: t("columns.actions"),
         render: (r: InvoiceRow) => (
           <span className="inline-flex items-center gap-0.5">
             <button
               type="button"
               className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded transition-colors shrink-0"
-              title="View"
+              title={t("tableActions.viewTitle")}
               onClick={() => fetchAndView(r.id)}
-              aria-label="View invoice"
+              aria-label={t("tableActions.viewInvoiceAria")}
             >
               <Eye size={20} />
             </button>
             <button
               type="button"
               className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded transition-colors"
-              title="Edit"
+              title={t("tableActions.editTitle")}
               onClick={() => fetchAndEdit(r.id)}
-              aria-label="Edit invoice"
+              aria-label={t("tableActions.editInvoiceAria")}
             >
               <Pencil size={20} />
             </button>
             <button
               type="button"
               className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
-              title="Delete"
+              title={t("tableActions.deleteTitle")}
               onClick={() => setDeleteConfirmInvoiceId(r.id)}
-              aria-label="Delete invoice"
+              aria-label={t("tableActions.deleteInvoiceAria")}
             >
               <Trash2 size={20} />
             </button>
@@ -608,7 +687,7 @@ export default function Invoices() {
         ),
       },
     ],
-    [fetchAndView, fetchAndEdit]
+    [fetchAndView, fetchAndEdit, t]
   );
 
   const clearInvoiceFilters = useCallback(() => {
@@ -617,30 +696,6 @@ export default function Invoices() {
     setDateTo("");
     setPage(1);
   }, []);
-
-  const invoicesHeroMetrics = useMemo(
-    () => [
-      {
-        label: "Matching invoices",
-        displayValue: formatAbbreviatedInteger(
-          totalInvoices,
-          abbreviationStyle
-        ),
-      },
-      {
-        label: "On this page",
-        displayValue: formatAbbreviatedInteger(
-          invoicesPage.length,
-          abbreviationStyle
-        ),
-      },
-      {
-        label: "Page total",
-        displayValue: formatAbbreviatedRupee(pageInvoiceSum, abbreviationStyle),
-      },
-    ],
-    [abbreviationStyle, invoicesPage.length, pageInvoiceSum, totalInvoices]
-  );
 
   const invoicesHasFilters = !!(search.trim() || dateFrom || dateTo);
   const isInvoicesEmpty =
@@ -652,48 +707,44 @@ export default function Invoices() {
     </span>
   );
 
-  useEffect(() => {
-    if (!printData) return;
-    const previousTitle = document.title;
-    const invNum = (printData.invoice_number ?? `INV-${printData.id}`)
-      .replace(/[/\\:*?"<>|]/g, "-")
-      .replace(/\s+/g, "_");
-    const customer = (printData.customer_name ?? "")
-      .trim()
-      .replace(/[/\\:*?"<>|]/g, "-")
-      .replace(/\s+/g, "_");
-    const base = customer
-      ? `Invoice_${invNum}_${customer}`
-      : `Invoice_${invNum}`;
-    document.title = `${base}_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const t = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(t);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  const invoicePrintFixedT = useMemo(() => {
+    if (!invoicePrintJob) {
+      return null;
+    }
+    return i18n.getFixedT(invoicePrintJob.printLocale, "invoices") as (
+      k: string,
+      o?: Record<string, unknown>
+    ) => string;
+  }, [invoicePrintJob]);
+
+  useElectronHtmlPrintJob(invoicePrintJob, setInvoicePrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("toasts.exportedPdf"));
+      }
+    },
+    onPdfError: (err) => {
+      toast.error(
+        err instanceof Error ? err.message : t("toasts.exportPdfFailed")
+      );
+    },
+  });
 
   return (
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
-        title="Invoices"
-        metrics={invoicesHeroMetrics}
+        title={t("page.title")}
+        metrics={[]}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Create Invoice
+            {t("page.createInvoice")}
           </Button>
         }
       />
 
       <DashboardSectionBoundary
-        sectionTitle="Invoices list"
+        sectionTitle={t("page.sectionListTitle")}
         containerClassName="dashboard-panel"
         resetKeys={[
           search,
@@ -706,14 +757,14 @@ export default function Invoices() {
         ]}
       >
         <SalesListSectionPanel
-          title="Invoice register"
-          description="Search by number or customer, narrow by issue date, then view or edit full line items."
+          title={t("page.registerTitle")}
+          description={t("page.registerDescription")}
           badge={invoicesCountBadge}
         >
           <SearchFilterBar
             searchValue={search}
             onSearchChange={setSearch}
-            placeholder="Search by invoice # or customer..."
+            placeholder={t("page.searchPlaceholder")}
             hasActiveFilters={!!(search || dateFrom || dateTo)}
             onClearFilters={
               search || dateFrom || dateTo
@@ -728,7 +779,7 @@ export default function Invoices() {
             rightContent={
               <>
                 <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-                  From
+                  {t("page.dateFrom")}
                   <DateInput
                     value={dateFrom}
                     onChange={(v) => {
@@ -739,7 +790,7 @@ export default function Invoices() {
                   />
                 </label>
                 <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-                  To
+                  {t("page.dateTo")}
                   <DateInput
                     value={dateTo}
                     onChange={(v) => {
@@ -762,15 +813,19 @@ export default function Invoices() {
               }}
               isEmpty={isInvoicesEmpty}
               emptyTitle={
-                invoicesHasFilters ? "No invoices match" : "No invoices yet"
+                invoicesHasFilters
+                  ? t("page.emptyFilteredTitle")
+                  : t("page.emptyDefaultTitle")
               }
               emptyDescription={
                 invoicesHasFilters
-                  ? "Try clearing search or widening the date range."
-                  : "Create your first invoice to print a bill and feed daily sales automatically."
+                  ? t("page.emptyFilteredDescription")
+                  : t("page.emptyDefaultDescription")
               }
               emptyActionLabel={
-                invoicesHasFilters ? "Clear filters" : "Create invoice"
+                invoicesHasFilters
+                  ? t("page.clearFilters")
+                  : t("page.createInvoiceCta")
               }
               onEmptyAction={
                 invoicesHasFilters
@@ -778,7 +833,7 @@ export default function Invoices() {
                   : () => setCreateOpen(true)
               }
               emptySecondaryLabel={
-                invoicesHasFilters ? "Create invoice" : undefined
+                invoicesHasFilters ? t("page.createInvoiceCta") : undefined
               }
               onEmptySecondary={
                 invoicesHasFilters ? () => setCreateOpen(true) : undefined
@@ -788,7 +843,7 @@ export default function Invoices() {
               <DataTable<InvoiceRow>
                 columns={tableColumns}
                 data={invoicesPage}
-                emptyMessage="No invoices."
+                emptyMessage={t("page.tableEmptyMessage")}
                 scrollMaxHeight={`calc(100vh - 20.5rem)`}
                 pagination={{
                   type: "controlled",
@@ -806,9 +861,9 @@ export default function Invoices() {
       <ConfirmModal
         open={deleteConfirmInvoiceId != null}
         onClose={() => setDeleteConfirmInvoiceId(null)}
-        title="Delete invoice"
-        message="Delete this invoice?"
-        confirmLabel="Delete"
+        title={t("confirmDelete.title")}
+        message={t("confirmDelete.message")}
+        confirmLabel={tc("actions.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmInvoiceId != null)
@@ -820,8 +875,10 @@ export default function Invoices() {
       <InvoiceFormModal
         key={`${createOpen}-new`}
         open={createOpen}
-        title="Create Invoice"
+        title={t("formModal.createTitle")}
         onClose={() => setCreateOpen(false)}
+        invoicePrintLocale={invoicePrintLocale}
+        onInvoicePrintLocaleChange={persistInvoicePrintLocale}
         items={itemsWithUnits ?? items}
         units={allUnits}
         unitConversions={unitConversions}
@@ -834,7 +891,15 @@ export default function Invoices() {
               }
               if (opts?.print) {
                 void api.getInvoiceById(newId).then((full) => {
-                  setPrintData(full as InvoiceWithLines);
+                  const inv = full as InvoiceWithLines;
+                  setInvoicePrintJob({
+                    mode: "browser",
+                    invoice: inv,
+                    printLocale: invoicePrintLocale,
+                    documentTitle: invoicePrintDocumentTitle(inv),
+                    defaultPdfPath: invoicePrintDefaultPdfPath(inv),
+                    pdfLandscape: false,
+                  });
                 });
               }
             },
@@ -848,9 +913,11 @@ export default function Invoices() {
         <InvoiceFormModal
           key={`edit-${editing.id}`}
           open={!!editing}
-          title="Edit Invoice"
+          title={t("formModal.editTitle")}
           invoice={editing}
           onClose={() => setEditing(null)}
+          invoicePrintLocale={invoicePrintLocale}
+          onInvoicePrintLocaleChange={persistInvoicePrintLocale}
           items={itemsWithUnits ?? items}
           units={allUnits}
           unitConversions={unitConversions}
@@ -865,7 +932,15 @@ export default function Invoices() {
                   }
                   if (opts?.print) {
                     void api.getInvoiceById(editing.id).then((full) => {
-                      setPrintData(full as InvoiceWithLines);
+                      const inv = full as InvoiceWithLines;
+                      setInvoicePrintJob({
+                        mode: "browser",
+                        invoice: inv,
+                        printLocale: invoicePrintLocale,
+                        documentTitle: invoicePrintDocumentTitle(inv),
+                        defaultPdfPath: invoicePrintDefaultPdfPath(inv),
+                        pdfLandscape: false,
+                      });
                     });
                   }
                 },
@@ -879,16 +954,22 @@ export default function Invoices() {
       {/* View Invoice modal */}
       {viewing && (
         <FormModal
-          title={`Invoice ${viewing.invoice_number ?? viewing.id}`}
+          title={t("viewModal.title", {
+            id: String(viewing.invoice_number ?? viewing.id),
+          })}
           open={!!viewing}
           onClose={() => setViewing(null)}
           maxWidth="max-w-2xl"
           footer={
             <div className="flex w-full items-center justify-between gap-4 flex-wrap">
               <span className="font-medium text-[var(--color-text-primary)]">
-                Total: ₹{formatDecimal(invoiceNetTotal(viewing, viewing.lines))}
+                {t("viewModal.total", {
+                  amount: formatDecimal(
+                    invoiceNetTotal(viewing, viewing.lines)
+                  ),
+                })}
               </span>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center w-full justify-between">
                 <Link
                   to="/sales"
                   state={{
@@ -897,38 +978,64 @@ export default function Invoices() {
                   }}
                   className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
                 >
-                  View daily sale for this date
+                  {t("viewModal.linkDailySale")}
                 </Link>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    try {
-                      exportInvoiceToPdf(
-                        viewing,
-                        viewing.lines,
-                        settings,
-                        allUnits
-                      );
-                      toast.success("Exported as PDF.");
-                    } catch (err) {
-                      toast.error(
-                        err instanceof Error
-                          ? err.message
-                          : "Failed to export PDF."
-                      );
-                    }
-                  }}
-                >
-                  <FileDown size={20} className="mr-1.5" aria-hidden="true" />
-                  Export PDF
-                </Button>
-                <Button onClick={() => setPrintData(viewing)}>
-                  <Printer size={20} className="mr-1.5" aria-hidden="true" />
-                  Print
-                </Button>
+                <div className="flex gap-2 items-center">
+                  {/* Same snapshot as Print; language applies to both. */}
+                  <label className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] shrink-0">
+                    <select
+                      className="input-base py-1 text-sm min-w-[7.5rem]"
+                      value={invoicePrintLocale}
+                      onChange={(e) =>
+                        persistInvoicePrintLocale(
+                          e.target.value as SupportedLocale
+                        )
+                      }
+                      aria-label={t("viewModal.printLanguage")}
+                    >
+                      {SUPPORTED_LOCALES.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {t(`printLanguageOption.${loc}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setInvoicePrintJob({
+                        mode: "pdf",
+                        invoice: viewing,
+                        printLocale: invoicePrintLocale,
+                        documentTitle: invoicePrintDocumentTitle(viewing),
+                        defaultPdfPath: invoicePrintDefaultPdfPath(viewing),
+                        pdfLandscape: false,
+                      });
+                    }}
+                  >
+                    <FileDown size={20} className="mr-1.5" aria-hidden="true" />
+                    {t("viewModal.exportPdf")}
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      setInvoicePrintJob({
+                        mode: "browser",
+                        invoice: viewing,
+                        printLocale: invoicePrintLocale,
+                        documentTitle: invoicePrintDocumentTitle(viewing),
+                        defaultPdfPath: invoicePrintDefaultPdfPath(viewing),
+                        pdfLandscape: false,
+                      });
+                    }}
+                  >
+                    <Printer size={20} className="mr-1.5" aria-hidden="true" />
+                    {t("viewModal.print")}
+                  </Button>
+                </div>
               </div>
             </div>
           }
@@ -941,7 +1048,7 @@ export default function Invoices() {
         </FormModal>
       )}
 
-      {printData && (
+      {invoicePrintJob && invoicePrintFixedT && (
         <div
           className="hidden print:block invoice-print-container"
           id="invoice-print"
@@ -958,15 +1065,22 @@ export default function Invoices() {
               </div>
             )}
             {settings?.owner_phone?.trim() && (
-              <div>Phone: {settings.owner_phone.trim()}</div>
+              <div>
+                {invoicePrintFixedT("printHeader.phone")}{" "}
+                {settings.owner_phone.trim()}
+              </div>
             )}
             {settings?.gstin?.trim() && (
-              <div>GST No.: {settings.gstin.trim()}</div>
+              <div>
+                {invoicePrintFixedT("printHeader.gstin")}{" "}
+                {settings.gstin.trim()}
+              </div>
             )}
           </div>
           <ViewInvoiceContent
-            invoice={printData}
+            invoice={invoicePrintJob.invoice}
             isPrint
+            printLocale={invoicePrintJob.printLocale}
             invoiceUnits={allUnits}
             settings={settings}
           />
@@ -987,6 +1101,8 @@ function InvoiceFormModal({
   title,
   onClose,
   invoice,
+  invoicePrintLocale,
+  onInvoicePrintLocaleChange,
   items,
   units: allUnits,
   unitConversions,
@@ -998,6 +1114,8 @@ function InvoiceFormModal({
   title: string;
   onClose: () => void;
   invoice?: InvoiceWithLines | null;
+  invoicePrintLocale: SupportedLocale;
+  onInvoicePrintLocaleChange: (l: SupportedLocale) => void;
   items: Item[] | ItemWithUnits[];
   units: Unit[];
   unitConversions: UnitConversion[];
@@ -1020,6 +1138,7 @@ function InvoiceFormModal({
   ) => void;
   isPending: boolean;
 }>) {
+  const { t } = useTranslation("invoices");
   const [invoiceNumber, setInvoiceNumber] = useState(
     () => invoice?.invoice_number ?? ""
   );
@@ -1504,49 +1623,56 @@ function InvoiceFormModal({
             {gstEnabled && formTotals.cgst + formTotals.sgst > 0 ? (
               <>
                 <span className="text-sm">
-                  Subtotal: ₹{formatDecimal(formTotals.taxable)} | CGST: ₹
-                  {formatDecimal(formTotals.cgst)} | SGST: ₹
-                  {formatDecimal(formTotals.sgst)}
+                  {t("formModal.footer.subtotalCgstSgst", {
+                    taxable: formatDecimal(formTotals.taxable),
+                    cgst: formatDecimal(formTotals.cgst),
+                    sgst: formatDecimal(formTotals.sgst),
+                  })}
                 </span>
                 {formTotals.orderDiscountTotal > 0 && (
                   <span className="text-sm text-[var(--color-warning-text)]">
-                    Order discount: -₹
-                    {formatDecimal(formTotals.orderDiscountTotal)} | Before
-                    rounding: ₹
-                    {formatDecimal(
-                      formTotals.grand - formTotals.orderDiscountTotal
-                    )}
+                    {t("formModal.footer.orderDiscountBeforeRound", {
+                      discount: formatDecimal(formTotals.orderDiscountTotal),
+                      before: formatDecimal(
+                        formTotals.grand - formTotals.orderDiscountTotal
+                      ),
+                    })}
                   </span>
                 )}
                 {roundToWhole && (
                   <span className="text-xs text-[var(--color-text-tertiary)]">
-                    Rounded to nearest whole
+                    {t("formModal.footer.roundedWhole")}
                   </span>
                 )}
                 <span className="font-medium text-[var(--color-text-primary)]">
-                  Grand Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+                  {t("formModal.footer.grandTotal", {
+                    amount: formatDecimal(roundDecimal(formTotal, 2)),
+                  })}
                 </span>
               </>
             ) : (
               <>
                 {formTotals.orderDiscountTotal > 0 && (
                   <span className="text-sm text-[var(--color-warning-text)]">
-                    Order discount: -₹
-                    {formatDecimal(formTotals.orderDiscountTotal)}
+                    {t("formModal.footer.orderDiscountOnly", {
+                      discount: formatDecimal(formTotals.orderDiscountTotal),
+                    })}
                   </span>
                 )}
                 {roundToWhole && (
                   <span className="text-xs text-[var(--color-text-tertiary)]">
-                    Rounded to nearest whole
+                    {t("formModal.footer.roundedWhole")}
                   </span>
                 )}
                 <span className="font-medium text-[var(--color-text-primary)]">
-                  Total: ₹{formatDecimal(roundDecimal(formTotal, 2))}
+                  {t("formModal.footer.total", {
+                    amount: formatDecimal(roundDecimal(formTotal, 2)),
+                  })}
                 </span>
               </>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center justify-end">
             <Button
               type="submit"
               form="invoice-form-modal"
@@ -1555,8 +1681,25 @@ function InvoiceFormModal({
               data-action="save"
             >
               <Check size={20} className="mr-1.5" aria-hidden="true" />
-              Save
+              {t("formModal.footer.save")}
             </Button>
+            <label className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
+              <select
+                className="input-base py-1 text-sm min-w-[7.5rem]"
+                value={invoicePrintLocale}
+                onChange={(e) =>
+                  onInvoicePrintLocaleChange(e.target.value as SupportedLocale)
+                }
+                aria-label={t("formModal.printLanguage")}
+                disabled={isPending}
+              >
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {t(`printLanguageOption.${loc}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Button
               type="submit"
               form="invoice-form-modal"
@@ -1564,7 +1707,7 @@ function InvoiceFormModal({
               data-action="print"
             >
               <Printer size={20} className="mr-1.5" aria-hidden="true" />
-              Save and Print
+              {t("formModal.footer.saveAndPrint")}
             </Button>
           </div>
         </div>
@@ -1577,7 +1720,7 @@ function InvoiceFormModal({
       >
         <div className="grid grid-cols-2 gap-4">
           {invoice ? (
-            <FormField label="Invoice #">
+            <FormField label={t("formModal.fields.invoiceNumber")}>
               <input
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
@@ -1586,11 +1729,10 @@ function InvoiceFormModal({
             </FormField>
           ) : (
             <p className="text-sm text-[var(--color-text-tertiary)] col-span-2">
-              Invoice # will be auto-generated as INV-YYYY-NNNN (e.g.
-              INV-2025-0001).
+              {t("formModal.autoNumberHint")}
             </p>
           )}
-          <FormField label="Date" required>
+          <FormField label={t("formModal.fields.date")} required>
             <input
               type="date"
               value={invoiceDate}
@@ -1600,24 +1742,24 @@ function InvoiceFormModal({
             />
           </FormField>
         </div>
-        <FormField label="Customer phone">
+        <FormField label={t("formModal.fields.customerPhone")}>
           <input
             type="tel"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
             onBlur={handlePhoneBlur}
             className="input-base w-full"
-            placeholder="Optional - enter to auto-fill name/address"
+            placeholder={t("formModal.placeholders.customerPhone")}
           />
         </FormField>
-        <FormField label="Customer name">
+        <FormField label={t("formModal.fields.customerName")}>
           <input
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             className="input-base w-full"
           />
         </FormField>
-        <FormField label="Customer address">
+        <FormField label={t("formModal.fields.customerAddress")}>
           <textarea
             value={customerAddress}
             onChange={(e) => setCustomerAddress(e.target.value)}
@@ -1626,22 +1768,22 @@ function InvoiceFormModal({
           />
         </FormField>
         {customerGstinEnabled && (
-          <FormField label="Customer GSTIN">
+          <FormField label={t("formModal.fields.customerGstin")}>
             <input
               value={customerGstin}
               onChange={(e) => setCustomerGstin(e.target.value)}
               className="input-base w-full"
-              placeholder="Optional"
+              placeholder={t("formModal.placeholders.customerGstin")}
             />
           </FormField>
         )}
-        <FormField label="Notes">
+        <FormField label={t("formModal.fields.notes")}>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="input-base w-full resize-y"
             rows={2}
-            placeholder="Optional notes for this invoice"
+            placeholder={t("formModal.placeholders.notes")}
           />
         </FormField>
 
@@ -1652,18 +1794,18 @@ function InvoiceFormModal({
                 <div
                   className={`grid gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1 ml-2 ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
                 >
-                  <span>Product</span>
-                  <span>Qty</span>
-                  <span>Unit</span>
+                  <span>{t("formModal.lineHeaders.product")}</span>
+                  <span>{t("formModal.lineHeaders.qty")}</span>
+                  <span>{t("formModal.lineHeaders.unit")}</span>
                   {gstEnabled && (
                     <>
-                      <span>GST%</span>
-                      <span>Mode</span>
+                      <span>{t("formModal.lineHeaders.gstPercent")}</span>
+                      <span>{t("formModal.lineHeaders.mode")}</span>
                     </>
                   )}
-                  <span>Type</span>
-                  <span>Amount</span>
-                  <span>Total</span>
+                  <span>{t("formModal.lineHeaders.type")}</span>
+                  <span>{t("formModal.lineHeaders.amount")}</span>
+                  <span>{t("formModal.lineHeaders.lineTotal")}</span>
                   <span aria-hidden="true" />
                 </div>
               )}
@@ -1727,9 +1869,11 @@ function InvoiceFormModal({
                             handleProductChange(idx, Number(e.target.value))
                           }
                           className="input-base w-full min-w-0"
-                          aria-label="Product"
+                          aria-label={t("formModal.lineHeaders.product")}
                         >
-                          <option value="">Select product</option>
+                          <option value="">
+                            {t("formModal.line.selectProduct")}
+                          </option>
                           {items.map((i) => (
                             <option key={i.id} value={i.id}>
                               {i.name}
@@ -1740,7 +1884,7 @@ function InvoiceFormModal({
                           type="number"
                           min="0"
                           step="any"
-                          placeholder="0"
+                          placeholder={t("formModal.placeholders.numericZero")}
                           value={line.quantity || ""}
                           onChange={(e) => {
                             const qty = Number(e.target.value) || 0;
@@ -1764,7 +1908,7 @@ function InvoiceFormModal({
                             );
                           }}
                           className="input-base w-full text-right"
-                          aria-label="Quantity"
+                          aria-label={t("formModal.lineHeaders.qty")}
                         />
                         <select
                           value={line.unit}
@@ -1776,7 +1920,7 @@ function InvoiceFormModal({
                             )
                           }
                           className="input-base w-full min-w-0"
-                          aria-label="Unit"
+                          aria-label={t("formModal.lineHeaders.unit")}
                         >
                           <option value="">—</option>
                           {getUnitsForLine(idx).map((u) => (
@@ -1802,7 +1946,7 @@ function InvoiceFormModal({
                                 )
                               }
                               className="input-base w-full text-sm min-w-0"
-                              aria-label="GST rate"
+                              aria-label={t("formModal.lineHeaders.gstPercent")}
                             >
                               {GST_SLABS.map((r) => (
                                 <option key={r} value={r}>
@@ -1828,10 +1972,14 @@ function InvoiceFormModal({
                                 )
                               }
                               className="input-base w-full text-xs min-w-0"
-                              aria-label="GST mode"
+                              aria-label={t("formModal.lineHeaders.mode")}
                             >
-                              <option value="exclusive">Excl.</option>
-                              <option value="inclusive">Incl.</option>
+                              <option value="exclusive">
+                                {t("formModal.line.gstModeExclusive")}
+                              </option>
+                              <option value="inclusive">
+                                {t("formModal.line.gstModeInclusive")}
+                              </option>
                             </select>
                           </>
                         )}
@@ -1883,23 +2031,29 @@ function InvoiceFormModal({
                                 }
                               }}
                               className="input-base w-full text-sm min-w-0"
-                              title="Enter price per unit or total for this line"
-                              aria-label="Price type"
+                              title={t("formModal.line.priceTypeTitle")}
+                              aria-label={t("formModal.lineHeaders.type")}
                             >
                               {lineUnits.length > 0 ? (
                                 lineUnits.map((u) => (
                                   <option key={u.id} value={u.name}>
-                                    Per {u?.symbol?.trim() || u.name}
+                                    {t("formModal.line.perUnit", {
+                                      unit: u?.symbol?.trim() || u.name,
+                                    })}
                                   </option>
                                 ))
                               ) : (
                                 <option value={line.priceUnit || ""}>
-                                  Per{" "}
-                                  {unitToShort(line.priceUnit, allUnits) ||
-                                    "unit"}
+                                  {t("formModal.line.perUnit", {
+                                    unit:
+                                      unitToShort(line.priceUnit, allUnits) ||
+                                      t("formModal.line.unitFallbackWord"),
+                                  })}
                                 </option>
                               )}
-                              <option value="total">Total</option>
+                              <option value="total">
+                                {t("formModal.line.totalMode")}
+                              </option>
                             </select>
                           );
                         })()}
@@ -1909,7 +2063,9 @@ function InvoiceFormModal({
                               type="number"
                               min="0"
                               step="0.5"
-                              placeholder="0"
+                              placeholder={t(
+                                "formModal.placeholders.numericZero"
+                              )}
                               value={line.price || ""}
                               onChange={(e) =>
                                 setLines((prev) =>
@@ -1924,17 +2080,17 @@ function InvoiceFormModal({
                                 )
                               }
                               className="input-base w-full text-right"
-                              aria-label="Unit price"
+                              aria-label={t("formModal.lineHeaders.amount")}
                             />
                             <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                               ₹{formatDecimal(lineTotal)}
                               {lineGst && line.gst_rate > 0 && (
                                 <span className="block text-[10px] text-[var(--color-text-tertiary)]">
-                                  (tax ₹
-                                  {formatDecimal(
-                                    lineGst.cgst_amount + lineGst.sgst_amount
-                                  )}
-                                  )
+                                  {t("formModal.line.taxParenthetical", {
+                                    amount: formatDecimal(
+                                      lineGst.cgst_amount + lineGst.sgst_amount
+                                    ),
+                                  })}
                                 </span>
                               )}
                             </span>
@@ -1945,7 +2101,9 @@ function InvoiceFormModal({
                               type="number"
                               min="0"
                               step="0.5"
-                              placeholder="0"
+                              placeholder={t(
+                                "formModal.placeholders.numericZero"
+                              )}
                               value={getLineTotalDisplay(line)}
                               onChange={(e) => {
                                 const raw = e.target.value;
@@ -1968,18 +2126,18 @@ function InvoiceFormModal({
                                 );
                               }}
                               className="input-base w-full text-right"
-                              title="Total amount for this line (quantity can be entered before or after)"
-                              aria-label="Line total"
+                              title={t("formModal.line.lineTotalTitle")}
+                              aria-label={t("formModal.lineHeaders.lineTotal")}
                             />
                             <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                               ₹{formatDecimal(lineTotal)}
                               {lineGst && line.gst_rate > 0 && (
                                 <span className="block text-[10px] text-[var(--color-text-tertiary)]">
-                                  (tax ₹
-                                  {formatDecimal(
-                                    lineGst.cgst_amount + lineGst.sgst_amount
-                                  )}
-                                  )
+                                  {t("formModal.line.taxParenthetical", {
+                                    amount: formatDecimal(
+                                      lineGst.cgst_amount + lineGst.sgst_amount
+                                    ),
+                                  })}
                                 </span>
                               )}
                             </span>
@@ -1991,7 +2149,7 @@ function InvoiceFormModal({
                             setLines((prev) => prev.filter((_, i) => i !== idx))
                           }
                           className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
-                          aria-label="Remove line"
+                          aria-label={t("formModal.line.removeLineAria")}
                         >
                           <Trash2 size={16} aria-hidden="true" />
                         </button>
@@ -2003,7 +2161,7 @@ function InvoiceFormModal({
                           {discountPctEnabled && (
                             <label className="flex items-center gap-1">
                               <span className="text-[var(--color-text-secondary)]">
-                                % off:
+                                {t("formModal.discounts.percentOff")}
                               </span>
                               <input
                                 type="number"
@@ -2031,7 +2189,7 @@ function InvoiceFormModal({
                           {discountFlatEnabled && (
                             <label className="flex items-center gap-1">
                               <span className="text-[var(--color-text-secondary)]">
-                                Rs off:
+                                {t("formModal.discounts.rsOff")}
                               </span>
                               <input
                                 type="number"
@@ -2059,7 +2217,7 @@ function InvoiceFormModal({
                             <>
                               <label className="flex items-center gap-1">
                                 <span className="text-[var(--color-text-secondary)]">
-                                  BOGO buy:
+                                  {t("formModal.discounts.bogoBuy")}
                                 </span>
                                 <input
                                   type="number"
@@ -2091,7 +2249,7 @@ function InvoiceFormModal({
                               </label>
                               <label className="flex items-center gap-1">
                                 <span className="text-[var(--color-text-secondary)]">
-                                  get:
+                                  {t("formModal.discounts.bogoGet")}
                                 </span>
                                 <input
                                   type="number"
@@ -2148,7 +2306,7 @@ function InvoiceFormModal({
                 className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
               >
                 <Plus size={20} className="mr-1.5" aria-hidden="true" />
-                Add item
+                {t("formModal.addItem")}
               </Button>
             </div>
           </div>
@@ -2160,11 +2318,11 @@ function InvoiceFormModal({
           discountTieredEnabled) && (
           <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-warning-subtle)]/50 p-4 space-y-3">
             <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-              Order-level discounts
+              {t("formModal.orderDiscountsTitle")}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               {discountPctEnabled && (
-                <FormField label="Order % off">
+                <FormField label={t("formModal.orderPercentOff")}>
                   <input
                     type="number"
                     min={0}
@@ -2175,12 +2333,12 @@ function InvoiceFormModal({
                       setOrderDiscountPercent(Number(e.target.value) || 0)
                     }
                     className="input-base w-full"
-                    placeholder="0"
+                    placeholder={t("formModal.placeholders.orderDiscount")}
                   />
                 </FormField>
               )}
               {discountFlatEnabled && (
-                <FormField label="Order flat (Rs.) off">
+                <FormField label={t("formModal.orderFlatOff")}>
                   <input
                     type="number"
                     min={0}
@@ -2190,22 +2348,30 @@ function InvoiceFormModal({
                       setOrderDiscountFlat(Number(e.target.value) || 0)
                     }
                     className="input-base w-full"
-                    placeholder="0"
+                    placeholder={t("formModal.placeholders.orderDiscount")}
                   />
                 </FormField>
               )}
               {discountCouponEnabled && (
                 <div className="col-span-2 flex gap-2 items-end">
                   <FormField
-                    label="Coupon code"
+                    label={t("formModal.couponCode")}
                     extra={
                       appliedCoupon ? (
                         <span className="text-xs text-[var(--color-success)]">
-                          Applied: {appliedCoupon.code} (
-                          {appliedCoupon.discount_type === "percent"
-                            ? `${appliedCoupon.discount_value}%`
-                            : `₹${appliedCoupon.discount_value}`}{" "}
-                          off)
+                          {t("formModal.couponAppliedExtra", {
+                            code: appliedCoupon.code,
+                            discountText:
+                              appliedCoupon.discount_type === "percent"
+                                ? t("formModal.couponDiscountPercent", {
+                                    value: appliedCoupon.discount_value,
+                                  })
+                                : t("formModal.couponDiscountFlat", {
+                                    value: formatDecimal(
+                                      appliedCoupon.discount_value
+                                    ),
+                                  }),
+                          })}
                         </span>
                       ) : null
                     }
@@ -2216,7 +2382,7 @@ function InvoiceFormModal({
                         setCouponCode(e.target.value.toUpperCase())
                       }
                       className="input-base w-full"
-                      placeholder="Enter code"
+                      placeholder={t("formModal.placeholders.couponCode")}
                       disabled={!!appliedCoupon}
                     />
                   </FormField>
@@ -2236,13 +2402,17 @@ function InvoiceFormModal({
                           if (result) {
                             setAppliedCoupon(result);
                           } else {
-                            toast.error("Invalid or expired coupon");
+                            toast.error(t("toasts.invalidCoupon"));
                           }
                         })
-                        .catch(() => toast.error("Coupon validation failed"));
+                        .catch(() =>
+                          toast.error(t("toasts.couponValidationFailed"))
+                        );
                     }}
                   >
-                    {appliedCoupon ? "Remove" : "Apply"}
+                    {appliedCoupon
+                      ? t("formModal.footer.remove")
+                      : t("formModal.footer.apply")}
                   </Button>
                 </div>
               )}
@@ -2251,7 +2421,7 @@ function InvoiceFormModal({
               tieredRules.length > 0 &&
               formTotals.orderDiscBreakdown.tieredAmount > 0 && (
                 <p className="text-xs text-[var(--color-text-secondary)]">
-                  Tiered discount applied (order &gt;= min amount)
+                  {t("formModal.tieredDiscountHint")}
                 </p>
               )}
           </div>

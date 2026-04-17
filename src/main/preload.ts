@@ -532,6 +532,14 @@ const electronAPI = {
 
   openExternal: (url: string) =>
     ipcRenderer.invoke("app:openExternal", url) as Promise<void>,
+  printCurrentToPdf: (opts?: {
+    defaultPath?: string;
+    landscape?: boolean;
+    pageSize?: unknown;
+  }) =>
+    ipcRenderer.invoke("app:printCurrentToPdf", opts) as Promise<
+      { saved: false } | { saved: true; path: string }
+    >,
 
   // Auth
   auth: {

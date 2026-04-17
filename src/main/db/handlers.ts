@@ -2,7 +2,7 @@ import { randomBytes, pbkdf2Sync, timingSafeEqual } from "crypto";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
-import type { OpenDialogOptions } from "electron";
+import type { OpenDialogOptions, WebContents } from "electron";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
 import { roundDecimal } from "../../shared/numbers";
@@ -105,6 +105,20 @@ function getItemUnitConversions(
     .all(itemId) as ItemConversionRow[];
 }
 
+function formatDateToIsoLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftIsoDateByDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const shiftedDate = new Date(year, (month ?? 1) - 1, day ?? 1);
+  shiftedDate.setDate(shiftedDate.getDate() + days);
+  return formatDateToIsoLocal(shiftedDate);
+}
+
 /**
  * Update daily_sales when invoice totals change.
  * delta: positive to add, negative to subtract.
@@ -171,6 +185,40 @@ export function registerIpcHandlers(): void {
     }
     await shell.openExternal(url);
   });
+
+  ipcMain.handle(
+    "app:printCurrentToPdf",
+    async (
+      event,
+      opts?: {
+        defaultPath?: string;
+        landscape?: boolean;
+        pageSize?: unknown;
+      }
+    ): Promise<{ saved: false } | { saved: true; path: string }> => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win) {
+        throw new Error("Unable to find BrowserWindow for print");
+      }
+      type PrintToPdfOpts = Parameters<WebContents["printToPDF"]>[0];
+      const printToPdfOptions = {
+        printBackground: true,
+        landscape: opts?.landscape ?? true,
+        pageSize: opts?.pageSize !== undefined ? opts.pageSize : "A4",
+      } as PrintToPdfOpts;
+      const pdfBuffer = await win.webContents.printToPDF(printToPdfOptions);
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        title: "Save PDF",
+        defaultPath: opts?.defaultPath ?? "export.pdf",
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (canceled || !filePath) {
+        return { saved: false };
+      }
+      await fs.promises.writeFile(filePath, pdfBuffer);
+      return { saved: true, path: filePath };
+    }
+  );
 
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {
@@ -3444,11 +3492,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("reports:getWeeklySale", (_, fromDate: string) => {
+    const weekStartDate = shiftIsoDateByDays(fromDate, -6);
     return db()
       .prepare(
-        "SELECT * FROM daily_sales WHERE sale_date <= ? ORDER BY sale_date DESC LIMIT 7"
+        "SELECT * FROM daily_sales WHERE sale_date BETWEEN ? AND ? ORDER BY sale_date DESC"
       )
-      .all(fromDate);
+      .all(weekStartDate, fromDate);
   });
 
   ipcMain.handle(

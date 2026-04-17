@@ -98,7 +98,11 @@ export function createBaseChartOptions(theme: ThemePalette): EChartsOption {
 
 export function createWeeklyTrendOption(
   orderedWeeklyData: WeeklyRow[],
-  palette: ThemePalette
+  palette: ThemePalette,
+  labels: {
+    totalSale: string;
+    expenditure: string;
+  }
 ): EChartsOption {
   const base = createBaseChartOptions(palette);
   return {
@@ -116,7 +120,7 @@ export function createWeeklyTrendOption(
     },
     series: [
       {
-        name: "Total Sale",
+        name: labels.totalSale,
         type: "line",
         smooth: true,
         symbolSize: 7,
@@ -134,7 +138,7 @@ export function createWeeklyTrendOption(
         },
       },
       {
-        name: "Expenditure",
+        name: labels.expenditure,
         type: "line",
         smooth: true,
         symbolSize: 6,
@@ -159,7 +163,13 @@ export function createRangeBreakdownOption(
     expenditure?: number;
     total?: number;
   },
-  palette: ThemePalette
+  palette: ThemePalette,
+  labels: {
+    invoice: string;
+    misc: string;
+    expenditure: string;
+    rangeTotal: string;
+  }
 ): EChartsOption {
   const invoiceSales = totalSaleResult?.invoice_sales ?? 0;
   const miscSales = totalSaleResult?.misc_sales ?? 0;
@@ -196,11 +206,15 @@ export function createRangeBreakdownOption(
           borderColor: palette.isDark ? "#1C1917" : "#FFFFFF",
         },
         data: [
-          { value: invoiceSales, name: "Invoice", itemStyle: { color: palette.accent } },
-          { value: miscSales, name: "Misc", itemStyle: { color: palette.success } },
+          {
+            value: invoiceSales,
+            name: labels.invoice,
+            itemStyle: { color: palette.accent },
+          },
+          { value: miscSales, name: labels.misc, itemStyle: { color: palette.success } },
           {
             value: expenditure,
-            name: "Expenditure",
+            name: labels.expenditure,
             itemStyle: { color: palette.warning },
           },
         ],
@@ -212,7 +226,7 @@ export function createRangeBreakdownOption(
         left: "center",
         top: "35%",
         style: {
-          text: "Range Total",
+          text: labels.rangeTotal,
           fill: palette.textSecondary,
           font: "500 12px Inter, system-ui",
         },
@@ -233,7 +247,11 @@ export function createRangeBreakdownOption(
 
 export function createCashExpenditureOption(
   orderedWeeklyData: WeeklyRow[],
-  palette: ThemePalette
+  palette: ThemePalette,
+  labels: {
+    cashInHand: string;
+    expenditure: string;
+  }
 ): EChartsOption {
   const base = createBaseChartOptions(palette);
   return {
@@ -263,7 +281,7 @@ export function createCashExpenditureOption(
     },
     series: [
       {
-        name: "Cash In Hand",
+        name: labels.cashInHand,
         type: "bar",
         barWidth: "40%",
         data: orderedWeeklyData.map((row) => row.cash_in_hand ?? 0),
@@ -273,7 +291,7 @@ export function createCashExpenditureOption(
         },
       },
       {
-        name: "Expenditure",
+        name: labels.expenditure,
         type: "line",
         smooth: true,
         symbol: "none",

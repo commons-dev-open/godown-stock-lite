@@ -1,38 +1,184 @@
 {
   "hero": {
     "title": "Settings",
-    "subtitle": "Preferences, data, and your business profile"
+    "subtitle": "Preferences, data, and your business profile",
+    "company": "Company",
+    "gst": "GST",
+    "gstOn": "On",
+    "gstOff": "Off"
   },
   "tabs": {
-    "general": "General",
     "business": "Business",
-    "preferences": "Preferences",
-    "data": "Data",
+    "tax": "Tax & GST",
+    "discounts": "Discounts",
+    "appearance": "Appearance",
     "security": "Security",
     "activity": "Activity",
-    "danger": "Danger Zone"
+    "data": "Data"
+  },
+  "sections": {
+    "business": {
+      "title": "Company & business",
+      "description": "Legal and contact details used on invoices and inside the app."
+    },
+    "tax": {
+      "title": "GST & tax",
+      "description": "Default GST rate, price mode, place of supply, and invoice field options."
+    },
+    "discounts": {
+      "title": "Discounts",
+      "description": "Toggle discount types on invoices and manage coupons and tiered rules."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Theme, accent color, display name, and number formatting."
+    },
+    "security": {
+      "title": "Security",
+      "description": "PIN, master key, and locking the app on this device."
+    },
+    "activity": {
+      "title": "Activity log",
+      "description": "Recent changes across the app. Filters apply to the list below."
+    },
+    "data": {
+      "title": "Data & backups",
+      "description": "Export, import, or reset your database. Irreversible actions require confirmation."
+    }
+  },
+  "placeholders": {
+    "optional": "Optional"
   },
   "preferences": {
     "language": "Language",
     "languageHint": "Choose the language used across the app.",
     "theme": "Theme",
+    "themeHint": "Choose light, dark, or follow your system preference.",
+    "themeModes": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
     "brandColor": "Brand Color",
+    "brandColorHint": "Pick an accent color used throughout the app.",
+    "brandColors": {
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "emerald": "Emerald",
+      "rose": "Rose",
+      "amber": "Amber"
+    },
+    "appDisplayName": "App Display Name",
+    "appDisplayNameHint": "Shown in sidebar header, PDFs and print. Max {{max}} characters. Leave blank for default.",
     "numberAbbreviation": "Number Abbreviation",
-    "numberAbbreviationHint": "How large numbers are shortened on summary cards.",
+    "numberAbbreviationHint": "How large counts and rupee amounts are shortened on dashboard heroes (Home, Products, Units, Lenders). Amounts below the threshold stay fully written with grouping.",
+    "numberAbbreviationStyle": "Style",
     "abbreviation": {
       "indian": "Indian (Lac, Cr)",
       "us": "US (M, B)",
       "si": "SI (K, M, B)"
+    },
+    "abbreviationHints": {
+      "indian": "Full amount under 1 Lac; then Lac and Cr (e.g. 12.5 Lac).",
+      "us": "Full amount under 1 million; then M and B.",
+      "si": "Thousands as K, then M and B (powers of 1000)."
     }
   },
   "business": {
-    "companyName": "Company Name",
-    "ownerName": "Owner Name",
+    "companyName": "Company name",
+    "ownerName": "Owner name",
     "gstin": "GSTIN",
     "gstEnabled": "GST enabled",
     "address": "Address",
     "phone": "Phone",
-    "email": "Email"
+    "email": "Email",
+    "fields": {
+      "company_name": "Company name",
+      "company_address": "Address",
+      "gstin": "GSTIN",
+      "owner_name": "Owner name",
+      "owner_phone": "Phone"
+    }
+  },
+  "tax": {
+    "enableGst": "Enable GST",
+    "enableGstAria": "Enable GST",
+    "defaultGstRate": "Default GST Rate",
+    "defaultPriceMode": "Default Price Mode",
+    "placeOfSupply": "Place of Supply",
+    "placeOfSupplyExtra": "Seller's state; shown on Tax Invoice PDF",
+    "placeOfSupplyPlaceholder": "e.g. Maharashtra",
+    "customerGstin": "Show customer GSTIN field (B2B mode)",
+    "customerGstinAria": "Show customer GSTIN field",
+    "hsn": "Enable HSN (Harmonized System of Nomenclature) code",
+    "hsnAria": "Enable HSN code",
+    "gstMode": {
+      "exclusive": "Exclusive",
+      "inclusive": "Inclusive"
+    }
+  },
+  "discounts": {
+    "togglesTitle": "Discount Toggles",
+    "togglesHint": "Enable or disable each discount type. Disabled types will not appear in the invoice form.",
+    "couponsSectionTitle": "Coupons & tiered rules",
+    "couponsSectionHint": "Manage coupon codes and tiered (volume) discount rules. Enable coupons and tiered discounts in discount toggles above.",
+    "fields": {
+      "discount_percentage_enabled": "Enable percentage discount",
+      "discount_flat_enabled": "Enable flat amount discount",
+      "discount_bogo_enabled": "Enable BOGO discount",
+      "discount_coupon_enabled": "Enable coupons",
+      "discount_tiered_enabled": "Enable tiered/volume discount",
+      "round_bill_to_whole": "Round final bill to nearest whole number"
+    },
+    "coupons": {
+      "title": "Coupons",
+      "add": "Add coupon",
+      "empty": "No coupons yet.",
+      "modalAdd": "Add coupon",
+      "modalEdit": "Edit coupon",
+      "deleteTitle": "Delete coupon",
+      "deleteMessage": "Delete this coupon? It cannot be used after deletion.",
+      "columns": {
+        "code": "Code",
+        "type": "Type",
+        "value": "Value",
+        "minOrder": "Min order",
+        "used": "Used"
+      },
+      "typePercent": "Percentage",
+      "typeFlat": "Flat amount (₹)",
+      "discountPercent": "Discount %",
+      "discountAmount": "Discount amount (₹)",
+      "minOrder": "Min order (₹)",
+      "validFrom": "Valid from (YYYY-MM-DD)",
+      "validTo": "Valid to (YYYY-MM-DD)",
+      "usageLimit": "Usage limit",
+      "tieredHint": "Either % or flat amount per rule. Use max amount to cap the discount. Highest qualifying tier applies."
+    },
+    "tiered": {
+      "title": "Tiered rules",
+      "add": "Add rule",
+      "empty": "No tiered rules yet.",
+      "modalAdd": "Add tiered rule",
+      "modalEdit": "Edit tiered rule",
+      "deleteTitle": "Delete tiered rule",
+      "deleteMessage": "Delete this rule?",
+      "columns": {
+        "minOrder": "Min order (₹)",
+        "discount": "Discount",
+        "max": "Max (₹)"
+      },
+      "minOrderAmount": "Min order amount (₹)",
+      "discountType": "Discount type",
+      "discountPercent": "Discount %",
+      "flatAmount": "Flat amount (₹)",
+      "maxDiscount": "Max discount amount (₹)",
+      "maxDiscountExtra": "Optional cap on total discount from this rule",
+      "maxDiscountPlaceholder": "No cap",
+      "typePercent": "Percentage",
+      "typeFlat": "Flat amount"
+    }
   },
   "data": {
     "exportDb": "Export database",
@@ -42,20 +188,98 @@
     "clearAll": "Clear all data",
     "clearAllHint": "Remove all records but keep your settings.",
     "resetDb": "Reset database",
-    "resetDbHint": "Wipe everything and start fresh."
+    "resetDbHint": "Wipe everything and start fresh.",
+    "dangerZone": "Danger zone",
+    "dangerIntro": "These actions affect your database. Use with care.",
+    "dbFileLocation": "Database file location",
+    "exportTitle": "Export database",
+    "exportMessage": "You'll save a full copy of your database to a file. Keep this backup somewhere safe—for example on an external drive or in the cloud—so you can restore your business data if anything goes wrong. Your current data stays untouched; this only creates a snapshot you can use for backup, migration, or peace of mind.",
+    "importTitle": "Import database",
+    "importMessage": "You're about to replace everything in this app with the data from the file you select. Use this to restore from a backup or to move data from another machine. Your current database will be overwritten and cannot be recovered. Make sure you've exported a backup first if you might need it.",
+    "clearTablesTitle": "Clear all data",
+    "clearTablesMessage": "Every table will be emptied: items, lenders, transactions, invoices, daily sales, and settings. The database structure stays in place so you can start fresh without losing units or schema. Use this when you want to wipe all business data but keep the app ready for new entries. This cannot be undone.",
+    "clearEntireDbTitle": "Reset database",
+    "clearEntireDbMessage": "The database file will be deleted and a brand-new empty database will be created. Use this for a complete fresh start. All your data—items, lenders, invoices, everything—will be gone forever. Export a backup first if you might need to refer to this data later. This cannot be undone.",
+    "populateSampleTitle": "Fill with sample data",
+    "populateSampleMessage": "This will insert a small set of realistic sample items, lenders, invoices, transactions, and daily sales into an empty database so you can explore the app. It only runs when there is no existing business data; if you've already started using the app, nothing will be changed.",
+    "exportButtonTitle": "Save a copy of the database to a file",
+    "importButtonTitle": "Replace current database with a backup file",
+    "clearButtonTitle": "Delete all rows in all tables; schema is kept",
+    "resetButtonTitle": "Delete the database file and create a new empty one",
+    "sampleButtonTitle": "Fill all main tables with realistic sample data (only when empty)",
+    "clearing": "Clearing…",
+    "resetting": "Resetting…",
+    "fillingSample": "Filling sample data…",
+    "fillSample": "Fill with sample data",
+    "footerNote": "Clear all data: empties every table but keeps the structure. Reset database: removes the database file and creates a new empty database."
   },
   "security": {
     "changePin": "Change PIN",
-    "recoveryKey": "Recovery Key",
-    "saveRecoveryKey": "Save Recovery Key",
+    "currentPin": "Current PIN",
+    "newPin": "New PIN",
+    "confirmNewPin": "Confirm new PIN",
+    "updatePin": "Update PIN",
+    "pinUpdated": "PIN updated.",
+    "pinChangeFailed": "Failed to change PIN.",
+    "ownerRecoveryKey": "Owner recovery key",
+    "ownerRecoveryHint": "Set a recovery key for yourself as the owner. Use it to reset your PIN if you forget it. Changing this invalidates any previous recovery key.",
+    "newRecoveryKey": "New recovery key",
+    "confirmRecoveryKey": "Confirm recovery key",
+    "recoveryKeyPlaceholder": "Enter recovery key",
+    "recoveryKeyConfirmPlaceholder": "Re-enter recovery key",
+    "saveKey": "Save key",
+    "keySaved": "Key saved.",
+    "keySetFailed": "Failed to set key.",
+    "keyEmpty": "Key cannot be empty.",
+    "keysMismatch": "Keys do not match.",
+    "recoverySavedAlert": "Recovery key saved to:\n{{path}}\n\nKeep this file somewhere safe. You will need this key to recover owner access.",
+    "session": "Session",
+    "sessionHint": "Lock the app immediately. PIN required to re-enter.",
+    "lockAppNow": "Lock app now",
+    "recoveryKey": "Recovery key",
+    "saveRecoveryKey": "Save recovery key",
     "regenerateRecoveryKey": "Regenerate"
+  },
+  "activityLog": {
+    "headingPrivileged": "Activity log",
+    "headingSelf": "Your activity",
+    "entries": "entries",
+    "filterAction": "Filter by action",
+    "filterEntity": "Filter by entity",
+    "allActions": "All actions",
+    "allEntities": "All entities",
+    "actionCreate": "Create",
+    "actionUpdate": "Update",
+    "actionDelete": "Delete",
+    "entityItem": "Item",
+    "entityInvoice": "Invoice",
+    "entityLender": "Lender",
+    "entityDailySale": "Daily sale",
+    "entityUser": "User",
+    "emptyTitle": "No activity yet",
+    "emptyFiltered": "Try clearing action or entity filters to see more entries.",
+    "emptyDefault": "Changes you make across the app will show up here.",
+    "columns": {
+      "action": "Action",
+      "entity": "Entity",
+      "type": "Type",
+      "user": "User",
+      "when": "When"
+    },
+    "systemUser": "System",
+    "noRowsPage": "No rows on this page."
   },
   "toast": {
     "saved": "Settings saved",
     "exported": "Database exported",
     "imported": "Database imported",
     "cleared": "Data cleared",
-    "reset": "Database reset"
+    "reset": "Database reset",
+    "exportedTo": "Database exported to {{path}}",
+    "importReplaced": "Database imported. Data has been replaced.",
+    "clearTablesSuccess": "All data cleared. Tables are empty.",
+    "resetDbSuccess": "Database reset. A fresh database has been created.",
+    "sampleDataSuccess": "Sample data populated into empty tables."
   },
   "confirm": {
     "clearTitle": "Clear all data?",

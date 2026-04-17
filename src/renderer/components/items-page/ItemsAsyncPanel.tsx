@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import TableLoader from "../TableLoader";
 import { ItemsEmptyState } from "./ItemsEmptyState";
 
@@ -27,6 +28,8 @@ export function ItemsAsyncPanel({
   loaderColumns = 6,
   children,
 }: Readonly<ItemsAsyncPanelProps>) {
+  const { t } = useTranslation("items");
+
   if (isLoading) {
     return <TableLoader columns={loaderColumns} rows={6} />;
   }
@@ -37,17 +40,17 @@ export function ItemsAsyncPanel({
         role="alert"
       >
         <p className="text-sm font-semibold text-[var(--color-danger)]">
-          Something went wrong
+          {t("async.errorTitle")}
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-          Products could not be loaded. Check your connection and try again.
+          {t("async.errorDescription")}
         </p>
         <button
           type="button"
           onClick={onRetry}
           className="mt-4 rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]"
         >
-          Retry
+          {t("async.retry")}
         </button>
       </div>
     );

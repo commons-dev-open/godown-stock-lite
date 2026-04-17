@@ -19,12 +19,13 @@
     "gstinLabel": "GSTIN (वैकल्पिक)",
     "pinLabel": "4 अंकों का PIN बनाएं",
     "pinConfirmLabel": "PIN कन्फर्म करें",
-    "recoveryKeyLabel": "ओनर रिकवरी की",
-    "recoveryKeyConfirmLabel": "ओनर रिकवरी की कन्फर्म करें",
+    "pinPlaceholder": "••••",
+    "recoveryKeyLabel": "मालिक रिकवरी की",
+    "recoveryKeyConfirmLabel": "मालिक रिकवरी की कन्फर्म करें",
     "recoveryKeyPlaceholder": "मजबूत रिकवरी की बनाएं",
     "recoveryKeyConfirmPlaceholder": "रिकवरी की फिर से डालें",
-    "recoveryKeyHint": "यह की ओनर PIN रिकवरी के लिए ज़रूरी है और सेटअप के बाद इस कंप्यूटर में सेव हो जाएगी। इसे सुरक्षित रखें।",
-    "recoverySavedAlert": "रिकवरी की यहां सेव हुई:\n{{path}}\n\nइस फाइल को सुरक्षित रखें। ओनर एक्सेस वापस पाने के लिए यही की चाहिए होगी।",
+    "recoveryKeyHint": "यह की मालिक PIN रिकवरी के लिए ज़रूरी है और सेटअप के बाद इस कंप्यूटर में सेव हो जाएगी। इसे सुरक्षित रखें।",
+    "recoverySavedAlert": "रिकवरी की यहां सेव हुई:\n{{path}}\n\nइस फाइल को सुरक्षित रखें। मालिक एक्सेस वापस पाने के लिए यही की चाहिए होगी।",
     "settingUp": "सेटअप हो रहा है...",
     "getStarted": "शुरू करें",
     "saveKey": "डिवाइस में की सेव करें",
@@ -32,7 +33,7 @@
     "finish": "समाप्त",
     "errors": {
       "companyNameRequired": "कंपनी का नाम आवश्यक है।",
-      "ownerNameRequired": "ओनर का नाम ज़रूरी है।",
+      "ownerNameRequired": "मालिक का नाम ज़रूरी है।",
       "businessDisplayNameRequired": "बिज़नेस डिस्प्ले नाम ज़रूरी है।",
       "pinLength": "PIN ठीक 4 अंकों का होना चाहिए।",
       "pinConfirmMismatch": "PIN मैच नहीं कर रहे।",
@@ -45,13 +46,24 @@
   "pinEntry": {
     "title": "अपना PIN दर्ज करें",
     "subtitle": "{{app}} अनलॉक करें",
+    "allUsers": "सभी यूज़र",
+    "enterYourPin": "अपना PIN दर्ज करें",
+    "backspaceAriaLabel": "बैकस्पेस",
     "forgotPin": "PIN भूल गए?",
+    "forgotPinContactAdmin": "PIN भूल गए? अपने एडमिन से रीसेट करने को कहें।",
+    "somethingWentWrong": "कुछ गलत हो गया",
     "wrongPin": "गलत PIN। फिर कोशिश करें।",
     "lockedOut": "बहुत ज़्यादा कोशिशें हो गईं। थोड़ा रुककर फिर कोशिश करें।"
   },
   "userSelector": {
     "title": "अभी कौन इस्तेमाल कर रहा है?",
-    "subtitle": "आगे बढ़ने के लिए Team Member चुनें"
+    "subtitle": "आगे बढ़ने के लिए टीम सदस्य चुनें",
+    "whoIsLoggingIn": "कौन लॉगिन कर रहा है?",
+    "loading": "लोड हो रहा है…",
+    "noUsersFound": "कोई सदस्य नहीं मिला।",
+    "roleOwner": "मालिक",
+    "roleAdmin": "एडमिन",
+    "roleUser": "सदस्य"
   },
   "forcePinChange": {
     "title": "अपना PIN बदलें",

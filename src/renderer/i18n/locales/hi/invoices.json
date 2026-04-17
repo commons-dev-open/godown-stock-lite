@@ -15,7 +15,9 @@
     "date": "तारीख़",
     "customer": "ग्राहक",
     "amount": "राशि",
-    "status": "स्थिति"
+    "total": "कुल",
+    "status": "स्थिति",
+    "actions": "कार्रवाई"
   },
   "form": {
     "customerPlaceholder": "कस्टमर का नाम",
@@ -27,5 +29,170 @@
     "title": "अभी कोई बिल नहीं",
     "message": "अपना पहला बिल बनाएं।",
     "cta": "नया बिल"
+  },
+  "page": {
+    "title": "बिल",
+    "createInvoice": "बिल बनाएं",
+    "sectionListTitle": "बिल सूची",
+    "registerTitle": "बिल रजिस्टर",
+    "registerDescription": "नंबर या ग्राहक से खोजें, जारी तारीख से फ़िल्टर करें, फिर पूरी लाइन आइटम देखें या एडिट करें।",
+    "searchPlaceholder": "बिल # या ग्राहक से खोजें...",
+    "dateFrom": "से",
+    "dateTo": "तक",
+    "metricMatching": "मिलते बिल",
+    "metricOnPage": "इस पृष्ठ पर",
+    "metricPageTotal": "पृष्ठ कुल",
+    "emptyFilteredTitle": "कोई बिल मेल नहीं खाता",
+    "emptyDefaultTitle": "अभी कोई बिल नहीं",
+    "emptyFilteredDescription": "खोज साफ़ करें या तारीख की रेंज बढ़ाएं।",
+    "emptyDefaultDescription": "पहला बिल बनाएं—प्रिंट और दैनिक बिक्री अपने आप भरेंगे।",
+    "clearFilters": "फ़िल्टर हटाएं",
+    "createInvoiceCta": "बिल बनाएं",
+    "tableEmptyMessage": "कोई बिल नहीं।"
+  },
+  "confirmDelete": {
+    "title": "बिल डिलीट करें",
+    "message": "यह बिल डिलीट करें?"
+  },
+  "viewModal": {
+    "title": "बिल {{id}}",
+    "total": "कुल: ₹{{amount}}",
+    "linkDailySale": "इस तारीख की दैनिक बिक्री देखें",
+    "exportPdf": "PDF निर्यात",
+    "print": "प्रिंट",
+    "printLanguage": "प्रिंट / PDF भाषा"
+  },
+  "printLanguageOption": {
+    "en": "English",
+    "hi": "हिन्दी",
+    "bn": "বাংলা"
+  },
+  "printHeader": {
+    "phone": "फ़ोन:",
+    "gstin": "GST नं.:"
+  },
+  "toasts": {
+    "exportedPdf": "PDF सहेजा गया।",
+    "exportPdfFailed": "PDF निर्यात नहीं हो सका।",
+    "invalidCoupon": "कूपन अमान्य या समाप्त",
+    "couponValidationFailed": "कूपन जाँच विफल"
+  },
+  "view": {
+    "invoiceNumber": "बिल #:",
+    "placeOfSupply": "आपूर्ति स्थान:",
+    "date": "तारीख:",
+    "phone": "फ़ोन:",
+    "customer": "ग्राहक:",
+    "address": "पता:",
+    "table": {
+      "hsn": "HSN",
+      "product": "उत्पाद",
+      "qty": "मात्रा",
+      "unit": "इकाई",
+      "ratePerUnit": "दर/इकाई",
+      "taxable": "कर योग्य",
+      "cgst": "CGST",
+      "sgst": "SGST",
+      "total": "कुल"
+    },
+    "subtotalLines": "उप-कुल (लाइनें): ₹{{amount}}",
+    "taxableAmount": "कर योग्य राशि: ₹{{amount}}",
+    "cgstAmount": "CGST: ₹{{amount}}",
+    "sgstAmount": "SGST: ₹{{amount}}",
+    "subtotal": "उप-कुल: ₹{{amount}}",
+    "orderDiscount": "ऑर्डर छूट: -₹{{amount}}",
+    "couponApplied": "कूपन {{code}}: लागू",
+    "roundedWhole": "निकटतम पूर्ण संख्या पर राउंड",
+    "grandTotal": "कुल योग: ₹{{amount}}",
+    "total": "कुल: ₹{{amount}}"
+  },
+  "formModal": {
+    "printLanguage": "प्रिंट / PDF भाषा",
+    "createTitle": "बिल बनाएं",
+    "editTitle": "बिल एडिट करें",
+    "autoNumberHint": "बिल # अपने आप INV-YYYY-NNNN (जैसे INV-2025-0001) बनेगा।",
+    "fields": {
+      "invoiceNumber": "बिल #",
+      "date": "तारीख",
+      "customerPhone": "ग्राहक फ़ोन",
+      "customerName": "ग्राहक नाम",
+      "customerAddress": "ग्राहक पता",
+      "customerGstin": "ग्राहक GSTIN",
+      "notes": "नोट्स"
+    },
+    "placeholders": {
+      "customerPhone": "वैकल्पिक—नाम/पता भरने के लिए दर्ज करें",
+      "customerGstin": "वैकल्पिक",
+      "notes": "इस बिल के लिए वैकल्पिक नोट्स",
+      "numericZero": "0",
+      "couponCode": "कोड दर्ज करें",
+      "orderDiscount": "0"
+    },
+    "lineHeaders": {
+      "product": "उत्पाद",
+      "qty": "मात्रा",
+      "unit": "इकाई",
+      "gstPercent": "GST%",
+      "mode": "मोड",
+      "type": "प्रकार",
+      "amount": "राशि",
+      "lineTotal": "कुल"
+    },
+    "line": {
+      "selectProduct": "उत्पाद चुनें",
+      "gstModeExclusive": "अलग",
+      "gstModeInclusive": "शामिल",
+      "perUnit": "प्रति {{unit}}",
+      "perUnitFallback": "प्रति इकाई",
+      "unitFallbackWord": "इकाई",
+      "totalMode": "कुल",
+      "priceTypeTitle": "प्रति इकाई या लाइन कुल राशि दर्ज करें",
+      "lineTotalTitle": "इस लाइन की कुल राशि (मात्रा पहले या बाद में)",
+      "taxParenthetical": "(कर ₹{{amount}})",
+      "removeLineAria": "लाइन हटाएं"
+    },
+    "discounts": {
+      "percentOff": "% छूट:",
+      "rsOff": "रु छूट:",
+      "bogoBuy": "BOGO खरीदें:",
+      "bogoGet": "मिले:"
+    },
+    "addItem": "आइटम जोड़ें",
+    "orderDiscountsTitle": "ऑर्डर स्तर की छूट",
+    "orderPercentOff": "ऑर्डर % छूट",
+    "orderFlatOff": "ऑर्डर फ्लैट (रु.) छूट",
+    "couponCode": "कूपन कोड",
+    "couponAppliedExtra": "लागू: {{code}} ({{discountText}})",
+    "couponDiscountPercent": "{{value}}% छूट",
+    "couponDiscountFlat": "₹{{value}} छूट",
+    "tieredDiscountHint": "स्तरीय छूट लागू (ऑर्डर >= न्यूनतम राशि)",
+    "footer": {
+      "subtotalCgstSgst": "उप-कुल: ₹{{taxable}} | CGST: ₹{{cgst}} | SGST: ₹{{sgst}}",
+      "orderDiscountBeforeRound": "ऑर्डर छूट: -₹{{discount}} | राउंड से पहले: ₹{{before}}",
+      "orderDiscountOnly": "ऑर्डर छूट: -₹{{discount}}",
+      "roundedWhole": "निकटतम पूर्ण संख्या पर राउंड",
+      "grandTotal": "कुल योग: ₹{{amount}}",
+      "total": "कुल: ₹{{amount}}",
+      "save": "सहेजें",
+      "saveAndPrint": "सहेजें और प्रिंट",
+      "remove": "हटाएं",
+      "apply": "लागू करें"
+    }
+  },
+  "tableActions": {
+    "viewTitle": "देखें",
+    "editTitle": "एडिट",
+    "deleteTitle": "डिलीट",
+    "viewInvoiceAria": "बिल देखें",
+    "editInvoiceAria": "बिल एडिट करें",
+    "deleteInvoiceAria": "बिल डिलीट करें",
+    "emptyCell": "—"
+  },
+  "lineNotes": {
+    "percentOff": "{{pct}}% छूट",
+    "flatOff": "फ्लैट ₹{{amount}}",
+    "bogo": "BOGO {{buy}}+{{get}} @ {{pct}}%",
+    "defaultItemName": "आइटम",
+    "listJoin": ", "
   }
 }

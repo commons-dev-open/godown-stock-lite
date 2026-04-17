@@ -1,21 +1,90 @@
 {
   "hero": {
     "title": "হোম",
-    "subtitle": "এক নজরে আপনার ব্যবসা"
+    "subtitle": "এক নজরে আপনার ব্যবসা",
+    "dashboardTitle": "হোম ড্যাশবোর্ড",
+    "metrics": {
+      "today": "আজ",
+      "thisWeek": "এই সপ্তাহ",
+      "thisMonth": "এই মাস",
+      "lenderNet": "মহাজন নেট"
+    }
   },
   "sections": {
     "quickActions": "কুইক অ্যাকশন",
-    "weeklyMomentum": "সাপ্তাহিক মোমেন্টাম",
-    "weeklyDetails": "সাপ্তাহিক ডিটেইলস",
+    "weeklyMomentum": "৭-দিনের সেল মোমেন্টাম",
+    "weeklyDetails": "সাপ্তাহিক সেল ডিটেইলস",
     "rangeComposition": "রেঞ্জ কম্পোজিশন",
     "lenderSummary": "মহাজন সারাংশ",
     "lowStockAlerts": "লো স্টক অ্যালার্ট"
+  },
+  "actions": {
+    "createInvoice": "ইনভয়েস তৈরি করুন"
   },
   "quickActions": {
     "addItem": "আইটেম অ্যাড",
     "recordSale": "সেল রেকর্ড",
     "addLender": "মহাজন অ্যাড",
-    "viewInvoices": "ইনভয়েস দেখুন"
+    "viewInvoices": "ইনভয়েস দেখুন",
+    "createInvoice": {
+      "title": "ইনভয়েস তৈরি করুন",
+      "subtitle": "নতুন সেল এন্ট্রি শুরু করুন।"
+    },
+    "creditPurchase": {
+      "title": "বাকিতে ক্রয়",
+      "subtitle": "দ্রুত মহাজন লেনদেন রেকর্ড করুন।"
+    },
+    "cashVsExpenditure": "ক্যাশ বনাম খরচ (সাপ্তাহিক)",
+    "cashTrendEmptyTitle": "সাপ্তাহিক ক্যাশ ট্রেন্ড নেই",
+    "cashTrendEmptyDescription": "সাপ্তাহিক সেল রেকর্ড থাকলে ক্যাশ ও খরচের চার্ট দেখাবে।"
+  },
+  "weeklyMomentum": {
+    "title": "৭-দিনের সেল মোমেন্টাম",
+    "subtitle": "আজ শেষ হওয়া নির্বাচিত সপ্তাহের সেল ও খরচের ট্রেন্ড।",
+    "liveTrend": "লাইভ ট্রেন্ড",
+    "weekSale": "সাপ্তাহিক সেল",
+    "weekExpenditure": "সাপ্তাহিক খরচ",
+    "peakDay": "সর্বোচ্চ দিন",
+    "entries": "এন্ট্রি",
+    "errorTitle": "সাপ্তাহিক ট্রেন্ড লোড করা যায়নি",
+    "errorDescription": "সাপ্তাহিক সেল আনতে সমস্যা হয়েছে। রিফ্রেশ করে আবার চেষ্টা করুন।",
+    "emptyTitle": "এই সপ্তাহে সেল নেই",
+    "emptyDescription": "নির্বাচিত তারিখের জন্য কোনো সেল এন্ট্রি পাওয়া যায়নি। ট্রেন্ড দেখতে ইনভয়েস বা অন্যান্য সেল যোগ করুন।"
+  },
+  "rangeComposition": {
+    "title": "রেঞ্জ কম্পোজিশন",
+    "subtitle": "নির্বাচিত সময়ের ইনভয়েস, মিস্‌ক এবং খরচ।",
+    "emptyTitle": "এখনও রেঞ্জ ডেটা নেই",
+    "emptyDescription": "নির্বাচিত তারিখ সীমায় ইনভয়েস, মিস্‌ক সেল বা খরচের রেকর্ড নেই।",
+    "presets": {
+      "today": "আজ",
+      "yesterday": "গতকাল",
+      "last7Days": "শেষ ৭ দিন",
+      "last14Days": "শেষ ১৪ দিন",
+      "thisMonth": "এই মাস",
+      "lastMonth": "গত মাস",
+      "last30Days": "শেষ ৩০ দিন",
+      "last90Days": "শেষ ৯০ দিন",
+      "thisQuarter": "এই কোয়ার্টার",
+      "thisYear": "এই বছর"
+    }
+  },
+  "weeklyDetails": {
+    "subtitle": "একটি তারিখ বেছে নিন, তারপর সেই তারিখ থেকে ৭ দিনের এন্ট্রি দেখুন।",
+    "date": "তারিখ",
+    "today": "আজ",
+    "table": {
+      "date": "তারিখ",
+      "sale": "সেল",
+      "invoice": "ইনভয়েস",
+      "misc": "মিস্‌ক",
+      "cashInHand": "হাতে নগদ",
+      "expenditure": "খরচ"
+    },
+    "errorTitle": "সেল ডিটেইলস লোড করা যায়নি",
+    "errorDescription": "সাপ্তাহিক এন্ট্রি এখন লোড করা যাচ্ছে না। রিফ্রেশ করে আবার চেষ্টা করুন।",
+    "emptyTitle": "কোনো সেল এন্ট্রি পাওয়া যায়নি",
+    "emptyDescription": "নির্বাচিত তারিখে ৭-দিনের কোনো এন্ট্রি নেই। তারিখ বদলান বা নতুন ইনভয়েস যোগ করুন।"
   },
   "empty": {
     "title": "Godown Stock-এ স্বাগতম",
@@ -24,16 +93,50 @@
   "lowStock": {
     "noAlerts": "এখন লো স্টক নেই",
     "itemsAtOrBelow": "লো স্টক থ্রেশহোল্ডে বা তার নিচে থাকা আইটেম",
-    "seeAll": "সব আইটেম দেখুন"
+    "seeAll": "সব আইটেম দেখুন",
+    "viewStock": "স্টক দেখুন",
+    "errorLoading": "লো স্টক আইটেম লোড করা যায়নি। রিফ্রেশ করে চেষ্টা করুন।",
+    "emptyTitle": "কোনো লো স্টক আইটেম নেই",
+    "emptyDescription": "সব ট্র্যাক করা আইটেম এখন রি-অর্ডার লেভেলের উপরে আছে। কার্যকর অ্যালার্ট পেতে প্রোডাক্টস অ্যান্ড স্টকে রি-অর্ডার ভ্যালু আপডেট করুন।",
+    "goToStock": "স্টকে যান",
+    "table": {
+      "item": "আইটেম",
+      "current": "বর্তমান",
+      "reorderAt": "রি-অর্ডার লেভেল",
+      "unit": "একক"
+    }
   },
   "lender": {
-    "totalOwed": "মোট পাওনা",
-    "totalReceivable": "মোট প্রাপ্য",
-    "seeAll": "সব মহাজন দেখুন"
+    "totalOwed": "মোট দেনা",
+    "totalReceivable": "মোট পাওনা",
+    "seeAll": "সব মহাজন দেখুন",
+    "viewLenders": "মহাজন দেখুন",
+    "totalCreditPurchase": "মোট বাকিতে ক্রয়",
+    "totalSettlements": "মোট পরিশোধ",
+    "netBalance": "নেট ব্যালান্স",
+    "payable": "দেনা",
+    "receivable": "পাওনা",
+    "receivablePayableStats": "{{receivable}} পাওনা, {{payable}} দেনা",
+    "emptyTitle": "মহাজন ডেটা নেই",
+    "emptyDescription": "বাকিতে ক্রয় বা পরিশোধ রেকর্ড হলে মহাজন সারাংশ দেখাবে।"
   },
   "momentum": {
     "thisWeek": "এই সপ্তাহ",
     "lastWeek": "গত সপ্তাহ",
     "change": "পরিবর্তন"
+  },
+  "charts": {
+    "totalSale": "মোট সেল",
+    "invoice": "ইনভয়েস",
+    "misc": "মিস্‌ক",
+    "expenditure": "খরচ",
+    "rangeTotal": "রেঞ্জ মোট",
+    "cashInHand": "হাতে নগদ"
+  },
+  "sectionError": {
+    "badge": "সেকশন ত্রুটি",
+    "description": "এই সেকশন রেন্ডার হতে ব্যর্থ হয়েছে। পুরো পেজ রিলোড না করেও আবার চেষ্টা করতে পারেন।",
+    "fallbackMessage": "অপ্রত্যাশিত রেন্ডারিং ত্রুটি",
+    "retry": "সেকশন আবার চেষ্টা করুন"
   }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { getElectron } from "../api/client";
@@ -11,15 +12,27 @@ import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import { formatDecimal } from "../../shared/numbers";
 
 const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash", refLabel: "Receipt No. / Voucher No." },
+  {
+    value: "cash",
+    labelKey: "modals.shared.payment_methods.cash.label",
+    refLabelKey: "modals.shared.payment_methods.cash.reference_label",
+  },
   {
     value: "bank",
-    label: "Bank (NEFT/RTGS/IMPS)",
-    refLabel: "UTR No.",
-    placeholder: "e.g. 123456789012",
+    labelKey: "modals.shared.payment_methods.bank.label",
+    refLabelKey: "modals.shared.payment_methods.bank.reference_label",
+    placeholderKey: "modals.shared.payment_methods.bank.placeholder",
   },
-  { value: "upi", label: "UPI", refLabel: "UPI Reference ID" },
-  { value: "cheque", label: "Cheque", refLabel: "Cheque No." },
+  {
+    value: "upi",
+    labelKey: "modals.shared.payment_methods.upi.label",
+    refLabelKey: "modals.shared.payment_methods.upi.reference_label",
+  },
+  {
+    value: "cheque",
+    labelKey: "modals.shared.payment_methods.cheque.label",
+    refLabelKey: "modals.shared.payment_methods.cheque.reference_label",
+  },
 ] as const;
 
 export interface AddDepositModalProps {
@@ -34,6 +47,7 @@ export default function AddDepositModal({
   onClose,
   fixedMahajanId,
 }: AddDepositModalProps) {
+  const { t } = useTranslation("transactions");
   const queryClient = useQueryClient();
   const api = getElectron();
   const [depositFormDate, setDepositFormDate] = useState(todayISO());
@@ -92,10 +106,10 @@ export default function AddDepositModal({
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       onClose();
-      toast.success("Settlement saved");
+      toast.success(t("modals.add_settlement.toasts.saved"));
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? "Failed to save settlement"),
+      toast.error(err.message ?? t("modals.add_settlement.toasts.save_failed")),
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
@@ -125,7 +139,7 @@ export default function AddDepositModal({
 
   return (
     <FormModal
-      title="Add Settlement"
+      title={t("modals.add_settlement.title")}
       open={open}
       onClose={onClose}
       footer={
@@ -136,7 +150,9 @@ export default function AddDepositModal({
           disabled={createDeposit.isPending}
         >
           <Check size={20} className="mr-1.5" aria-hidden="true" />
-          {createDeposit.isPending ? "Saving..." : "Save"}
+          {createDeposit.isPending
+            ? t("modals.shared.actions.saving")
+            : t("modals.shared.actions.save")}
         </Button>
       }
     >
@@ -144,7 +160,7 @@ export default function AddDepositModal({
         {fixedMahajanId == null && (
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Lender *
+              {t("modals.shared.fields.lender_required")}
             </label>
             <select
               name="mahajan_id"
@@ -154,7 +170,7 @@ export default function AddDepositModal({
                 setSelectedLenderId(Number(e.target.value) || null)
               }
             >
-              <option value="">Select</option>
+              <option value="">{t("modals.shared.placeholders.select")}</option>
               {mahajanList.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -165,7 +181,7 @@ export default function AddDepositModal({
         )}
         <div>
           <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-            Date * (dd/mm/yyyy)
+            {t("modals.shared.fields.date_required")}
           </label>
           <DateInput
             value={depositFormDate}
@@ -178,7 +194,7 @@ export default function AddDepositModal({
             htmlFor="settlement-amount"
             className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
           >
-            Amount *
+            {t("modals.shared.fields.amount_required")}
           </label>
           <input
             id="settlement-amount"
@@ -197,14 +213,14 @@ export default function AddDepositModal({
         </div>
         <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
           <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-            Payment details (optional)
+            {t("modals.shared.sections.payment_details_optional")}
           </p>
           <div>
             <label
               htmlFor="payment-method"
               className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
             >
-              Payment Method
+              {t("modals.shared.fields.payment_method")}
             </label>
             <select
               id="payment-method"
@@ -212,10 +228,10 @@ export default function AddDepositModal({
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="input-base w-full"
             >
-              <option value="">None</option>
+              <option value="">{t("modals.shared.placeholders.none")}</option>
               {PAYMENT_METHODS.map((pm) => (
                 <option key={pm.value} value={pm.value}>
-                  {pm.label}
+                  {t(pm.labelKey)}
                 </option>
               ))}
             </select>
@@ -227,7 +243,11 @@ export default function AddDepositModal({
                 className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
               >
                 {PAYMENT_METHODS.find((p) => p.value === paymentMethod)
-                  ?.refLabel ?? "Reference"}
+                  ? t(
+                      PAYMENT_METHODS.find((p) => p.value === paymentMethod)!
+                        .refLabelKey
+                    )
+                  : t("modals.shared.fields.reference")}
               </label>
               <input
                 id="reference-number"
@@ -236,7 +256,12 @@ export default function AddDepositModal({
                 onChange={(e) => setReferenceNumber(e.target.value)}
                 placeholder={
                   PAYMENT_METHODS.find((p) => p.value === paymentMethod)
-                    ?.placeholder
+                    ?.placeholderKey
+                    ? t(
+                        PAYMENT_METHODS.find((p) => p.value === paymentMethod)!
+                          .placeholderKey!
+                      )
+                    : undefined
                 }
                 className="input-base w-full"
               />
@@ -249,7 +274,7 @@ export default function AddDepositModal({
             onClick={() => setAllocExpand((prev) => !prev)}
             className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-bg-surface-raised)] hover:bg-[var(--color-bg-surface-sunken)]"
           >
-            <span>Allocate to Credit Purchase(s)</span>
+            <span>{t("modals.add_settlement.sections.allocate_to_credit")}</span>
             {allocExpand ? (
               <ChevronUp size={20} aria-hidden="true" />
             ) : (
@@ -260,17 +285,16 @@ export default function AddDepositModal({
             <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface)] space-y-3">
               {!lenderIdForAlloc ? (
                 <p className="text-sm text-[var(--color-text-tertiary)]">
-                  Select a lender first to see credit purchases.
+                  {t("modals.add_settlement.messages.select_lender_first")}
                 </p>
               ) : creditPurchases.length === 0 ? (
                 <p className="text-sm text-[var(--color-text-tertiary)]">
-                  No credit purchases to allocate. Add credit purchases first.
+                  {t("modals.add_settlement.messages.no_credit_purchases")}
                 </p>
               ) : (
                 <>
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Link this settlement to specific credit purchases for better
-                    tracking.
+                    {t("modals.add_settlement.messages.link_for_tracking")}
                   </p>
                   <div className="max-h-48 overflow-auto space-y-2">
                     {(
@@ -302,7 +326,7 @@ export default function AddDepositModal({
                             min="0"
                             max={cp.outstanding}
                             step="0.01"
-                            placeholder="0"
+                            placeholder={t("modals.shared.placeholders.zero")}
                             value={alloc?.amount ?? ""}
                             onChange={(e) => {
                               const val = Number(e.target.value);
@@ -341,8 +365,10 @@ export default function AddDepositModal({
                             : "text-sm text-[var(--color-text-secondary)]"
                         }
                       >
-                        Total allocated: ₹{formatDecimal(totalAlloc)}
-                        {mismatch && " (differs from settlement amount)"}
+                        {t("modals.add_settlement.messages.total_allocated")}: ₹
+                        {formatDecimal(totalAlloc)}
+                        {mismatch &&
+                          ` ${t("modals.add_settlement.messages.differs_from_amount")}`}
                       </p>
                     );
                   })()}
@@ -356,7 +382,7 @@ export default function AddDepositModal({
             htmlFor="settlement-notes"
             className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
           >
-            Notes
+            {t("modals.shared.fields.notes")}
           </label>
           <input
             id="settlement-notes"

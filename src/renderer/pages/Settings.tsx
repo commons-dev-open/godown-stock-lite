@@ -22,11 +22,7 @@ import ConfirmDangerModal from "../components/ConfirmDangerModal";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
-import {
-  useTheme,
-  BRAND_COLOR_OPTIONS,
-  type ThemeMode,
-} from "../context/ThemeContext";
+import { useTheme, BRAND_COLOR_OPTIONS } from "../context/ThemeContext";
 import {
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
@@ -44,6 +40,7 @@ import {
 } from "../components/settings-page";
 import AppleToggle from "../components/AppleToggle";
 import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
 type DangerAction =
@@ -54,91 +51,52 @@ type DangerAction =
   | "populateSampleData"
   | null;
 
-const DANGER_CONFIG: Record<
+const DANGER_I18N: Record<
   Exclude<DangerAction, null>,
-  { title: string; message: string }
+  { titleKey: string; messageKey: string }
 > = {
-  export: {
-    title: "Export database",
-    message:
-      "You'll save a full copy of your database to a file. Keep this backup somewhere safe—for example on an external drive or in the cloud—so you can restore your business data if anything goes wrong. Your current data stays untouched; this only creates a snapshot you can use for backup, migration, or peace of mind.",
-  },
-  import: {
-    title: "Import database",
-    message:
-      "You're about to replace everything in this app with the data from the file you select. Use this to restore from a backup or to move data from another machine. Your current database will be overwritten and cannot be recovered. Make sure you've exported a backup first if you might need it.",
-  },
+  export: { titleKey: "data.exportTitle", messageKey: "data.exportMessage" },
+  import: { titleKey: "data.importTitle", messageKey: "data.importMessage" },
   clearTables: {
-    title: "Clear all data",
-    message:
-      "Every table will be emptied: items, lenders, transactions, invoices, daily sales, and settings. The database structure stays in place so you can start fresh without losing units or schema. Use this when you want to wipe all business data but keep the app ready for new entries. This cannot be undone.",
+    titleKey: "data.clearTablesTitle",
+    messageKey: "data.clearTablesMessage",
   },
   clearEntireDb: {
-    title: "Reset database",
-    message:
-      "The database file will be deleted and a brand‑new empty database will be created. Use this for a complete fresh start. All your data—items, lenders, invoices, everything—will be gone forever. Export a backup first if you might need to refer to this data later. This cannot be undone.",
+    titleKey: "data.clearEntireDbTitle",
+    messageKey: "data.clearEntireDbMessage",
   },
   populateSampleData: {
-    title: "Fill with sample data",
-    message:
-      "This will insert a small set of realistic sample items, lenders, invoices, transactions, and daily sales into an empty database so you can explore the app. It only runs when there is no existing business data; if you've already started using the app, nothing will be changed.",
+    titleKey: "data.populateSampleTitle",
+    messageKey: "data.populateSampleMessage",
   },
 };
 
-const SETTING_KEYS = {
-  company_name: "Company name",
-  company_address: "Address",
-  gstin: "GSTIN",
-  owner_name: "Owner name",
-  owner_phone: "Phone",
-} as const;
+const BUSINESS_FIELD_KEYS = [
+  "company_name",
+  "company_address",
+  "gstin",
+  "owner_name",
+  "owner_phone",
+] as const;
 
-const GST_SETTING_KEYS = {
-  gst_enabled: "Enable GST",
-  gst_default_rate: "Default GST Rate",
-  gst_default_mode: "Default Price Mode",
-  place_of_supply: "Place of Supply",
-  customer_gstin_enabled: "Show Customer GSTIN field",
-  hsn_enabled: "Enable HSN",
-} as const;
-
-const DISCOUNT_SETTING_KEYS = {
-  discount_percentage_enabled: "Enable percentage discount",
-  discount_flat_enabled: "Enable flat amount discount",
-  discount_bogo_enabled: "Enable BOGO discount",
-  discount_coupon_enabled: "Enable coupons",
-  discount_tiered_enabled: "Enable tiered/volume discount",
-  round_bill_to_whole: "Round final bill to nearest whole number",
-} as const;
+const DISCOUNT_TOGGLE_KEYS = [
+  "discount_percentage_enabled",
+  "discount_flat_enabled",
+  "discount_bogo_enabled",
+  "discount_coupon_enabled",
+  "discount_tiered_enabled",
+  "round_bill_to_whole",
+] as const;
 
 const GST_RATES = ["0", "5", "12", "18", "28"] as const;
-const GST_MODES = [
-  { value: "exclusive", label: "Exclusive" },
-  { value: "inclusive", label: "Inclusive" },
-] as const;
+const GST_MODE_VALUES = ["exclusive", "inclusive"] as const;
 
 const DISPLAY_NAME_MAX = 25;
 
-const NUMBER_ABBREVIATION_OPTIONS: {
-  value: NumberAbbreviationStyle;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "indian",
-    label: "Indian",
-    hint: "Full amount under 1 Lac; then Lac and Cr (e.g. 12.5 Lac).",
-  },
-  {
-    value: "us",
-    label: "US",
-    hint: "Full amount under 1 million; then M and B.",
-  },
-  {
-    value: "si",
-    label: "International (SI)",
-    hint: "Thousands as K, then M and B (powers of 1000).",
-  },
+const NUMBER_ABBREVIATION_STYLES: NumberAbbreviationStyle[] = [
+  "indian",
+  "us",
+  "si",
 ];
 
 type CouponRow = {
@@ -163,15 +121,36 @@ type TieredRow = {
 };
 
 /* ── Theme Mode Selector ──────────────────────────────────── */
-const THEME_MODES: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
-];
 
 function AppearanceTab() {
   const { mode, brandColor, setMode, setBrandColor } = useTheme();
   const { t: settingsT } = useTranslation("settings");
+  const { t: commonT } = useTranslation("common");
+
+  const themeModes = useMemo(
+    () =>
+      (
+        [
+          { value: "light" as const, icon: Sun },
+          { value: "dark" as const, icon: Moon },
+          { value: "system" as const, icon: Monitor },
+        ] as const
+      ).map((row) => ({
+        ...row,
+        label: settingsT(`preferences.themeModes.${row.value}`),
+      })),
+    [settingsT]
+  );
+
+  const numberAbbreviationOptions = useMemo(
+    () =>
+      NUMBER_ABBREVIATION_STYLES.map((value) => ({
+        value,
+        label: settingsT(`preferences.abbreviation.${value}`),
+        hint: settingsT(`preferences.abbreviationHints.${value}`),
+      })),
+    [settingsT]
+  );
   const queryClient = useQueryClient();
   const api = getElectron();
   const { data: settings = {} } = useQuery({
@@ -221,11 +200,12 @@ function AppearanceTab() {
       {/* App Display Name */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          App Display Name
+          {settingsT("preferences.appDisplayName")}
         </h2>
         <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-          Shown in sidebar header, PDFs and print. Max {DISPLAY_NAME_MAX}{" "}
-          characters. Leave blank for default.
+          {settingsT("preferences.appDisplayNameHint", {
+            max: DISPLAY_NAME_MAX,
+          })}
         </p>
         <div className="flex items-end gap-3">
           <div className="flex-1">
@@ -234,7 +214,7 @@ function AppearanceTab() {
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={DISPLAY_NAME_MAX}
               className="input-base w-full"
-              placeholder="Godown Stock Lite"
+              placeholder={commonT("app.name")}
             />
           </div>
           <Button
@@ -242,7 +222,7 @@ function AppearanceTab() {
             disabled={setSettingsMutation.isPending}
           >
             <Check size={16} className="mr-1" aria-hidden="true" />
-            Save
+            {commonT("actions.save")}
           </Button>
         </div>
       </section>
@@ -263,10 +243,10 @@ function AppearanceTab() {
           {settingsT("preferences.theme")}
         </h2>
         <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-          Choose light, dark, or follow your system preference.
+          {settingsT("preferences.themeHint")}
         </p>
         <div className="flex gap-3">
-          {THEME_MODES.map(({ value, label, icon: Icon }) => {
+          {themeModes.map(({ value, label, icon: Icon }) => {
             const active = mode === value;
             return (
               <button
@@ -305,13 +285,13 @@ function AppearanceTab() {
       {/* Brand Color */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          Brand Color
+          {settingsT("preferences.brandColor")}
         </h2>
         <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-          Pick an accent color used throughout the app.
+          {settingsT("preferences.brandColorHint")}
         </p>
         <div className="flex flex-wrap gap-3">
-          {BRAND_COLOR_OPTIONS.map(({ value, label, hex }) => {
+          {BRAND_COLOR_OPTIONS.map(({ value, hex }) => {
             const active = brandColor === value;
             return (
               <button
@@ -319,7 +299,7 @@ function AppearanceTab() {
                 type="button"
                 onClick={() => setBrandColor(value)}
                 className="flex flex-col items-center gap-1.5 group"
-                title={label}
+                title={settingsT(`preferences.brandColors.${value}`)}
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
@@ -343,7 +323,7 @@ function AppearanceTab() {
                       : "text-[var(--color-text-tertiary)]"
                   }`}
                 >
-                  {label}
+                  {settingsT(`preferences.brandColors.${value}`)}
                 </span>
               </button>
             );
@@ -354,21 +334,19 @@ function AppearanceTab() {
       {/* Number abbreviations (dashboard heroes) */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          Number abbreviations
+          {settingsT("preferences.numberAbbreviation")}
         </h2>
         <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-          How large counts and rupee amounts are shortened on dashboard heroes
-          (Home, Products, Units, Lenders). Amounts below the threshold stay
-          fully written with grouping.
+          {settingsT("preferences.numberAbbreviationHint")}
         </p>
-        <FormField label="Style">
+        <FormField label={settingsT("preferences.numberAbbreviationStyle")}>
           <select
             value={numberAbbreviation}
             onChange={(e) => handleNumberAbbreviationChange(e.target.value)}
             className="input-base w-full"
             disabled={setSettingsMutation.isPending}
           >
-            {NUMBER_ABBREVIATION_OPTIONS.map((opt) => (
+            {numberAbbreviationOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -377,7 +355,7 @@ function AppearanceTab() {
         </FormField>
         <p className="text-xs text-[var(--color-text-tertiary)] mt-2">
           {
-            NUMBER_ABBREVIATION_OPTIONS.find(
+            numberAbbreviationOptions.find(
               (o) => o.value === numberAbbreviation
             )?.hint
           }
@@ -393,6 +371,8 @@ function CouponsAndTieredSection({
 }: {
   api: ReturnType<typeof getElectron>;
 }) {
+  const { t: settingsT } = useTranslation("settings");
+  const { t: commonT } = useTranslation("common");
   const queryClient = useQueryClient();
   const { data: coupons = [] } = useQuery({
     queryKey: ["coupons"],
@@ -527,13 +507,16 @@ function CouponsAndTieredSection({
     () => [
       {
         key: "code",
-        label: "Code",
+        label: settingsT("discounts.coupons.columns.code"),
         render: (c: CouponRow) => <span className="font-mono">{c.code}</span>,
       },
-      { key: "discount_type", label: "Type" },
+      {
+        key: "discount_type",
+        label: settingsT("discounts.coupons.columns.type"),
+      },
       {
         key: "discount_value",
-        label: "Value",
+        label: settingsT("discounts.coupons.columns.value"),
         align: "right" as const,
         render: (c: CouponRow) =>
           c.discount_type === "percent"
@@ -542,7 +525,7 @@ function CouponsAndTieredSection({
       },
       {
         key: "min_order_amount",
-        label: "Min order",
+        label: settingsT("discounts.coupons.columns.minOrder"),
         align: "right" as const,
         render: (c: CouponRow) => (
           <span className="text-[var(--color-text-secondary)]">
@@ -552,7 +535,7 @@ function CouponsAndTieredSection({
       },
       {
         key: "used_count",
-        label: "Used",
+        label: settingsT("discounts.coupons.columns.used"),
         align: "right" as const,
         render: (c: CouponRow) => (
           <span className="text-[var(--color-text-secondary)]">
@@ -563,42 +546,44 @@ function CouponsAndTieredSection({
         ),
       },
     ],
-    []
+    [settingsT]
   );
 
   const tieredColumns = useMemo(
     () => [
       {
         key: "min_order_amount",
-        label: "Min order (₹)",
+        label: settingsT("discounts.tiered.columns.minOrder"),
         align: "right" as const,
-        render: (t: TieredRow) => `₹${t.min_order_amount}`,
+        render: (row: TieredRow) => `₹${row.min_order_amount}`,
       },
       {
         key: "discount_display",
-        label: "Discount",
+        label: settingsT("discounts.tiered.columns.discount"),
         align: "right" as const,
-        render: (t: TieredRow) => {
-          const hasFlat = (t.discount_flat ?? 0) > 0;
+        render: (row: TieredRow) => {
+          const hasFlat = (row.discount_flat ?? 0) > 0;
           return hasFlat
-            ? `₹${t.discount_flat}`
-            : (t.discount_percent ?? 0) > 0
-              ? `${t.discount_percent}%`
+            ? `₹${row.discount_flat}`
+            : (row.discount_percent ?? 0) > 0
+              ? `${row.discount_percent}%`
               : "—";
         },
       },
       {
         key: "max_discount_amount",
-        label: "Max (₹)",
+        label: settingsT("discounts.tiered.columns.max"),
         align: "right" as const,
-        render: (t: TieredRow) => (
+        render: (row: TieredRow) => (
           <span className="text-[var(--color-text-secondary)]">
-            {t.max_discount_amount != null ? `₹${t.max_discount_amount}` : "—"}
+            {row.max_discount_amount != null
+              ? `₹${row.max_discount_amount}`
+              : "—"}
           </span>
         ),
       },
     ],
-    []
+    [settingsT]
   );
 
   return (
@@ -606,7 +591,7 @@ function CouponsAndTieredSection({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-            Coupons
+            {settingsT("discounts.coupons.title")}
           </h3>
           <Button
             type="button"
@@ -626,13 +611,13 @@ function CouponsAndTieredSection({
             }}
           >
             <Plus size={14} className="mr-1" aria-hidden="true" />
-            Add coupon
+            {settingsT("discounts.coupons.add")}
           </Button>
         </div>
         <DataTable<CouponRow>
           columns={couponColumns}
           data={coupons}
-          emptyMessage="No coupons yet."
+          emptyMessage={settingsT("discounts.coupons.empty")}
           pagination={{ type: "client" }}
           alwaysShowRowActions
           scrollMaxHeight={`500px`}
@@ -642,7 +627,7 @@ function CouponsAndTieredSection({
                 type="button"
                 onClick={() => openCouponEdit(c)}
                 className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                aria-label="Edit"
+                aria-label={commonT("actions.edit")}
               >
                 <Pencil size={16} />
               </button>
@@ -650,7 +635,7 @@ function CouponsAndTieredSection({
                 type="button"
                 onClick={() => setDeleteCouponId(c.id)}
                 className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                aria-label="Delete"
+                aria-label={commonT("actions.delete")}
               >
                 <Trash2 size={16} />
               </button>
@@ -662,7 +647,7 @@ function CouponsAndTieredSection({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-            Tiered rules
+            {settingsT("discounts.tiered.title")}
           </h3>
           <Button
             type="button"
@@ -680,17 +665,16 @@ function CouponsAndTieredSection({
             }}
           >
             <Plus size={14} className="mr-1" aria-hidden="true" />
-            Add rule
+            {settingsT("discounts.tiered.add")}
           </Button>
         </div>
         <p className="text-xs text-[var(--color-text-tertiary)] mb-2">
-          Either % or flat amount per rule. Use max amount to cap the discount.
-          Highest qualifying tier applies.
+          {settingsT("discounts.coupons.tieredHint")}
         </p>
         <DataTable<TieredRow>
           columns={tieredColumns}
           data={tieredRules}
-          emptyMessage="No tiered rules yet."
+          emptyMessage={settingsT("discounts.tiered.empty")}
           pagination={{ type: "client" }}
           alwaysShowRowActions
           scrollMaxHeight={`500px`}
@@ -700,7 +684,7 @@ function CouponsAndTieredSection({
                 type="button"
                 onClick={() => openTieredEdit(t)}
                 className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                aria-label="Edit"
+                aria-label={commonT("actions.edit")}
               >
                 <Pencil size={16} />
               </button>
@@ -708,7 +692,7 @@ function CouponsAndTieredSection({
                 type="button"
                 onClick={() => setDeleteTieredId(t.id)}
                 className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                aria-label="Delete"
+                aria-label={commonT("actions.delete")}
               >
                 <Trash2 size={16} />
               </button>
@@ -719,7 +703,11 @@ function CouponsAndTieredSection({
 
       {couponModal && (
         <FormModal
-          title={couponModal.mode === "add" ? "Add coupon" : "Edit coupon"}
+          title={
+            couponModal.mode === "add"
+              ? settingsT("discounts.coupons.modalAdd")
+              : settingsT("discounts.coupons.modalEdit")
+          }
           open
           onClose={() => setCouponModal(null)}
           footer={
@@ -742,12 +730,14 @@ function CouponsAndTieredSection({
               }
             >
               <Check size={16} className="mr-1" aria-hidden="true" />
-              {couponModal.mode === "add" ? "Create" : "Save"}
+              {couponModal.mode === "add"
+                ? commonT("actions.create")
+                : commonT("actions.save")}
             </Button>
           }
         >
           <div className="space-y-3">
-            <FormField label="Code">
+            <FormField label={commonT("labels.code")}>
               <input
                 value={couponForm.code}
                 onChange={(e) =>
@@ -761,7 +751,7 @@ function CouponsAndTieredSection({
                 disabled={couponModal.mode === "edit"}
               />
             </FormField>
-            <FormField label="Type">
+            <FormField label={commonT("labels.type")}>
               <select
                 value={couponForm.discount_type}
                 onChange={(e) =>
@@ -772,15 +762,19 @@ function CouponsAndTieredSection({
                 }
                 className="input-base w-full"
               >
-                <option value="percent">Percentage</option>
-                <option value="flat">Flat amount (₹)</option>
+                <option value="percent">
+                  {settingsT("discounts.coupons.typePercent")}
+                </option>
+                <option value="flat">
+                  {settingsT("discounts.coupons.typeFlat")}
+                </option>
               </select>
             </FormField>
             <FormField
               label={
                 couponForm.discount_type === "percent"
-                  ? "Discount %"
-                  : "Discount amount (₹)"
+                  ? settingsT("discounts.coupons.discountPercent")
+                  : settingsT("discounts.coupons.discountAmount")
               }
             >
               <input
@@ -797,7 +791,7 @@ function CouponsAndTieredSection({
                 className="input-base w-full"
               />
             </FormField>
-            <FormField label="Min order (₹)">
+            <FormField label={settingsT("discounts.coupons.minOrder")}>
               <input
                 type="number"
                 min={0}
@@ -811,10 +805,10 @@ function CouponsAndTieredSection({
                   }))
                 }
                 className="input-base w-full"
-                placeholder="Optional"
+                placeholder={settingsT("placeholders.optional")}
               />
             </FormField>
-            <FormField label="Valid from (YYYY-MM-DD)">
+            <FormField label={settingsT("discounts.coupons.validFrom")}>
               <input
                 type="date"
                 value={couponForm.valid_from}
@@ -825,10 +819,10 @@ function CouponsAndTieredSection({
                   }))
                 }
                 className="input-base w-full"
-                placeholder="Optional"
+                placeholder={settingsT("placeholders.optional")}
               />
             </FormField>
-            <FormField label="Valid to (YYYY-MM-DD)">
+            <FormField label={settingsT("discounts.coupons.validTo")}>
               <input
                 type="date"
                 value={couponForm.valid_to}
@@ -839,10 +833,10 @@ function CouponsAndTieredSection({
                   }))
                 }
                 className="input-base w-full"
-                placeholder="Optional"
+                placeholder={settingsT("placeholders.optional")}
               />
             </FormField>
-            <FormField label="Usage limit">
+            <FormField label={settingsT("discounts.coupons.usageLimit")}>
               <input
                 type="number"
                 min={0}
@@ -855,7 +849,7 @@ function CouponsAndTieredSection({
                   }))
                 }
                 className="input-base w-full"
-                placeholder="Optional"
+                placeholder={settingsT("placeholders.optional")}
               />
             </FormField>
           </div>
@@ -865,7 +859,9 @@ function CouponsAndTieredSection({
       {tieredModal && (
         <FormModal
           title={
-            tieredModal.mode === "add" ? "Add tiered rule" : "Edit tiered rule"
+            tieredModal.mode === "add"
+              ? settingsT("discounts.tiered.modalAdd")
+              : settingsT("discounts.tiered.modalEdit")
           }
           open
           onClose={() => setTieredModal(null)}
@@ -890,12 +886,14 @@ function CouponsAndTieredSection({
               }
             >
               <Check size={16} className="mr-1" aria-hidden="true" />
-              {tieredModal.mode === "add" ? "Create" : "Save"}
+              {tieredModal.mode === "add"
+                ? commonT("actions.create")
+                : commonT("actions.save")}
             </Button>
           }
         >
           <div className="space-y-3">
-            <FormField label="Min order amount (₹)">
+            <FormField label={settingsT("discounts.tiered.minOrderAmount")}>
               <input
                 type="number"
                 min={0}
@@ -910,7 +908,7 @@ function CouponsAndTieredSection({
                 className="input-base w-full"
               />
             </FormField>
-            <FormField label="Discount type">
+            <FormField label={settingsT("discounts.tiered.discountType")}>
               <select
                 value={tieredForm.discount_type}
                 onChange={(e) =>
@@ -921,12 +919,16 @@ function CouponsAndTieredSection({
                 }
                 className="input-base w-full"
               >
-                <option value="percent">Percentage</option>
-                <option value="flat">Flat amount</option>
+                <option value="percent">
+                  {settingsT("discounts.tiered.typePercent")}
+                </option>
+                <option value="flat">
+                  {settingsT("discounts.tiered.typeFlat")}
+                </option>
               </select>
             </FormField>
             {tieredForm.discount_type === "percent" ? (
-              <FormField label="Discount %">
+              <FormField label={settingsT("discounts.tiered.discountPercent")}>
                 <input
                   type="number"
                   min={0}
@@ -944,7 +946,7 @@ function CouponsAndTieredSection({
                 />
               </FormField>
             ) : (
-              <FormField label="Flat amount (₹)">
+              <FormField label={settingsT("discounts.tiered.flatAmount")}>
                 <input
                   type="number"
                   min={0}
@@ -962,10 +964,10 @@ function CouponsAndTieredSection({
               </FormField>
             )}
             <FormField
-              label="Max discount amount (₹)"
+              label={settingsT("discounts.tiered.maxDiscount")}
               extra={
                 <span className="text-xs text-[var(--color-text-tertiary)]">
-                  Optional cap on total discount from this rule
+                  {settingsT("discounts.tiered.maxDiscountExtra")}
                 </span>
               }
             >
@@ -982,7 +984,7 @@ function CouponsAndTieredSection({
                   }))
                 }
                 className="input-base w-full"
-                placeholder="No cap"
+                placeholder={settingsT("discounts.tiered.maxDiscountPlaceholder")}
               />
             </FormField>
           </div>
@@ -993,9 +995,9 @@ function CouponsAndTieredSection({
         <ConfirmModal
           open
           onClose={() => setDeleteCouponId(null)}
-          title="Delete coupon"
-          message="Delete this coupon? It cannot be used after deletion."
-          confirmLabel="Delete"
+          title={settingsT("discounts.coupons.deleteTitle")}
+          message={settingsT("discounts.coupons.deleteMessage")}
+          confirmLabel={commonT("actions.delete")}
           confirmVariant="danger"
           onConfirm={() => deleteCouponMut.mutate(deleteCouponId)}
         />
@@ -1005,9 +1007,9 @@ function CouponsAndTieredSection({
         <ConfirmModal
           open
           onClose={() => setDeleteTieredId(null)}
-          title="Delete tiered rule"
-          message="Delete this rule?"
-          confirmLabel="Delete"
+          title={settingsT("discounts.tiered.deleteTitle")}
+          message={settingsT("discounts.tiered.deleteMessage")}
+          confirmLabel={commonT("actions.delete")}
           confirmVariant="danger"
           onConfirm={() => deleteTieredMut.mutate(deleteTieredId)}
         />
@@ -1016,49 +1018,12 @@ function CouponsAndTieredSection({
   );
 }
 
-const SETTINGS_SECTION_META: Record<
-  SettingsTabId,
-  { title: string; description: string }
-> = {
-  business: {
-    title: "Company & business",
-    description:
-      "Legal and contact details used on invoices and inside the app.",
-  },
-  tax: {
-    title: "GST & tax",
-    description:
-      "Default GST rate, price mode, place of supply, and invoice field options.",
-  },
-  discounts: {
-    title: "Discounts",
-    description:
-      "Toggle discount types on invoices and manage coupons and tiered rules.",
-  },
-  appearance: {
-    title: "Appearance",
-    description: "Theme, accent color, display name, and number formatting.",
-  },
-  security: {
-    title: "Security",
-    description: "PIN, master key, and locking the app on this device.",
-  },
-  activity: {
-    title: "Activity log",
-    description:
-      "Recent changes across the app. Filters apply to the list below.",
-  },
-  data: {
-    title: "Data & backups",
-    description:
-      "Export, import, or reset your database. Irreversible actions require confirmation.",
-  },
-};
-
 /* ── Main Settings Page ───────────────────────────────────── */
 export default function Settings() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { t: settingsT } = useTranslation("settings");
+  const { t: commonT } = useTranslation("common");
   const [form, setForm] = useState<Record<string, string>>({});
   const [dangerAction, setDangerAction] = useState<DangerAction>(null);
 
@@ -1076,10 +1041,7 @@ export default function Settings() {
 
   useEffect(() => {
     const initial: Record<string, string> = {};
-    for (const key of Object.keys(SETTING_KEYS)) {
-      initial[key] = settings[key] ?? "";
-    }
-    for (const key of Object.keys(GST_SETTING_KEYS)) {
+    for (const key of BUSINESS_FIELD_KEYS) {
       initial[key] = settings[key] ?? "";
     }
     initial.gst_enabled = settings.gst_enabled ?? "false";
@@ -1158,7 +1120,7 @@ export default function Settings() {
     onSuccess: () => {
       setDangerAction(null);
       queryClient.invalidateQueries();
-      toast.success("All data cleared. Tables are empty.");
+      toast.success(i18n.t("settings:toast.clearTablesSuccess"));
     },
   });
 
@@ -1167,7 +1129,7 @@ export default function Settings() {
     onSuccess: () => {
       setDangerAction(null);
       queryClient.invalidateQueries();
-      toast.success("Database reset. A fresh database has been created.");
+      toast.success(i18n.t("settings:toast.resetDbSuccess"));
     },
   });
 
@@ -1176,7 +1138,7 @@ export default function Settings() {
     onSuccess: () => {
       setDangerAction(null);
       queryClient.invalidateQueries();
-      toast.success("Sample data populated into empty tables.");
+      toast.success(i18n.t("settings:toast.sampleDataSuccess"));
     },
   });
 
@@ -1188,14 +1150,16 @@ export default function Settings() {
       case "export":
         api.exportDb().then((result) => {
           if (result.canceled) return;
-          toast.success(`Database exported to ${result.path}`);
+          toast.success(
+            i18n.t("settings:toast.exportedTo", { path: result.path })
+          );
         });
         break;
       case "import":
         api.importDb().then((result) => {
           if (result.canceled) return;
           queryClient.invalidateQueries();
-          toast.success("Database imported. Data has been replaced.");
+          toast.success(i18n.t("settings:toast.importReplaced"));
         });
         break;
       case "clearTables":
@@ -1220,7 +1184,13 @@ export default function Settings() {
   const currentUser = authState.status === "unlocked" ? authState.user : null;
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>("business");
-  const sectionMeta = SETTINGS_SECTION_META[activeTab];
+  const sectionMeta = useMemo(
+    () => ({
+      title: settingsT(`sections.${activeTab}.title`),
+      description: settingsT(`sections.${activeTab}.description`),
+    }),
+    [activeTab, settingsT]
+  );
   const companyHeroName = (
     form.company_name ??
     settings.company_name ??
@@ -1265,21 +1235,24 @@ export default function Settings() {
               {activeTab === "business" ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-4">
-                    {Object.entries(SETTING_KEYS).map(([key, label]) => (
-                      <FormField key={key} label={label}>
-                        <input
-                          value={form[key] ?? ""}
-                          onChange={(e) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          className="input-base w-full"
-                          placeholder={label}
-                        />
-                      </FormField>
-                    ))}
+                    {BUSINESS_FIELD_KEYS.map((key) => {
+                      const label = settingsT(`business.fields.${key}`);
+                      return (
+                        <FormField key={key} label={label}>
+                          <input
+                            value={form[key] ?? ""}
+                            onChange={(e) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }))
+                            }
+                            className="input-base w-full"
+                            placeholder={label}
+                          />
+                        </FormField>
+                      );
+                    })}
                   </div>
                   <div className="mt-4">
                     <Button
@@ -1287,7 +1260,7 @@ export default function Settings() {
                       disabled={setSettingsMutation.isPending}
                     >
                       <Check size={16} className="mr-1" aria-hidden="true" />
-                      Save
+                      {commonT("actions.save")}
                     </Button>
                   </div>
                 </form>
@@ -1302,16 +1275,16 @@ export default function Settings() {
                           isChecked ? "true" : "false"
                         );
                       }}
-                      aria-label="Enable GST"
+                      aria-label={settingsT("tax.enableGstAria")}
                     />
                     <span className="text-sm font-medium text-[var(--color-text-secondary)]">
-                      Enable GST
+                      {settingsT("tax.enableGst")}
                     </span>
                   </label>
                   <div
                     className={`space-y-4 ${!gstEnabled ? "opacity-60 pointer-events-none" : ""}`}
                   >
-                    <FormField label="Default GST Rate">
+                    <FormField label={settingsT("tax.defaultGstRate")}>
                       <select
                         value={form.gst_default_rate ?? "0"}
                         onChange={(e) => {
@@ -1329,7 +1302,7 @@ export default function Settings() {
                         ))}
                       </select>
                     </FormField>
-                    <FormField label="Default Price Mode">
+                    <FormField label={settingsT("tax.defaultPriceMode")}>
                       <select
                         value={form.gst_default_mode ?? "exclusive"}
                         onChange={(e) => {
@@ -1340,18 +1313,18 @@ export default function Settings() {
                         }}
                         className="input-base w-full"
                       >
-                        {GST_MODES.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
+                        {GST_MODE_VALUES.map((m) => (
+                          <option key={m} value={m}>
+                            {settingsT(`tax.gstMode.${m}`)}
                           </option>
                         ))}
                       </select>
                     </FormField>
                     <FormField
-                      label="Place of Supply"
+                      label={settingsT("tax.placeOfSupply")}
                       extra={
                         <p className="text-xs text-[var(--color-text-tertiary)]">
-                          Seller&apos;s state; shown on Tax Invoice PDF
+                          {settingsT("tax.placeOfSupplyExtra")}
                         </p>
                       }
                     >
@@ -1370,7 +1343,7 @@ export default function Settings() {
                           );
                         }}
                         className="input-base w-full"
-                        placeholder="e.g. Maharashtra"
+                        placeholder={settingsT("tax.placeOfSupplyPlaceholder")}
                       />
                     </FormField>
                     <label className="flex items-center gap-2">
@@ -1382,10 +1355,10 @@ export default function Settings() {
                             isChecked ? "true" : "false"
                           );
                         }}
-                        aria-label="Show Customer GSTIN field"
+                        aria-label={settingsT("tax.customerGstinAria")}
                       />
                       <span className="text-sm text-[var(--color-text-secondary)]">
-                        Show Customer GSTIN field (B2B mode)
+                        {settingsT("tax.customerGstin")}
                       </span>
                     </label>
                     <label className="flex items-center gap-2">
@@ -1397,10 +1370,10 @@ export default function Settings() {
                             isChecked ? "true" : "false"
                           );
                         }}
-                        aria-label="Enable HSN code"
+                        aria-label={settingsT("tax.hsnAria")}
                       />
                       <span className="text-sm text-[var(--color-text-secondary)]">
-                        Enable HSN (Harmonized System of Nomenclature) code
+                        {settingsT("tax.hsn")}
                       </span>
                     </label>
                   </div>
@@ -1409,45 +1382,43 @@ export default function Settings() {
                 <div className="space-y-8">
                   <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
                     <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-                      Discount toggles
+                      {settingsT("discounts.togglesTitle")}
                     </h3>
                     <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-                      Enable or disable each discount type. Disabled types will
-                      not appear in the invoice form.
+                      {settingsT("discounts.togglesHint")}
                     </p>
                     <div className="space-y-3">
-                      {(
-                        Object.keys(
-                          DISCOUNT_SETTING_KEYS
-                        ) as (keyof typeof DISCOUNT_SETTING_KEYS)[]
-                      ).map((key) => (
-                        <label key={key} className="flex items-center gap-2">
-                          <AppleToggle
-                            checked={form[key] === "true"}
-                            onChange={(isChecked) => {
-                              updateAndSaveDiscountField(
-                                key,
-                                isChecked ? "true" : "false"
-                              );
-                            }}
-                            aria-label={DISCOUNT_SETTING_KEYS[key]}
-                          />
-                          <span className="text-sm text-[var(--color-text-secondary)]">
-                            {DISCOUNT_SETTING_KEYS[key]}
-                          </span>
-                        </label>
-                      ))}
+                      {DISCOUNT_TOGGLE_KEYS.map((key) => {
+                        const toggleLabel = settingsT(
+                          `discounts.fields.${key}`
+                        );
+                        return (
+                          <label key={key} className="flex items-center gap-2">
+                            <AppleToggle
+                              checked={form[key] === "true"}
+                              onChange={(isChecked) => {
+                                updateAndSaveDiscountField(
+                                  key,
+                                  isChecked ? "true" : "false"
+                                );
+                              }}
+                              aria-label={toggleLabel}
+                            />
+                            <span className="text-sm text-[var(--color-text-secondary)]">
+                              {toggleLabel}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
                     <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-                      Coupons & tiered rules
+                      {settingsT("discounts.couponsSectionTitle")}
                     </h3>
                     <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-                      Manage coupon codes and tiered (volume) discount rules.
-                      Enable coupons and tiered discounts in Discount Settings
-                      above.
+                      {settingsT("discounts.couponsSectionHint")}
                     </p>
                     <CouponsAndTieredSection api={getElectron()} />
                   </div>
@@ -1471,16 +1442,16 @@ export default function Settings() {
               <div className="rounded-xl border border-[var(--color-danger)] border-opacity-30 bg-[var(--color-bg-surface)] p-6 shadow-xs">
                 <h2 className="text-base font-semibold text-[var(--color-danger-text)] flex items-center gap-2">
                   <AlertTriangle size={20} aria-hidden="true" />
-                  Danger zone
+                  {settingsT("data.dangerZone")}
                 </h2>
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1 mb-4">
-                  These actions affect your database. Use with care.
+                  {settingsT("data.dangerIntro")}
                 </p>
 
                 {dbPath && (
                   <div className="mb-4">
                     <p className="text-xs text-[var(--color-text-tertiary)] mb-0.5">
-                      Database file location
+                      {settingsT("data.dbFileLocation")}
                     </p>
                     <p className="text-sm text-[var(--color-text-secondary)] font-mono break-all">
                       {dbPath}
@@ -1493,50 +1464,50 @@ export default function Settings() {
                     type="button"
                     variant="secondary"
                     onClick={() => setDangerAction("export")}
-                    title="Save a copy of the database to a file"
+                    title={settingsT("data.exportButtonTitle")}
                   >
-                    Export database
+                    {settingsT("data.exportDb")}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => setDangerAction("import")}
-                    title="Replace current database with a backup file"
+                    title={settingsT("data.importButtonTitle")}
                   >
-                    Import database
+                    {settingsT("data.importDb")}
                   </Button>
                   <Button
                     type="button"
                     variant="danger"
                     onClick={() => setDangerAction("clearTables")}
                     disabled={clearTablesMutation.isPending}
-                    title="Delete all rows in all tables; schema is kept"
+                    title={settingsT("data.clearButtonTitle")}
                   >
                     {clearTablesMutation.isPending
-                      ? "Clearing..."
-                      : "Clear all data"}
+                      ? settingsT("data.clearing")
+                      : settingsT("data.clearAll")}
                   </Button>
                   <Button
                     type="button"
                     variant="danger"
                     onClick={() => setDangerAction("clearEntireDb")}
                     disabled={clearEntireDbMutation.isPending}
-                    title="Delete the database file and create a new empty one"
+                    title={settingsT("data.resetButtonTitle")}
                   >
                     {clearEntireDbMutation.isPending
-                      ? "Resetting..."
-                      : "Reset database"}
+                      ? settingsT("data.resetting")
+                      : settingsT("data.resetDb")}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => setDangerAction("populateSampleData")}
                     disabled={populateSampleDataMutation.isPending}
-                    title="Fill all main tables with realistic sample data (only when empty)"
+                    title={settingsT("data.sampleButtonTitle")}
                   >
                     {populateSampleDataMutation.isPending
-                      ? "Filling sample data..."
-                      : "Fill with sample data"}
+                      ? settingsT("data.fillingSample")
+                      : settingsT("data.fillSample")}
                   </Button>
                 </div>
 
@@ -1544,17 +1515,19 @@ export default function Settings() {
                   <ConfirmDangerModal
                     open
                     onClose={() => setDangerAction(null)}
-                    title={DANGER_CONFIG[dangerAction].title}
-                    message={DANGER_CONFIG[dangerAction].message}
+                    title={(settingsT as (key: string) => string)(
+                      DANGER_I18N[dangerAction].titleKey
+                    )}
+                    message={(settingsT as (key: string) => string)(
+                      DANGER_I18N[dangerAction].messageKey
+                    )}
                     onConfirm={runDangerAction}
                     isConfirming={isConfirming}
                   />
                 )}
 
                 <p className="text-xs text-[var(--color-text-tertiary)] mt-4">
-                  Clear all data: empties every table but keeps the structure.
-                  Reset database: removes the database file and creates a new
-                  empty database.
+                  {settingsT("data.footerNote")}
                 </p>
               </div>
             </AsyncDataPanel>
@@ -1591,6 +1564,8 @@ function SecurityTab({
   onLock: () => void;
   isSuperAdmin: boolean;
 }) {
+  const { t: settingsT } = useTranslation("settings");
+  const { t: commonT } = useTranslation("common");
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -1609,8 +1584,9 @@ function SecurityTab({
     setPinError("");
     setPinSuccess(false);
     if (!/^\d{4}$/.test(newPin))
-      return setPinError("PIN must be exactly 4 digits.");
-    if (newPin !== confirmPin) return setPinError("PINs do not match.");
+      return setPinError(commonT("validation.invalidPin"));
+    if (newPin !== confirmPin)
+      return setPinError(commonT("validation.pinMismatch"));
     setPinPending(true);
     try {
       await window.electron.auth.changePin({
@@ -1623,7 +1599,9 @@ function SecurityTab({
       setNewPin("");
       setConfirmPin("");
     } catch (err: unknown) {
-      setPinError(err instanceof Error ? err.message : "Failed to change PIN.");
+      setPinError(
+        err instanceof Error ? err.message : settingsT("security.pinChangeFailed")
+      );
     } finally {
       setPinPending(false);
     }
@@ -1633,9 +1611,10 @@ function SecurityTab({
     e.preventDefault();
     setKeyError("");
     setKeySuccess(false);
-    if (!customerKey.trim()) return setKeyError("Key cannot be empty.");
+    if (!customerKey.trim())
+      return setKeyError(settingsT("security.keyEmpty"));
     if (customerKey !== confirmCustomerKey)
-      return setKeyError("Keys do not match.");
+      return setKeyError(settingsT("security.keysMismatch"));
     setKeyPending(true);
     try {
       await window.electron.auth.setCustomerMasterKey({
@@ -1649,13 +1628,15 @@ function SecurityTab({
         replaceExisting: true,
       });
       window.alert(
-        `Recovery key saved to:\n${saveRes.path}\n\nKeep this file somewhere safe. You will need this key to recover owner access.`
+        settingsT("security.recoverySavedAlert", { path: saveRes.path })
       );
       setKeySuccess(true);
       setCustomerKey("");
       setConfirmCustomerKey("");
     } catch (err: unknown) {
-      setKeyError(err instanceof Error ? err.message : "Failed to set key.");
+      setKeyError(
+        err instanceof Error ? err.message : settingsT("security.keySetFailed")
+      );
     } finally {
       setKeyPending(false);
     }
@@ -1668,11 +1649,11 @@ function SecurityTab({
         <div className="flex items-center gap-2 mb-4">
           <Lock size={18} className="text-[var(--color-accent)]" />
           <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
-            Change PIN
+            {settingsT("security.changePin")}
           </h2>
         </div>
         <form onSubmit={handleChangePin} className="space-y-4 max-w-sm">
-          <FormField label="Current PIN">
+          <FormField label={settingsT("security.currentPin")}>
             <input
               type="password"
               inputMode="numeric"
@@ -1685,7 +1666,7 @@ function SecurityTab({
               className="input-base w-full tracking-[0.5em]"
             />
           </FormField>
-          <FormField label="New PIN">
+          <FormField label={settingsT("security.newPin")}>
             <input
               type="password"
               inputMode="numeric"
@@ -1698,7 +1679,7 @@ function SecurityTab({
               className="input-base w-full tracking-[0.5em]"
             />
           </FormField>
-          <FormField label="Confirm New PIN">
+          <FormField label={settingsT("security.confirmNewPin")}>
             <input
               type="password"
               inputMode="numeric"
@@ -1716,11 +1697,11 @@ function SecurityTab({
           )}
           {pinSuccess && (
             <p className="text-sm text-[var(--color-success)] flex items-center gap-1">
-              <ShieldCheck size={14} /> PIN updated.
+              <ShieldCheck size={14} /> {settingsT("security.pinUpdated")}
             </p>
           )}
           <Button type="submit" disabled={pinPending}>
-            <Check size={16} className="mr-1" /> Update PIN
+            <Check size={16} className="mr-1" /> {settingsT("security.updatePin")}
           </Button>
         </form>
       </section>
@@ -1731,30 +1712,28 @@ function SecurityTab({
           <div className="flex items-center gap-2 mb-1">
             <KeyRound size={18} className="text-[var(--color-warning)]" />
             <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
-              Owner Recovery Key
+              {settingsT("security.ownerRecoveryKey")}
             </h2>
           </div>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Set a recovery key for yourself as the owner. Use it to reset your
-            PIN if you forget it. Changing this invalidates any previous
-            recovery key.
+            {settingsT("security.ownerRecoveryHint")}
           </p>
           <form onSubmit={handleSetCustomerKey} className="space-y-4 max-w-sm">
-            <FormField label="New Recovery Key">
+            <FormField label={settingsT("security.newRecoveryKey")}>
               <input
                 type="password"
                 value={customerKey}
                 onChange={(e) => setCustomerKey(e.target.value)}
-                placeholder="Enter recovery key"
+                placeholder={settingsT("security.recoveryKeyPlaceholder")}
                 className="input-base w-full"
               />
             </FormField>
-            <FormField label="Confirm Recovery Key">
+            <FormField label={settingsT("security.confirmRecoveryKey")}>
               <input
                 type="password"
                 value={confirmCustomerKey}
                 onChange={(e) => setConfirmCustomerKey(e.target.value)}
-                placeholder="Re-enter recovery key"
+                placeholder={settingsT("security.recoveryKeyConfirmPlaceholder")}
                 className="input-base w-full"
               />
             </FormField>
@@ -1763,11 +1742,12 @@ function SecurityTab({
             )}
             {keySuccess && (
               <p className="text-sm text-[var(--color-success)] flex items-center gap-1">
-                <ShieldCheck size={14} /> Key saved.
+                <ShieldCheck size={14} /> {settingsT("security.keySaved")}
               </p>
             )}
             <Button type="submit" disabled={keyPending} variant="secondary">
-              <KeyRound size={16} className="mr-1" /> Save Key
+              <KeyRound size={16} className="mr-1" />{" "}
+              {settingsT("security.saveKey")}
             </Button>
           </form>
         </section>
@@ -1776,13 +1756,13 @@ function SecurityTab({
       {/* Lock session */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          Session
+          {settingsT("security.session")}
         </h2>
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-          Lock the app immediately. PIN required to re-enter.
+          {settingsT("security.sessionHint")}
         </p>
         <Button variant="secondary" onClick={onLock}>
-          <Lock size={16} className="mr-1" /> Lock App Now
+          <Lock size={16} className="mr-1" /> {settingsT("security.lockAppNow")}
         </Button>
       </section>
     </div>

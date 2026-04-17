@@ -222,7 +222,7 @@ export default function Onboarding() {
                   onChange={(e) =>
                     setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
                   }
-                  placeholder="••••"
+                  placeholder={t("onboarding.pinPlaceholder")}
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
                 />
@@ -249,7 +249,7 @@ export default function Onboarding() {
                   onChange={(e) =>
                     setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
                   }
-                  placeholder="••••"
+                  placeholder={t("onboarding.pinPlaceholder")}
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
                 />

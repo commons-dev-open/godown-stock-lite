@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import Tooltip from "../Tooltip";
 import TransactionTypeBadge, {
   type TransactionType,
@@ -34,11 +35,12 @@ export function MahajanLedgerTable({
   pagination,
   scrollMaxHeight,
 }: Readonly<MahajanLedgerTableProps>) {
+  const { t } = useTranslation("mahajans");
   const columns = useMemo(
     () => [
       {
         key: "transaction_date",
-        label: "Date",
+        label: t("ledger.columns.date"),
         render: (row: LenderLedgerPageRow) => (
           <Tooltip content={formatDateForForm(row.transaction_date)}>
             <span>{formatDateForView(row.transaction_date)}</span>
@@ -47,7 +49,7 @@ export function MahajanLedgerTable({
       },
       {
         key: "type",
-        label: "Type",
+        label: t("ledger.columns.type"),
         render: (row: LenderLedgerPageRow) => (
           <TransactionTypeBadge
             type={row.type as TransactionType | "lend" | "deposit"}
@@ -56,7 +58,7 @@ export function MahajanLedgerTable({
       },
       {
         key: "description",
-        label: "Description",
+        label: t("ledger.columns.description"),
         render: (row: LenderLedgerPageRow) => {
           const description = ledgerDescriptionFromPageRow(row);
           return (
@@ -74,7 +76,7 @@ export function MahajanLedgerTable({
                     (invNum || invPath) && (
                       <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--color-text-tertiary)]">
                         {invNum && (
-                          <span title="Lender invoice">#{invNum}</span>
+                          <span title={t("ledger.lenderInvoice")}>#{invNum}</span>
                         )}
                         {invPath && (
                           <button
@@ -82,7 +84,7 @@ export function MahajanLedgerTable({
                             onClick={() => onOpenInvoice(invPath)}
                             className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
                           >
-                            View invoice
+                            {t("ledger.viewInvoice")}
                           </button>
                         )}
                       </span>
@@ -119,7 +121,7 @@ export function MahajanLedgerTable({
       },
       {
         key: "amount",
-        label: "Amount",
+        label: t("ledger.columns.amount"),
         align: "right" as const,
         render: (row: LenderLedgerPageRow) => {
           const amountColorClass =
@@ -134,7 +136,7 @@ export function MahajanLedgerTable({
         },
       },
     ],
-    [onOpenInvoice]
+    [onOpenInvoice, t]
   );
 
   return (
@@ -153,8 +155,8 @@ export function MahajanLedgerTable({
             type="button"
             onClick={() => onEditRow(row)}
             className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-            title="Edit"
-            aria-label="Edit"
+            title={t("common.edit")}
+            aria-label={t("common.edit")}
           >
             <Pencil size={20} />
           </button>
@@ -162,8 +164,8 @@ export function MahajanLedgerTable({
             type="button"
             onClick={() => onDeleteRow(row)}
             className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-            title="Delete"
-            aria-label="Delete"
+            title={t("common.delete")}
+            aria-label={t("common.delete")}
           >
             <Trash2 size={20} />
           </button>

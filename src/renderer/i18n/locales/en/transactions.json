@@ -3,6 +3,20 @@
     "title": "Transactions",
     "subtitle": "Your money in and out"
   },
+  "actions": {
+    "export": "Export",
+    "export_csv": "Export as CSV",
+    "export_pdf": "Export as PDF",
+    "print": "Print",
+    "cash_purchase": "Cash Purchase",
+    "credit_purchase": "Credit Purchase",
+    "add_credit_purchase": "Add Credit Purchase",
+    "add_settlement": "Add Settlement",
+    "view_invoice": "View invoice",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close"
+  },
   "search": {
     "placeholder": "Search transactions…"
   },
@@ -10,15 +24,247 @@
     "date": "Date",
     "mahajan": "Lender",
     "type": "Type",
+    "product": "Product",
+    "qty": "Qty",
+    "unit": "Unit",
     "amount": "Amount",
-    "notes": "Notes"
+    "amount_inr": "Amount (₹)",
+    "notes": "Notes",
+    "payment": "Payment"
+  },
+  "preview": {
+    "old_stock": "Old stock",
+    "total_after": "Total after"
   },
   "types": {
     "lend": "Lend",
-    "deposit": "Deposit"
+    "deposit": "Deposit",
+    "credit_purchase": "Credit Purchase",
+    "settlement": "Settlement",
+    "cash_purchase": "Cash Purchase"
+  },
+  "ledger": {
+    "section_title": "Transaction ledger",
+    "title": "Ledger",
+    "description": "Credit purchases, settlements, and cash purchases appear here with the latest first within your filters."
+  },
+  "filters": {
+    "lender": "Lender",
+    "type": "Type",
+    "date_from": "Date From",
+    "date_to": "Date To",
+    "type_all": "All (Credit Purchase + Settlement + Cash purchase)",
+    "credit_purchase_only": "Credit Purchase only",
+    "settlement_only": "Settlement only",
+    "cash_purchase_only": "Cash purchase only",
+    "all_lenders": "All Lenders",
+    "more_filters": "More filters",
+    "from_date": "From date",
+    "to_date": "To date",
+    "clear": "Clear filters",
+    "applied": "Applied filters"
+  },
+  "modals": {
+    "shared": {
+      "actions": {
+        "save": "Save",
+        "saving": "Saving...",
+        "confirm": "Confirm",
+        "back": "Back",
+        "review_confirm": "Review & confirm",
+        "review_update": "Review & Update",
+        "confirm_update": "Confirm Update",
+        "confirm_delete": "Confirm Delete",
+        "updating": "Updating…",
+        "deleting": "Deleting…",
+        "add_item": "Add item",
+        "remove_line": "Remove line"
+      },
+      "fields": {
+        "lender_required": "Lender *",
+        "date_required": "Date * (dd/mm/yyyy)",
+        "amount_required": "Amount *",
+        "quantity": "Quantity",
+        "quantity_required": "Quantity *",
+        "payment_method": "Payment Method",
+        "reference": "Reference",
+        "notes": "Notes"
+      },
+      "sections": {
+        "payment_details_optional": "Payment details (optional)"
+      },
+      "placeholders": {
+        "select": "Select",
+        "select_product": "Select product",
+        "none": "None",
+        "zero": "0",
+        "optional_notes": "Optional notes for this transaction"
+      },
+      "payment_methods": {
+        "cash": {
+          "label": "Cash",
+          "reference_label": "Receipt No. / Voucher No."
+        },
+        "bank": {
+          "label": "Bank (NEFT/RTGS/IMPS)",
+          "reference_label": "UTR No.",
+          "placeholder": "e.g. 123456789012"
+        },
+        "upi": {
+          "label": "UPI",
+          "reference_label": "UPI Reference ID"
+        },
+        "cheque": {
+          "label": "Cheque",
+          "reference_label": "Cheque No."
+        }
+      },
+      "messages": {
+        "summary_of_changes": "Summary of changes",
+        "impact_after_update": "Impact after update",
+        "impact_after_delete": "Impact after delete",
+        "loading_balance": "Loading balance…",
+        "current_stock": "Current stock {{stock}}",
+        "after_update": "after update",
+        "after_delete": "after delete",
+        "lender_balance": "Lender balance:",
+        "total_credit_purchase": "Total Credit Purchase",
+        "total_settlements": "Total Settlements",
+        "total_deposits": "Total Deposits",
+        "total": "Total",
+        "will_change_by": "will change by",
+        "will_decrease_by": "will decrease by",
+        "balance_will_be": "Balance will be"
+      },
+      "labels": {
+        "stock": "Stock:",
+        "lender_balance": "Lender balance:"
+      },
+      "balance": {
+        "payable": "payable",
+        "receivable": "receivable"
+      }
+    },
+    "add_settlement": {
+      "title": "Add Settlement",
+      "sections": {
+        "allocate_to_credit": "Allocate to Credit Purchase(s)"
+      },
+      "messages": {
+        "select_lender_first": "Select a lender first to see credit purchases.",
+        "no_credit_purchases": "No credit purchases to allocate. Add credit purchases first.",
+        "link_for_tracking": "Link this settlement to specific credit purchases for better tracking.",
+        "total_allocated": "Total allocated",
+        "differs_from_amount": "(differs from settlement amount)"
+      },
+      "toasts": {
+        "saved": "Settlement saved",
+        "save_failed": "Failed to save settlement"
+      }
+    },
+    "add_credit_purchase": {
+      "title": "Add Credit Purchase",
+      "sections": {
+        "invoice_details_optional": "Invoice details (optional)",
+        "pay_now_optional": "Pay now (optional)"
+      },
+      "fields": {
+        "lender_invoice_number": "Lender's Invoice Number",
+        "upload_invoice": "Upload Invoice",
+        "amount_to_pay_now": "Amount to pay now"
+      },
+      "placeholders": {
+        "invoice_number": "e.g. INV-2024-001",
+        "choose_file": "Choose file (PDF, images)"
+      },
+      "actions": {
+        "remove_file": "Remove file"
+      },
+      "messages": {
+        "max_file_size": "Max 10 MB. Stored in app data.",
+        "pay_now_help": "Pay part of this credit purchase immediately. Remaining amount stays as liability."
+      },
+      "gst": {
+        "exclusive": "Exclusive",
+        "inclusive": "Inclusive"
+      },
+      "defaults": {
+        "pay_now_note": "Paid at credit purchase (partial)"
+      },
+      "toasts": {
+        "saved": "Credit purchase saved",
+        "saved_with_partial": "Credit purchase and partial payment saved",
+        "save_failed": "Failed to save credit purchase",
+        "add_one_item": "Add at least one product with quantity and amount.",
+        "pay_now_exceeds_total": "Pay now amount cannot exceed total credit purchase amount."
+      },
+      "confirm": {
+        "title": "Confirm Credit Purchase",
+        "receive_from": "Receive credit purchase from {{lender}} on",
+        "total_amount": "Total credit purchase amount (this transaction)",
+        "paying_now": "Paying ₹{{amount}} now",
+        "via_method": "via {{method}}",
+        "balance_after": "After this credit purchase:"
+      }
+    },
+    "edit_credit_purchase": {
+      "title": "Edit Credit Purchase",
+      "review_title": "Review & Update Lend",
+      "messages": {
+        "product_changed": "Product changed; stock impact applies to new product.",
+        "after_update_prefix": "After this update:"
+      }
+    },
+    "edit_settlement": {
+      "title": "Edit Settlement",
+      "review_title": "Review & Update Deposit",
+      "messages": {
+        "after_update_prefix": "After this update:"
+      }
+    },
+    "cash_purchase": {
+      "title": "Cash Purchase",
+      "confirm_title": "Confirm Cash Purchase",
+      "messages": {
+        "on_date": "Cash purchase on",
+        "total_amount": "Total amount"
+      },
+      "toasts": {
+        "add_one_item": "Add at least one product with Qty and amount (integer)."
+      }
+    },
+    "edit_cash_purchase": {
+      "title": "Edit Cash purchase",
+      "review_title": "Review & Update Cash purchase"
+    },
+    "delete_transaction": {
+      "title": "Review & Delete",
+      "messages": {
+        "summary": "You are about to delete this transaction. Summary:",
+        "after_delete_prefix": "After this delete:"
+      }
+    }
+  },
+  "toasts": {
+    "credit_purchase_updated": "Credit purchase updated",
+    "credit_purchase_update_failed": "Failed to update credit purchase",
+    "settlement_updated": "Settlement updated",
+    "settlement_update_failed": "Failed to update settlement",
+    "credit_purchase_deleted": "Credit purchase deleted",
+    "credit_purchase_delete_failed": "Failed to delete credit purchase",
+    "settlement_deleted": "Settlement deleted",
+    "settlement_delete_failed": "Failed to delete settlement",
+    "cash_purchases_saved": "Cash purchases saved",
+    "cash_purchases_save_failed": "Failed to save cash purchases",
+    "no_data_to_export": "No data to export.",
+    "exported_csv": "Exported as CSV.",
+    "exported_pdf": "Exported as PDF.",
+    "export_pdf_failed": "Could not save PDF."
   },
   "empty": {
     "title": "No transactions yet",
-    "message": "Your lend and deposit entries will appear here."
+    "message": "Record cash purchases, credit purchases from lenders, or settlement payments. Use the buttons in the header to add an entry.",
+    "no_matching_title": "No matching transactions",
+    "no_matching_message": "Try clearing filters or widening the date range."
   }
 }

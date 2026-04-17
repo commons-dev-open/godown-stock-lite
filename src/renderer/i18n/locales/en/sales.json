@@ -24,5 +24,98 @@
     "title": "No sales today yet",
     "message": "Record your first sale to get started.",
     "cta": "Record Sale"
+  },
+  "dailyRegister": {
+    "title": "Daily Sales",
+    "metrics": {
+      "matchingDays": "Matching days",
+      "onThisPage": "On this page",
+      "pageTotalSale": "Page total sale"
+    },
+    "export": {
+      "button": "Export",
+      "asCsv": "Export as CSV",
+      "asPdf": "Export as PDF",
+      "print": "Print"
+    },
+    "toasts": {
+      "noData": "No data to export.",
+      "exportedCsv": "Exported as CSV.",
+      "exportedPdf": "Exported as PDF.",
+      "exportPdfFailed": "Could not save PDF.",
+      "exportTooManyRows": "Too many rows for print/PDF (max {{max}} days). Narrow the date range or use CSV export."
+    },
+    "filters": {
+      "from": "From",
+      "to": "To",
+      "fromDate": "From Date",
+      "toDate": "To Date",
+      "clear": "Clear filters"
+    },
+    "section": {
+      "listTitle": "Daily sales list"
+    },
+    "panel": {
+      "title": "Daily totals",
+      "description": "Each row is one calendar day: invoice totals, misc sales, cash in hand, and expenditure."
+    },
+    "emptyState": {
+      "noSalesInRange": {
+        "title": "No sales in this range",
+        "description": "Try clearing the date filters or picking a wider range."
+      },
+      "noSalesYet": {
+        "title": "No daily sales yet",
+        "description": "Add a sale for today or import history so this register stays in sync with your till and invoices."
+      },
+      "clearDateFilters": "Clear date filters",
+      "addSale": "Add sale"
+    },
+    "table": {
+      "date": "Date",
+      "totalSale": "Total Sale",
+      "invoiceSales": "Invoice Sales",
+      "miscCashSales": "Misc / Cash Sales",
+      "cashInHand": "Cash in Hand",
+      "expenditure": "Expenditure",
+      "notes": "Notes",
+      "viewInvoicesTitle": "View invoices for this date",
+      "viewInvoicesAria": "View invoices for this date",
+      "emptyInline": "No sales yet. Click Add Sale or adjust filters."
+    },
+    "errors": {
+      "listTitle": "Something went wrong",
+      "listDescription": "This list could not be loaded. Check your connection and try again."
+    },
+    "deleteModal": {
+      "title": "Delete sale",
+      "message": "Delete this sale?"
+    },
+    "addModal": {
+      "title": "Add Sale"
+    },
+    "editModal": {
+      "title": "Edit Sale"
+    },
+    "form": {
+      "dateLabel": "Date * (dd/mm/yyyy)",
+      "invoiceSalesHint": "Invoice Sales for this date: {{amount}} (from invoices)",
+      "miscCashLabel": "Misc / Cash Sales (without invoice)",
+      "miscCashLabelEdit": "Misc / Cash Sales (without invoice) *",
+      "miscCashInputTitle": "Sales not tied to an invoice (e.g. cash, small items)",
+      "cashInHandLabel": "Cash in Hand *",
+      "cashInHandHint": "Amount physically in your till at end of day",
+      "expenditureOptional": "Expenditure (if any)",
+      "expenditure": "Expenditure",
+      "notes": "Notes",
+      "invoiceSalesReadonly": "Invoice Sales (read-only)"
+    },
+    "actions": {
+      "addSale": "Add Sale"
+    },
+    "print": {
+      "appliedFilters": "Applied filters",
+      "browserTitle": "Daily_Sales_{{date}}"
+    }
   }
 }

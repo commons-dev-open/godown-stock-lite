@@ -4,10 +4,13 @@ export interface AppliedFilter {
 }
 
 /** Builds CSV prefix rows for "Applied filters" section (excludes empty values). */
-export function csvPrefixRowsForFilters(filters: AppliedFilter[]): string[][] {
+export function csvPrefixRowsForFilters(
+  filters: AppliedFilter[],
+  sectionTitle = "Applied filters"
+): string[][] {
   const nonEmpty = filters.filter((f) => f.value !== "" && f.value != null);
   if (nonEmpty.length === 0) return [];
-  const rows: string[][] = [["Applied filters"]];
+  const rows: string[][] = [[sectionTitle]];
   nonEmpty.forEach((f) => rows.push([f.label, f.value]));
   rows.push([]);
   return rows;
@@ -70,20 +73,6 @@ export function downloadCsv(
   lines.push(headerRow, ...dataRows);
   const csv = lines.join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/** Trigger PDF download via blob URL. Use instead of jsPDF save() for Electron compatibility. */
-export function downloadPdf(
-  doc: { output: (type: "blob") => Blob },
-  filename: string
-): void {
-  const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

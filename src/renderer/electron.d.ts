@@ -496,6 +496,11 @@ export interface ElectronAPI {
   importDb: () => Promise<{ canceled: true } | { canceled: false }>;
 
   openExternal: (url: string) => Promise<void>;
+  printCurrentToPdf: (opts?: {
+    defaultPath?: string;
+    landscape?: boolean;
+    pageSize?: unknown;
+  }) => Promise<{ saved: false } | { saved: true; path: string }>;
 
   auth: {
     setupSuperAdmin: (payload: { companyName: string; ownerName: string; displayName: string; pin: string; customerMasterKey?: string }) => Promise<{ id: number }>;

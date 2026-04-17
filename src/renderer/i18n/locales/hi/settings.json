@@ -1,38 +1,184 @@
 {
   "hero": {
     "title": "सेटिंग्स",
-    "subtitle": "प्रेफरेंस, डेटा और आपका बिज़नेस प्रोफाइल"
+    "subtitle": "प्रेफरेंस, डेटा और आपका बिज़नेस प्रोफाइल",
+    "company": "कंपनी",
+    "gst": "GST",
+    "gstOn": "चालू",
+    "gstOff": "बंद"
   },
   "tabs": {
-    "general": "सामान्य",
     "business": "व्यवसाय",
-    "preferences": "प्रेफरेंस",
-    "data": "डेटा",
+    "tax": "कर और GST",
+    "discounts": "छूट",
+    "appearance": "दिखावट",
     "security": "सुरक्षा",
     "activity": "गतिविधि",
-    "danger": "डेंजर ज़ोन"
+    "data": "डेटा"
+  },
+  "sections": {
+    "business": {
+      "title": "कंपनी और व्यवसाय",
+      "description": "कानूनी और संपर्क विवरण जो बिल और ऐप में दिखते हैं।"
+    },
+    "tax": {
+      "title": "GST और कर",
+      "description": "डिफ़ॉल्ट GST दर, मूल्य मोड, आपूर्ति स्थान और बिल फ़ील्ड विकल्प।"
+    },
+    "discounts": {
+      "title": "छूट",
+      "description": "बिल पर छूट के प्रकार चालू/बंद करें और कूपन व स्तरित नियम प्रबंधित करें।"
+    },
+    "appearance": {
+      "title": "दिखावट",
+      "description": "थीम, एक्सेंट रंग, प्रदर्शन नाम और संख्या फ़ॉर्मेटिंग।"
+    },
+    "security": {
+      "title": "सुरक्षा",
+      "description": "PIN, मास्टर की और इस डिवाइस पर ऐप लॉक करना।"
+    },
+    "activity": {
+      "title": "गतिविधि लॉग",
+      "description": "ऐप में हाल के बदलाव। नीचे सूची पर फ़िल्टर लागू होते हैं।"
+    },
+    "data": {
+      "title": "डेटा और बैकअप",
+      "description": "डेटाबेस निर्यात, आयात या रीसेट। पलट न सकने वाले कदमों की पुष्टि ज़रूरी है।"
+    }
+  },
+  "placeholders": {
+    "optional": "वैकल्पिक"
   },
   "preferences": {
     "language": "भाषा",
     "languageHint": "ऐप में इस्तेमाल होने वाली भाषा चुनें।",
     "theme": "थीम",
+    "themeHint": "लाइट, डार्क चुनें या सिस्टम सेटिंग का पालन करें।",
+    "themeModes": {
+      "light": "लाइट",
+      "dark": "डार्क",
+      "system": "सिस्टम"
+    },
     "brandColor": "ब्रांड रंग",
-    "numberAbbreviation": "नंबर शॉर्ट फॉर्म",
-    "numberAbbreviationHint": "समरी कार्ड में बड़े नंबर कैसे छोटे दिखें, यह चुनें।",
+    "brandColorHint": "पूरे ऐप में इस्तेमाल होने वाला एक्सेंट रंग चुनें।",
+    "brandColors": {
+      "blue": "नीला",
+      "indigo": "इंडिगो",
+      "violet": "बैंगनी",
+      "emerald": "पन्ना",
+      "rose": "गुलाबी",
+      "amber": "अंबर"
+    },
+    "appDisplayName": "ऐप प्रदर्शन नाम",
+    "appDisplayNameHint": "साइडबार हेडर, PDF और प्रिंट में दिखता है। अधिकतम {{max}} अक्षर। खाली छोड़ने पर डिफ़ॉल्ट।",
+    "numberAbbreviation": "नंबर संक्षिप्त रूप",
+    "numberAbbreviationHint": "डैशबोर्ड हीरो (होम, उत्पाद, इकाइयाँ, महाजन) पर बड़ी संख्याएँ कैसे छोटी दिखें। सीमा से नीचे की राशि पूरी लिखी रहती है।",
+    "numberAbbreviationStyle": "शैली",
     "abbreviation": {
-      "indian": "Indian (लाख, करोड़)",
-      "us": "अमेरिकी (M, B)",
+      "indian": "भारतीय (लाख, करोड़)",
+      "us": "US (M, B)",
       "si": "SI (K, M, B)"
+    },
+    "abbreviationHints": {
+      "indian": "1 लाख से कम पूरी राशि; फिर लाख और करोड़।",
+      "us": "1 मिलियन से कम पूरी राशि; फिर M और B।",
+      "si": "हजारों के लिए K, फिर M और B (1000 की घात)।"
     }
   },
   "business": {
     "companyName": "कंपनी का नाम",
-    "ownerName": "ओनर का नाम",
+    "ownerName": "मालिक का नाम",
     "gstin": "GSTIN",
     "gstEnabled": "GST चालू",
     "address": "पता",
     "phone": "फ़ोन",
-    "email": "ईमेल"
+    "email": "ईमेल",
+    "fields": {
+      "company_name": "कंपनी का नाम",
+      "company_address": "पता",
+      "gstin": "GSTIN",
+      "owner_name": "मालिक का नाम",
+      "owner_phone": "फ़ोन"
+    }
+  },
+  "tax": {
+    "enableGst": "GST चालू करें",
+    "enableGstAria": "GST चालू करें",
+    "defaultGstRate": "डिफ़ॉल्ट GST दर",
+    "defaultPriceMode": "डिफ़ॉल्ट मूल्य मोड",
+    "placeOfSupply": "आपूर्ति का स्थान",
+    "placeOfSupplyExtra": "विक्रेता का राज्य; टैक्स इनवॉयस PDF पर दिखता है",
+    "placeOfSupplyPlaceholder": "उदा. महाराष्ट्र",
+    "customerGstin": "ग्राहक GSTIN फ़ील्ड दिखाएँ (B2B मोड)",
+    "customerGstinAria": "ग्राहक GSTIN फ़ील्ड दिखाएँ",
+    "hsn": "HSN (हार्मोनाइज्ड सिस्टम ऑफ नोमेनक्लेचर) कोड चालू करें",
+    "hsnAria": "HSN कोड चालू करें",
+    "gstMode": {
+      "exclusive": "अलग (Exclusive)",
+      "inclusive": "शामिल (Inclusive)"
+    }
+  },
+  "discounts": {
+    "togglesTitle": "छूट स्विच",
+    "togglesHint": "प्रत्येक छूट प्रकार चालू या बंद करें। बंद प्रकार बिल फ़ॉर्म में नहीं दिखेंगे।",
+    "couponsSectionTitle": "कूपन और स्तरित नियम",
+    "couponsSectionHint": "कूपन कोड और स्तरित (मात्रा) छूट नियम प्रबंधित करें। ऊपर छूट सेटिंग में कूपन और स्तरित छूट चालू करें।",
+    "fields": {
+      "discount_percentage_enabled": "प्रतिशत छूट चालू करें",
+      "discount_flat_enabled": "फ़्लैट राशि छूट चालू करें",
+      "discount_bogo_enabled": "BOGO छूट चालू करें",
+      "discount_coupon_enabled": "कूपन चालू करें",
+      "discount_tiered_enabled": "स्तरित/मात्रा छूट चालू करें",
+      "round_bill_to_whole": "अंतिम बिल को निकटतम पूर्ण संख्या पर राउंड करें"
+    },
+    "coupons": {
+      "title": "कूपन",
+      "add": "कूपन जोड़ें",
+      "empty": "अभी कोई कूपन नहीं।",
+      "modalAdd": "कूपन जोड़ें",
+      "modalEdit": "कूपन संपादित करें",
+      "deleteTitle": "कूपन हटाएँ",
+      "deleteMessage": "यह कूपन हटाएँ? हटाने के बाद इसका उपयोग नहीं हो सकेगा।",
+      "columns": {
+        "code": "कोड",
+        "type": "प्रकार",
+        "value": "मान",
+        "minOrder": "न्यूनतम ऑर्डर",
+        "used": "उपयोग"
+      },
+      "typePercent": "प्रतिशत",
+      "typeFlat": "फ़्लैट राशि (₹)",
+      "discountPercent": "छूट %",
+      "discountAmount": "छूट राशि (₹)",
+      "minOrder": "न्यूनतम ऑर्डर (₹)",
+      "validFrom": "मान्य से (YYYY-MM-DD)",
+      "validTo": "मान्य तक (YYYY-MM-DD)",
+      "usageLimit": "उपयोग सीमा",
+      "tieredHint": "प्रति नियम % या फ़्लैट राशि। अधिकतम राशि से छूट सीमित करें। सबसे ऊँचा लागू स्तर लागू होता है।"
+    },
+    "tiered": {
+      "title": "स्तरित नियम",
+      "add": "नियम जोड़ें",
+      "empty": "अभी कोई स्तरित नियम नहीं।",
+      "modalAdd": "स्तरित नियम जोड़ें",
+      "modalEdit": "स्तरित नियम संपादित करें",
+      "deleteTitle": "स्तरित नियम हटाएँ",
+      "deleteMessage": "यह नियम हटाएँ?",
+      "columns": {
+        "minOrder": "न्यूनतम ऑर्डर (₹)",
+        "discount": "छूट",
+        "max": "अधिकतम (₹)"
+      },
+      "minOrderAmount": "न्यूनतम ऑर्डर राशि (₹)",
+      "discountType": "छूट प्रकार",
+      "discountPercent": "छूट %",
+      "flatAmount": "फ़्लैट राशि (₹)",
+      "maxDiscount": "अधिकतम छूट राशि (₹)",
+      "maxDiscountExtra": "इस नियम से कुल छूट की वैकल्पिक सीमा",
+      "maxDiscountPlaceholder": "कोई सीमा नहीं",
+      "typePercent": "प्रतिशत",
+      "typeFlat": "फ़्लैट राशि"
+    }
   },
   "data": {
     "exportDb": "डेटाबेस एक्सपोर्ट",
@@ -42,20 +188,98 @@
     "clearAll": "सारा डेटा साफ करें",
     "clearAllHint": "सारे रिकॉर्ड हटेंगे, लेकिन सेटिंग्स बनी रहेंगी।",
     "resetDb": "डेटाबेस रीसेट करें",
-    "resetDbHint": "सब कुछ हटाकर फिर से शुरू करें।"
+    "resetDbHint": "सब कुछ हटाकर फिर से शुरू करें।",
+    "dangerZone": "खतरनाक क्षेत्र",
+    "dangerIntro": "ये क्रियाएँ आपके डेटाबेस को प्रभावित करती हैं। सावधानी से करें।",
+    "dbFileLocation": "डेटाबेस फ़ाइल स्थान",
+    "exportTitle": "डेटाबेस एक्सपोर्ट",
+    "exportMessage": "आप अपने डेटाबेस की पूरी प्रतिलिपि एक फ़ाइल में सहेजेंगे। इस बैकअप को सुरक्षित रखें (बाहरी डिस्क या क्लाउड) ताकि ज़रूरत पड़ने पर डेटा वापस ला सकें। मौजूदा डेटा नहीं बदलेगा; यह केवल स्नैपशॉट बनाता है।",
+    "importTitle": "डेटाबेस इंपोर्ट",
+    "importMessage": "चुनी गई फ़ाइल से ऐप का सारा डेटा बदल दिया जाएगा। बैकअप से रिस्टोर या दूसरी मशीन से लाने के लिए। मौजूदा डेटाबेस ओवरराइट होगा और वापस नहीं आएगा। पहले एक्सपोर्ट कर लें अगर ज़रूरत हो सकती है।",
+    "clearTablesTitle": "सारा डेटा साफ करें",
+    "clearTablesMessage": "सभी टेबल खाली हो जाएंगी: आइटम, महाजन, लेन-देन, बिल, डेली सेल और सेटिंग्स। संरचना बनी रहेगी। यह पलटा नहीं जा सकता।",
+    "clearEntireDbTitle": "डेटाबेस रीसेट",
+    "clearEntireDbMessage": "डेटाबेस फ़ाइल हटाकर नया खाली डेटाबेस बनेगा। सब कुछ हमेशा के लिए जाएगा। पहले बैकअप एक्सपोर्ट करें। यह पलटा नहीं जा सकता।",
+    "populateSampleTitle": "नमूना डेटा भरें",
+    "populateSampleMessage": "खाली डेटाबेस में नमूना आइटम, महाजन, बिल आदि डाले जाएंगे ताकि ऐप देख सकें। केवल तब चलेगा जब कोई व्यावसायिक डेटा न हो।",
+    "exportButtonTitle": "डेटाबेस की प्रतिलिपि फ़ाइल में सहेजें",
+    "importButtonTitle": "मौजूदा डेटाबेस को बैकअप से बदलें",
+    "clearButtonTitle": "सभी टेबल की पंक्तियाँ हटाएँ; संरचना रखें",
+    "resetButtonTitle": "डेटाबेस फ़ाइल हटाएँ और नया खाली बनाएँ",
+    "sampleButtonTitle": "मुख्य टेबल में नमूना डेटा (केवल खाली होने पर)",
+    "clearing": "साफ़ हो रहा है…",
+    "resetting": "रीसेट हो रहा है…",
+    "fillingSample": "नमूना डेटा भरा जा रहा है…",
+    "fillSample": "नमूना डेटा से भरें",
+    "footerNote": "सारा डेटा साफ: सभी टेबल खाली, संरचना रहेगी। डेटाबेस रीसेट: फ़ाइल हटाकर नया खाली डेटाबेस।"
   },
   "security": {
     "changePin": "PIN बदलें",
+    "currentPin": "वर्तमान PIN",
+    "newPin": "नया PIN",
+    "confirmNewPin": "नया PIN पुष्टि करें",
+    "updatePin": "PIN अपडेट करें",
+    "pinUpdated": "PIN अपडेट हो गया।",
+    "pinChangeFailed": "PIN बदलने में विफल।",
+    "ownerRecoveryKey": "मालिक रिकवरी की",
+    "ownerRecoveryHint": "मालिक के रूप में रिकवरी की सेट करें। PIN भूलने पर इससे रीसेट करें। बदलने पर पुरानी की अमान्य हो जाती है।",
+    "newRecoveryKey": "नई रिकवरी की",
+    "confirmRecoveryKey": "रिकवरी की पुष्टि करें",
+    "recoveryKeyPlaceholder": "रिकवरी की दर्ज करें",
+    "recoveryKeyConfirmPlaceholder": "रिकवरी की फिर दर्ज करें",
+    "saveKey": "की सेव करें",
+    "keySaved": "की सेव हो गई।",
+    "keySetFailed": "की सेट करने में विफल।",
+    "keyEmpty": "की खाली नहीं हो सकती।",
+    "keysMismatch": "की मेल नहीं खातीं।",
+    "recoverySavedAlert": "रिकवरी की यहाँ सेव हुई:\n{{path}}\n\nइस फ़ाइल को सुरक्षित रखें। मालिक पहुँच बहाल करने के लिए इसकी ज़रूरत होगी।",
+    "session": "सत्र",
+    "sessionHint": "तुरंत ऐप लॉक करें। वापस आने के लिए PIN ज़रूरी।",
+    "lockAppNow": "अभी ऐप लॉक करें",
     "recoveryKey": "रिकवरी की",
     "saveRecoveryKey": "रिकवरी की सेव करें",
     "regenerateRecoveryKey": "दोबारा बनाएं"
+  },
+  "activityLog": {
+    "headingPrivileged": "गतिविधि लॉग",
+    "headingSelf": "आपकी गतिविधि",
+    "entries": "प्रविष्टियाँ",
+    "filterAction": "क्रिया से फ़िल्टर",
+    "filterEntity": "इकाई से फ़िल्टर",
+    "allActions": "सभी क्रियाएँ",
+    "allEntities": "सभी इकाइयाँ",
+    "actionCreate": "बनाएँ",
+    "actionUpdate": "अपडेट",
+    "actionDelete": "हटाएँ",
+    "entityItem": "आइटम",
+    "entityInvoice": "बिल",
+    "entityLender": "महाजन",
+    "entityDailySale": "दैनिक बिक्री",
+    "entityUser": "उपयोगकर्ता",
+    "emptyTitle": "अभी कोई गतिविधि नहीं",
+    "emptyFiltered": "और प्रविष्टियाँ देखने के लिए क्रिया या इकाई फ़िल्टर हटाएँ।",
+    "emptyDefault": "ऐप में जो बदलाव करेंगे वे यहाँ दिखेंगे।",
+    "columns": {
+      "action": "क्रिया",
+      "entity": "इकाई",
+      "type": "प्रकार",
+      "user": "उपयोगकर्ता",
+      "when": "कब"
+    },
+    "systemUser": "सिस्टम",
+    "noRowsPage": "इस पृष्ठ पर कोई पंक्ति नहीं।"
   },
   "toast": {
     "saved": "सेटिंग्स सेव हो गईं",
     "exported": "डेटाबेस एक्सपोर्ट हो गया",
     "imported": "डेटाबेस इंपोर्ट हो गया",
     "cleared": "डेटा साफ हो गया",
-    "reset": "डेटाबेस रीसेट हो गया"
+    "reset": "डेटाबेस रीसेट हो गया",
+    "exportedTo": "डेटाबेस यहाँ एक्सपोर्ट: {{path}}",
+    "importReplaced": "डेटाबेस इंपोर्ट हो गया। डेटा बदल दिया गया।",
+    "clearTablesSuccess": "सारा डेटा साफ। टेबल खाली हैं।",
+    "resetDbSuccess": "डेटाबेस रीसेट। नया डेटाबेस बन गया।",
+    "sampleDataSuccess": "खाली टेबल में नमूना डेटा भर दिया गया।"
   },
   "confirm": {
     "clearTitle": "सारा डेटा साफ करें?",

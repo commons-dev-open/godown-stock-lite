@@ -1,7 +1,13 @@
 {
   "hero": {
     "title": "মহাজন",
-    "subtitle": "কার কাছে দেনা, কার কাছে পাওনা সব ট্র্যাক করুন"
+    "subtitle": "কার কাছে দেনা, কার কাছে পাওনা সব ট্র্যাক করুন",
+    "creditPurchase": "বাকিতে ক্রয়",
+    "settlements": "পরিশোধ",
+    "balance": "ব্যালান্স",
+    "fetchLatest": "রিফ্রেশ",
+    "fetchLatestHintChanged": "মোট বদলাতে পারে — রিফ্রেশ করতে ক্লিক করুন",
+    "fetchLatestHintDefault": "মোট রিফ্রেশ করুন"
   },
   "actions": {
     "addMahajan": "মহাজন অ্যাড",
@@ -9,29 +15,37 @@
     "deleteMahajan": "মহাজন ডিলিট",
     "viewLedger": "লেজার দেখুন",
     "addLend": "ধার দিন",
-    "addDeposit": "জমা"
+    "addDeposit": "জমা",
+    "export": "এক্সপোর্ট",
+    "exportAsCsv": "CSV এক্সপোর্ট",
+    "exportAsPdf": "PDF এক্সপোর্ট",
+    "print": "প্রিন্ট",
+    "showBalance": "ব্যালান্স দেখান",
+    "viewBalance": "ব্যালান্স দেখুন"
   },
   "search": {
     "placeholder": "মহাজন সার্চ করুন…"
   },
   "columns": {
     "name": "নাম",
+    "address": "ঠিকানা",
     "phone": "ফোন",
     "openingBalance": "ওপেনিং ব্যালান্স",
     "balance": "ব্যালান্স",
-    "lastActivity": "সর্বশেষ অ্যাক্টিভিটি"
+    "lastActivity": "সর্বশেষ অ্যাক্টিভিটি",
+    "balanceWithFormula": "ব্যালান্স (ধার - জমা)",
+    "details": "বিস্তারিত"
   },
   "summary": {
-    "totalPayable": "মোট প্রদানযোগ্য",
-    "totalReceivable": "মোট প্রাপ্য",
+    "totalPayable": "মোট দেনা",
+    "totalReceivable": "মোট পাওনা",
     "netPosition": "নেট পজিশন"
   },
   "form": {
-    "namePlaceholder": "মহাজনের নাম",
-    "phonePlaceholder": "ফোন নম্বর",
-    "openingBalancePlaceholder": "ওপেনিং ব্যালান্স",
-    "openingBalanceHint": "পজিটিভ হলে সে আপনাকে দেবে; নেগেটিভ হলে আপনি দেবেন।",
-    "notesPlaceholder": "অপশনাল নোট"
+    "name": "নাম",
+    "address": "ঠিকানা",
+    "phone": "ফোন",
+    "gstin": "GSTIN"
   },
   "ledger": {
     "hero": "লেজার",
@@ -39,12 +53,57 @@
     "closing": "ক্লোজিং",
     "debit": "ডেবিট",
     "credit": "ক্রেডিট",
-    "filtersBar": "ফিল্টার"
+    "filtersBar": "ফিল্টার",
+    "sectionTitle": "মহাজন লেজার",
+    "entriesTitle": "লেজার এন্ট্রি",
+    "entriesDescription": "টাইপ/তারিখ দিয়ে ফিল্টার করুন, বাকিতে ক্রয় বা জমা যোগ করুন, এবং দরকারে এক্সপোর্ট করুন।",
+    "invalidLender": "অবৈধ মহাজন",
+    "columns": {
+      "date": "তারিখ",
+      "type": "ধরন",
+      "description": "বিবরণ",
+      "amount": "টাকা (₹)"
+    },
+    "descriptions": {
+      "settlement": "পরিশোধ",
+      "cashPurchase": "নগদ ক্রয়",
+      "creditPurchase": "বাকিতে ক্রয়"
+    },
+    "filters": {
+      "type": "ধরন",
+      "dateFrom": "তারিখ থেকে",
+      "dateTo": "তারিখ পর্যন্ত"
+    },
+    "empty": {
+      "matchingEntriesTitle": "মিল পাওয়া যায়নি",
+      "noEntriesTitle": "এখনও কোনো লেজার এন্ট্রি নেই",
+      "matchingEntriesDescription": "ফিল্টার পরিষ্কার করুন বা তারিখের পরিসর বাড়ান।",
+      "noEntriesDescription": "উপরের বাটন দিয়ে বাকিতে ক্রয় বা জমা যোগ করুন।"
+    },
+    "actions": {
+      "clearFilters": "ফিল্টার পরিষ্কার"
+    },
+    "lenderInvoice": "মহাজন ইনভয়েস",
+    "viewInvoice": "ইনভয়েস দেখুন",
+    "toasts": {
+      "creditPurchaseUpdated": "বাকিতে ক্রয় আপডেট হয়েছে",
+      "creditPurchaseUpdateFailed": "বাকিতে ক্রয় আপডেট ব্যর্থ",
+      "settlementUpdated": "পরিশোধ আপডেট হয়েছে",
+      "settlementUpdateFailed": "পরিশোধ আপডেট ব্যর্থ",
+      "creditPurchaseDeleted": "বাকিতে ক্রয় মুছে গেছে",
+      "creditPurchaseDeleteFailed": "বাকিতে ক্রয় মুছতে ব্যর্থ",
+      "settlementDeleted": "পরিশোধ মুছে গেছে",
+      "settlementDeleteFailed": "পরিশোধ মুছতে ব্যর্থ"
+    }
   },
   "empty": {
     "title": "এখনও কোনো মহাজন নেই",
-    "message": "পেমেন্ট ও জমা ট্র্যাক করতে মহাজন অ্যাড করুন।",
-    "cta": "প্রথম মহাজন অ্যাড করুন"
+    "message": "ধার ও জমা ট্র্যাক করতে মহাজন অ্যাড করুন।",
+    "cta": "প্রথম মহাজন অ্যাড করুন",
+    "matchingLendersTitle": "মিলানো মহাজন নেই",
+    "noLendersTitle": "এখনও কোনো মহাজন নেই",
+    "matchingLendersDescription": "অন্য সার্চ করুন বা ফিল্টার পরিষ্কার করুন।",
+    "noLendersDescription": "লেজারে বাকিতে ক্রয় ও পরিশোধ রাখতে একটি মহাজন যোগ করুন।"
   },
   "toast": {
     "created": "মহাজন তৈরি হয়েছে",
@@ -52,5 +111,60 @@
     "deleted": "মহাজন ডিলিট হয়েছে",
     "lendAdded": "ধার এন্ট্রি যোগ হয়েছে",
     "depositAdded": "জমা এন্ট্রি যোগ হয়েছে"
+  },
+  "errors": {
+    "lenderListLoad": "মহাজন তালিকা লোড করা যায়নি। সংযোগ দেখে আবার চেষ্টা করুন।"
+  },
+  "labels": {
+    "payable": "(দেনা)",
+    "receivable": "(পাওনা)",
+    "payableShort": "দেনা",
+    "receivableShort": "পাওনা"
+  },
+  "directory": {
+    "sectionTitle": "মহাজন ডিরেক্টরি",
+    "title": "মহাজন ডিরেক্টরি",
+    "description": "তালিকা সার্চ করুন, লেজার খুলুন, বা দরকারে ব্যালান্স লোড করুন। \"ব্যালান্স দেখান\" চালু করলে সব ব্যালান্স একসাথে আসবে।"
+  },
+  "table": {
+    "noLendersMessage": "এখনও কোনো মহাজন নেই। মহাজন যোগ করুন।",
+    "settledValue": "₹0.00 (মিটেছে)"
+  },
+  "modals": {
+    "deleteLender": {
+      "title": "মহাজন মুছুন",
+      "message": "এই মহাজন মুছবেন? ব্যালান্স 0 হতে হবে।"
+    }
+  },
+  "common": {
+    "save": "সেভ",
+    "update": "আপডেট",
+    "delete": "ডিলিট",
+    "edit": "এডিট",
+    "loading": "লোড হচ্ছে..."
+  },
+  "export": {
+    "noData": "এক্সপোর্ট করার মতো ডেটা নেই।",
+    "csvSuccess": "CSV এক্সপোর্ট সম্পন্ন।",
+    "pdfSuccess": "PDF এক্সপোর্ট সম্পন্ন।",
+    "pdfFailed": "PDF সংরক্ষণ করা যায়নি।",
+    "columns": {
+      "id": "আইডি",
+      "createdAt": "তৈরির সময়",
+      "updatedAt": "আপডেটের সময়"
+    }
+  },
+  "print": {
+    "fileNamePrefix": "মহাজন",
+    "ledgerFileNamePrefix": "মহাজন_লেজার",
+    "totalCreditPurchase": "মোট বাকিতে ক্রয়",
+    "totalSettlements": "মোট পরিশোধ",
+    "balanceFormula": "ব্যালান্স (বাকিতে ক্রয় - পরিশোধ)",
+    "mahajanLedger": "মহাজন লেজার",
+    "mahajanLabel": "মহাজন",
+    "appliedFilters": "প্রযোজ্য ফিল্টার",
+    "totalLends": "মোট ধার",
+    "totalDeposits": "মোট জমা",
+    "balanceLendDeposit": "ব্যালান্স (ধার - জমা)"
   }
 }

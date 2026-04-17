@@ -8,22 +8,32 @@ import {
   Shield,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { SettingsTabId } from "./types";
+
+type SettingsTabLabelKey =
+  | "tabs.business"
+  | "tabs.tax"
+  | "tabs.discounts"
+  | "tabs.appearance"
+  | "tabs.security"
+  | "tabs.activity"
+  | "tabs.data";
 
 interface TabItem {
   id: SettingsTabId;
-  label: string;
+  labelKey: SettingsTabLabelKey;
   Icon: LucideIcon;
 }
 
 const TAB_ITEMS: readonly TabItem[] = [
-  { id: "business", label: "Business", Icon: Building2 },
-  { id: "tax", label: "Tax & GST", Icon: Receipt },
-  { id: "discounts", label: "Discounts", Icon: Percent },
-  { id: "appearance", label: "Appearance", Icon: Palette },
-  { id: "security", label: "Security", Icon: Shield },
-  { id: "activity", label: "Activity", Icon: Activity },
-  { id: "data", label: "Data", Icon: AlertTriangle },
+  { id: "business", labelKey: "tabs.business", Icon: Building2 },
+  { id: "tax", labelKey: "tabs.tax", Icon: Receipt },
+  { id: "discounts", labelKey: "tabs.discounts", Icon: Percent },
+  { id: "appearance", labelKey: "tabs.appearance", Icon: Palette },
+  { id: "security", labelKey: "tabs.security", Icon: Shield },
+  { id: "activity", labelKey: "tabs.activity", Icon: Activity },
+  { id: "data", labelKey: "tabs.data", Icon: AlertTriangle },
 ];
 
 interface SettingsSegmentedTabsProps {
@@ -35,13 +45,14 @@ export function SettingsSegmentedTabs({
   active,
   onChange,
 }: Readonly<SettingsSegmentedTabsProps>) {
+  const { t } = useTranslation("settings");
   return (
     <div
       className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] p-1"
       role="tablist"
-      aria-label="Settings sections"
+      aria-label={t("hero.title")}
     >
-      {TAB_ITEMS.map(({ id, label, Icon }) => {
+      {TAB_ITEMS.map(({ id, labelKey, Icon }) => {
         const isActive = active === id;
         return (
           <button
@@ -57,7 +68,7 @@ export function SettingsSegmentedTabs({
             }`}
           >
             <Icon size={16} aria-hidden="true" className="shrink-0" />
-            <span className="truncate">{label}</span>
+            <span className="truncate">{t(labelKey)}</span>
           </button>
         );
       })}

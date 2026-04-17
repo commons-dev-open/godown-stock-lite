@@ -1,24 +1,6 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { formatDecimal } from "../../shared/numbers";
-import {
-  formatDateForFile,
-  downloadCsv,
-  downloadPdf,
-} from "./exportUtils";
-import { DEFAULT_APP_NAME, MAX_DISPLAY_NAME_LEN } from "./displayName";
+import { formatDateForFile, downloadCsv } from "./exportUtils";
 import type { Item } from "../../shared/types";
-
-const COLUMNS = [
-  "Id",
-  "Name",
-  "Code",
-  "Unit",
-  "Current Stock",
-  "Reorder Level",
-  "Created At",
-  "Updated At",
-] as const;
 
 function rowToCells(item: Item): string[] {
   return [
@@ -33,54 +15,24 @@ function rowToCells(item: Item): string[] {
   ];
 }
 
-export function exportItemsToCsv(items: Item[]): void {
-  const header = [...COLUMNS];
+export function exportItemsToCsv(
+  items: Item[],
+  columnLabels: string[]
+): void {
+  const header = [...columnLabels];
   const rows = items.map((item) => rowToCells(item));
   downloadCsv(header, rows, `products-stock-${formatDateForFile(new Date())}.csv`);
 }
 
-function resolveAppName(appDisplayName?: string): string {
-  const raw = appDisplayName?.trim().slice(0, MAX_DISPLAY_NAME_LEN);
-  return raw || DEFAULT_APP_NAME;
-}
-
-function formatDateForPdf(d: Date): string {
-  return d.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-export function exportItemsToPdf(
+export function getPrintTableBody(
   items: Item[],
-  appDisplayName?: string
-): void {
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const now = new Date();
-  const appName = resolveAppName(appDisplayName);
-  let y = 10;
-  doc.setFontSize(11);
-  doc.text(appName, 14, y);
-  y += 6;
-  doc.setFontSize(10);
-  doc.text("Products & Stock", 14, y);
-  y += 5;
-  doc.setFontSize(8);
-  doc.text(`Generated: ${formatDateForPdf(now)}`, 14, y);
-  y += 8;
-  autoTable(doc, {
-    startY: y,
-    head: [COLUMNS.slice()],
-    body: items.map((item) => rowToCells(item)),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [66, 139, 202] },
-  });
-  downloadPdf(doc, `products-stock-${formatDateForFile(new Date())}.pdf`);
-}
-
-export function getPrintTableBody(items: Item[]): { columns: string[]; rows: string[][] } {
+  columnLabels: string[]
+): {
+  columns: string[];
+  rows: string[][];
+} {
   return {
-    columns: COLUMNS.slice(),
+    columns: columnLabels.slice(),
     rows: items.map(rowToCells),
   };
 }

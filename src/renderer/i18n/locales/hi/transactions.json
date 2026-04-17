@@ -3,6 +3,20 @@
     "title": "लेन-देन",
     "subtitle": "आपके पैसे का अंदर-बाहर हिसाब"
   },
+  "actions": {
+    "export": "एक्सपोर्ट",
+    "export_csv": "CSV के रूप में एक्सपोर्ट",
+    "export_pdf": "PDF के रूप में एक्सपोर्ट",
+    "print": "प्रिंट",
+    "cash_purchase": "नकद खरीद",
+    "credit_purchase": "उधार खरीद",
+    "add_credit_purchase": "उधार खरीद जोड़ें",
+    "add_settlement": "भुगतान जोड़ें",
+    "view_invoice": "बिल देखें",
+    "edit": "एडिट",
+    "delete": "डिलीट",
+    "close": "बंद करें"
+  },
   "search": {
     "placeholder": "लेन-देन खोजें…"
   },
@@ -10,15 +24,247 @@
     "date": "तारीख़",
     "mahajan": "महाजन",
     "type": "प्रकार",
+    "product": "प्रोडक्ट",
+    "qty": "मात्रा",
+    "unit": "इकाई",
     "amount": "राशि",
-    "notes": "नोट्स"
+    "amount_inr": "राशि (₹)",
+    "notes": "नोट्स",
+    "payment": "भुगतान"
+  },
+  "preview": {
+    "old_stock": "पुराना स्टॉक",
+    "total_after": "अपडेट के बाद कुल"
   },
   "types": {
-    "lend": "लेंड",
-    "deposit": "डिपॉजिट"
+    "lend": "उधार",
+    "deposit": "जमा",
+    "credit_purchase": "उधार खरीद",
+    "settlement": "भुगतान",
+    "cash_purchase": "नकद खरीद"
+  },
+  "ledger": {
+    "section_title": "लेन-देन बही",
+    "title": "बही",
+    "description": "आपके फिल्टर के अनुसार उधार खरीद, भुगतान और नकद खरीद यहाँ सबसे नई एंट्री पहले दिखाई देती हैं।"
+  },
+  "filters": {
+    "lender": "महाजन",
+    "type": "प्रकार",
+    "date_from": "शुरुआती तारीख",
+    "date_to": "अंतिम तारीख",
+    "type_all": "सभी (उधार खरीद + भुगतान + नकद खरीद)",
+    "credit_purchase_only": "केवल उधार खरीद",
+    "settlement_only": "केवल भुगतान",
+    "cash_purchase_only": "केवल नकद खरीद",
+    "all_lenders": "सभी महाजन",
+    "more_filters": "और फिल्टर",
+    "from_date": "से तारीख",
+    "to_date": "तक तारीख",
+    "clear": "फिल्टर साफ करें",
+    "applied": "लागू फिल्टर"
+  },
+  "modals": {
+    "shared": {
+      "actions": {
+        "save": "सेव करें",
+        "saving": "सेव हो रहा है...",
+        "confirm": "कन्फर्म",
+        "back": "वापस",
+        "review_confirm": "रिव्यू और कन्फर्म",
+        "review_update": "रिव्यू और अपडेट",
+        "confirm_update": "अपडेट कन्फर्म करें",
+        "confirm_delete": "डिलीट कन्फर्म करें",
+        "updating": "अपडेट हो रहा है…",
+        "deleting": "डिलीट हो रहा है…",
+        "add_item": "आइटम जोड़ें",
+        "remove_line": "लाइन हटाएं"
+      },
+      "fields": {
+        "lender_required": "महाजन *",
+        "date_required": "तारीख * (dd/mm/yyyy)",
+        "amount_required": "राशि *",
+        "quantity": "मात्रा",
+        "quantity_required": "मात्रा *",
+        "payment_method": "पेमेंट मेथड",
+        "reference": "रेफरेंस",
+        "notes": "नोट्स"
+      },
+      "sections": {
+        "payment_details_optional": "पेमेंट विवरण (वैकल्पिक)"
+      },
+      "placeholders": {
+        "select": "चुनें",
+        "select_product": "प्रोडक्ट चुनें",
+        "none": "कोई नहीं",
+        "zero": "0",
+        "optional_notes": "इस ट्रांजैक्शन के लिए वैकल्पिक नोट्स"
+      },
+      "payment_methods": {
+        "cash": {
+          "label": "कैश",
+          "reference_label": "रसीद नं. / वाउचर नं."
+        },
+        "bank": {
+          "label": "बैंक (NEFT/RTGS/IMPS)",
+          "reference_label": "UTR नं.",
+          "placeholder": "उदा. 123456789012"
+        },
+        "upi": {
+          "label": "UPI",
+          "reference_label": "UPI रेफरेंस आईडी"
+        },
+        "cheque": {
+          "label": "चेक",
+          "reference_label": "चेक नं."
+        }
+      },
+      "messages": {
+        "summary_of_changes": "बदलाव का सारांश",
+        "impact_after_update": "अपडेट के बाद प्रभाव",
+        "impact_after_delete": "डिलीट के बाद प्रभाव",
+        "loading_balance": "बैलेंस लोड हो रहा है…",
+        "current_stock": "मौजूदा स्टॉक {{stock}}",
+        "after_update": "अपडेट के बाद",
+        "after_delete": "डिलीट के बाद",
+        "lender_balance": "महाजन बैलेंस:",
+        "total_credit_purchase": "कुल उधार खरीद",
+        "total_settlements": "कुल भुगतान",
+        "total_deposits": "कुल जमा",
+        "total": "कुल",
+        "will_change_by": "से बदलेगा",
+        "will_decrease_by": "से घटेगा",
+        "balance_will_be": "बैलेंस होगा"
+      },
+      "labels": {
+        "stock": "स्टॉक:",
+        "lender_balance": "महाजन बैलेंस:"
+      },
+      "balance": {
+        "payable": "देय",
+        "receivable": "प्राप्य"
+      }
+    },
+    "add_settlement": {
+      "title": "भुगतान जोड़ें",
+      "sections": {
+        "allocate_to_credit": "उधार खरीद में आवंटित करें"
+      },
+      "messages": {
+        "select_lender_first": "उधार खरीद देखने के लिए पहले महाजन चुनें।",
+        "no_credit_purchases": "आवंटित करने के लिए उधार खरीद नहीं है। पहले उधार खरीद जोड़ें।",
+        "link_for_tracking": "बेहतर ट्रैकिंग के लिए इस भुगतान को खास उधार खरीद से लिंक करें।",
+        "total_allocated": "कुल आवंटित",
+        "differs_from_amount": "(भुगतान राशि से अलग है)"
+      },
+      "toasts": {
+        "saved": "भुगतान सेव हो गया",
+        "save_failed": "भुगतान सेव नहीं हो सका"
+      }
+    },
+    "add_credit_purchase": {
+      "title": "उधार खरीद जोड़ें",
+      "sections": {
+        "invoice_details_optional": "इनवॉइस विवरण (वैकल्पिक)",
+        "pay_now_optional": "अभी भुगतान करें (वैकल्पिक)"
+      },
+      "fields": {
+        "lender_invoice_number": "महाजन का इनवॉइस नंबर",
+        "upload_invoice": "इनवॉइस अपलोड करें",
+        "amount_to_pay_now": "अभी भुगतान राशि"
+      },
+      "placeholders": {
+        "invoice_number": "उदा. INV-2024-001",
+        "choose_file": "फ़ाइल चुनें (PDF, images)"
+      },
+      "actions": {
+        "remove_file": "फ़ाइल हटाएं"
+      },
+      "messages": {
+        "max_file_size": "अधिकतम 10 MB. ऐप डेटा में स्टोर होगा।",
+        "pay_now_help": "इस उधार खरीद का कुछ हिस्सा अभी भुगतान करें। बाकी राशि देनदारी में रहेगी।"
+      },
+      "gst": {
+        "exclusive": "एक्सक्लूसिव",
+        "inclusive": "इनक्लूसिव"
+      },
+      "defaults": {
+        "pay_now_note": "उधार खरीद के समय भुगतान (आंशिक)"
+      },
+      "toasts": {
+        "saved": "उधार खरीद सेव हो गई",
+        "saved_with_partial": "उधार खरीद और आंशिक भुगतान सेव हो गया",
+        "save_failed": "उधार खरीद सेव नहीं हो सकी",
+        "add_one_item": "मात्रा और राशि के साथ कम से कम एक प्रोडक्ट जोड़ें।",
+        "pay_now_exceeds_total": "अभी भुगतान राशि कुल उधार खरीद राशि से अधिक नहीं हो सकती।"
+      },
+      "confirm": {
+        "title": "उधार खरीद कन्फर्म करें",
+        "receive_from": "{{lender}} से उधार खरीद प्राप्त",
+        "total_amount": "कुल उधार खरीद राशि (इस ट्रांजैक्शन में)",
+        "paying_now": "अभी ₹{{amount}} भुगतान",
+        "via_method": "{{method}} से",
+        "balance_after": "इस उधार खरीद के बाद:"
+      }
+    },
+    "edit_credit_purchase": {
+      "title": "उधार खरीद एडिट करें",
+      "review_title": "उधार खरीद रिव्यू और अपडेट",
+      "messages": {
+        "product_changed": "प्रोडक्ट बदला गया; स्टॉक प्रभाव नए प्रोडक्ट पर लागू होगा।",
+        "after_update_prefix": "इस अपडेट के बाद:"
+      }
+    },
+    "edit_settlement": {
+      "title": "भुगतान एडिट करें",
+      "review_title": "भुगतान रिव्यू और अपडेट",
+      "messages": {
+        "after_update_prefix": "इस अपडेट के बाद:"
+      }
+    },
+    "cash_purchase": {
+      "title": "नकद खरीद",
+      "confirm_title": "नकद खरीद कन्फर्म करें",
+      "messages": {
+        "on_date": "नकद खरीद दिनांक",
+        "total_amount": "कुल राशि"
+      },
+      "toasts": {
+        "add_one_item": "Qty और राशि (पूर्णांक) के साथ कम से कम एक प्रोडक्ट जोड़ें।"
+      }
+    },
+    "edit_cash_purchase": {
+      "title": "नकद खरीद एडिट करें",
+      "review_title": "नकद खरीद रिव्यू और अपडेट"
+    },
+    "delete_transaction": {
+      "title": "रिव्यू और डिलीट",
+      "messages": {
+        "summary": "आप यह ट्रांजैक्शन डिलीट करने वाले हैं। सारांश:",
+        "after_delete_prefix": "इस डिलीट के बाद:"
+      }
+    }
+  },
+  "toasts": {
+    "credit_purchase_updated": "उधार खरीद अपडेट हो गई",
+    "credit_purchase_update_failed": "उधार खरीद अपडेट नहीं हो सकी",
+    "settlement_updated": "भुगतान अपडेट हो गया",
+    "settlement_update_failed": "भुगतान अपडेट नहीं हो सका",
+    "credit_purchase_deleted": "उधार खरीद डिलीट हो गई",
+    "credit_purchase_delete_failed": "उधार खरीद डिलीट नहीं हो सकी",
+    "settlement_deleted": "भुगतान डिलीट हो गया",
+    "settlement_delete_failed": "भुगतान डिलीट नहीं हो सका",
+    "cash_purchases_saved": "नकद खरीद सेव हो गई",
+    "cash_purchases_save_failed": "नकद खरीद सेव नहीं हो सकी",
+    "no_data_to_export": "एक्सपोर्ट के लिए कोई डेटा नहीं है।",
+    "exported_csv": "CSV एक्सपोर्ट हो गया।",
+    "exported_pdf": "PDF एक्सपोर्ट हो गया।",
+    "export_pdf_failed": "PDF सहेजा नहीं जा सका।"
   },
   "empty": {
     "title": "अभी कोई लेन-देन नहीं",
-    "message": "आपके उधार और जमा यहाँ दिखाई देंगे।"
+    "message": "नकद खरीद, महाजन से उधार खरीद, या भुगतान एंट्री करें। जोड़ने के लिए हेडर में दिए बटन का उपयोग करें।",
+    "no_matching_title": "कोई मिलती-जुलती एंट्री नहीं",
+    "no_matching_message": "फिल्टर साफ करें या तारीख़ सीमा बढ़ाएँ।"
   }
 }

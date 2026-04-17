@@ -19,6 +19,7 @@
     "gstinLabel": "GSTIN (optional)",
     "pinLabel": "Create 4-digit PIN",
     "pinConfirmLabel": "Confirm PIN",
+    "pinPlaceholder": "••••",
     "recoveryKeyLabel": "Owner Recovery Key",
     "recoveryKeyConfirmLabel": "Confirm Owner Recovery Key",
     "recoveryKeyPlaceholder": "Create a strong recovery key",
@@ -45,13 +46,24 @@
   "pinEntry": {
     "title": "Enter your PIN",
     "subtitle": "Unlock {{app}}",
+    "allUsers": "All users",
+    "enterYourPin": "Enter your PIN",
+    "backspaceAriaLabel": "Backspace",
     "forgotPin": "Forgot PIN?",
+    "forgotPinContactAdmin": "Forgot PIN? Ask your admin to reset it.",
+    "somethingWentWrong": "Something went wrong",
     "wrongPin": "Incorrect PIN. Try again.",
     "lockedOut": "Too many attempts. Please wait and try again."
   },
   "userSelector": {
     "title": "Who's using this?",
-    "subtitle": "Select a team member to continue"
+    "subtitle": "Select a team member to continue",
+    "whoIsLoggingIn": "Who is logging in?",
+    "loading": "Loading…",
+    "noUsersFound": "No members found.",
+    "roleOwner": "Owner",
+    "roleAdmin": "Admin",
+    "roleUser": "Member"
   },
   "forcePinChange": {
     "title": "Change your PIN",

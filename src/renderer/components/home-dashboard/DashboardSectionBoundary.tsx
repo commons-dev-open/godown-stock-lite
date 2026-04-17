@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import ErrorBoundary from "../ErrorBoundary";
 
 interface DashboardSectionErrorStateProps {
@@ -21,26 +22,28 @@ function DashboardSectionErrorState({
   error,
   onRetry,
 }: Readonly<DashboardSectionErrorStateProps>) {
+  const { t } = useTranslation("home");
+
   return (
     <article className={containerClassName}>
       <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-danger)]">
-        Section Error
+        {t("sectionError.badge")}
       </p>
       <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
         {sectionTitle}
       </h2>
       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-        This section failed to render. You can retry without reloading the entire page.
+        {t("sectionError.description")}
       </p>
       <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-        {error.message || "Unexpected rendering error"}
+        {error.message || t("sectionError.fallbackMessage")}
       </p>
       <button
         type="button"
         onClick={onRetry}
         className="mt-3 rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-raised)]"
       >
-        Retry Section
+        {t("sectionError.retry")}
       </button>
     </article>
   );

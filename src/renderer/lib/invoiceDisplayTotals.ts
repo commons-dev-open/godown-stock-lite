@@ -1,5 +1,32 @@
 import type { Invoice, InvoiceLine } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
+import i18n, { type SupportedLocale } from "../i18n";
+
+export interface InvoiceLineNotesLocaleOpts {
+  /** When set, line discount notes use this locale (PDF / browser printout). */
+  lineNotesLocale?: SupportedLocale;
+}
+
+function invT(
+  key: string,
+  options: Record<string, string | number | boolean | null | undefined> | undefined,
+  lineNotesLocale: InvoiceLineNotesLocaleOpts["lineNotesLocale"]
+): string {
+  if (lineNotesLocale === "en" || lineNotesLocale === "hi" || lineNotesLocale === "bn") {
+    const te = i18n.getFixedT(lineNotesLocale, "invoices") as (
+      k: string,
+      o?: Record<string, unknown>
+    ) => string;
+    return options ? te(key, options) : te(key);
+  }
+  const translate = i18n.t as (
+    k: string,
+    o?: Record<string, unknown>
+  ) => string;
+  return options
+    ? translate(key, { ns: "invoices", ...options })
+    : translate(key, { ns: "invoices" });
+}
 
 export function invoiceLinesSubtotal(lines: InvoiceLine[]): number {
   return lines.reduce(
@@ -24,33 +51,65 @@ export function invoiceNetTotal(
 }
 
 /** Short human-readable note for persisted line-level discounts (view / print / PDF). */
-export function formatInvoiceLineDiscountNote(line: InvoiceLine): string | null {
+export function formatInvoiceLineDiscountNote(
+  line: InvoiceLine,
+  opts?: InvoiceLineNotesLocaleOpts
+): string | null {
+  const loc = opts?.lineNotesLocale;
   const parts: string[] = [];
   if ((line.line_discount_percent ?? 0) > 0) {
-    parts.push(`${formatDecimal(line.line_discount_percent ?? 0)}% off`);
+    parts.push(
+      invT(
+        "lineNotes.percentOff",
+        {
+          pct: formatDecimal(line.line_discount_percent ?? 0),
+        },
+        loc
+      )
+    );
   }
   if ((line.line_discount_flat ?? 0) > 0) {
-    parts.push(`Flat ₹${formatDecimal(line.line_discount_flat ?? 0)}`);
+    parts.push(
+      invT(
+        "lineNotes.flatOff",
+        {
+          amount: formatDecimal(line.line_discount_flat ?? 0),
+        },
+        loc
+      )
+    );
   }
   const buyQty = line.bogo_buy_qty ?? 0;
   const getQty = line.bogo_get_qty ?? 0;
   if (buyQty > 0 && getQty > 0) {
     parts.push(
-      `BOGO ${formatDecimal(buyQty)}+${formatDecimal(getQty)} @ ${formatDecimal(line.bogo_discount_percent ?? 100)}%`
+      invT(
+        "lineNotes.bogo",
+        {
+          buy: formatDecimal(buyQty),
+          get: formatDecimal(getQty),
+          pct: formatDecimal(line.bogo_discount_percent ?? 100),
+        },
+        loc
+      )
     );
   }
   if (parts.length === 0) {
     return null;
   }
-  return parts.join(", ");
+  return parts.join(invT("lineNotes.listJoin", undefined, loc));
 }
 
-export function invoiceProductLabelWithDiscount(line: InvoiceLine): string {
+export function invoiceProductLabelWithDiscount(
+  line: InvoiceLine,
+  opts?: InvoiceLineNotesLocaleOpts
+): string {
   const name = line.product_name ?? "";
-  const note = formatInvoiceLineDiscountNote(line);
+  const note = formatInvoiceLineDiscountNote(line, opts);
   if (!note) {
     return name;
   }
-  const base = name.trim() || "Item";
+  const base =
+    name.trim() || invT("lineNotes.defaultItemName", undefined, opts?.lineNotesLocale);
   return `${base}\n(${note})`;
 }

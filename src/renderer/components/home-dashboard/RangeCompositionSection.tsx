@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import DateInput from "../DateInput";
+import { useTranslation } from "react-i18next";
 import { DATE_PRESETS } from "./datePresets";
 
 interface RangeCompositionSectionProps {
@@ -13,23 +13,21 @@ interface RangeCompositionSectionProps {
 }
 
 function RangeCompositionSectionComponent({
-  totalFrom,
-  totalTo,
-  onFromChange,
-  onToChange,
   onPresetClick,
   isPresetActive,
   content,
 }: Readonly<RangeCompositionSectionProps>) {
+  const { t } = useTranslation("home");
+
   return (
     <article className="dashboard-panel min-h-[23rem]">
       <div className="dashboard-section-head">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-            Range Composition
+            {t("rangeComposition.title")}
           </h2>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-            Invoice, misc, and expenditure for selected period.
+            {t("rangeComposition.subtitle")}
           </p>
         </div>
       </div>
@@ -62,7 +60,7 @@ function RangeCompositionSectionComponent({
                   : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] hover:bg-[var(--color-bg-surface)]"
               }`}
             >
-              {preset.label}
+              {t(`rangeComposition.presets.${preset.key}`)}
             </button>
           ))}
         </div>

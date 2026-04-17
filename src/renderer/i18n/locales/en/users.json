@@ -1,26 +1,92 @@
 {
   "hero": {
     "title": "Team",
-    "subtitle": "Manage team members and access"
+    "subtitle": "Manage team members and access",
+    "metrics": {
+      "members": "Members",
+      "active": "Active"
+    }
   },
   "actions": {
-    "addUser": "Add Member",
-    "editUser": "Edit Member",
+    "addUser": "Add member",
+    "editUser": "Edit member",
     "deleteUser": "Remove"
+  },
+  "section": {
+    "title": "Team members",
+    "description": "Manage who can sign in, their roles, and temporary PINs. Owners cannot be deactivated here."
   },
   "columns": {
     "name": "Name",
     "role": "Role",
-    "status": "Status"
+    "status": "Status",
+    "created": "Created"
   },
   "roles": {
     "owner": "Owner",
     "admin": "Admin",
     "member": "Member"
   },
+  "you": "(you)",
+  "statusLabels": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "tempPin": "Temp PIN"
+  },
+  "table": {
+    "emptyMessage": "No members on this page."
+  },
+  "rowActions": {
+    "editName": "Edit name",
+    "resetPin": "Reset PIN",
+    "deactivate": "Deactivate",
+    "activate": "Activate"
+  },
+  "addModal": {
+    "title": "Add member",
+    "create": "Create",
+    "nameLabel": "Name",
+    "namePlaceholder": "Full name",
+    "roleLabel": "Role",
+    "pinLabel": "Temporary PIN (4 digits)",
+    "pinPlaceholder": "••••"
+  },
+  "renameModal": {
+    "title": "Rename",
+    "cancel": "Cancel",
+    "save": "Save",
+    "nameLabel": "Name"
+  },
+  "resetPin": {
+    "confirmTitle": "Reset PIN",
+    "confirmMessage": "Reset {{name}}'s PIN? They will use a temporary PIN and must choose a new one on next login.",
+    "confirmContinue": "Continue",
+    "formTitle": "Reset PIN",
+    "formTitleWithName": "New temporary PIN for {{name}}",
+    "submit": "Reset PIN",
+    "pinLabel": "Temporary PIN (4 digits)",
+    "pinPlaceholder": "••••"
+  },
+  "roleOptions": {
+    "member": "Member",
+    "admin": "Admin"
+  },
+  "validation": {
+    "nameRequired": "Name required.",
+    "pinDigits": "PIN must be 4 digits."
+  },
+  "toasts": {
+    "memberCreated": "Member created.",
+    "nameEmpty": "Name cannot be empty.",
+    "nameUpdated": "Name updated.",
+    "updateNameFailed": "Failed to update name.",
+    "pinReset": "PIN reset.",
+    "resetPinFailed": "Failed to reset PIN.",
+    "genericFailed": "Failed."
+  },
   "empty": {
     "title": "No team members yet",
-    "message": "Add colleagues to collaborate.",
-    "cta": "Add Member"
+    "message": "Add members so each person can sign in with their own PIN.",
+    "cta": "Add member"
   }
 }

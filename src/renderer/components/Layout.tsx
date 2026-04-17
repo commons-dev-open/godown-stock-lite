@@ -177,7 +177,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const ToggleIcon = collapsed ? PanelLeft : PanelLeftClose;
 
   return (
-    <div className="flex h-screen bg-bg-app">
+    <div className="app-layout-root flex h-screen bg-bg-app">
       {/* Sidebar */}
       <aside
         className={`${collapsed ? "w-14" : "w-52"} shrink-0 flex flex-col bg-[var(--color-bg-sidebar)] transition-[width] duration-200`}

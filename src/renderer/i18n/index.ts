@@ -48,6 +48,8 @@ import bnOnboarding from "./locales/bn/onboarding.json";
 import bnTrial from "./locales/bn/trial.json";
 
 export const LOCALE_STORAGE_KEY = "locale";
+/** Persisted choice for invoice browser print / PDF copy (does not change app UI language). */
+export const INVOICE_PRINT_LOCALE_STORAGE_KEY = "invoicePrintLocale";
 export type SupportedLocale = "en" | "hi" | "bn";
 export const SUPPORTED_LOCALES: SupportedLocale[] = ["en", "hi", "bn"];
 export const DEFAULT_LOCALE: SupportedLocale = "en";
@@ -77,6 +79,17 @@ function readStoredLocale(): SupportedLocale {
     /* ignore */
   }
   return DEFAULT_LOCALE;
+}
+
+/** Invoice print/PDF language; falls back to app UI locale when unset or invalid. */
+export function readStoredInvoicePrintLocale(): SupportedLocale {
+  try {
+    const v = window.localStorage.getItem(INVOICE_PRINT_LOCALE_STORAGE_KEY);
+    if (v === "en" || v === "hi" || v === "bn") return v;
+  } catch {
+    /* ignore */
+  }
+  return readStoredLocale();
 }
 
 const initialLocale = readStoredLocale();

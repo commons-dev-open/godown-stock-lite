@@ -1,26 +1,92 @@
 {
   "hero": {
     "title": "টিম",
-    "subtitle": "টিম মেম্বার ও অ্যাক্সেস ম্যানেজ করুন"
+    "subtitle": "টিম মেম্বার ও অ্যাক্সেস ম্যানেজ করুন",
+    "metrics": {
+      "members": "মেম্বার",
+      "active": "সক্রিয়"
+    }
   },
   "actions": {
-    "addUser": "মেম্বার অ্যাড",
+    "addUser": "মেম্বার যোগ করুন",
     "editUser": "মেম্বার এডিট",
     "deleteUser": "রিমুভ"
+  },
+  "section": {
+    "title": "টিম মেম্বার",
+    "description": "কে সাইন ইন করতে পারবে, তাদের রোল ও টেম্পোরারি PIN ম্যানেজ করুন। মালিককে এখানে নিষ্ক্রিয় করা যাবে না।"
   },
   "columns": {
     "name": "নাম",
     "role": "রোল",
-    "status": "স্ট্যাটাস"
+    "status": "স্ট্যাটাস",
+    "created": "তৈরি হয়েছে"
   },
   "roles": {
-    "owner": "ওনার",
+    "owner": "মালিক",
     "admin": "অ্যাডমিন",
     "member": "মেম্বার"
   },
+  "you": "(আপনি)",
+  "statusLabels": {
+    "active": "সক্রিয়",
+    "inactive": "নিষ্ক্রিয়",
+    "tempPin": "টেম্প. PIN"
+  },
+  "table": {
+    "emptyMessage": "এই পেজে কোনো মেম্বার নেই।"
+  },
+  "rowActions": {
+    "editName": "নাম সম্পাদনা",
+    "resetPin": "PIN রিসেট",
+    "deactivate": "নিষ্ক্রিয়",
+    "activate": "সক্রিয়"
+  },
+  "addModal": {
+    "title": "মেম্বার যোগ করুন",
+    "create": "তৈরি করুন",
+    "nameLabel": "নাম",
+    "namePlaceholder": "পূর্ণ নাম",
+    "roleLabel": "রোল",
+    "pinLabel": "টেম্পোরারি PIN (৪ সংখ্যা)",
+    "pinPlaceholder": "••••"
+  },
+  "renameModal": {
+    "title": "নাম পরিবর্তন",
+    "cancel": "বাতিল",
+    "save": "সেভ",
+    "nameLabel": "নাম"
+  },
+  "resetPin": {
+    "confirmTitle": "PIN রিসেট",
+    "confirmMessage": "{{name}}-এর PIN রিসেট করবেন? তারা টেম্পোরারি PIN ব্যবহার করবে এবং পরের লগইনে নতুন PIN বেছে নিতে হবে।",
+    "confirmContinue": "চালিয়ে যান",
+    "formTitle": "PIN রিসেট",
+    "formTitleWithName": "{{name}}-এর জন্য নতুন টেম্পোরারি PIN",
+    "submit": "PIN রিসেট",
+    "pinLabel": "টেম্পোরারি PIN (৪ সংখ্যা)",
+    "pinPlaceholder": "••••"
+  },
+  "roleOptions": {
+    "member": "মেম্বার",
+    "admin": "অ্যাডমিন"
+  },
+  "validation": {
+    "nameRequired": "নাম লাগবে।",
+    "pinDigits": "PIN ঠিক ৪ সংখ্যার হতে হবে।"
+  },
+  "toasts": {
+    "memberCreated": "মেম্বার তৈরি হয়েছে।",
+    "nameEmpty": "নাম খালি রাখা যাবে না।",
+    "nameUpdated": "নাম আপডেট হয়েছে।",
+    "updateNameFailed": "নাম আপডেট করা যায়নি।",
+    "pinReset": "PIN রিসেট হয়েছে।",
+    "resetPinFailed": "PIN রিসেট করা যায়নি।",
+    "genericFailed": "ব্যর্থ।"
+  },
   "empty": {
     "title": "এখনও কোনো টিম মেম্বার নেই",
-    "message": "একসাথে কাজ করতে সহকর্মী অ্যাড করুন।",
-    "cta": "মেম্বার অ্যাড করুন"
+    "message": "প্রত্যেকে নিজের PIN দিয়ে সাইন ইন করতে পারে—মেম্বার যোগ করুন।",
+    "cta": "মেম্বার যোগ করুন"
   }
 }

@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { AsyncDataPanel } from "../async-data-panel";
 import { MahajansEmptyState } from "./MahajansEmptyState";
 
@@ -27,6 +28,7 @@ export function MahajansAsyncPanel({
   loaderColumns = 5,
   children,
 }: Readonly<MahajansAsyncPanelProps>) {
+  const { t } = useTranslation("mahajans");
   return (
     <AsyncDataPanel
       isLoading={isLoading}
@@ -34,7 +36,7 @@ export function MahajansAsyncPanel({
       onRetry={onRetry}
       isEmpty={isEmpty}
       loaderColumns={loaderColumns}
-      errorDescription="The lender list could not be loaded. Check your connection and try again."
+      errorDescription={t("errors.lenderListLoad")}
       empty={
         <MahajansEmptyState
           title={emptyTitle}

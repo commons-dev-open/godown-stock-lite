@@ -1,21 +1,90 @@
 {
   "hero": {
     "title": "Home",
-    "subtitle": "Your business at a glance"
+    "subtitle": "Your business at a glance",
+    "dashboardTitle": "Home Dashboard",
+    "metrics": {
+      "today": "Today",
+      "thisWeek": "This Week",
+      "thisMonth": "This Month",
+      "lenderNet": "Lender Net"
+    }
   },
   "sections": {
     "quickActions": "Quick Actions",
-    "weeklyMomentum": "Weekly Momentum",
-    "weeklyDetails": "Weekly Details",
+    "weeklyMomentum": "7-Day Sale Momentum",
+    "weeklyDetails": "Weekly Sale Detail",
     "rangeComposition": "Range Composition",
     "lenderSummary": "Lender Summary",
     "lowStockAlerts": "Low Stock Alerts"
+  },
+  "actions": {
+    "createInvoice": "Create Invoice"
   },
   "quickActions": {
     "addItem": "Add Item",
     "recordSale": "Record Sale",
     "addLender": "Add Lender",
-    "viewInvoices": "View Invoices"
+    "viewInvoices": "View Invoices",
+    "createInvoice": {
+      "title": "Create Invoice",
+      "subtitle": "Start a fresh sale entry."
+    },
+    "creditPurchase": {
+      "title": "Credit Purchase",
+      "subtitle": "Record lender transactions fast."
+    },
+    "cashVsExpenditure": "Cash vs Expenditure (weekly)",
+    "cashTrendEmptyTitle": "No weekly cash trend",
+    "cashTrendEmptyDescription": "Cash in hand and expenditure chart appears when weekly sales records are available."
+  },
+  "weeklyMomentum": {
+    "title": "7-Day Sale Momentum",
+    "subtitle": "Sales and expenditure trend for the selected week ending on {{date}}.",
+    "liveTrend": "Live trend",
+    "weekSale": "Week Sale",
+    "weekExpenditure": "Week Expenditure",
+    "peakDay": "Peak Day",
+    "entries": "Entries",
+    "errorTitle": "Unable to load weekly trend",
+    "errorDescription": "Something went wrong while fetching weekly sales. Please refresh and try again.",
+    "emptyTitle": "No sales in this week",
+    "emptyDescription": "No sale entries were found for the selected date window. Add invoices or misc sales to populate this trend."
+  },
+  "rangeComposition": {
+    "title": "Range Composition",
+    "subtitle": "Invoice, misc, and expenditure for selected period.",
+    "emptyTitle": "No range data yet",
+    "emptyDescription": "There are no invoices, misc sales, or expenditure records for the selected date range.",
+    "presets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "last14Days": "Last 14 Days",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "last30Days": "Last 30 Days",
+      "last90Days": "Last 90 Days",
+      "thisQuarter": "This Quarter",
+      "thisYear": "This Year"
+    }
+  },
+  "weeklyDetails": {
+    "subtitle": "Select a date to see 7 days of entries (descending from that date).",
+    "date": "Date",
+    "today": "Today",
+    "table": {
+      "date": "Date",
+      "sale": "Sale",
+      "invoice": "Invoice",
+      "misc": "Misc",
+      "cashInHand": "Cash in Hand",
+      "expenditure": "Expenditure"
+    },
+    "errorTitle": "Unable to load sale details",
+    "errorDescription": "Weekly entries could not be loaded right now. Refresh and try again.",
+    "emptyTitle": "No sale entries found",
+    "emptyDescription": "No 7-day entries exist for the selected date. Change the date or add a new invoice."
   },
   "empty": {
     "title": "Welcome to Godown Stock",
@@ -24,16 +93,50 @@
   "lowStock": {
     "noAlerts": "Nothing running low",
     "itemsAtOrBelow": "Items at or below their low stock threshold",
-    "seeAll": "See all items"
+    "seeAll": "See all items",
+    "viewStock": "View Stock",
+    "errorLoading": "Error loading low stock items. Try refreshing.",
+    "emptyTitle": "No low stock items",
+    "emptyDescription": "All tracked items are above reorder level right now. Update reorder values in Products & Stock to get actionable alerts.",
+    "goToStock": "Go to Stock",
+    "table": {
+      "item": "Item",
+      "current": "Current",
+      "reorderAt": "Reorder At",
+      "unit": "Unit"
+    }
   },
   "lender": {
     "totalOwed": "Total Owed",
     "totalReceivable": "Total Receivable",
-    "seeAll": "See all lenders"
+    "seeAll": "See all lenders",
+    "viewLenders": "View Lenders",
+    "totalCreditPurchase": "Total Credit Purchase",
+    "totalSettlements": "Total Settlements",
+    "netBalance": "Net Balance",
+    "payable": "payable",
+    "receivable": "receivable",
+    "receivablePayableStats": "{{receivable}} receivable, {{payable}} payable",
+    "emptyTitle": "No lender data",
+    "emptyDescription": "Lender summary appears after credit purchases or settlements are recorded."
   },
   "momentum": {
     "thisWeek": "This Week",
     "lastWeek": "Last Week",
     "change": "Change"
+  },
+  "charts": {
+    "totalSale": "Total Sale",
+    "invoice": "Invoice",
+    "misc": "Misc",
+    "expenditure": "Expenditure",
+    "rangeTotal": "Range Total",
+    "cashInHand": "Cash In Hand"
+  },
+  "sectionError": {
+    "badge": "Section Error",
+    "description": "This section failed to render. You can retry without reloading the entire page.",
+    "fallbackMessage": "Unexpected rendering error",
+    "retry": "Retry Section"
   }
 }

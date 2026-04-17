@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Godown Stock Management Desktop App",
   "main": "dist/main/index.js",
+  "packageManager": "npm@10.9.4",
   "scripts": {
     "postinstall": "node scripts/native-better-sqlite3-for-electron.mjs rebuild",
     "predev": "node scripts/native-better-sqlite3-for-electron.mjs ensure",
@@ -12,7 +13,7 @@
     "dev:renderer": "vite",
     "dev:electron": "wait-on http://localhost:5173 && cross-env ELECTRON_DEV=true electron .",
     "db:clean": "node scripts/clean-db.mjs",
-    "db:seed-dummy": "npm run build:main && node scripts/seed-dummy-data.mjs",
+    "db:seed-dummy": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/seed-dummy-data.mjs",
     "dev:fresh": "npm run db:clean && npm run dev",
     "prebuild": "node scripts/write-build-config.mjs",
     "build": "npm run build:main && npm run build:renderer",
@@ -27,7 +28,12 @@
   "author": "Arindam Hazra",
   "license": "MIT",
   "engines": {
-    "node": ">=20 <26"
+    "node": "22.x",
+    "npm": "10.x"
+  },
+  "volta": {
+    "node": "22.21.1",
+    "npm": "10.9.4"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -39,8 +45,6 @@
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
     "i18next": "^26.0.5",
-    "jspdf": "^4.2.0",
-    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

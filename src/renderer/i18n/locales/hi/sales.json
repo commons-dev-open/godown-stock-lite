@@ -24,5 +24,98 @@
     "title": "आज अभी कोई बिक्री नहीं",
     "message": "शुरू करने के लिए पहली बिक्री दर्ज करें।",
     "cta": "बिक्री दर्ज करें"
+  },
+  "dailyRegister": {
+    "title": "दैनिक बिक्री",
+    "metrics": {
+      "matchingDays": "मेल खाते दिन",
+      "onThisPage": "इस पृष्ठ पर",
+      "pageTotalSale": "पृष्ठ कुल बिक्री"
+    },
+    "export": {
+      "button": "निर्यात",
+      "asCsv": "CSV के रूप में निर्यात करें",
+      "asPdf": "PDF के रूप में निर्यात करें",
+      "print": "प्रिंट"
+    },
+    "toasts": {
+      "noData": "निर्यात करने के लिए कोई डेटा नहीं।",
+      "exportedCsv": "CSV के रूप में निर्यात किया गया।",
+      "exportedPdf": "PDF के रूप में निर्यात किया गया।",
+      "exportPdfFailed": "PDF सहेजा नहीं जा सका।",
+      "exportTooManyRows": "प्रिंट/PDF के लिए पंक्तियाँ बहुत अधिक (अधिकतम {{max}} दिन)। तिथि सीमा कम करें या CSV निर्यात करें।"
+    },
+    "filters": {
+      "from": "से",
+      "to": "तक",
+      "fromDate": "तारीख़ से",
+      "toDate": "तारीख़ तक",
+      "clear": "फ़िल्टर साफ़ करें"
+    },
+    "section": {
+      "listTitle": "दैनिक बिक्री सूची"
+    },
+    "panel": {
+      "title": "दैनिक योग",
+      "description": "प्रत्येक पंक्ति एक कैलेंडर दिन है: बिल योग, विविध नकद बिक्री, हाथ में नकद और खर्च।"
+    },
+    "emptyState": {
+      "noSalesInRange": {
+        "title": "इस अवधि में कोई बिक्री नहीं",
+        "description": "तारीख़ फ़िल्टर हटाएँ या व्यापक रेंज चुनें।"
+      },
+      "noSalesYet": {
+        "title": "अभी कोई दैनिक बिक्री नहीं",
+        "description": "आज के लिए बिक्री जोड़ें या इतिहास आयात करें ताकि यह रजिस्टर आपके टिल और बिलों से मेल खाए।"
+      },
+      "clearDateFilters": "तारीख़ फ़िल्टर साफ़ करें",
+      "addSale": "बिक्री जोड़ें"
+    },
+    "table": {
+      "date": "तारीख़",
+      "totalSale": "कुल बिक्री",
+      "invoiceSales": "बिल बिक्री",
+      "miscCashSales": "विविध / नकद बिक्री",
+      "cashInHand": "हाथ में नकद",
+      "expenditure": "खर्च",
+      "notes": "नोट्स",
+      "viewInvoicesTitle": "इस तारीख़ के बिल देखें",
+      "viewInvoicesAria": "इस तारीख़ के बिल देखें",
+      "emptyInline": "अभी कोई बिक्री नहीं। बिक्री जोड़ें या फ़िल्टर बदलें।"
+    },
+    "errors": {
+      "listTitle": "कुछ गलत हो गया",
+      "listDescription": "यह सूची लोड नहीं हो सकी। कनेक्शन जाँचें और फिर कोशिश करें।"
+    },
+    "deleteModal": {
+      "title": "बिक्री हटाएँ",
+      "message": "यह बिक्री हटाएँ?"
+    },
+    "addModal": {
+      "title": "बिक्री जोड़ें"
+    },
+    "editModal": {
+      "title": "बिक्री संपादित करें"
+    },
+    "form": {
+      "dateLabel": "तारीख़ * (dd/mm/yyyy)",
+      "invoiceSalesHint": "इस तारीख़ की बिल बिक्री: {{amount}} (बिलों से)",
+      "miscCashLabel": "विविध / नकद बिक्री (बिल के बिना)",
+      "miscCashLabelEdit": "विविध / नकद बिक्री (बिल के बिना) *",
+      "miscCashInputTitle": "बिल से जुड़ी नहीं बिक्री (जैसे नकद, छोटी वस्तुएँ)",
+      "cashInHandLabel": "हाथ में नकद *",
+      "cashInHandHint": "दिन के अंत में आपके टिल में वास्तविक राशि",
+      "expenditureOptional": "खर्च (यदि हो)",
+      "expenditure": "खर्च",
+      "notes": "नोट्स",
+      "invoiceSalesReadonly": "बिल बिक्री (केवल पढ़ने योग्य)"
+    },
+    "actions": {
+      "addSale": "बिक्री जोड़ें"
+    },
+    "print": {
+      "appliedFilters": "लागू फ़िल्टर",
+      "browserTitle": "दैनिक_बिक्री_{{date}}"
+    }
   }
 }

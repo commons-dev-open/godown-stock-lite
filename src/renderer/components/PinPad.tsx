@@ -1,4 +1,5 @@
 import { Delete } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface PinPadProps {
   onDigit: (d: string) => void;
@@ -9,6 +10,8 @@ interface PinPadProps {
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", ""];
 
 export default function PinPad({ onDigit, onBackspace, disabled }: PinPadProps) {
+  const { t } = useTranslation("onboarding");
+
   return (
     <div className="grid grid-cols-3 gap-3">
       {KEYS.map((key, idx) => {
@@ -34,7 +37,7 @@ export default function PinPad({ onDigit, onBackspace, disabled }: PinPadProps) 
               disabled:opacity-40 disabled:cursor-not-allowed
               shadow-xs
             `}
-            aria-label={isBackspace ? "Backspace" : key}
+            aria-label={isBackspace ? t("pinEntry.backspaceAriaLabel") : key}
           >
             {isBackspace ? <Delete size={20} strokeWidth={1.75} /> : key}
           </button>

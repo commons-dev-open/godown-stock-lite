@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,13 +19,12 @@ import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import Button from "../components/Button";
-import { PAGE_SIZE } from "../../shared/constants";
+import { DAILY_SALES_PRINT_MAX_ROWS, PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import {
   exportDailySalesToCsv,
-  exportDailySalesToPdf,
   getPrintTableBody,
 } from "../lib/exportDailySales";
 import { getAppDisplayName } from "../lib/displayName";
@@ -42,7 +42,6 @@ import type { DailySale } from "../../shared/types";
 import {
   formatDecimal,
   formatAbbreviatedInteger,
-  formatAbbreviatedRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
@@ -53,8 +52,13 @@ import {
   SalesListSectionPanel,
   SalesListAsyncPanel,
 } from "../components/sales-list-page";
+import {
+  useElectronHtmlPrintJob,
+  type HtmlPrintJobBase,
+} from "../hooks/useElectronHtmlPrintJob";
 
 export default function DailySales() {
+  const { t } = useTranslation(["sales", "common"]);
   const queryClient = useQueryClient();
   const api = getElectron();
   const { authState } = useAuth();
@@ -77,11 +81,13 @@ export default function DailySales() {
   const [addSaleDate, setAddSaleDate] = useState(todayISO());
   const [editSaleDate, setEditSaleDate] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
-  const [printData, setPrintData] = useState<{
+  type DailySalesPrintTable = {
     columns: string[];
     rows: string[][];
     filterDetails?: { label: string; value: string }[];
-  } | null>(null);
+  };
+  type DailySalesPrintJob = null | (HtmlPrintJobBase & { data: DailySalesPrintTable });
+  const [printJob, setPrintJob] = useState<DailySalesPrintJob>(null);
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<DailySale | null>(
     null
   );
@@ -152,16 +158,6 @@ export default function DailySales() {
   });
   const sales = pageResult?.data ?? [];
   const totalSales = pageResult?.total ?? 0;
-  const pageSaleAmountSum = useMemo(
-    () =>
-      sales.reduce(
-        (sum, row) =>
-          sum + (Number.isFinite(row.sale_amount) ? row.sale_amount : 0),
-        0
-      ),
-    [sales]
-  );
-
   const createSale = useMutation({
     mutationFn: (s: {
       sale_date: string;
@@ -208,10 +204,38 @@ export default function DailySales() {
 
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
-    if (fromDate) list.push({ label: "From Date", value: fromDate });
-    if (toDate) list.push({ label: "To Date", value: toDate });
+    if (fromDate) {
+      list.push({
+        label: t("dailyRegister.filters.fromDate"),
+        value: fromDate,
+      });
+    }
+    if (toDate) {
+      list.push({
+        label: t("dailyRegister.filters.toDate"),
+        value: toDate,
+      });
+    }
     return list;
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, t]);
+
+  const exportColumnLabels = useMemo(
+    () => [
+      t("dailyRegister.table.date"),
+      t("dailyRegister.table.totalSale"),
+      t("dailyRegister.table.invoiceSales"),
+      t("dailyRegister.table.miscCashSales"),
+      t("dailyRegister.table.cashInHand"),
+      t("dailyRegister.table.expenditure"),
+      t("dailyRegister.table.notes"),
+    ],
+    [t]
+  );
+
+  const tableHeadLabels = useMemo(
+    () => exportColumnLabels.slice(0, 6),
+    [exportColumnLabels]
+  );
 
   async function getExportData(): Promise<DailySale[]> {
     const data = (await api.getDailySales(
@@ -225,77 +249,88 @@ export default function DailySales() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("dailyRegister.toasts.noData"));
       return;
     }
-    exportDailySalesToCsv(data, appliedFilters);
-    toast.success("Exported as CSV.");
+    exportDailySalesToCsv(
+      data,
+      appliedFilters,
+      exportColumnLabels,
+      t("dailyRegister.print.appliedFilters")
+    );
+    toast.success(t("dailyRegister.toasts.exportedCsv"));
   }
 
   async function handleExportPdf() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("dailyRegister.toasts.noData"));
       return;
     }
-    exportDailySalesToPdf(data, appliedFilters, appName);
-    toast.success("Exported as PDF.");
+    if (data.length > DAILY_SALES_PRINT_MAX_ROWS) {
+      toast.error(
+        t("dailyRegister.toasts.exportTooManyRows", {
+          max: DAILY_SALES_PRINT_MAX_ROWS,
+        })
+      );
+      return;
+    }
+    setPrintJob({
+      mode: "pdf",
+      documentTitle: t("dailyRegister.print.browserTitle", {
+        date: formatDateForFile(new Date()),
+      }),
+      defaultPdfPath: `daily-sales-${formatDateForFile(new Date())}.pdf`,
+      data: getPrintTableBody(data, appliedFilters, exportColumnLabels),
+    });
   }
 
   async function handleExportPrint() {
     setExportOpen(false);
     const data = await getExportData();
     if (data.length === 0) {
-      toast.error("No data to export.");
+      toast.error(t("dailyRegister.toasts.noData"));
       return;
     }
-    setPrintData(getPrintTableBody(data, appliedFilters));
+    if (data.length > DAILY_SALES_PRINT_MAX_ROWS) {
+      toast.error(
+        t("dailyRegister.toasts.exportTooManyRows", {
+          max: DAILY_SALES_PRINT_MAX_ROWS,
+        })
+      );
+      return;
+    }
+    setPrintJob({
+      mode: "browser",
+      documentTitle: t("dailyRegister.print.browserTitle", {
+        date: formatDateForFile(new Date()),
+      }),
+      defaultPdfPath: `daily-sales-${formatDateForFile(new Date())}.pdf`,
+      data: getPrintTableBody(data, appliedFilters, exportColumnLabels),
+    });
   }
 
-  useEffect(() => {
-    if (!printData) return;
-    const previousTitle = document.title;
-    document.title = `Daily_Sales_${formatDateForFile(new Date())}`;
-    const onAfterPrint = () => {
-      document.title = previousTitle;
-      setPrintData(null);
-    };
-    globalThis.addEventListener("afterprint", onAfterPrint);
-    const timeoutId = setTimeout(() => globalThis.print(), 100);
-    return () => {
-      clearTimeout(timeoutId);
-      document.title = previousTitle;
-      globalThis.removeEventListener("afterprint", onAfterPrint);
-    };
-  }, [printData]);
+  useElectronHtmlPrintJob(printJob, setPrintJob, api, {
+    onPdfFinished: ({ saved }) => {
+      if (saved) {
+        toast.success(t("dailyRegister.toasts.exportedPdf"));
+      }
+    },
+    onPdfError: (err) => {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : t("dailyRegister.toasts.exportPdfFailed")
+      );
+    },
+  });
 
   const clearDateFilters = useCallback(() => {
     setFromDate("");
     setToDate("");
     setPage(1);
   }, []);
-
-  const dailySalesHeroMetrics = useMemo(
-    () => [
-      {
-        label: "Matching days",
-        displayValue: formatAbbreviatedInteger(totalSales, abbreviationStyle),
-      },
-      {
-        label: "On this page",
-        displayValue: formatAbbreviatedInteger(sales.length, abbreviationStyle),
-      },
-      {
-        label: "Page total sale",
-        displayValue: formatAbbreviatedRupee(
-          pageSaleAmountSum,
-          abbreviationStyle
-        ),
-      },
-    ],
-    [abbreviationStyle, pageSaleAmountSum, sales.length, totalSales]
-  );
 
   const salesHasDateFilters = !!(fromDate || toDate);
   const isSalesEmpty = !isLoading && !salesPageError && sales.length === 0;
@@ -309,14 +344,14 @@ export default function DailySales() {
   return (
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
-        title="Daily Sales"
-        metrics={dailySalesHeroMetrics}
+        title={t("dailyRegister.title")}
+        metrics={[]}
         actions={
           <>
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
                 <Download size={20} className="mr-1.5" aria-hidden="true" />
-                Export
+                {t("dailyRegister.export.button")}
               </Button>
             </div>
             <FloatingPortal>
@@ -333,7 +368,7 @@ export default function DailySales() {
                     onClick={handleExportCsv}
                   >
                     <FileDown size={16} className="shrink-0" />
-                    Export as CSV
+                    {t("dailyRegister.export.asCsv")}
                   </button>
                   <button
                     type="button"
@@ -341,7 +376,7 @@ export default function DailySales() {
                     onClick={handleExportPdf}
                   >
                     <FileDown size={16} className="shrink-0" />
-                    Export as PDF
+                    {t("dailyRegister.export.asPdf")}
                   </button>
                   <button
                     type="button"
@@ -349,20 +384,20 @@ export default function DailySales() {
                     onClick={handleExportPrint}
                   >
                     <Printer size={16} className="shrink-0" />
-                    Print
+                    {t("dailyRegister.export.print")}
                   </button>
                 </div>
               )}
             </FloatingPortal>
             <Button variant="primary" onClick={() => setAddOpen(true)}>
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add Sale
+              {t("dailyRegister.actions.addSale")}
             </Button>
           </>
         }
       />
       <DashboardSectionBoundary
-        sectionTitle="Daily sales list"
+        sectionTitle={t("dailyRegister.section.listTitle")}
         containerClassName="dashboard-panel"
         resetKeys={[
           fromDate,
@@ -374,13 +409,13 @@ export default function DailySales() {
         ]}
       >
         <SalesListSectionPanel
-          title="Daily totals"
-          description="Each row is one calendar day: invoice totals, misc sales, cash in hand, and expenditure."
+          title={t("dailyRegister.panel.title")}
+          description={t("dailyRegister.panel.description")}
           badge={salesCountBadge}
         >
           <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-lg border border-[var(--color-border-default)] overflow-hidden">
             <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-              From
+              {t("dailyRegister.filters.from")}
               <DateInput
                 value={fromDate}
                 onChange={(v) => {
@@ -391,7 +426,7 @@ export default function DailySales() {
               />
             </label>
             <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-              To
+              {t("dailyRegister.filters.to")}
               <DateInput
                 value={toDate}
                 onChange={(v) => {
@@ -412,7 +447,7 @@ export default function DailySales() {
                 className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               >
                 <X size={16} aria-hidden="true" />
-                Clear filters
+                {t("dailyRegister.filters.clear")}
               </button>
             )}
           </div>
@@ -425,23 +460,32 @@ export default function DailySales() {
                 void refetchDailySalesPage();
               }}
               isEmpty={isSalesEmpty}
+              errorTitle={t("dailyRegister.errors.listTitle")}
+              errorDescription={t("dailyRegister.errors.listDescription")}
+              retryLabel={t("actions.retry", { ns: "common" })}
               emptyTitle={
                 salesHasDateFilters
-                  ? "No sales in this range"
-                  : "No daily sales yet"
+                  ? t("dailyRegister.emptyState.noSalesInRange.title")
+                  : t("dailyRegister.emptyState.noSalesYet.title")
               }
               emptyDescription={
                 salesHasDateFilters
-                  ? "Try clearing the date filters or picking a wider range."
-                  : "Add a sale for today or import history so this register stays in sync with your till and invoices."
+                  ? t("dailyRegister.emptyState.noSalesInRange.description")
+                  : t("dailyRegister.emptyState.noSalesYet.description")
               }
               emptyActionLabel={
-                salesHasDateFilters ? "Clear date filters" : "Add sale"
+                salesHasDateFilters
+                  ? t("dailyRegister.emptyState.clearDateFilters")
+                  : t("dailyRegister.emptyState.addSale")
               }
               onEmptyAction={
                 salesHasDateFilters ? clearDateFilters : () => setAddOpen(true)
               }
-              emptySecondaryLabel={salesHasDateFilters ? "Add sale" : undefined}
+              emptySecondaryLabel={
+                salesHasDateFilters
+                  ? t("dailyRegister.emptyState.addSale")
+                  : undefined
+              }
               onEmptySecondary={
                 salesHasDateFilters ? () => setAddOpen(true) : undefined
               }
@@ -452,7 +496,7 @@ export default function DailySales() {
                 columns={[
                   {
                     key: "sale_date",
-                    label: "Date",
+                    label: tableHeadLabels[0],
                     render: (r) => (
                       <Tooltip content={formatDateForForm(r.sale_date)}>
                         <span>{formatDateForView(r.sale_date)}</span>
@@ -461,31 +505,31 @@ export default function DailySales() {
                   },
                   {
                     key: "sale_amount",
-                    label: "Total Sale",
+                    label: tableHeadLabels[1],
                     align: "right",
                     render: (r) => formatDecimal(r.sale_amount),
                   },
                   {
                     key: "invoice_sales",
-                    label: "Invoice Sales",
+                    label: tableHeadLabels[2],
                     align: "right",
                     render: (r) => formatDecimal(r.invoice_sales ?? 0),
                   },
                   {
                     key: "misc_sales",
-                    label: "Misc / Cash Sales",
+                    label: tableHeadLabels[3],
                     align: "right",
                     render: (r) => formatDecimal(r.misc_sales ?? 0),
                   },
                   {
                     key: "cash_in_hand",
-                    label: "Cash in Hand",
+                    label: tableHeadLabels[4],
                     align: "right",
                     render: (r) => formatDecimal(r.cash_in_hand),
                   },
                   {
                     key: "expenditure_amount",
-                    label: "Expenditure",
+                    label: tableHeadLabels[5],
                     align: "right",
                     render: (r) => formatDecimal(r.expenditure_amount ?? 0),
                   },
@@ -498,13 +542,13 @@ export default function DailySales() {
                     to="/invoices"
                     state={{ dateFrom: row.sale_date, dateTo: row.sale_date }}
                     className="p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
-                    title="View invoices for this date"
-                    aria-label="View invoices for this date"
+                    title={t("dailyRegister.table.viewInvoicesTitle")}
+                    aria-label={t("dailyRegister.table.viewInvoicesAria")}
                   >
                     <FileText size={20} />
                   </Link>
                 )}
-                emptyMessage="No sales yet. Click Add Sale or adjust filters."
+                emptyMessage={t("dailyRegister.table.emptyInline")}
                 pagination={{
                   type: "controlled",
                   page,
@@ -521,9 +565,9 @@ export default function DailySales() {
       <ConfirmModal
         open={deleteConfirmSale != null}
         onClose={() => setDeleteConfirmSale(null)}
-        title="Delete sale"
-        message="Delete this sale?"
-        confirmLabel="Delete"
+        title={t("dailyRegister.deleteModal.title")}
+        message={t("dailyRegister.deleteModal.message")}
+        confirmLabel={t("actions.delete", { ns: "common" })}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmSale) deleteSale.mutate(deleteConfirmSale.id);
@@ -531,13 +575,13 @@ export default function DailySales() {
       />
 
       <FormModal
-        title="Add Sale"
+        title={t("dailyRegister.addModal.title")}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         footer={
           <Button type="submit" form="add-sale-form">
             <Check size={20} className="mr-1.5" aria-hidden="true" />
-            Save
+            {t("actions.save", { ns: "common" })}
           </Button>
         }
       >
@@ -565,7 +609,7 @@ export default function DailySales() {
         >
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Date * (dd/mm/yyyy)
+              {t("dailyRegister.form.dateLabel")}
             </label>
             <DateInput
               value={addSaleDate}
@@ -574,14 +618,15 @@ export default function DailySales() {
             />
             {addSaleDate && (
               <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-                Invoice Sales for this date: ₹
-                {formatDecimal(invoiceTotalForDate?.total ?? 0)} (from invoices)
+                {t("dailyRegister.form.invoiceSalesHint", {
+                  amount: `₹${formatDecimal(invoiceTotalForDate?.total ?? 0)}`,
+                })}
               </p>
             )}
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Misc / Cash Sales (without invoice)
+              {t("dailyRegister.form.miscCashLabel")}
             </label>
             <input
               name="misc_sales"
@@ -590,15 +635,15 @@ export default function DailySales() {
               step="0.01"
               defaultValue="0"
               className="w-full border rounded px-3 py-2"
-              title="Sales not tied to an invoice (e.g. cash, small items)"
+              title={t("dailyRegister.form.miscCashInputTitle")}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Cash in Hand *
+              {t("dailyRegister.form.cashInHandLabel")}
             </label>
             <p className="text-xs text-[var(--color-text-tertiary)] mb-1">
-              Amount physically in your till at end of day
+              {t("dailyRegister.form.cashInHandHint")}
             </p>
             <input
               name="cash_in_hand"
@@ -611,7 +656,7 @@ export default function DailySales() {
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Expenditure (if any)
+              {t("dailyRegister.form.expenditureOptional")}
             </label>
             <input
               name="expenditure_amount"
@@ -624,7 +669,7 @@ export default function DailySales() {
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Notes
+              {t("dailyRegister.form.notes")}
             </label>
             <input name="notes" className="w-full border rounded px-3 py-2" />
           </div>
@@ -632,14 +677,14 @@ export default function DailySales() {
       </FormModal>
 
       <FormModal
-        title="Edit Sale"
+        title={t("dailyRegister.editModal.title")}
         open={!!editing}
         onClose={() => setEditing(null)}
         footer={
           editing ? (
             <Button type="submit" form="edit-sale-form">
               <Check size={20} className="mr-1.5" aria-hidden="true" />
-              Update
+              {t("actions.update", { ns: "common" })}
             </Button>
           ) : null
         }
@@ -673,7 +718,7 @@ export default function DailySales() {
           >
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Date * (dd/mm/yyyy)
+                {t("dailyRegister.form.dateLabel")}
               </label>
               <DateInput
                 value={editSaleDate}
@@ -683,7 +728,7 @@ export default function DailySales() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Invoice Sales (read-only)
+                {t("dailyRegister.form.invoiceSalesReadonly")}
               </label>
               <input
                 type="text"
@@ -695,7 +740,7 @@ export default function DailySales() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Misc / Cash Sales (without invoice) *
+                {t("dailyRegister.form.miscCashLabelEdit")}
               </label>
               <input
                 name="misc_sales"
@@ -704,15 +749,15 @@ export default function DailySales() {
                 step="0.01"
                 defaultValue={editing.misc_sales ?? 0}
                 className="w-full border rounded px-3 py-2"
-                title="Sales not tied to an invoice (e.g. cash, small items)"
+                title={t("dailyRegister.form.miscCashInputTitle")}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Cash in Hand *
+                {t("dailyRegister.form.cashInHandLabel")}
               </label>
               <p className="text-xs text-[var(--color-text-tertiary)] mb-1">
-                Amount physically in your till at end of day
+                {t("dailyRegister.form.cashInHandHint")}
               </p>
               <input
                 name="cash_in_hand"
@@ -726,7 +771,7 @@ export default function DailySales() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Expenditure
+                {t("dailyRegister.form.expenditure")}
               </label>
               <input
                 name="expenditure_amount"
@@ -739,7 +784,7 @@ export default function DailySales() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Notes
+                {t("dailyRegister.form.notes")}
               </label>
               <input
                 name="notes"
@@ -751,35 +796,32 @@ export default function DailySales() {
         )}
       </FormModal>
 
-      {printData && (
+      {printJob && (
         <div
-          className="app-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
+          className="app-print-container daily-sales-print-container fixed left-0 top-0 z-[9999] hidden w-full bg-[var(--color-bg-surface)] p-6 print:block"
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
               {appName}
             </p>
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              Daily Sales
+            <p className="text-xs daily-sales-print-muted">
+              {t("dailyRegister.title")}
             </p>
-            {printData.filterDetails != null &&
-              printData.filterDetails.length > 0 && (
+            {printJob.data.filterDetails != null &&
+              printJob.data.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-[var(--color-text-secondary)]">
-                    Applied filters
+                  <p className="font-medium daily-sales-print-muted">
+                    {t("dailyRegister.print.appliedFilters")}
                   </p>
-                  {printData.filterDetails.map((f) => (
-                    <p
-                      key={f.label}
-                      className="text-[var(--color-text-secondary)]"
-                    >
+                  {printJob.data.filterDetails.map((f) => (
+                    <p key={f.label} className="daily-sales-print-muted">
                       {f.label}: {f.value}
                     </p>
                   ))}
                 </div>
               )}
-            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+            <p className="mt-1 text-xs daily-sales-print-faint">
               {new Date().toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -789,7 +831,7 @@ export default function DailySales() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr>
-                {printData.columns.map((col) => (
+                {printJob.data.columns.map((col) => (
                   <th
                     key={col}
                     className="border border-[var(--color-border-strong)] px-2 py-1.5 text-left font-medium text-white bg-[var(--color-text-secondary)]"
@@ -800,11 +842,11 @@ export default function DailySales() {
               </tr>
             </thead>
             <tbody>
-              {printData.rows.map((row) => (
+              {printJob.data.rows.map((row) => (
                 <tr key={row[0]}>
                   {row.map((cell, ci) => (
                     <td
-                      key={`${row[0]}-${printData.columns[ci]}`}
+                      key={`${row[0]}-${printJob.data.columns[ci]}`}
                       className="border border-[var(--color-border-strong)] px-2 py-1.5 text-[var(--color-text-primary)]"
                     >
                       {cell}

@@ -1,8 +1,5 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { formatDecimal } from "../../shared/numbers";
-import { formatDateForFile, downloadCsv, downloadPdf } from "./exportUtils";
-import { DEFAULT_APP_NAME, MAX_DISPLAY_NAME_LEN } from "./displayName";
+import { formatDateForFile, downloadCsv } from "./exportUtils";
 import type { Mahajan } from "../../shared/types";
 
 export interface MahajanSummaryForExport {
@@ -11,20 +8,36 @@ export interface MahajanSummaryForExport {
   balance: number;
 }
 
-const COLUMNS = ["Id", "Name", "Address", "Phone", "GSTIN", "Created At", "Updated At", "Balance"];
+export interface MahajansExportText {
+  columns: string[];
+  balanceHints: { payable: string; receivable: string };
+  csvSummaryLabels: {
+    totalCreditPurchase: string;
+    totalSettlements: string;
+    balance: string;
+  };
+}
 
-function formatBalanceCell(balance: number): string {
+function formatBalanceCell(
+  balance: number,
+  payableHint: string,
+  receivableHint: string
+): string {
   if (balance === 0) return "Rs. 0.00";
-  const hint = balance > 0 ? " (payable)" : " (receivable)";
+  const hint = balance > 0 ? ` ${payableHint}` : ` ${receivableHint}`;
   return `Rs. ${formatDecimal(Math.abs(balance))}${hint}`;
 }
 
 function rowToCells(
   m: Mahajan,
-  balance: number | undefined
+  balance: number | undefined,
+  payableHint: string,
+  receivableHint: string
 ): string[] {
   const balanceStr =
-    balance === undefined ? "" : formatBalanceCell(balance);
+    balance === undefined
+      ? ""
+      : formatBalanceCell(balance, payableHint, receivableHint);
   return [
     String(m.id),
     m.name,
@@ -40,22 +53,43 @@ function rowToCells(
 export function exportMahajansToCsv(
   mahajans: Mahajan[],
   summary: MahajanSummaryForExport | null,
-  balances: Record<number, number>
+  balances: Record<number, number>,
+  texts: MahajansExportText
 ): void {
-  const header = [...COLUMNS];
-  const rows = mahajans.map((m) => rowToCells(m, balances[m.id]));
+  const header = [...texts.columns];
+  const rows = mahajans.map((m) =>
+    rowToCells(m, balances[m.id], texts.balanceHints.payable, texts.balanceHints.receivable)
+  );
   if (summary != null) {
     let balanceSuffix = "";
-    if (summary.balance > 0) balanceSuffix = " (payable)";
-    else if (summary.balance < 0) balanceSuffix = " (receivable)";
+    if (summary.balance > 0) balanceSuffix = ` ${texts.balanceHints.payable}`;
+    else if (summary.balance < 0) balanceSuffix = ` ${texts.balanceHints.receivable}`;
     const emptyRow: string[] = ["", "", "", "", "", "", "", ""];
     rows.push(
       emptyRow,
-      ["", "Total Credit Purchase", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalLend)}`],
-      ["", "Total Settlements", "", "", "", "", "", `Rs. ${formatDecimal(summary.totalDeposit)}`],
       [
         "",
-        "Balance (Credit Purchase − Settlement)",
+        texts.csvSummaryLabels.totalCreditPurchase,
+        "",
+        "",
+        "",
+        "",
+        "",
+        `Rs. ${formatDecimal(summary.totalLend)}`,
+      ],
+      [
+        "",
+        texts.csvSummaryLabels.totalSettlements,
+        "",
+        "",
+        "",
+        "",
+        "",
+        `Rs. ${formatDecimal(summary.totalDeposit)}`,
+      ],
+      [
+        "",
+        texts.csvSummaryLabels.balance,
         "",
         "",
         "",
@@ -68,76 +102,17 @@ export function exportMahajansToCsv(
   downloadCsv(header, rows, `lenders-${formatDateForFile(new Date())}.csv`);
 }
 
-function resolveAppName(appDisplayName?: string): string {
-  const raw = appDisplayName?.trim().slice(0, MAX_DISPLAY_NAME_LEN);
-  return raw || DEFAULT_APP_NAME;
-}
-// jsPDF default font does not support ₹ (U+20B9); use "Rs." so PDF renders correctly
-const PDF_RUPEE = "Rs. ";
-
-export function exportMahajansToPdf(
-  mahajans: Mahajan[],
-  summary: MahajanSummaryForExport | null,
-  balances: Record<number, number>,
-  appDisplayName?: string
-): void {
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const now = new Date();
-  const appName = resolveAppName(appDisplayName);
-  let y = 10;
-  doc.setFontSize(11);
-  doc.text(appName, 14, y);
-  y += 6;
-  doc.setFontSize(10);
-  doc.text("Lenders", 14, y);
-  y += 5;
-  doc.setFontSize(8);
-  doc.text(
-    `Generated: ${now.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`,
-    14,
-    y
-  );
-  y += 8;
-
-  if (summary != null) {
-    doc.setFontSize(9);
-    const valueX = 75;
-    doc.text("Total Credit Purchase", 14, y);
-    doc.text(`${PDF_RUPEE}${formatDecimal(summary.totalLend)}`, valueX, y);
-    y += 6;
-    doc.text("Total Settlements", 14, y);
-    doc.text(`${PDF_RUPEE}${formatDecimal(summary.totalDeposit)}`, valueX, y);
-    y += 6;
-    let balanceHint = "";
-    if (summary.balance > 0) balanceHint = "(payable)";
-    else if (summary.balance < 0) balanceHint = "(receivable)";
-    doc.text("Balance (Credit Purchase − Settlement)", 14, y);
-    doc.text(
-      `${PDF_RUPEE}${formatDecimal(Math.abs(summary.balance))} ${balanceHint}`.trim(),
-      valueX,
-      y
-    );
-    y += 10;
-  }
-
-  autoTable(doc, {
-    startY: y,
-    head: [COLUMNS.slice()],
-    body: mahajans.map((m) => rowToCells(m, balances[m.id])),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [66, 139, 202] },
-  });
-  downloadPdf(doc, `lenders-${formatDateForFile(new Date())}.pdf`);
-}
-
 export function getPrintTableBody(
   mahajans: Mahajan[],
   summary: MahajanSummaryForExport | null,
-  balances: Record<number, number>
+  balances: Record<number, number>,
+  texts: MahajansExportText
 ): { columns: string[]; rows: string[][]; summary: MahajanSummaryForExport | null } {
   return {
-    columns: COLUMNS.slice(),
-    rows: mahajans.map((m) => rowToCells(m, balances[m.id])),
+    columns: texts.columns.slice(),
+    rows: mahajans.map((m) =>
+      rowToCells(m, balances[m.id], texts.balanceHints.payable, texts.balanceHints.receivable)
+    ),
     summary,
   };
 }

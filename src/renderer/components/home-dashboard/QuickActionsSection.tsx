@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Banknote, FilePlus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface QuickActionsSectionProps {
   cashExpenditureContent: ReactNode;
@@ -9,10 +10,12 @@ interface QuickActionsSectionProps {
 function QuickActionsSectionComponent({
   cashExpenditureContent,
 }: Readonly<QuickActionsSectionProps>) {
+  const { t } = useTranslation("home");
+
   return (
     <article className="dashboard-panel xl:col-span-4">
       <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-3">
-        Quick Actions
+        {t("sections.quickActions")}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
         <Link
@@ -27,10 +30,10 @@ function QuickActionsSectionComponent({
           />
           <div>
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Create Invoice
+              {t("quickActions.createInvoice.title")}
             </p>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-              Start a fresh sale entry.
+              {t("quickActions.createInvoice.subtitle")}
             </p>
           </div>
         </Link>
@@ -46,17 +49,17 @@ function QuickActionsSectionComponent({
           />
           <div>
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Credit Purchase
+              {t("quickActions.creditPurchase.title")}
             </p>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-              Record lender transactions fast.
+              {t("quickActions.creditPurchase.subtitle")}
             </p>
           </div>
         </Link>
       </div>
       <div className="mt-4 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] p-3">
         <p className="text-xs text-[var(--color-text-tertiary)] mb-1">
-          Cash vs Expenditure (weekly)
+          {t("quickActions.cashVsExpenditure")}
         </p>
         {cashExpenditureContent}
       </div>

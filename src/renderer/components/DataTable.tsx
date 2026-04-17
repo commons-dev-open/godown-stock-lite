@@ -1,11 +1,11 @@
+import { CSSProperties, ReactNode, useEffect, useMemo, useState } from "react";
 import {
-  CSSProperties,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+  Pencil,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+} from "lucide-react";
 import Tooltip from "./Tooltip";
 import Pagination, { PAGE_SIZE } from "./Pagination";
 import {
@@ -106,7 +106,7 @@ export default function DataTable<T extends { id: number }>({
   getRowKey,
   tableClassName = "min-w-full",
   rowClassName = "group border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-accent-subtle)] transition-colors",
-  alwaysShowRowActions = false,
+  alwaysShowRowActions = true,
   pagination,
   tableFrame,
 }: DataTableProps<T>) {
@@ -122,8 +122,7 @@ export default function DataTable<T extends { id: number }>({
 
   const rowKeyFn = getRowKey ?? ((row: T) => row.id);
 
-  const paginationEnabled =
-    pagination !== undefined && pagination !== false;
+  const paginationEnabled = pagination !== undefined && pagination !== false;
 
   const isClient =
     paginationEnabled && pagination && pagination.type === "client";
@@ -141,9 +140,7 @@ export default function DataTable<T extends { id: number }>({
 
   const [internalClientPage, setInternalClientPage] = useState(1);
 
-  const clientPage = isControlledClient
-    ? pagination.page!
-    : internalClientPage;
+  const clientPage = isControlledClient ? pagination.page! : internalClientPage;
 
   const setClientPage = isControlledClient
     ? pagination.onPageChange!
@@ -159,8 +156,7 @@ export default function DataTable<T extends { id: number }>({
     }
   }, [isClient, data.length, pageSize, clientPage]);
 
-  const useTableCardFrame =
-    paginationEnabled && (tableFrame !== false);
+  const useTableCardFrame = paginationEnabled && tableFrame !== false;
 
   // ── Sort state ──────────────────────────────────────────────────────
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -274,11 +270,20 @@ export default function DataTable<T extends { id: number }>({
                     {col.sortable && (
                       <span className="inline-flex">
                         {isSorted && sortDir === "asc" ? (
-                          <ChevronUp size={14} className="text-[var(--color-text-primary)]" />
+                          <ChevronUp
+                            size={14}
+                            className="text-[var(--color-text-primary)]"
+                          />
                         ) : isSorted && sortDir === "desc" ? (
-                          <ChevronDown size={14} className="text-[var(--color-text-primary)]" />
+                          <ChevronDown
+                            size={14}
+                            className="text-[var(--color-text-primary)]"
+                          />
                         ) : (
-                          <ChevronsUpDown size={14} className="text-[var(--color-text-tertiary)]" />
+                          <ChevronsUpDown
+                            size={14}
+                            className="text-[var(--color-text-tertiary)]"
+                          />
                         )}
                       </span>
                     )}

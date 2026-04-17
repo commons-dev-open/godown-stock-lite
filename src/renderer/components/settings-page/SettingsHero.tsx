@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 interface SettingsHeroProps {
   companyName: string;
   gstEnabled: boolean;
@@ -9,6 +10,7 @@ function SettingsHeroComponent({
   companyName,
   gstEnabled,
 }: Readonly<SettingsHeroProps>) {
+  const { t } = useTranslation("settings");
   const companyDisplay =
     companyName.trim().length > 0 ? companyName.trim() : "—";
 
@@ -25,7 +27,7 @@ function SettingsHeroComponent({
                 aria-hidden="true"
               />
               <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
-                Settings
+                {t("hero.title")}
               </h1>
             </div>
           </div>
@@ -34,16 +36,18 @@ function SettingsHeroComponent({
               <div className="grid w-full max-w-full grid-cols-2 gap-2 sm:gap-2.5 lg:w-max lg:grid-flow-col lg:auto-cols-max">
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Company
+                    {t("hero.company")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)] truncate max-w-[10rem] sm:max-w-[14rem]">
                     {companyDisplay}
                   </p>
                 </div>
                 <div className="dashboard-metric-card">
-                  <p className="text-xs text-[var(--color-text-tertiary)]">GST</p>
+                  <p className="text-xs text-[var(--color-text-tertiary)]">
+                    {t("hero.gst")}
+                  </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)] tabular-nums">
-                    {gstEnabled ? "On" : "Off"}
+                    {gstEnabled ? t("hero.gstOn") : t("hero.gstOff")}
                   </p>
                 </div>
               </div>
