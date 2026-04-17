@@ -131,10 +131,12 @@ export default function Items() {
       setReduceStockUnitModal(reduceStockItem.unit);
   }, [reduceStockOpen, reduceStockItem]);
   const [exportOpen, setExportOpen] = useState(false);
-  type ItemsPrintJob = null | (HtmlPrintJobBase & {
-    columns: string[];
-    rows: string[][];
-  });
+  type ItemsPrintJob =
+    | null
+    | (HtmlPrintJobBase & {
+        columns: string[];
+        rows: string[][];
+      });
   const [printJob, setPrintJob] = useState<ItemsPrintJob>(null);
   const [importUnitsPopupOpen, setImportUnitsPopupOpen] = useState(false);
   const [importUnitsTarget, setImportUnitsTarget] = useState<
@@ -768,7 +770,7 @@ export default function Items() {
           setImportUnitsTarget(null);
           setImportProductId("");
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           <Button variant="primary" type="submit" form="add-product-form">
             <Check size={20} className="mr-1.5" aria-hidden="true" />
@@ -969,7 +971,9 @@ export default function Items() {
                         }
                         className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                         title={t("actions.remove", { defaultValue: "Remove" })}
-                        aria-label={t("actions.remove", { defaultValue: "Remove" })}
+                        aria-label={t("actions.remove", {
+                          defaultValue: "Remove",
+                        })}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1000,7 +1004,9 @@ export default function Items() {
                         type="number"
                         min="0.0001"
                         step="any"
-                        placeholder={t("form.example25", { defaultValue: "e.g. 25" })}
+                        placeholder={t("form.example25", {
+                          defaultValue: "e.g. 25",
+                        })}
                         value={row.factor || ""}
                         onChange={(e) =>
                           setAddConversions((prev) =>
@@ -1046,7 +1052,9 @@ export default function Items() {
                         }
                         className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
                         title={t("actions.remove", { defaultValue: "Remove" })}
-                        aria-label={t("actions.remove", { defaultValue: "Remove" })}
+                        aria-label={t("actions.remove", {
+                          defaultValue: "Remove",
+                        })}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1085,7 +1093,9 @@ export default function Items() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder={t("form.example50", { defaultValue: "e.g. 50" })}
+                    placeholder={t("form.example50", {
+                      defaultValue: "e.g. 50",
+                    })}
                     value={addSellingPrice}
                     onChange={(e) => setAddSellingPrice(e.target.value)}
                     className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -1109,7 +1119,9 @@ export default function Items() {
                     ))}
                   </select>
                 </FormField>
-                <FormField label={t("form.gstRate", { defaultValue: "GST Rate" })}>
+                <FormField
+                  label={t("form.gstRate", { defaultValue: "GST Rate" })}
+                >
                   <select
                     value={addGstRate}
                     onChange={(e) => setAddGstRate(Number(e.target.value))}
@@ -1130,7 +1142,9 @@ export default function Items() {
                   >
                     <input
                       type="text"
-                      placeholder={t("form.exampleHsn", { defaultValue: "e.g. 1006" })}
+                      placeholder={t("form.exampleHsn", {
+                        defaultValue: "e.g. 1006",
+                      })}
                       value={addHsnCode}
                       onChange={(e) => setAddHsnCode(e.target.value)}
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -1247,7 +1261,9 @@ export default function Items() {
             onChange={(e) => setImportProductId(e.target.value)}
             className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
           >
-            <option value="">{t("modals.importUnits.selectProductToCopy")}</option>
+            <option value="">
+              {t("modals.importUnits.selectProductToCopy")}
+            </option>
             {(importUnitsTarget === "edit" && editing
               ? items.filter((i) => i.id !== editing.id)
               : items
@@ -1278,7 +1294,7 @@ export default function Items() {
           setImportUnitsTarget(null);
           setImportProductId("");
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           editing ? (
             <Button variant="primary" type="submit" form="edit-product-form">
@@ -1345,7 +1361,7 @@ export default function Items() {
           >
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              {t("form.basicDetails")}
+                {t("form.basicDetails")}
               </h3>
               <div className="grid gap-3 md:grid-cols-2">
                 <FormField label={t("columns.name")} required>
@@ -1499,8 +1515,12 @@ export default function Items() {
                             )
                           }
                           className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                          title={t("actions.remove", { defaultValue: "Remove" })}
-                          aria-label={t("actions.remove", { defaultValue: "Remove" })}
+                          title={t("actions.remove", {
+                            defaultValue: "Remove",
+                          })}
+                          aria-label={t("actions.remove", {
+                            defaultValue: "Remove",
+                          })}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1531,7 +1551,9 @@ export default function Items() {
                           type="number"
                           min="0.0001"
                           step="any"
-                          placeholder={t("form.example25", { defaultValue: "e.g. 25" })}
+                          placeholder={t("form.example25", {
+                            defaultValue: "e.g. 25",
+                          })}
                           value={row.factor || ""}
                           onChange={(e) =>
                             setEditConversions((prev) =>
@@ -1578,8 +1600,12 @@ export default function Items() {
                             )
                           }
                           className="rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
-                          title={t("actions.remove", { defaultValue: "Remove" })}
-                          aria-label={t("actions.remove", { defaultValue: "Remove" })}
+                          title={t("actions.remove", {
+                            defaultValue: "Remove",
+                          })}
+                          aria-label={t("actions.remove", {
+                            defaultValue: "Remove",
+                          })}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1618,7 +1644,9 @@ export default function Items() {
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder={t("form.example50", { defaultValue: "e.g. 50" })}
+                      placeholder={t("form.example50", {
+                        defaultValue: "e.g. 50",
+                      })}
                       value={editSellingPrice}
                       onChange={(e) => setEditSellingPrice(e.target.value)}
                       className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
@@ -1642,7 +1670,9 @@ export default function Items() {
                       ))}
                     </select>
                   </FormField>
-                  <FormField label={t("form.gstRate", { defaultValue: "GST Rate" })}>
+                  <FormField
+                    label={t("form.gstRate", { defaultValue: "GST Rate" })}
+                  >
                     <select
                       value={editGstRate}
                       onChange={(e) => setEditGstRate(Number(e.target.value))}
@@ -1663,7 +1693,9 @@ export default function Items() {
                     >
                       <input
                         type="text"
-                        placeholder={t("form.exampleHsn", { defaultValue: "e.g. 1006" })}
+                        placeholder={t("form.exampleHsn", {
+                          defaultValue: "e.g. 1006",
+                        })}
                         value={editHsnCode}
                         onChange={(e) => setEditHsnCode(e.target.value)}
                         className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"

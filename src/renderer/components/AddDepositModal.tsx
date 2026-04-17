@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -7,6 +7,7 @@ import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
 import DateInput from "./DateInput";
 import Button from "./Button";
+import { OptionSelectButton } from "./OptionSelectButton";
 import { todayISO } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import { formatDecimal } from "../../shared/numbers";
@@ -113,12 +114,15 @@ export default function AddDepositModal({
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
+  const mahajanOptions = useMemo(
+    () => mahajanList.map((m) => ({ value: m.id, label: m.name })),
+    [mahajanList]
+  );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const mahajanId =
-      fixedMahajanId ?? Number((form.mahajan_id as HTMLSelectElement)?.value);
+    const mahajanId = fixedMahajanId ?? selectedLenderId;
     if (!mahajanId || !depositFormDate) return;
     const amount = settlementAmount || Number((form.amount as HTMLInputElement).value);
     const allocs =
@@ -162,21 +166,14 @@ export default function AddDepositModal({
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               {t("modals.shared.fields.lender_required")}
             </label>
-            <select
+            <OptionSelectButton
               name="mahajan_id"
               required
-              className="w-full border rounded-lg px-3 py-2 input-base"
-              onChange={(e) =>
-                setSelectedLenderId(Number(e.target.value) || null)
-              }
-            >
-              <option value="">{t("modals.shared.placeholders.select")}</option>
-              {mahajanList.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              options={mahajanOptions}
+              value={selectedLenderId}
+              onChange={(next) => setSelectedLenderId(next)}
+              placeholder={t("modals.shared.placeholders.select")}
+            />
           </div>
         )}
         <div>

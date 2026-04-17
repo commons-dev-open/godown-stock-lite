@@ -180,10 +180,9 @@ function withLocalizedTransactionExportRows(
     type: String(t(`types.${row.type}`, { defaultValue: row.type })),
     payment_method: row.payment_method
       ? String(
-          t(
-            `modals.shared.payment_methods.${row.payment_method}.label`,
-            { defaultValue: row.payment_method }
-          )
+          t(`modals.shared.payment_methods.${row.payment_method}.label`, {
+            defaultValue: row.payment_method,
+          })
         )
       : null,
   }));
@@ -268,11 +267,13 @@ export default function Transactions() {
   } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  type TransactionsPrintJob = null | (HtmlPrintJobBase & {
-    columns: string[];
-    rows: string[][];
-    filterDetails?: { label: string; value: string }[];
-  });
+  type TransactionsPrintJob =
+    | null
+    | (HtmlPrintJobBase & {
+        columns: string[];
+        rows: string[][];
+        filterDetails?: { label: string; value: string }[];
+      });
   const [printJob, setPrintJob] = useState<TransactionsPrintJob>(null);
 
   const {
@@ -589,9 +590,17 @@ export default function Transactions() {
     }
     if (filterDateFrom)
       list.push({ label: t("filters.date_from"), value: filterDateFrom });
-    if (filterDateTo) list.push({ label: t("filters.date_to"), value: filterDateTo });
+    if (filterDateTo)
+      list.push({ label: t("filters.date_to"), value: filterDateTo });
     return list;
-  }, [filterMahajanId, filterType, filterDateFrom, filterDateTo, mahajanList, t]);
+  }, [
+    filterMahajanId,
+    filterType,
+    filterDateFrom,
+    filterDateTo,
+    mahajanList,
+    t,
+  ]);
 
   const transactionExportColumnLabels = useMemo(
     () => [
@@ -1026,12 +1035,14 @@ export default function Transactions() {
                 })
               }
             >
-              <option value="all">
-                {t("filters.type_all")}
+              <option value="all">{t("filters.type_all")}</option>
+              <option value="credit_purchase">
+                {t("filters.credit_purchase_only")}
               </option>
-              <option value="credit_purchase">{t("filters.credit_purchase_only")}</option>
               <option value="settlement">{t("filters.settlement_only")}</option>
-              <option value="cash_purchase">{t("filters.cash_purchase_only")}</option>
+              <option value="cash_purchase">
+                {t("filters.cash_purchase_only")}
+              </option>
             </select>
             <select
               className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
@@ -1074,7 +1085,9 @@ export default function Transactions() {
               />
               <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">{t("filters.more_filters")}</h2>
+                  <h2 className="text-lg font-semibold">
+                    {t("filters.more_filters")}
+                  </h2>
                   <button
                     type="button"
                     onClick={() => setMoreFiltersOpen(false)}
@@ -1153,7 +1166,9 @@ export default function Transactions() {
                   : t("empty.message")
               }
               emptyActionLabel={
-                ledgerHasActiveFilters ? t("filters.clear") : t("actions.cash_purchase")
+                ledgerHasActiveFilters
+                  ? t("filters.clear")
+                  : t("actions.cash_purchase")
               }
               onEmptyAction={
                 ledgerHasActiveFilters
@@ -1253,7 +1268,7 @@ export default function Transactions() {
           setConfirmEditLendOpen(false);
           setConfirmEditLendPayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           editingLend ? (
             <>
@@ -1313,7 +1328,9 @@ export default function Transactions() {
                   )
                 }
               >
-                <option value="">{t("modals.shared.placeholders.select")}</option>
+                <option value="">
+                  {t("modals.shared.placeholders.select")}
+                </option>
                 {mahajanList.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -1414,7 +1431,7 @@ export default function Transactions() {
           setConfirmEditLendOpen(false);
           setConfirmEditLendPayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           <>
             <Button
@@ -1560,7 +1577,9 @@ export default function Transactions() {
                             </>
                           );
                         })()
-                      : t("modals.edit_credit_purchase.messages.product_changed")}
+                      : t(
+                          "modals.edit_credit_purchase.messages.product_changed"
+                        )}
                   </p>
                 );
               })()}
@@ -1613,7 +1632,9 @@ export default function Transactions() {
                               : "font-medium text-[var(--color-success)]"
                           }
                         >
-                          {t("modals.edit_credit_purchase.messages.after_update_prefix")}{" "}
+                          {t(
+                            "modals.edit_credit_purchase.messages.after_update_prefix"
+                          )}{" "}
                           {t("modals.shared.messages.total_credit_purchase")}{" "}
                           {t("modals.shared.messages.will_change_by")} ₹
                           {formatDecimal(
@@ -1867,7 +1888,9 @@ export default function Transactions() {
                               : "font-medium text-[var(--color-success)]"
                           }
                         >
-                          {t("modals.edit_settlement.messages.after_update_prefix")}{" "}
+                          {t(
+                            "modals.edit_settlement.messages.after_update_prefix"
+                          )}{" "}
                           {t("modals.shared.messages.total_settlements")}{" "}
                           {t("modals.shared.messages.will_change_by")} ₹
                           {formatDecimal(
@@ -1903,7 +1926,7 @@ export default function Transactions() {
           setPurchaseAddOpen(false);
           setPurchaseLines([emptyPurchaseLine()]);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           <>
             <Button
@@ -1953,9 +1976,7 @@ export default function Transactions() {
               })
               .filter((l): l is PurchaseLine => l != null);
             if (!lines.length) {
-              toast.error(
-                t("modals.cash_purchase.toasts.add_one_item")
-              );
+              toast.error(t("modals.cash_purchase.toasts.add_one_item"));
               return;
             }
             setConfirmPurchasePayload({
@@ -2123,7 +2144,7 @@ export default function Transactions() {
           setConfirmPurchaseOpen(false);
           setConfirmPurchasePayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           <>
             <Button
@@ -2592,7 +2613,9 @@ export default function Transactions() {
                   ) : deleteReviewBalance != null ? (
                     <div className="space-y-1 text-[var(--color-text-secondary)]">
                       <p>
-                        <strong>{t("modals.shared.labels.lender_balance")}</strong>{" "}
+                        <strong>
+                          {t("modals.shared.labels.lender_balance")}
+                        </strong>{" "}
                         {t("modals.shared.messages.total_credit_purchase")} ₹
                         {formatDecimal(deleteReviewBalance.totalLends)},{" "}
                         {t("modals.shared.messages.total")}
@@ -2634,10 +2657,16 @@ export default function Transactions() {
                                 : "font-medium text-[var(--color-success)]"
                             }
                           >
-                            {t("modals.delete_transaction.messages.after_delete_prefix")}{" "}
+                            {t(
+                              "modals.delete_transaction.messages.after_delete_prefix"
+                            )}{" "}
                             {deleteConfirmPayload.type === "credit_purchase"
-                              ? t("modals.shared.messages.total_credit_purchase")
-                              : t("modals.shared.messages.total_settlements")}{" "}
+                              ? t(
+                                  "modals.shared.messages.total_credit_purchase"
+                                )
+                              : t(
+                                  "modals.shared.messages.total_settlements"
+                                )}{" "}
                             {t("modals.shared.messages.will_decrease_by")} ₹
                             {formatDecimal(deleteConfirmPayload.row.amount)} →
                             {t("modals.shared.messages.balance_will_be")} ₹

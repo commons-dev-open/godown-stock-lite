@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
+import { OptionSelectButton } from "./OptionSelectButton";
 import DateInput from "./DateInput";
 import Tooltip from "./Tooltip";
 import MahajanBalanceCard from "./MahajanBalanceCard";
@@ -85,6 +86,7 @@ export default function AddLendModal({
   const queryClient = useQueryClient();
   const api = getElectron();
   const [lendLines, setLendLines] = useState<LendLine[]>([emptyLine()]);
+  const [selectedLenderId, setSelectedLenderId] = useState<number | null>(null);
   const [lendFormDate, setLendFormDate] = useState(todayISO());
   const [lenderInvoiceNumber, setLenderInvoiceNumber] = useState("");
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -116,15 +118,17 @@ export default function AddLendModal({
       queueMicrotask(() => setPayNowAmount(0));
       queueMicrotask(() => setPayNowPaymentMethod(""));
       queueMicrotask(() => setPayNowReferenceNumber(""));
+      queueMicrotask(() => setSelectedLenderId(fixedMahajanId ?? null));
     }
-  }, [open]);
+  }, [open, fixedMahajanId]);
 
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
     enabled: open,
   });
-  const gstEnabled = (settings as Record<string, string>).gst_enabled === "true";
+  const gstEnabled =
+    (settings as Record<string, string>).gst_enabled === "true";
 
   const { data: mahajans = [] } = useQuery({
     queryKey: ["mahajans"],
@@ -238,8 +242,7 @@ export default function AddLendModal({
         mahajan_id: payload.mahajan_id,
         transaction_date: payload.transaction_date,
         notes: payload.notes,
-        lender_invoice_number:
-          payload.lender_invoice_number || undefined,
+        lender_invoice_number: payload.lender_invoice_number || undefined,
         invoice_file_path: invoicePath,
         batch_uuid: batchUuid,
         lines: payload.lines,
@@ -252,8 +255,7 @@ export default function AddLendModal({
           transaction_date: payload.transaction_date,
           amount: payNow,
           notes: t("modals.add_credit_purchase.defaults.pay_now_note"),
-          payment_method:
-            payload.pay_now_payment_method || undefined,
+          payment_method: payload.pay_now_payment_method || undefined,
           reference_number:
             payload.pay_now_reference_number?.trim() || undefined,
         });
@@ -288,6 +290,14 @@ export default function AddLendModal({
 
   const mahajanList = mahajans as { id: number; name: string }[];
   const itemList = items as Item[];
+  const mahajanOptions = useMemo(
+    () => mahajanList.map((m) => ({ value: m.id, label: m.name })),
+    [mahajanList]
+  );
+  const itemSelectOptions = useMemo(
+    () => itemList.map((i) => ({ value: i.id, label: i.name })),
+    [itemList]
+  );
 
   const handleClose = () => {
     onClose();
@@ -301,28 +311,16 @@ export default function AddLendModal({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const mahajanId =
-      fixedMahajanId ?? Number((form.mahajan_id as HTMLSelectElement)?.value);
+    const mahajanId = fixedMahajanId ?? selectedLenderId;
     if (!mahajanId || !lendFormDate) return;
     const notes = (form.notes as HTMLInputElement)?.value?.trim() || "";
     const lines: LendLine[] = lendLines
-      .map((_, idx) => {
-        const productId = Number(
-          (form[`product_id_${idx}`] as HTMLSelectElement)?.value
-        );
-        const quantity = Number(
-          (form[`quantity_${idx}`] as HTMLInputElement)?.value
-        );
-        const amount = Number(
-          (form[`amount_${idx}`] as HTMLInputElement)?.value
-        );
-        const gstRate = gstEnabled
-          ? Number((form[`gst_rate_${idx}`] as HTMLSelectElement)?.value) ?? 0
-          : 0;
-        const gstInclusive =
-          gstEnabled &&
-          (form[`gst_inclusive_${idx}`] as HTMLSelectElement)?.value ===
-            "inclusive";
+      .map((line) => {
+        const productId = line.product_id;
+        const quantity = line.quantity;
+        const amount = line.amount;
+        const gstRate = gstEnabled ? line.gst_rate : 0;
+        const gstInclusive = gstEnabled && line.gst_inclusive;
         const item = itemList.find((i) => i.id === productId);
         return productId && quantity > 0 && amount >= 0
           ? {
@@ -341,7 +339,10 @@ export default function AddLendModal({
       return;
     }
     const mahajan = mahajanList.find((m) => m.id === mahajanId);
-    const totalAmount = buildLinesWithGst(lines).reduce((s, l) => s + l.amount, 0);
+    const totalAmount = buildLinesWithGst(lines).reduce(
+      (s, l) => s + l.amount,
+      0
+    );
     const payNow = payNowAmount || 0;
     if (payNow > 0 && payNow > totalAmount) {
       toast.error(t("modals.add_credit_purchase.toasts.pay_now_exceeds_total"));
@@ -368,14 +369,10 @@ export default function AddLendModal({
         title={t("modals.add_credit_purchase.title")}
         open={open && !confirmLendOpen}
         onClose={handleClose}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           <Button type="submit" form="add-lend-form" variant="amber">
-            <ClipboardCheck
-              size={20}
-              className="mr-1.5"
-              aria-hidden="true"
-            />
+            <ClipboardCheck size={20} className="mr-1.5" aria-hidden="true" />
             {t("modals.shared.actions.review_confirm")}
           </Button>
         }
@@ -386,14 +383,14 @@ export default function AddLendModal({
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
                 {t("modals.shared.fields.lender_required")}
               </label>
-              <select name="mahajan_id" required className="input-base w-full">
-                <option value="">{t("modals.shared.placeholders.select")}</option>
-                {mahajanList.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              <OptionSelectButton
+                name="mahajan_id"
+                required
+                options={mahajanOptions}
+                value={selectedLenderId}
+                onChange={(next) => setSelectedLenderId(next)}
+                placeholder={t("modals.shared.placeholders.select")}
+              />
             </div>
           )}
           <div>
@@ -444,38 +441,33 @@ export default function AddLendModal({
                             : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
                         }`}
                       >
-                        <select
-                          name={`product_id_${idx}`}
-                          required={idx === 0}
-                          value={line.product_id || ""}
-                          onChange={(e) => {
-                            const id = Number(e.target.value);
+                        <OptionSelectButton
+                          options={itemSelectOptions}
+                          value={line.product_id > 0 ? line.product_id : null}
+                          onChange={(next) => {
+                            const id = next ?? 0;
                             const item = itemList.find((i) => i.id === id);
                             setLendLines((prev) => {
-                              const next = [...prev];
-                              next[idx] = {
-                                ...next[idx],
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
                                 product_id: id,
                                 product_name: item?.name ?? "",
                                 gst_rate:
                                   (item as Item & { gst_rate?: number })
                                     ?.gst_rate ?? 0,
                               };
-                              return next;
+                              return n;
                             });
                           }}
-                          className="input-base w-full min-w-0"
+                          className="min-w-0"
                           aria-label="Product"
-                        >
-                        <option value="">
-                          {t("modals.shared.placeholders.select_product")}
-                        </option>
-                          {itemList.map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.name}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder={t(
+                            "modals.shared.placeholders.select_product"
+                          )}
+                          required={idx === 0}
+                          name={idx === 0 ? "product_id_0" : undefined}
+                        />
                         <input
                           name={`quantity_${idx}`}
                           type="number"
@@ -551,7 +543,9 @@ export default function AddLendModal({
                             </select>
                             <select
                               name={`gst_inclusive_${idx}`}
-                              value={line.gst_inclusive ? "inclusive" : "exclusive"}
+                              value={
+                                line.gst_inclusive ? "inclusive" : "exclusive"
+                              }
                               onChange={(e) =>
                                 setLendLines((prev) => {
                                   const n = [...prev];
@@ -606,7 +600,9 @@ export default function AddLendModal({
           </div>
           <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-              {t("modals.add_credit_purchase.sections.invoice_details_optional")}
+              {t(
+                "modals.add_credit_purchase.sections.invoice_details_optional"
+              )}
             </p>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
@@ -616,7 +612,9 @@ export default function AddLendModal({
                 type="text"
                 value={lenderInvoiceNumber}
                 onChange={(e) => setLenderInvoiceNumber(e.target.value)}
-                placeholder={t("modals.add_credit_purchase.placeholders.invoice_number")}
+                placeholder={t(
+                  "modals.add_credit_purchase.placeholders.invoice_number"
+                )}
                 className="input-base w-full"
               />
             </div>
@@ -628,9 +626,7 @@ export default function AddLendModal({
                 <input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.webp"
-                  onChange={(e) =>
-                    setInvoiceFile(e.target.files?.[0] ?? null)
-                  }
+                  onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
                   className="hidden"
                   id="credit-purchase-invoice-upload"
                 />
@@ -648,7 +644,9 @@ export default function AddLendModal({
                     type="button"
                     onClick={() => setInvoiceFile(null)}
                     className="text-[var(--color-danger)] hover:text-[var(--color-danger-text)] p-1 rounded-lg"
-                    aria-label={t("modals.add_credit_purchase.actions.remove_file")}
+                    aria-label={t(
+                      "modals.add_credit_purchase.actions.remove_file"
+                    )}
                   >
                     <X size={20} aria-hidden="true" />
                   </button>
@@ -680,9 +678,7 @@ export default function AddLendModal({
                 min="0"
                 step="0.01"
                 value={payNowAmount || ""}
-                onChange={(e) =>
-                  setPayNowAmount(Number(e.target.value) || 0)
-                }
+                onChange={(e) => setPayNowAmount(Number(e.target.value) || 0)}
                 placeholder={t("modals.shared.placeholders.zero")}
                 className="input-base w-full"
               />
@@ -702,7 +698,9 @@ export default function AddLendModal({
                     onChange={(e) => setPayNowPaymentMethod(e.target.value)}
                     className="input-base w-full"
                   >
-                    <option value="">{t("modals.shared.placeholders.none")}</option>
+                    <option value="">
+                      {t("modals.shared.placeholders.none")}
+                    </option>
                     {PAYMENT_METHODS.map((pm) => (
                       <option key={pm.value} value={pm.value}>
                         {t(pm.labelKey)}
@@ -730,16 +728,12 @@ export default function AddLendModal({
                       id="pay-now-reference"
                       type="text"
                       value={payNowReferenceNumber}
-                      onChange={(e) =>
-                        setPayNowReferenceNumber(e.target.value)
-                      }
+                      onChange={(e) => setPayNowReferenceNumber(e.target.value)}
                       placeholder={(() => {
                         const pm = PAYMENT_METHODS.find(
                           (p) => p.value === payNowPaymentMethod
                         );
-                        return pm &&
-                          "placeholderKey" in pm &&
-                          pm.placeholderKey
+                        return pm && "placeholderKey" in pm && pm.placeholderKey
                           ? t(pm.placeholderKey)
                           : undefined;
                       })()}
@@ -771,7 +765,7 @@ export default function AddLendModal({
           setConfirmLendOpen(false);
           setConfirmPayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           confirmPayload ? (
             <>
@@ -793,7 +787,8 @@ export default function AddLendModal({
                     mahajan_id: confirmPayload.mahajan_id,
                     transaction_date: confirmPayload.transaction_date,
                     notes: confirmPayload.notes || undefined,
-                    lender_invoice_number: confirmPayload.lender_invoice_number || undefined,
+                    lender_invoice_number:
+                      confirmPayload.lender_invoice_number || undefined,
                     invoice_file: confirmPayload.invoice_file,
                     batch_uuid: crypto.randomUUID(),
                     lines: linesWithGst,
@@ -801,7 +796,8 @@ export default function AddLendModal({
                     pay_now_payment_method:
                       confirmPayload.pay_now_payment_method || undefined,
                     pay_now_reference_number:
-                      confirmPayload.pay_now_reference_number?.trim() || undefined,
+                      confirmPayload.pay_now_reference_number?.trim() ||
+                      undefined,
                   });
                 }}
                 disabled={createLendBatch.isPending}
@@ -891,7 +887,9 @@ export default function AddLendModal({
                     (confirmPayload.pay_now_amount ?? 0)
                   : undefined
               }
-              balanceAfterLabel={t("modals.add_credit_purchase.confirm.balance_after")}
+              balanceAfterLabel={t(
+                "modals.add_credit_purchase.confirm.balance_after"
+              )}
             />
           </div>
         )}

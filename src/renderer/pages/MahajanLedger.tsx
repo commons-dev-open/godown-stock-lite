@@ -16,6 +16,7 @@ import {
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
+import { OptionSelectButton } from "../components/OptionSelectButton";
 import DateInput from "../components/DateInput";
 import TransactionTypeBadge, {
   type TransactionType,
@@ -25,9 +26,7 @@ import AddLendModal from "../components/AddLendModal";
 import AddDepositModal from "../components/AddDepositModal";
 import { PAGE_SIZE } from "../../shared/constants";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
-import {
-  MahajansSectionPanel,
-} from "../components/mahajans-page";
+import { MahajansSectionPanel } from "../components/mahajans-page";
 import {
   MahajanLedgerHero,
   MahajanLedgerFiltersBar,
@@ -204,13 +203,15 @@ export default function MahajanLedger() {
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  type MahajanLedgerPrintJob = null | (HtmlPrintJobBase & {
-    columns: string[];
-    rows: string[][];
-    mahajanName: string;
-    balance: MahajanBalanceForExport | null;
-    filterDetails?: { label: string; value: string }[];
-  });
+  type MahajanLedgerPrintJob =
+    | null
+    | (HtmlPrintJobBase & {
+        columns: string[];
+        rows: string[][];
+        mahajanName: string;
+        balance: MahajanBalanceForExport | null;
+        filterDetails?: { label: string; value: string }[];
+      });
   const [printJob, setPrintJob] = useState<MahajanLedgerPrintJob>(null);
 
   const {
@@ -323,6 +324,10 @@ export default function MahajanLedger() {
     (m) => m.id === id
   );
   const itemList = items as Item[];
+  const editLendItemOptions = useMemo(
+    () => itemList.map((i) => ({ value: i.id, label: i.name })),
+    [itemList]
+  );
 
   const updateLend = useMutation({
     mutationFn: ({
@@ -626,8 +631,7 @@ export default function MahajanLedger() {
   }
 
   const lenderNotInDirectory =
-    mahajansLoaded &&
-    !(mahajans as { id: number }[]).some((m) => m.id === id);
+    mahajansLoaded && !(mahajans as { id: number }[]).some((m) => m.id === id);
 
   const countBadge = (
     <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -640,7 +644,11 @@ export default function MahajanLedger() {
   const heroToolbar = (
     <>
       <div ref={exportRefs.setReference} {...getExportRefProps()}>
-        <Button variant="secondary" type="button" className="shrink-0 whitespace-nowrap">
+        <Button
+          variant="secondary"
+          type="button"
+          className="shrink-0 whitespace-nowrap"
+        >
           <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
           {t("actions.export")}
         </Button>
@@ -843,7 +851,7 @@ export default function MahajanLedger() {
           setConfirmEditLendOpen(false);
           setConfirmEditLendPayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           editingLend ? (
             <button
@@ -895,23 +903,12 @@ export default function MahajanLedger() {
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Product
               </label>
-              <select
-                name="product_id"
-                className="w-full border rounded px-3 py-2"
-                value={editLendProductId ?? ""}
-                onChange={(e) =>
-                  setEditLendProductId(
-                    e.target.value ? Number(e.target.value) : null
-                  )
-                }
-              >
-                <option value="">—</option>
-                {itemList.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name}
-                  </option>
-                ))}
-              </select>
+              <OptionSelectButton
+                options={editLendItemOptions}
+                value={editLendProductId}
+                onChange={(next) => setEditLendProductId(next)}
+                placeholder="—"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
@@ -972,7 +969,7 @@ export default function MahajanLedger() {
           setConfirmEditLendOpen(false);
           setConfirmEditLendPayload(null);
         }}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-4xl"
         footer={
           confirmEditLendPayload ? (
             <>
@@ -1044,10 +1041,8 @@ export default function MahajanLedger() {
                   {
                     id: 2,
                     fieldLabel: "Product",
-                    current:
-                      confirmEditLendPayload.record.product_name ?? "—",
-                    after:
-                      confirmEditLendPayload.newValues.product_name ?? "—",
+                    current: confirmEditLendPayload.record.product_name ?? "—",
+                    after: confirmEditLendPayload.newValues.product_name ?? "—",
                   },
                   {
                     id: 3,
@@ -1077,7 +1072,9 @@ export default function MahajanLedger() {
               />
             </div>
             <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
-              <p className="font-medium text-[var(--color-warning-text)]">Impact after update</p>
+              <p className="font-medium text-[var(--color-warning-text)]">
+                Impact after update
+              </p>
               {(() => {
                 const qtyDelta =
                   confirmEditLendPayload.newValues.quantity -
@@ -1115,7 +1112,9 @@ export default function MahajanLedger() {
                 );
               })()}
               {balanceLoading || balance == null ? (
-                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">
+                  Loading balance…
+                </p>
               ) : (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
@@ -1370,9 +1369,13 @@ export default function MahajanLedger() {
               />
             </div>
             <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
-              <p className="font-medium text-[var(--color-success)]">Impact after update</p>
+              <p className="font-medium text-[var(--color-success)]">
+                Impact after update
+              </p>
               {balanceLoading || balance == null ? (
-                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">
+                  Loading balance…
+                </p>
               ) : (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
@@ -1538,7 +1541,9 @@ export default function MahajanLedger() {
                   </p>
                 )}
               {balanceLoading || balance == null ? (
-                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">
+                  Loading balance…
+                </p>
               ) : (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
@@ -1611,7 +1616,9 @@ export default function MahajanLedger() {
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {appName}
+            </p>
             <p className="text-xs text-[var(--color-text-secondary)]">
               {t("print.mahajanLedger")}
             </p>
@@ -1625,7 +1632,10 @@ export default function MahajanLedger() {
                     {t("print.appliedFilters")}
                   </p>
                   {printJob.filterDetails.map((f) => (
-                    <p key={f.label} className="text-[var(--color-text-secondary)]">
+                    <p
+                      key={f.label}
+                      className="text-[var(--color-text-secondary)]"
+                    >
                       {f.label}: {f.value}
                     </p>
                   ))}
@@ -1640,17 +1650,22 @@ export default function MahajanLedger() {
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">{t("print.totalDeposits")}</span>
+                  <span className="font-medium">
+                    {t("print.totalDeposits")}
+                  </span>
                   <span className="ml-2">
                     ₹{formatDecimal(printJob.balance.totalDeposits)}
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">{t("print.balanceLendDeposit")}</span>
+                  <span className="font-medium">
+                    {t("print.balanceLendDeposit")}
+                  </span>
                   <span className="ml-2">
                     ₹{formatDecimal(Math.abs(printJob.balance.balance))}
                     {printJob.balance.balance > 0 && ` ${t("labels.payable")}`}
-                    {printJob.balance.balance < 0 && ` ${t("labels.receivable")}`}
+                    {printJob.balance.balance < 0 &&
+                      ` ${t("labels.receivable")}`}
                   </span>
                 </p>
               </div>
