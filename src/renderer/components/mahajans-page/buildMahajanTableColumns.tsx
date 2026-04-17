@@ -15,6 +15,7 @@ export interface MahajanBalanceColumnDeps {
 interface ColumnShape {
   key: string;
   label: string;
+  align?: "left" | "right" | "center";
   render?: (row: Mahajan) => ReactNode;
 }
 
@@ -37,6 +38,7 @@ export function buildMahajanTableColumns(
     {
       key: "balance",
       label: "Balance (Lend - Deposit)",
+      align: "right",
       render: (row) => {
         const bal = showBalanceAll ? allBalances[row.id] : balances[row.id];
         if (bal !== undefined) {

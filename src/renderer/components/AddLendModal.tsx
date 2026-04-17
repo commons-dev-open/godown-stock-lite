@@ -160,22 +160,25 @@ export default function AddLendModal({
       {
         key: "oldStock",
         label: "Old stock",
+        align: "right" as const,
         render: (r: LendConfirmPreviewRow) => (
-          <span className="block text-right tabular-nums">{r.oldStock}</span>
+          <span className="tabular-nums">{r.oldStock}</span>
         ),
       },
       {
         key: "quantity",
         label: "Received (credit purchase)",
+        align: "right" as const,
         render: (r: LendConfirmPreviewRow) => (
-          <span className="block text-right tabular-nums">{r.quantity}</span>
+          <span className="tabular-nums">{r.quantity}</span>
         ),
       },
       {
         key: "after",
         label: "Total after update",
+        align: "right" as const,
         render: (r: LendConfirmPreviewRow) => (
-          <span className="block text-right tabular-nums">{r.after}</span>
+          <span className="tabular-nums">{r.after}</span>
         ),
       },
     ],

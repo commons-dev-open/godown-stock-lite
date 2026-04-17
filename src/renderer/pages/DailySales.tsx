@@ -462,26 +462,31 @@ export default function DailySales() {
                   {
                     key: "sale_amount",
                     label: "Total Sale",
+                    align: "right",
                     render: (r) => formatDecimal(r.sale_amount),
                   },
                   {
                     key: "invoice_sales",
                     label: "Invoice Sales",
+                    align: "right",
                     render: (r) => formatDecimal(r.invoice_sales ?? 0),
                   },
                   {
                     key: "misc_sales",
                     label: "Misc / Cash Sales",
+                    align: "right",
                     render: (r) => formatDecimal(r.misc_sales ?? 0),
                   },
                   {
                     key: "cash_in_hand",
                     label: "Cash in Hand",
+                    align: "right",
                     render: (r) => formatDecimal(r.cash_in_hand),
                   },
                   {
                     key: "expenditure_amount",
                     label: "Expenditure",
+                    align: "right",
                     render: (r) => formatDecimal(r.expenditure_amount ?? 0),
                   },
                 ]}

@@ -19,7 +19,21 @@ interface Column<T> {
   render?: (row: T) => ReactNode;
   /** When true the column header is clickable and cycles through asc / desc / unsorted. */
   sortable?: boolean;
+  /** Horizontal alignment applied to both header and cells. Defaults to "left". */
+  align?: "left" | "right" | "center";
 }
+
+const ALIGN_TEXT_CLASS = {
+  left: "text-left",
+  right: "text-right",
+  center: "text-center",
+} as const;
+
+const ALIGN_FLEX_CLASS = {
+  left: "justify-start",
+  right: "justify-end",
+  center: "justify-center",
+} as const;
 
 type SortDir = "asc" | "desc" | null;
 
@@ -229,11 +243,14 @@ export default function DataTable<T extends { id: number }>({
           <tr>
             {columns.map((col) => {
               const isSorted = sortKey === col.key && sortDir !== null;
+              const align = col.align ?? "left";
               return (
                 <th
                   key={col.key}
                   className={
-                    "px-4 py-2.5 text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide select-none" +
+                    "px-4 py-2.5 " +
+                    ALIGN_TEXT_CLASS[align] +
+                    " text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide select-none" +
                     (col.sortable
                       ? " cursor-pointer hover:text-[var(--color-text-secondary)] transition-colors"
                       : "")
@@ -247,7 +264,12 @@ export default function DataTable<T extends { id: number }>({
                       : undefined
                   }
                 >
-                  <span className="inline-flex items-center gap-1">
+                  <span
+                    className={
+                      "inline-flex items-center gap-1 " +
+                      ALIGN_FLEX_CLASS[align]
+                    }
+                  >
                     {col.label}
                     {col.sortable && (
                       <span className="inline-flex">
@@ -274,13 +296,23 @@ export default function DataTable<T extends { id: number }>({
         <tbody>
           {displayRows.map((row) => (
             <tr key={String(rowKeyFn(row))} className={rowClassName}>
-              {columns.map((col) => (
-                <td key={col.key} className="px-4 py-2.5 text-sm text-[var(--color-text-primary)]">
-                  {col.render
-                    ? col.render(row)
-                    : String((row as Record<string, unknown>)[col.key] ?? "")}
-                </td>
-              ))}
+              {columns.map((col) => {
+                const align = col.align ?? "left";
+                return (
+                  <td
+                    key={col.key}
+                    className={
+                      "px-4 py-2.5 " +
+                      ALIGN_TEXT_CLASS[align] +
+                      " text-sm text-[var(--color-text-primary)]"
+                    }
+                  >
+                    {col.render
+                      ? col.render(row)
+                      : String((row as Record<string, unknown>)[col.key] ?? "")}
+                  </td>
+                );
+              })}
               {(onEdit || onDelete || extraActions) && (
                 <td className="px-2 py-2.5 text-right text-sm w-[1%]">
                   <span

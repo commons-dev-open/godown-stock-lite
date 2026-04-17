@@ -626,6 +626,7 @@ export default function Items() {
                 {
                   key: "current_stock",
                   label: "Current Stock",
+                  align: "right",
                   render: (r) => formatDecimal(r.current_stock),
                 },
                 {
@@ -638,6 +639,7 @@ export default function Items() {
                       {
                         key: "selling_price" as const,
                         label: "Selling Price",
+                        align: "right" as const,
                         render: (r: Item) =>
                           r.selling_price != null && r.selling_price > 0
                             ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
@@ -646,6 +648,7 @@ export default function Items() {
                       {
                         key: "gst_rate" as const,
                         label: "GST",
+                        align: "right" as const,
                         render: (r: Item) =>
                           (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
                       },
@@ -663,6 +666,7 @@ export default function Items() {
                 {
                   key: "reorder_level",
                   label: "Reorder Level",
+                  align: "right",
                   render: (r) =>
                     r.reorder_level != null
                       ? formatDecimal(r.reorder_level)

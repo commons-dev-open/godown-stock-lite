@@ -520,19 +520,18 @@ function CouponsAndTieredSection({
       {
         key: "discount_value",
         label: "Value",
-        render: (c: CouponRow) => (
-          <span className="block text-right">
-            {c.discount_type === "percent"
-              ? `${c.discount_value}%`
-              : `₹${c.discount_value}`}
-          </span>
-        ),
+        align: "right" as const,
+        render: (c: CouponRow) =>
+          c.discount_type === "percent"
+            ? `${c.discount_value}%`
+            : `₹${c.discount_value}`,
       },
       {
         key: "min_order_amount",
         label: "Min order",
+        align: "right" as const,
         render: (c: CouponRow) => (
-          <span className="block text-right text-[var(--color-text-secondary)]">
+          <span className="text-[var(--color-text-secondary)]">
             {c.min_order_amount != null ? `₹${c.min_order_amount}` : "—"}
           </span>
         ),
@@ -540,8 +539,9 @@ function CouponsAndTieredSection({
       {
         key: "used_count",
         label: "Used",
+        align: "right" as const,
         render: (c: CouponRow) => (
-          <span className="block text-right text-[var(--color-text-secondary)]">
+          <span className="text-[var(--color-text-secondary)]">
             {c.usage_limit != null
               ? `${c.used_count}/${c.usage_limit}`
               : c.used_count}
@@ -557,28 +557,28 @@ function CouponsAndTieredSection({
       {
         key: "min_order_amount",
         label: "Min order (₹)",
-        render: (t: TieredRow) => (
-          <span className="block text-right">₹{t.min_order_amount}</span>
-        ),
+        align: "right" as const,
+        render: (t: TieredRow) => `₹${t.min_order_amount}`,
       },
       {
         key: "discount_display",
         label: "Discount",
+        align: "right" as const,
         render: (t: TieredRow) => {
           const hasFlat = (t.discount_flat ?? 0) > 0;
-          const discountDisplay = hasFlat
+          return hasFlat
             ? `₹${t.discount_flat}`
             : (t.discount_percent ?? 0) > 0
               ? `${t.discount_percent}%`
               : "—";
-          return <span className="block text-right">{discountDisplay}</span>;
         },
       },
       {
         key: "max_discount_amount",
         label: "Max (₹)",
+        align: "right" as const,
         render: (t: TieredRow) => (
-          <span className="block text-right text-[var(--color-text-secondary)]">
+          <span className="text-[var(--color-text-secondary)]">
             {t.max_discount_amount != null ? `₹${t.max_discount_amount}` : "—"}
           </span>
         ),
@@ -621,6 +621,7 @@ function CouponsAndTieredSection({
           emptyMessage="No coupons yet."
           pagination={{ type: "client" }}
           alwaysShowRowActions
+          scrollMaxHeight={`500px`}
           extraActions={(c) => (
             <>
               <button
@@ -678,6 +679,7 @@ function CouponsAndTieredSection({
           emptyMessage="No tiered rules yet."
           pagination={{ type: "client" }}
           alwaysShowRowActions
+          scrollMaxHeight={`500px`}
           extraActions={(t) => (
             <>
               <button
@@ -1546,7 +1548,9 @@ export default function Settings() {
             <SecurityTab
               currentUserId={currentUser.id}
               currentUserName={currentUser.name}
-              companyName={companyHeroName.length > 0 ? companyHeroName : "business"}
+              companyName={
+                companyHeroName.length > 0 ? companyHeroName : "business"
+              }
               onLock={lock}
               isSuperAdmin={currentUser.role === "superadmin"}
             />

@@ -170,29 +170,33 @@ const CASH_PURCHASE_PREVIEW_COLUMNS = [
   {
     key: "oldStock",
     label: "Old stock",
+    align: "right" as const,
     render: (r: CashPurchasePreviewRow) => (
-      <span className="block text-right tabular-nums">{r.oldStock}</span>
+      <span className="tabular-nums">{r.oldStock}</span>
     ),
   },
   {
     key: "qty",
     label: "Qty",
+    align: "right" as const,
     render: (r: CashPurchasePreviewRow) => (
-      <span className="block text-right tabular-nums">{r.qty}</span>
+      <span className="tabular-nums">{r.qty}</span>
     ),
   },
   {
     key: "totalAfter",
     label: "Total after",
+    align: "right" as const,
     render: (r: CashPurchasePreviewRow) => (
-      <span className="block text-right tabular-nums">{r.totalAfter}</span>
+      <span className="tabular-nums">{r.totalAfter}</span>
     ),
   },
   {
     key: "amountDisplay",
     label: "Amount (₹)",
+    align: "right" as const,
     render: (r: CashPurchasePreviewRow) => (
-      <span className="block text-right tabular-nums">{r.amountDisplay}</span>
+      <span className="tabular-nums">{r.amountDisplay}</span>
     ),
   },
 ];
@@ -758,6 +762,7 @@ export default function Transactions() {
       {
         key: "quantity",
         label: "Qty",
+        align: "right" as const,
         render: (row: LenderLedgerPageRow) => (
           <span className="block text-right text-[var(--color-text-primary)]">
             {row.type === "settlement" || row.type === "deposit"
@@ -791,6 +796,7 @@ export default function Transactions() {
       {
         key: "amount",
         label: "Amount (₹)",
+        align: "right" as const,
         render: (row: LenderLedgerPageRow) => (
           <span
             className={`block text-right text-sm font-medium ${amountColorClass(row.type)}`}

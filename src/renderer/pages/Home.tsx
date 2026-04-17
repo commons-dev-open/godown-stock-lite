@@ -265,6 +265,7 @@ export default function Home() {
           {
             key: "current_stock",
             label: "Current",
+            align: "right" as const,
             render: (item: LowStockItem) => {
               const isZero = item.current_stock === 0;
               const colorClass = isZero
@@ -286,11 +287,8 @@ export default function Home() {
           {
             key: "reorder_level",
             label: "Reorder At",
-            render: (item: LowStockItem) => (
-              <span className="block text-right">
-                {formatDecimal(item.reorder_level)}
-              </span>
-            ),
+            align: "right" as const,
+            render: (item: LowStockItem) => formatDecimal(item.reorder_level),
           },
           { key: "unit", label: "Unit" },
         ]}
@@ -406,17 +404,17 @@ export default function Home() {
           {
             key: "sale_amount",
             label: "Sale",
+            align: "right" as const,
             render: (sale) => (
-              <span className="block text-right tabular-nums">
-                {formatRupee(sale.sale_amount)}
-              </span>
+              <span className="tabular-nums">{formatRupee(sale.sale_amount)}</span>
             ),
           },
           {
             key: "invoice_sales",
             label: "Invoice",
+            align: "right" as const,
             render: (sale) => (
-              <span className="block text-right tabular-nums">
+              <span className="tabular-nums">
                 {formatRupee(sale.invoice_sales ?? 0)}
               </span>
             ),
@@ -424,8 +422,9 @@ export default function Home() {
           {
             key: "misc_sales",
             label: "Misc",
+            align: "right" as const,
             render: (sale) => (
-              <span className="block text-right tabular-nums">
+              <span className="tabular-nums">
                 {formatRupee(sale.misc_sales ?? 0)}
               </span>
             ),
@@ -433,8 +432,9 @@ export default function Home() {
           {
             key: "cash_in_hand",
             label: "Cash in Hand",
+            align: "right" as const,
             render: (sale) => (
-              <span className="block text-right tabular-nums">
+              <span className="tabular-nums">
                 {formatRupee(sale.cash_in_hand)}
               </span>
             ),
@@ -442,8 +442,9 @@ export default function Home() {
           {
             key: "expenditure_amount",
             label: "Expenditure",
+            align: "right" as const,
             render: (sale) => (
-              <span className="block text-right tabular-nums">
+              <span className="tabular-nums">
                 {formatRupee(sale.expenditure_amount ?? 0)}
               </span>
             ),

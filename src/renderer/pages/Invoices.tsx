@@ -568,6 +568,7 @@ export default function Invoices() {
       {
         key: "total" as const,
         label: "Total",
+        align: "right" as const,
         render: (r: InvoiceRow) =>
           r.total != null && r.total > 0 ? `₹${formatDecimal(r.total)}` : "—",
       },
@@ -1644,109 +1645,6 @@ function InvoiceFormModal({
           />
         </FormField>
 
-        {(discountPctEnabled ||
-          discountFlatEnabled ||
-          discountCouponEnabled ||
-          discountTieredEnabled) && (
-          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-warning-subtle)]/50 p-4 space-y-3">
-            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-              Order-level discounts
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              {discountPctEnabled && (
-                <FormField label="Order % off">
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={orderDiscountPercent || ""}
-                    onChange={(e) =>
-                      setOrderDiscountPercent(Number(e.target.value) || 0)
-                    }
-                    className="input-base w-full"
-                    placeholder="0"
-                  />
-                </FormField>
-              )}
-              {discountFlatEnabled && (
-                <FormField label="Order flat (Rs.) off">
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={orderDiscountFlat || ""}
-                    onChange={(e) =>
-                      setOrderDiscountFlat(Number(e.target.value) || 0)
-                    }
-                    className="input-base w-full"
-                    placeholder="0"
-                  />
-                </FormField>
-              )}
-              {discountCouponEnabled && (
-                <div className="col-span-2 flex gap-2 items-end">
-                  <FormField
-                    label="Coupon code"
-                    extra={
-                      appliedCoupon ? (
-                        <span className="text-xs text-[var(--color-success)]">
-                          Applied: {appliedCoupon.code} (
-                          {appliedCoupon.discount_type === "percent"
-                            ? `${appliedCoupon.discount_value}%`
-                            : `₹${appliedCoupon.discount_value}`}{" "}
-                          off)
-                        </span>
-                      ) : null
-                    }
-                  >
-                    <input
-                      value={couponCode}
-                      onChange={(e) =>
-                        setCouponCode(e.target.value.toUpperCase())
-                      }
-                      className="input-base w-full"
-                      placeholder="Enter code"
-                      disabled={!!appliedCoupon}
-                    />
-                  </FormField>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      if (appliedCoupon) {
-                        setAppliedCoupon(null);
-                        setCouponCode("");
-                        return;
-                      }
-                      const subtotal = formTotals.grand;
-                      void getElectron()
-                        .validateAndApplyCoupon(couponCode.trim(), subtotal)
-                        .then((result) => {
-                          if (result) {
-                            setAppliedCoupon(result);
-                          } else {
-                            toast.error("Invalid or expired coupon");
-                          }
-                        })
-                        .catch(() => toast.error("Coupon validation failed"));
-                    }}
-                  >
-                    {appliedCoupon ? "Remove" : "Apply"}
-                  </Button>
-                </div>
-              )}
-            </div>
-            {discountTieredEnabled &&
-              tieredRules.length > 0 &&
-              formTotals.orderDiscBreakdown.tieredAmount > 0 && (
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  Tiered discount applied (order &gt;= min amount)
-                </p>
-              )}
-          </div>
-        )}
-
         <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
           <div className="min-w-0 overflow-x-auto">
             <div className="min-w-[36rem]">
@@ -2255,6 +2153,109 @@ function InvoiceFormModal({
             </div>
           </div>
         </div>
+
+        {(discountPctEnabled ||
+          discountFlatEnabled ||
+          discountCouponEnabled ||
+          discountTieredEnabled) && (
+          <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-warning-subtle)]/50 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+              Order-level discounts
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {discountPctEnabled && (
+                <FormField label="Order % off">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={orderDiscountPercent || ""}
+                    onChange={(e) =>
+                      setOrderDiscountPercent(Number(e.target.value) || 0)
+                    }
+                    className="input-base w-full"
+                    placeholder="0"
+                  />
+                </FormField>
+              )}
+              {discountFlatEnabled && (
+                <FormField label="Order flat (Rs.) off">
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={orderDiscountFlat || ""}
+                    onChange={(e) =>
+                      setOrderDiscountFlat(Number(e.target.value) || 0)
+                    }
+                    className="input-base w-full"
+                    placeholder="0"
+                  />
+                </FormField>
+              )}
+              {discountCouponEnabled && (
+                <div className="col-span-2 flex gap-2 items-end">
+                  <FormField
+                    label="Coupon code"
+                    extra={
+                      appliedCoupon ? (
+                        <span className="text-xs text-[var(--color-success)]">
+                          Applied: {appliedCoupon.code} (
+                          {appliedCoupon.discount_type === "percent"
+                            ? `${appliedCoupon.discount_value}%`
+                            : `₹${appliedCoupon.discount_value}`}{" "}
+                          off)
+                        </span>
+                      ) : null
+                    }
+                  >
+                    <input
+                      value={couponCode}
+                      onChange={(e) =>
+                        setCouponCode(e.target.value.toUpperCase())
+                      }
+                      className="input-base w-full"
+                      placeholder="Enter code"
+                      disabled={!!appliedCoupon}
+                    />
+                  </FormField>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (appliedCoupon) {
+                        setAppliedCoupon(null);
+                        setCouponCode("");
+                        return;
+                      }
+                      const subtotal = formTotals.grand;
+                      void getElectron()
+                        .validateAndApplyCoupon(couponCode.trim(), subtotal)
+                        .then((result) => {
+                          if (result) {
+                            setAppliedCoupon(result);
+                          } else {
+                            toast.error("Invalid or expired coupon");
+                          }
+                        })
+                        .catch(() => toast.error("Coupon validation failed"));
+                    }}
+                  >
+                    {appliedCoupon ? "Remove" : "Apply"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            {discountTieredEnabled &&
+              tieredRules.length > 0 &&
+              formTotals.orderDiscBreakdown.tieredAmount > 0 && (
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Tiered discount applied (order &gt;= min amount)
+                </p>
+              )}
+          </div>
+        )}
       </form>
     </FormModal>
   );

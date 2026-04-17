@@ -120,15 +120,14 @@ export function MahajanLedgerTable({
       {
         key: "amount",
         label: "Amount",
+        align: "right" as const,
         render: (row: LenderLedgerPageRow) => {
           const amountColorClass =
             row.type === "credit_purchase"
               ? "text-[var(--color-warning-text)]"
               : "text-[var(--color-success)]";
           return (
-            <span
-              className={`block text-right text-sm font-medium ${amountColorClass}`}
-            >
+            <span className={`text-sm font-medium ${amountColorClass}`}>
               {formatDecimal(row.amount)}
             </span>
           );
