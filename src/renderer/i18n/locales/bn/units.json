@@ -1,24 +1,103 @@
 {
   "hero": {
-    "title": "ইউনিট",
-    "subtitle": "মাপের ইউনিট"
-  },
-  "actions": {
-    "addUnit": "ইউনিট অ্যাড",
-    "editUnit": "ইউনিট এডিট",
-    "deleteUnit": "ইউনিট ডিলিট"
+    "title": "একক ও রূপান্তর",
+    "metrics": {
+      "units": "একক",
+      "types": "ধরন",
+      "conversions": "রূপান্তর"
+    }
   },
   "tabs": {
-    "units": "ইউনিট",
-    "categories": "ক্যাটাগরি"
+    "ariaLabel": "একক বিভাগ",
+    "all": "সব একক",
+    "types": "এককের ধরন",
+    "conversions": "স্ট্যান্ডার্ড রূপান্তর"
   },
-  "columns": {
-    "name": "নাম",
-    "symbol": "সিম্বল"
+  "sections": {
+    "all": {
+      "description": "প্রতিটি পণ্য ও স্টক চলাচল এই তালিকার কোনো একটি একক ব্যবহার করে।"
+    },
+    "types": {
+      "description": "এককের ধরন (যেমন ভর, আয়তন, গণনা) একক গোষ্ঠী করে এবং একই ধরনের মধ্যে রূপান্তর রাখে।"
+    },
+    "conversions": {
+      "description": "সংখ্যাসূচক গুণক দিয়ে একক যুক্ত করুন যাতে অ্যাপ স্টক ও পরিমাণ একভাবে রূপান্তর করতে পারে।"
+    }
   },
   "empty": {
-    "title": "এখনও কোনো ইউনিট নেই",
-    "message": "kg, litre, piece এর মতো ইউনিট অ্যাড করুন।",
-    "cta": "ইউনিট অ্যাড করুন"
+    "all": {
+      "title": "এখনও কোনো একক নেই",
+      "description": "যে এককে বিক্রি বা স্টক রাখেন তা তৈরি করুন (kg, pcs, boxes)। ঐচ্ছিক প্রতীক ও ধরন যোগ করতে পারেন।"
+    },
+    "types": {
+      "title": "এখনও কোনো এককের ধরন নেই",
+      "description": "ভর, আয়তন বা গণনার মতো ধরন যোগ করুন যাতে রূপান্তর সঙ্গত এককের মধ্যেই থাকে।"
+    },
+    "conversions": {
+      "title": "এখনও কোনো স্ট্যান্ডার্ড রূপান্তর নেই",
+      "description": "প্রতিটি জোড়ার জন্য একটি সারি যোগ করুন (যেমন 1 kg = 1000 g) যাতে পরিমাণ স্বয়ংক্রিয়ভাবে বদলায়।"
+    }
+  },
+  "actions": {
+    "addUnit": "একক যোগ করুন",
+    "addType": "ধরন যোগ করুন",
+    "addConversion": "রূপান্তর যোগ করুন"
+  },
+  "columns": {
+    "symbol": "প্রতীক",
+    "fromUnit": "উৎস একক",
+    "toUnit": "লক্ষ্য একক",
+    "factor": "গুণক"
+  },
+  "tableEmpty": {
+    "all": "এখনও কোনো একক নেই।",
+    "types": "এখনও কোনো এককের ধরন নেই।",
+    "conversions": "এখনও কোনো স্ট্যান্ডার্ড রূপান্তর নেই।"
+  },
+  "factorRow": "1 {{from}} = {{factor}} {{to}}",
+  "display": {
+    "empty": "—"
+  },
+  "a11y": {
+    "deleteUnit": "একক মুছুন",
+    "deleteUnitType": "এককের ধরন মুছুন"
+  },
+  "confirmDelete": {
+    "unit": {
+      "title": "একক মুছুন",
+      "message": "এই একক মুছবেন? এটি ব্যবহার করা পণ্য আটকে যাবে।"
+    },
+    "conversion": {
+      "title": "রূপান্তর মুছুন",
+      "message": "এই স্ট্যান্ডার্ড রূপান্তর মুছবেন?"
+    },
+    "unitType": {
+      "title": "এককের ধরন মুছুন",
+      "message": "এই ধরন মুছবেন? এটি ব্যবহার করা একক আগে অন্য ধরনে সরাতে হবে।"
+    }
+  },
+  "modals": {
+    "addUnitType": { "title": "এককের ধরন যোগ করুন" },
+    "editUnitType": { "title": "এককের ধরন সম্পাদনা" },
+    "addUnit": { "title": "একক যোগ করুন" },
+    "editUnit": { "title": "একক সম্পাদনা" },
+    "addConversion": { "title": "রূপান্তর যোগ করুন" },
+    "editConversion": { "title": "রূপান্তর সম্পাদনা" }
+  },
+  "form": {
+    "unitTypeNamePlaceholder": "যেমন ভর, আয়তন, গণনা",
+    "unitNamePlaceholder": "যেমন kg, pcs, বাক্স",
+    "symbolOptional": "প্রতীক (ঐচ্ছিক)",
+    "symbolPlaceholderAdd": "যেমন g, kg; খালি থাকলে পুরো নাম ব্যবহৃত হবে",
+    "symbolPlaceholderEdit": "যেমন গ্রামের জন্য g",
+    "typeOptional": "ধরন (ঐচ্ছিক)",
+    "factorLabel": "গুণক (1 উৎস একক = গুণক × 1 লক্ষ্য একক)",
+    "factorPlaceholder": "যেমন kg থেকে g হলে 1000 (অর্থাৎ 1 kg = 1000 g)",
+    "selectUnit": "একক বেছে নিন"
+  },
+  "async": {
+    "errorTitle": "কিছু ভুল হয়েছে",
+    "errorDescription": "এই তালিকা লোড করা যায়নি। সংযোগ দেখে আবার চেষ্টা করুন।",
+    "retry": "আবার চেষ্টা"
   }
 }

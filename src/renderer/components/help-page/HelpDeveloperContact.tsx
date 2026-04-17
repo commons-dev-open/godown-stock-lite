@@ -7,7 +7,7 @@ const DEVELOPER_PHOTO_SRC = new URL(
 ).href;
 
 const DEVELOPER_NAME = "Arindam Hazra";
-const PRODUCT_OWNER_LABEL = "Product owner";
+const FOUNDER_DEVELOPER_LABEL = "Founder and developer";
 const DEVELOPER_LOCATION = "West Bengal, India";
 const DEVELOPER_LINKEDIN = "https://www.linkedin.com/in/iamarindamhazra/";
 const DEVELOPER_EMAIL = "hi@arindamhazra.in";
@@ -26,8 +26,8 @@ async function openExternalUrl(url: string): Promise<void> {
 export function HelpDeveloperContact() {
   return (
     <HelpSectionPanel
-      title="Product owner & contact"
-      description="For product issues, purchase, renewal, or licensing, contact the owner below. WhatsApp is preferred for the quickest replies."
+      title="Founder and developer"
+      description="For product issues, purchase, renewal, or licensing, use the contact options below. WhatsApp is preferred for the quickest replies."
     >
       <div className="px-4 pb-4 pt-1">
         <div className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_1fr] sm:items-start sm:gap-8">
@@ -50,7 +50,7 @@ export function HelpDeveloperContact() {
                 {DEVELOPER_NAME}
               </p>
               <p className="mt-0.5 text-sm font-medium text-[var(--color-accent)]">
-                {PRODUCT_OWNER_LABEL}
+                {FOUNDER_DEVELOPER_LABEL}
               </p>
               <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
                 <MapPin

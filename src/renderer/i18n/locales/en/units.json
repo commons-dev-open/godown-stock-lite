@@ -1,24 +1,103 @@
 {
   "hero": {
-    "title": "Units",
-    "subtitle": "Units of measurement"
-  },
-  "actions": {
-    "addUnit": "Add Unit",
-    "editUnit": "Edit Unit",
-    "deleteUnit": "Delete Unit"
+    "title": "Units & conversions",
+    "metrics": {
+      "units": "Units",
+      "types": "Types",
+      "conversions": "Conversions"
+    }
   },
   "tabs": {
-    "units": "Units",
-    "categories": "Categories"
+    "ariaLabel": "Units sections",
+    "all": "All units",
+    "types": "Unit types",
+    "conversions": "Standard conversions"
   },
-  "columns": {
-    "name": "Name",
-    "symbol": "Symbol"
+  "sections": {
+    "all": {
+      "description": "Every product and stock movement references a unit from this list."
+    },
+    "types": {
+      "description": "Unit types (e.g. Mass, Volume, Count) group units and keep conversions within the same type."
+    },
+    "conversions": {
+      "description": "Link units with a numeric factor so the app can convert stock and quantities consistently."
+    }
   },
   "empty": {
-    "title": "No units yet",
-    "message": "Add measurement units like kg, litre, piece.",
-    "cta": "Add Unit"
+    "all": {
+      "title": "No units yet",
+      "description": "Create units you sell or stock in (kg, pcs, boxes). You can add an optional symbol and type."
+    },
+    "types": {
+      "title": "No unit types yet",
+      "description": "Add types such as Mass, Volume, or Count so conversions stay within compatible units."
+    },
+    "conversions": {
+      "title": "No standard conversions yet",
+      "description": "Add a row for each pair you need (for example 1 kg = 1000 g) so quantities convert automatically."
+    }
+  },
+  "actions": {
+    "addUnit": "Add unit",
+    "addType": "Add type",
+    "addConversion": "Add conversion"
+  },
+  "columns": {
+    "symbol": "Symbol",
+    "fromUnit": "From unit",
+    "toUnit": "To unit",
+    "factor": "Factor"
+  },
+  "tableEmpty": {
+    "all": "No units yet.",
+    "types": "No unit types yet.",
+    "conversions": "No standard conversions yet."
+  },
+  "factorRow": "1 {{from}} = {{factor}} {{to}}",
+  "display": {
+    "empty": "—"
+  },
+  "a11y": {
+    "deleteUnit": "Delete unit",
+    "deleteUnitType": "Delete unit type"
+  },
+  "confirmDelete": {
+    "unit": {
+      "title": "Delete unit",
+      "message": "Delete this unit? Products using it will be blocked."
+    },
+    "conversion": {
+      "title": "Delete conversion",
+      "message": "Delete this standard conversion?"
+    },
+    "unitType": {
+      "title": "Delete unit type",
+      "message": "Delete this type? Units using it must be reassigned first."
+    }
+  },
+  "modals": {
+    "addUnitType": { "title": "Add unit type" },
+    "editUnitType": { "title": "Edit unit type" },
+    "addUnit": { "title": "Add unit" },
+    "editUnit": { "title": "Edit unit" },
+    "addConversion": { "title": "Add conversion" },
+    "editConversion": { "title": "Edit conversion" }
+  },
+  "form": {
+    "unitTypeNamePlaceholder": "e.g. Mass, Volume, Count",
+    "unitNamePlaceholder": "e.g. kg, pcs, boxes",
+    "symbolOptional": "Symbol (optional)",
+    "symbolPlaceholderAdd": "e.g. g, kg; if empty, full name is used",
+    "symbolPlaceholderEdit": "e.g. g for gram",
+    "typeOptional": "Type (optional)",
+    "factorLabel": "Factor (1 from unit = factor × to unit)",
+    "factorPlaceholder": "e.g. 1000 for kg → g",
+    "selectUnit": "Select unit"
+  },
+  "async": {
+    "errorTitle": "Something went wrong",
+    "errorDescription": "This list could not be loaded. Check your connection and try again.",
+    "retry": "Retry"
   }
 }

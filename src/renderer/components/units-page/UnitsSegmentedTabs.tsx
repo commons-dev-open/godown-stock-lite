@@ -1,17 +1,22 @@
+import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, List, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { UnitsTabId } from "./types";
 
 interface TabItem {
   id: UnitsTabId;
-  label: string;
+  labelKey: "tabs.all" | "tabs.types" | "tabs.conversions";
   Icon: LucideIcon;
 }
 
 const TAB_ITEMS: readonly TabItem[] = [
-  { id: "all", label: "All units", Icon: List },
-  { id: "types", label: "Unit types", Icon: Tag },
-  { id: "conversions", label: "Standard conversions", Icon: ArrowLeftRight },
+  { id: "all", labelKey: "tabs.all", Icon: List },
+  { id: "types", labelKey: "tabs.types", Icon: Tag },
+  {
+    id: "conversions",
+    labelKey: "tabs.conversions",
+    Icon: ArrowLeftRight,
+  },
 ];
 
 interface UnitsSegmentedTabsProps {
@@ -23,13 +28,14 @@ export function UnitsSegmentedTabs({
   active,
   onChange,
 }: Readonly<UnitsSegmentedTabsProps>) {
+  const { t } = useTranslation("units");
   return (
     <div
       className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] p-1"
       role="tablist"
-      aria-label="Units sections"
+      aria-label={t("tabs.ariaLabel")}
     >
-      {TAB_ITEMS.map(({ id, label, Icon }) => {
+      {TAB_ITEMS.map(({ id, labelKey, Icon }) => {
         const isActive = active === id;
         return (
           <button
@@ -45,7 +51,7 @@ export function UnitsSegmentedTabs({
             }`}
           >
             <Icon size={16} aria-hidden="true" />
-            <span className="truncate">{label}</span>
+            <span className="truncate">{t(labelKey)}</span>
           </button>
         );
       })}

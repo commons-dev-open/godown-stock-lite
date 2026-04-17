@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { getElectron } from "../api/client";
@@ -27,67 +28,15 @@ import {
   type UnitsTabId,
 } from "../components/units-page";
 
-interface TabSectionMeta {
-  title: string;
-  description: string;
-  loaderColumns: number;
-}
-
-const TAB_SECTION_META: Record<UnitsTabId, TabSectionMeta> = {
-  all: {
-    title: "All units",
-    description:
-      "Every product and stock movement references a unit from this list.",
-    loaderColumns: 4,
-  },
-  types: {
-    title: "Unit types",
-    description:
-      "Unit types (e.g. Mass, Volume, Count) help group units and restrict conversions to the same type.",
-    loaderColumns: 2,
-  },
-  conversions: {
-    title: "Standard conversions",
-    description:
-      "Link units with a numeric factor so the app can convert stock and quantities consistently.",
-    loaderColumns: 3,
-  },
-};
-
-interface TabEmptyCopy {
-  title: string;
-  description: string;
-  actionLabel: string;
-}
-
-const TAB_EMPTY_COPY: Record<UnitsTabId, TabEmptyCopy> = {
-  all: {
-    title: "No units yet",
-    description:
-      "Create units you sell or stock in (kg, pcs, boxes). You can attach an optional symbol and type.",
-    actionLabel: "Add unit",
-  },
-  types: {
-    title: "No unit types",
-    description:
-      "Add types such as Mass, Volume, or Count so conversions stay within compatible units.",
-    actionLabel: "Add type",
-  },
-  conversions: {
-    title: "No standard conversions",
-    description:
-      "Add a row for each pair you need (for example 1 kg = 1000 g) so quantities convert automatically.",
-    actionLabel: "Add conversion",
-  },
-};
-
-const PRIMARY_LABELS: Record<UnitsTabId, string> = {
-  all: "Add unit",
-  types: "Add type",
-  conversions: "Add conversion",
+const TAB_LOADER_COLUMNS: Record<UnitsTabId, number> = {
+  all: 4,
+  types: 2,
+  conversions: 3,
 };
 
 export default function Units() {
+  const { t, i18n } = useTranslation("units");
+  const { t: tc } = useTranslation("common");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { data: settings = {} } = useQuery({
@@ -260,7 +209,15 @@ export default function Units() {
     setConvAddOpen(true);
   }, [activeSection]);
 
-  const primaryActionLabel = PRIMARY_LABELS[activeSection];
+  const primaryActionLabel = useMemo(() => {
+    if (activeSection === "all") {
+      return t("actions.addUnit");
+    }
+    if (activeSection === "types") {
+      return t("actions.addType");
+    }
+    return t("actions.addConversion");
+  }, [activeSection, t]);
 
   const activeListQuery = useMemo(() => {
     if (activeSection === "all") {
@@ -272,11 +229,9 @@ export default function Units() {
     return unitConversionsQuery;
   }, [activeSection, unitsQuery, unitTypesQuery, unitConversionsQuery]);
 
-  const {
-    title: sectionTitle,
-    description: sectionDescription,
-    loaderColumns,
-  } = TAB_SECTION_META[activeSection];
+  const sectionTitle = t(`tabs.${activeSection}`);
+  const sectionDescription = t(`sections.${activeSection}.description`);
+  const loaderColumns = TAB_LOADER_COLUMNS[activeSection];
 
   const tabCountBadge =
     activeSection === "all"
@@ -297,20 +252,20 @@ export default function Units() {
       <DataTable<Unit>
         scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
-          { key: "name", label: "Name" },
+          { key: "name", label: tc("labels.name") },
           {
             key: "symbol",
-            label: "Symbol",
-            render: (r) => r.symbol?.trim() || "—",
+            label: t("columns.symbol"),
+            render: (r) => r.symbol?.trim() || t("display.empty"),
           },
           {
             key: "unit_type_name",
-            label: "Type",
-            render: (r) => r.unit_type_name?.trim() || "—",
+            label: tc("labels.type"),
+            render: (r) => r.unit_type_name?.trim() || t("display.empty"),
           },
           {
             key: "actions",
-            label: "Actions",
+            label: tc("labels.actions"),
             render: (row) => (
               <div className="flex items-center gap-1">
                 <Button
@@ -319,15 +274,15 @@ export default function Units() {
                   className="!py-1 !px-2 text-xs"
                   onClick={() => setStockEditing(row)}
                 >
-                  Edit
+                  {tc("actions.edit")}
                 </Button>
                 {!isSeedUnit(row.name) && (
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmUnit(row)}
                     className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
-                    title="Delete unit"
-                    aria-label="Delete unit"
+                    title={t("a11y.deleteUnit")}
+                    aria-label={t("a11y.deleteUnit")}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -337,7 +292,7 @@ export default function Units() {
           },
         ]}
         data={units}
-        emptyMessage="No units yet."
+        emptyMessage={t("tableEmpty.all")}
         pagination={{
           type: "client",
           page: tabTablePages.all,
@@ -352,10 +307,10 @@ export default function Units() {
       <DataTable<UnitType>
         scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
-          { key: "name", label: "Name" },
+          { key: "name", label: tc("labels.name") },
           {
             key: "actions",
-            label: "Actions",
+            label: tc("labels.actions"),
             render: (row) => (
               <div className="flex items-center gap-1">
                 <Button
@@ -370,15 +325,15 @@ export default function Units() {
                     })
                   }
                 >
-                  Edit
+                  {tc("actions.edit")}
                 </Button>
                 {!isSeedUnitType(row.name) && (
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmType(row)}
                     className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
-                    title="Delete type"
-                    aria-label="Delete type"
+                    title={t("a11y.deleteUnitType")}
+                    aria-label={t("a11y.deleteUnitType")}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -388,7 +343,7 @@ export default function Units() {
           },
         ]}
         data={unitTypes}
-        emptyMessage="No unit types."
+        emptyMessage={t("tableEmpty.types")}
         pagination={{
           type: "client",
           page: tabTablePages.types,
@@ -403,20 +358,29 @@ export default function Units() {
       <DataTable<UnitConversion>
         scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
-          { key: "from_unit", label: "From unit" },
-          { key: "to_unit", label: "To unit" },
+          { key: "from_unit", label: t("columns.fromUnit") },
+          { key: "to_unit", label: t("columns.toUnit") },
           {
             key: "factor",
-            label: "Factor",
+            label: t("columns.factor"),
             render: (row) =>
-              `1 ${row.from_unit} = ${row.factor} ${row.to_unit}`,
+              t("factorRow", {
+                from: row.from_unit,
+                factor: row.factor,
+                to: row.to_unit,
+              }),
           },
         ]}
         data={unitConversions}
         onEdit={(row) => setConvEditing(row)}
         onDelete={(row) => setDeleteConfirmConv(row)}
         canDelete={(row) => !isSeedConversion(row.from_unit, row.to_unit)}
-        emptyMessage="No standard conversions."
+        rowActionsLabels={{
+          columnHeader: tc("labels.actions"),
+          edit: tc("actions.edit"),
+          delete: tc("actions.delete"),
+        }}
+        emptyMessage={t("tableEmpty.conversions")}
         pagination={{
           type: "client",
           page: tabTablePages.conversions,
@@ -428,7 +392,11 @@ export default function Units() {
     );
   }
 
-  const emptyCopy = TAB_EMPTY_COPY[activeSection];
+  const emptyCopy = {
+    title: t(`empty.${activeSection}.title`),
+    description: t(`empty.${activeSection}.description`),
+    actionLabel: primaryActionLabel,
+  };
 
   const isListEmpty =
     activeListQuery.isSuccess &&
@@ -458,6 +426,7 @@ export default function Units() {
           unitConversions.length,
           activeListQuery.isLoading,
           activeListQuery.isError,
+          i18n.language,
         ]}
       >
         <UnitsSectionPanel
@@ -486,9 +455,9 @@ export default function Units() {
       <ConfirmModal
         open={deleteConfirmUnit != null}
         onClose={() => setDeleteConfirmUnit(null)}
-        title="Delete unit"
-        message="Delete this unit? Products using it will be blocked."
-        confirmLabel="Delete"
+        title={t("confirmDelete.unit.title")}
+        message={t("confirmDelete.unit.message")}
+        confirmLabel={tc("actions.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmUnit) deleteUnit.mutate(deleteConfirmUnit.id);
@@ -497,9 +466,9 @@ export default function Units() {
       <ConfirmModal
         open={deleteConfirmConv != null}
         onClose={() => setDeleteConfirmConv(null)}
-        title="Delete conversion"
-        message="Delete this standard conversion?"
-        confirmLabel="Delete"
+        title={t("confirmDelete.conversion.title")}
+        message={t("confirmDelete.conversion.message")}
+        confirmLabel={tc("actions.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmConv)
@@ -509,9 +478,9 @@ export default function Units() {
       <ConfirmModal
         open={deleteConfirmType != null}
         onClose={() => setDeleteConfirmType(null)}
-        title="Delete unit type"
-        message="Delete this type? Units using it must be reassigned first."
-        confirmLabel="Delete"
+        title={t("confirmDelete.unitType.title")}
+        message={t("confirmDelete.unitType.message")}
+        confirmLabel={tc("actions.delete")}
         confirmVariant="danger"
         onConfirm={() => {
           if (deleteConfirmType) deleteUnitType.mutate(deleteConfirmType.id);
@@ -520,7 +489,7 @@ export default function Units() {
 
       {/* Unit type - Add */}
       <FormModal
-        title="Add unit type"
+        title={t("modals.addUnitType.title")}
         open={typesAddOpen}
         onClose={() => setTypesAddOpen(false)}
         footer={
@@ -537,7 +506,7 @@ export default function Units() {
             }}
           >
             <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add
+            {tc("actions.add")}
           </Button>
         }
       >
@@ -552,11 +521,11 @@ export default function Units() {
           }}
           className="space-y-4"
         >
-          <FormField label="Name" required>
+          <FormField label={tc("labels.name")} required>
             <input
               name="name"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-              placeholder="e.g. Mass, Volume, Count"
+              placeholder={t("form.unitTypeNamePlaceholder")}
               required
             />
           </FormField>
@@ -565,7 +534,7 @@ export default function Units() {
 
       {/* Unit type - Edit */}
       <FormModal
-        title="Edit unit type"
+        title={t("modals.editUnitType.title")}
         open={!!typeEditing}
         onClose={() => setTypeEditing(null)}
         footer={
@@ -583,7 +552,7 @@ export default function Units() {
             }}
           >
             <Check size={20} className="mr-1.5" aria-hidden="true" />
-            Save
+            {tc("actions.save")}
           </Button>
         }
       >
@@ -599,7 +568,7 @@ export default function Units() {
             }}
             className="space-y-4"
           >
-            <FormField label="Name" required>
+            <FormField label={tc("labels.name")} required>
               <input
                 name="name"
                 defaultValue={typeEditing.name}
@@ -613,7 +582,7 @@ export default function Units() {
 
       {/* Add unit */}
       <FormModal
-        title="Add unit"
+        title={t("modals.addUnit.title")}
         open={allAddOpen}
         onClose={() => setAllAddOpen(false)}
         footer={
@@ -647,7 +616,7 @@ export default function Units() {
             disabled={createUnit.isPending}
           >
             <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add
+            {tc("actions.add")}
           </Button>
         }
       >
@@ -677,27 +646,27 @@ export default function Units() {
           }}
           className="space-y-4"
         >
-          <FormField label="Name" required>
+          <FormField label={tc("labels.name")} required>
             <input
               name="name"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-              placeholder="e.g. kg, pcs, boxes"
+              placeholder={t("form.unitNamePlaceholder")}
               required
             />
           </FormField>
-          <FormField label="Symbol (optional)">
+          <FormField label={t("form.symbolOptional")}>
             <input
               name="symbol"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-              placeholder="e.g. g, kg; if empty, full name is used"
+              placeholder={t("form.symbolPlaceholderAdd")}
             />
           </FormField>
-          <FormField label="Type (optional)">
+          <FormField label={t("form.typeOptional")}>
             <select
               name="unit_type_id"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2 bg-[var(--color-bg-surface)]"
             >
-              <option value="">—</option>
+              <option value="">{t("display.empty")}</option>
               {unitTypes.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -710,7 +679,7 @@ export default function Units() {
 
       {/* Edit unit */}
       <FormModal
-        title="Edit unit"
+        title={t("modals.editUnit.title")}
         open={!!stockEditing}
         onClose={() => setStockEditing(null)}
         footer={
@@ -743,7 +712,7 @@ export default function Units() {
             }}
           >
             <Check size={20} className="mr-1.5" aria-hidden="true" />
-            Save
+            {tc("actions.save")}
           </Button>
         }
       >
@@ -775,7 +744,7 @@ export default function Units() {
             }}
             className="space-y-4"
           >
-            <FormField label="Name" required>
+            <FormField label={tc("labels.name")} required>
               <input
                 name="name"
                 defaultValue={stockEditing.name}
@@ -783,21 +752,21 @@ export default function Units() {
                 required
               />
             </FormField>
-            <FormField label="Symbol (optional)">
+            <FormField label={t("form.symbolOptional")}>
               <input
                 name="symbol"
                 defaultValue={stockEditing.symbol ?? ""}
                 className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-                placeholder="e.g. g for gram"
+                placeholder={t("form.symbolPlaceholderEdit")}
               />
             </FormField>
-            <FormField label="Type (optional)">
+            <FormField label={t("form.typeOptional")}>
               <select
                 name="unit_type_id"
                 className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2 bg-[var(--color-bg-surface)]"
                 defaultValue={stockEditing.unit_type_id ?? ""}
               >
-                <option value="">—</option>
+                <option value="">{t("display.empty")}</option>
                 {unitTypes.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -811,7 +780,7 @@ export default function Units() {
 
       {/* Standard conversion - Add */}
       <FormModal
-        title="Add conversion"
+        title={t("modals.addConversion.title")}
         open={convAddOpen}
         onClose={() => setConvAddOpen(false)}
         footer={
@@ -835,7 +804,7 @@ export default function Units() {
             }}
           >
             <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add
+            {tc("actions.add")}
           </Button>
         }
       >
@@ -862,13 +831,13 @@ export default function Units() {
           }}
           className="space-y-4"
         >
-          <FormField label="From unit" required>
+          <FormField label={t("columns.fromUnit")} required>
             <select
               name="from_unit"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               required
             >
-              <option value="">Select unit</option>
+              <option value="">{t("form.selectUnit")}</option>
               {allUnitNames.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -876,13 +845,13 @@ export default function Units() {
               ))}
             </select>
           </FormField>
-          <FormField label="To unit" required>
+          <FormField label={t("columns.toUnit")} required>
             <select
               name="to_unit"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
               required
             >
-              <option value="">Select unit</option>
+              <option value="">{t("form.selectUnit")}</option>
               {allUnitNames.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -890,14 +859,14 @@ export default function Units() {
               ))}
             </select>
           </FormField>
-          <FormField label="Factor (1 from_unit = factor × to_unit)" required>
+          <FormField label={t("form.factorLabel")} required>
             <input
               name="factor"
               type="number"
               step="any"
               min="0.0000000001"
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-              placeholder="e.g. 1000 for kg → g"
+              placeholder={t("form.factorPlaceholder")}
               required
             />
           </FormField>
@@ -906,7 +875,7 @@ export default function Units() {
 
       {/* Standard conversion - Edit */}
       <FormModal
-        title="Edit conversion"
+        title={t("modals.editConversion.title")}
         open={!!convEditing}
         onClose={() => setConvEditing(null)}
         footer={
@@ -940,7 +909,7 @@ export default function Units() {
             }}
           >
             <Check size={20} className="mr-1.5" aria-hidden="true" />
-            Save
+            {tc("actions.save")}
           </Button>
         }
       >
@@ -973,7 +942,7 @@ export default function Units() {
             }}
             className="space-y-4"
           >
-            <FormField label="From unit" required>
+            <FormField label={t("columns.fromUnit")} required>
               <select
                 name="from_unit"
                 defaultValue={convEditing.from_unit}
@@ -987,7 +956,7 @@ export default function Units() {
                 ))}
               </select>
             </FormField>
-            <FormField label="To unit" required>
+            <FormField label={t("columns.toUnit")} required>
               <select
                 name="to_unit"
                 defaultValue={convEditing.to_unit}
@@ -1001,7 +970,7 @@ export default function Units() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Factor (1 from_unit = factor × to_unit)" required>
+            <FormField label={t("form.factorLabel")} required>
               <input
                 name="factor"
                 type="number"

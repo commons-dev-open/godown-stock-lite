@@ -84,6 +84,12 @@ interface DataTableProps<T extends { id: number }> {
   rowClassName?: string;
   /** When true, action / extraActions column stays visible without row hover. */
   alwaysShowRowActions?: boolean;
+  /** Optional labels for the default row edit/delete column (e.g. i18n). */
+  rowActionsLabels?: {
+    columnHeader: string;
+    edit: string;
+    delete: string;
+  };
   /** Client-side paging (slice after sort) or controlled (parent passes paged rows + totals). */
   pagination?: DataTablePagination;
   /**
@@ -107,6 +113,7 @@ export default function DataTable<T extends { id: number }>({
   tableClassName = "min-w-full",
   rowClassName = "group border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-accent-subtle)] transition-colors",
   alwaysShowRowActions = true,
+  rowActionsLabels,
   pagination,
   tableFrame,
 }: DataTableProps<T>) {
@@ -293,7 +300,7 @@ export default function DataTable<T extends { id: number }>({
             })}
             {(onEdit || onDelete || extraActions) && (
               <th className="px-2 py-2.5 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide w-[1%]">
-                Actions
+                {rowActionsLabels?.columnHeader ?? "Actions"}
               </th>
             )}
           </tr>
@@ -330,12 +337,14 @@ export default function DataTable<T extends { id: number }>({
                   >
                     {extraActions?.(row)}
                     {onEdit && (
-                      <Tooltip content="Edit">
+                      <Tooltip
+                        content={rowActionsLabels?.edit ?? "Edit"}
+                      >
                         <button
                           type="button"
                           onClick={() => onEdit(row)}
                           className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                          aria-label="Edit"
+                          aria-label={rowActionsLabels?.edit ?? "Edit"}
                         >
                           <Pencil size={18} />
                         </button>
@@ -343,12 +352,14 @@ export default function DataTable<T extends { id: number }>({
                     )}
                     {onDelete &&
                       (canDelete === undefined || canDelete(row)) && (
-                        <Tooltip content="Delete">
+                        <Tooltip
+                          content={rowActionsLabels?.delete ?? "Delete"}
+                        >
                           <button
                             type="button"
                             onClick={() => onDelete(row)}
                             className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
-                            aria-label="Delete"
+                            aria-label={rowActionsLabels?.delete ?? "Delete"}
                           >
                             <Trash2 size={18} />
                           </button>
