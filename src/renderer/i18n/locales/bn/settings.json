@@ -1,0 +1,66 @@
+{
+  "hero": {
+    "title": "সেটিংস",
+    "subtitle": "প্রেফারেন্স, ডেটা এবং আপনার ব্যবসার প্রোফাইল"
+  },
+  "tabs": {
+    "general": "জেনারেল",
+    "business": "বিজনেস",
+    "preferences": "প্রেফারেন্স",
+    "data": "ডেটা",
+    "security": "সিকিউরিটি",
+    "activity": "অ্যাক্টিভিটি",
+    "danger": "ডেঞ্জার জোন"
+  },
+  "preferences": {
+    "language": "ভাষা",
+    "languageHint": "অ্যাপের জন্য আপনার পছন্দের ভাষা বেছে নিন।",
+    "theme": "থিম",
+    "brandColor": "ব্র্যান্ড কালার",
+    "numberAbbreviation": "নাম্বার শর্ট ফরম্যাট",
+    "numberAbbreviationHint": "সারাংশ কার্ডে বড় সংখ্যা কীভাবে ছোট করে দেখাবে।",
+    "abbreviation": {
+      "indian": "Indian (লাখ, কোটি)",
+      "us": "US (M, B)",
+      "si": "SI (K, M, B)"
+    }
+  },
+  "business": {
+    "companyName": "কোম্পানির নাম",
+    "ownerName": "ওনারের নাম",
+    "gstin": "GSTIN",
+    "gstEnabled": "GST চালু",
+    "address": "ঠিকানা",
+    "phone": "ফোন",
+    "email": "ইমেইল"
+  },
+  "data": {
+    "exportDb": "ডাটাবেস এক্সপোর্ট",
+    "exportDbHint": "সব ডেটার ব্যাকআপ ফাইলে সেভ করুন।",
+    "importDb": "ডাটাবেস ইমপোর্ট",
+    "importDbHint": "ব্যাকআপ ফাইল থেকে ডেটা রিস্টোর করুন।",
+    "clearAll": "সব ডেটা ক্লিয়ার",
+    "clearAllHint": "সব রেকর্ড মুছে দিন, তবে সেটিংস থাকবে।",
+    "resetDb": "ডাটাবেস রিসেট",
+    "resetDbHint": "সব মুছে নতুনভাবে শুরু করুন।"
+  },
+  "security": {
+    "changePin": "PIN পরিবর্তন",
+    "recoveryKey": "রিকভারি কী",
+    "saveRecoveryKey": "রিকভারি কী সেভ",
+    "regenerateRecoveryKey": "রিজেনারেট"
+  },
+  "toast": {
+    "saved": "সেটিংস সেভ হয়েছে",
+    "exported": "ডাটাবেস এক্সপোর্ট হয়েছে",
+    "imported": "ডাটাবেস ইমপোর্ট হয়েছে",
+    "cleared": "ডেটা ক্লিয়ার হয়েছে",
+    "reset": "ডাটাবেস রিসেট হয়েছে"
+  },
+  "confirm": {
+    "clearTitle": "সব ডেটা ক্লিয়ার করবেন?",
+    "clearBody": "সব আইটেম, মহাজন, ট্রানজ্যাকশন ও ইনভয়েস মুছে যাবে। সেটিংস থাকবে।",
+    "resetTitle": "ডাটাবেস রিসেট করবেন?",
+    "resetBody": "আপনার বিজনেস প্রোফাইলসহ সব কিছু মুছে যাবে।"
+  }
+}

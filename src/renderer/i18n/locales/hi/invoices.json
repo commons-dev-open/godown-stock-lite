@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "title": "बिल",
+    "subtitle": "बिल बनाएं और डाउनलोड करें"
+  },
+  "actions": {
+    "newInvoice": "नया बिल",
+    "edit": "एडिट करें",
+    "delete": "डिलीट करें",
+    "download": "PDF डाउनलोड",
+    "print": "प्रिंट"
+  },
+  "columns": {
+    "number": "बिल #",
+    "date": "तारीख़",
+    "customer": "ग्राहक",
+    "amount": "राशि",
+    "status": "स्थिति"
+  },
+  "form": {
+    "customerPlaceholder": "कस्टमर का नाम",
+    "addressPlaceholder": "पता",
+    "gstinPlaceholder": "GSTIN (वैकल्पिक)",
+    "notesPlaceholder": "नोट्स"
+  },
+  "empty": {
+    "title": "अभी कोई बिल नहीं",
+    "message": "अपना पहला बिल बनाएं।",
+    "cta": "नया बिल"
+  }
+}

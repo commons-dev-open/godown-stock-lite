@@ -1,0 +1,14 @@
+{
+  "banner": {
+    "active": "Trial active — {{days}} days remaining",
+    "expiringSoon": "Trial expires in {{days}} days",
+    "expired": "Your trial has ended",
+    "upgrade": "Upgrade",
+    "learnMore": "Learn more"
+  },
+  "timer": {
+    "trialEndsIn": "Trial ends in",
+    "day_one": "day",
+    "day_other": "days"
+  }
+}

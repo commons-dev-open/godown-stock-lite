@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { Building2, Lock, Tag, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import AppleToggle from "../components/AppleToggle";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import ThemeSwitcher from "../components/ThemeSwitcher";
 
 const DISPLAY_NAME_MAX = 25;
 
 export default function Onboarding() {
   const { completeOnboarding } = useAuth();
+  const { t } = useTranslation("onboarding");
 
   const [companyName, setCompanyName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -34,15 +38,20 @@ export default function Onboarding() {
     const trimmedOwner = ownerName.trim();
     const trimmedDisplay = displayName.trim().slice(0, DISPLAY_NAME_MAX);
 
-    if (!trimmedCompany) return setError("Company name is required.");
-    if (!trimmedOwner) return setError("Owner name is required.");
-    if (!trimmedDisplay) return setError("Business display name is required.");
-    if (!/^\d{4}$/.test(pin)) return setError("PIN must be exactly 4 digits.");
-    if (pin !== confirmPin) return setError("PINs do not match.");
+    if (!trimmedCompany)
+      return setError(t("onboarding.errors.companyNameRequired"));
+    if (!trimmedOwner)
+      return setError(t("onboarding.errors.ownerNameRequired"));
+    if (!trimmedDisplay)
+      return setError(t("onboarding.errors.businessDisplayNameRequired"));
+    if (!/^\d{4}$/.test(pin)) return setError(t("onboarding.errors.pinLength"));
+    if (pin !== confirmPin)
+      return setError(t("onboarding.errors.pinConfirmMismatch"));
     const trimmedCustomerKey = customerKey.trim();
-    if (!trimmedCustomerKey) return setError("Recovery key is required.");
+    if (!trimmedCustomerKey)
+      return setError(t("onboarding.errors.recoveryKeyRequired"));
     if (trimmedCustomerKey !== confirmCustomerKey.trim()) {
-      return setError("Recovery keys do not match.");
+      return setError(t("onboarding.errors.recoveryKeyMismatch"));
     }
 
     setPending(true);
@@ -59,51 +68,65 @@ export default function Onboarding() {
         pin,
         customerMasterKey: trimmedCustomerKey,
       });
-      window.alert(
-        `Recovery key saved to:\n${saveRes.path}\n\nKeep this file somewhere safe. You will need this key to recover owner access.`
-      );
+      window.alert(t("onboarding.recoverySavedAlert", { path: saveRes.path }));
       completeOnboarding(trimmedDisplay);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Setup failed. Try again.");
+      setError(
+        err instanceof Error ? err.message : t("onboarding.errors.setupFailed")
+      );
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4" style={{
-      background: `
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-16"
+      style={{
+        background: `
         radial-gradient(ellipse at 30% 40%, color-mix(in srgb, var(--color-accent) 18%, transparent) 0%, transparent 60%),
         radial-gradient(ellipse at 70% 60%, color-mix(in srgb, var(--color-success) 12%, transparent) 0%, transparent 55%),
         var(--color-bg-app)
       `,
-    }}>
-      <div className="animate-modal-enter w-full max-w-md">
+      }}
+    >
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <ThemeSwitcher variant="compact" />
+        <LanguageSwitcher variant="compact" compactTone="surface" />
+      </div>
+      <div className="animate-modal-enter mx-auto my-2 w-full max-w-md">
         {/* Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--color-accent)] text-white mb-4 shadow-md">
             <Building2 size={32} strokeWidth={1.5} />
           </div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Welcome</h1>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-1">Set up your business to get started</p>
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+            {t("onboarding.title")}
+          </h1>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+            {t("onboarding.subtitle")}
+          </p>
         </div>
 
         {/* Card */}
         <div className="bg-[var(--color-bg-surface)] rounded-2xl border border-[var(--color-border-default)] shadow-md p-6 space-y-5">
           <form onSubmit={handleSubmit} className="space-y-4">
-
             {/* Company Name */}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                Company Name <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.companyNameLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <div className="relative">
-                <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+                <Building2
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                />
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Sharma Traders Pvt Ltd"
+                  placeholder={t("onboarding.companyNamePlaceholder")}
                   maxLength={60}
                   required
                   className="input-base w-full pl-9"
@@ -115,15 +138,19 @@ export default function Onboarding() {
             {/* Owner Name */}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                Owner Name <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.ownerNameLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+                <User
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                />
                 <input
                   type="text"
                   value={ownerName}
                   onChange={(e) => setOwnerName(e.target.value)}
-                  placeholder="e.g. Ravi Sharma"
+                  placeholder={t("onboarding.ownerNamePlaceholder")}
                   maxLength={60}
                   required
                   className="input-base w-full pl-9"
@@ -135,24 +162,30 @@ export default function Onboarding() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-medium text-[var(--color-text-primary)]">
-                  Business Display Name <span className="text-[var(--color-danger)]">*</span>
+                  {t("onboarding.businessDisplayNameLabel")}{" "}
+                  <span className="text-[var(--color-danger)]">*</span>
                 </label>
                 <label className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] cursor-pointer select-none">
                   <AppleToggle
                     checked={displaySameAsCompany}
                     onChange={setDisplaySameAsCompany}
-                    aria-label="Same as company name"
+                    aria-label={t("onboarding.sameAsCompany")}
                   />
-                  Same as company name
+                  {t("onboarding.sameAsCompany")}
                 </label>
               </div>
               <div className="relative">
-                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+                <Tag
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                />
                 <input
                   type="text"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))}
-                  placeholder="Shown in sidebar & title"
+                  onChange={(e) =>
+                    setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))
+                  }
+                  placeholder={t("onboarding.businessDisplayNamePlaceholder")}
                   maxLength={DISPLAY_NAME_MAX}
                   required
                   disabled={displaySameAsCompany}
@@ -160,7 +193,10 @@ export default function Onboarding() {
                 />
               </div>
               <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-                {displayName.length}/{DISPLAY_NAME_MAX} — shown in sidebar and window title.
+                {t("onboarding.businessDisplayNameCountHint", {
+                  count: displayName.length,
+                  max: DISPLAY_NAME_MAX,
+                })}
               </p>
             </div>
 
@@ -169,17 +205,23 @@ export default function Onboarding() {
             {/* PIN */}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                Create 4-digit PIN <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.pinLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+                <Lock
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                />
                 <input
                   type="password"
                   inputMode="numeric"
                   pattern="\d{4}"
                   maxLength={4}
                   value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onChange={(e) =>
+                    setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
                   placeholder="••••"
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
@@ -190,17 +232,23 @@ export default function Onboarding() {
             {/* Confirm PIN */}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                Confirm PIN <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.pinConfirmLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+                <Lock
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                />
                 <input
                   type="password"
                   inputMode="numeric"
                   pattern="\d{4}"
                   maxLength={4}
                   value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onChange={(e) =>
+                    setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
                   placeholder="••••"
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
@@ -211,29 +259,31 @@ export default function Onboarding() {
             {/* Owner Recovery Key */}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                Owner Recovery Key <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.recoveryKeyLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <input
                 type="password"
                 value={customerKey}
                 onChange={(e) => setCustomerKey(e.target.value)}
-                placeholder="Create a strong recovery key"
+                placeholder={t("onboarding.recoveryKeyPlaceholder")}
                 required
                 className="input-base w-full text-sm"
               />
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 mt-3">
-                Confirm Owner Recovery Key <span className="text-[var(--color-danger)]">*</span>
+                {t("onboarding.recoveryKeyConfirmLabel")}{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </label>
               <input
                 type="password"
                 value={confirmCustomerKey}
                 onChange={(e) => setConfirmCustomerKey(e.target.value)}
-                placeholder="Re-enter recovery key"
+                placeholder={t("onboarding.recoveryKeyConfirmPlaceholder")}
                 required
                 className="input-base w-full text-sm"
               />
               <p className="text-xs text-[var(--color-warning)] mt-1">
-                This key is required for owner PIN recovery and will be saved to this computer after setup. Keep it somewhere safe.
+                {t("onboarding.recoveryKeyHint")}
               </p>
             </div>
 
@@ -253,7 +303,7 @@ export default function Onboarding() {
               {pending ? (
                 <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : null}
-              {pending ? "Setting up…" : "Get Started"}
+              {pending ? t("onboarding.settingUp") : t("onboarding.getStarted")}
             </button>
           </form>
         </div>

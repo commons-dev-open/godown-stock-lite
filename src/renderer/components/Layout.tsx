@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Home,
   Scale,
@@ -28,48 +29,53 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import TrialTimer from "./TrialTimer";
 import Tooltip from "./Tooltip";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
 type NavItem = {
   to: string;
-  label: string;
+  /** Translation key within the "navigation" namespace. */
+  labelKey: string;
   icon: LucideIcon;
 };
 
 const mainNavItems: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/units", label: "Units", icon: Scale },
-  { to: "/stock", label: "Products & Stock", icon: Package },
-  { to: "/mahajans", label: "Lenders", icon: Users },
-  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { to: "/sales", label: "Daily Sales", icon: CalendarDays },
-  { to: "/invoices", label: "Invoices", icon: FileText },
+  { to: "/", labelKey: "home", icon: Home },
+  { to: "/units", labelKey: "units", icon: Scale },
+  { to: "/stock", labelKey: "stock", icon: Package },
+  { to: "/mahajans", labelKey: "mahajans", icon: Users },
+  { to: "/transactions", labelKey: "transactions", icon: ArrowLeftRight },
+  { to: "/sales", labelKey: "sales", icon: CalendarDays },
+  { to: "/invoices", labelKey: "invoices", icon: FileText },
 ];
 
 const systemNavItems: NavItem[] = [
-  { to: "/users", label: "Team", icon: UserCog },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
-  { to: "/help", label: "Help", icon: HelpCircle },
+  { to: "/users", labelKey: "team", icon: UserCog },
+  { to: "/settings", labelKey: "settings", icon: SettingsIcon },
+  { to: "/help", labelKey: "help", icon: HelpCircle },
 ];
 
 const SIDEBAR_KEY = "sidebar-collapsed";
 
 const sidebarThemeModes: {
   value: ThemeMode;
-  label: string;
+  /** Translation key within theme labels. */
+  labelKey: "light" | "dark" | "system";
   icon: typeof Sun;
 }[] = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
+  { value: "light", labelKey: "light", icon: Sun },
+  { value: "dark", labelKey: "dark", icon: Moon },
+  { value: "system", labelKey: "system", icon: Monitor },
 ];
 
 function SidebarNavLink({
   to,
-  label,
+  labelKey,
   icon: Icon,
   collapsed,
   end,
 }: NavItem & { collapsed: boolean; end?: boolean }) {
+  const { t } = useTranslation("navigation");
+  const label = t(labelKey as never) as string;
   const navClass = ({ isActive }: Readonly<{ isActive: boolean }>) =>
     `flex items-center ${collapsed ? "justify-center" : ""} gap-3 px-3 py-2 text-sm rounded-none transition-all ${
       isActive
@@ -112,6 +118,7 @@ function getInitials(name: string) {
 export default function Layout({ children }: { children: ReactNode }) {
   const { mode, setMode } = useTheme();
   const { authState, lock } = useAuth();
+  const { t } = useTranslation("navigation");
   const currentUser = authState.status === "unlocked" ? authState.user : null;
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -187,7 +194,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     className="inline-flex items-center rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-300"
                     title="This is a trial version. Full version will be provided after payment."
                   >
-                    Trial
+                    {t("sidebar.trial")}
                   </span>
                 )}
               </div>
@@ -197,7 +204,11 @@ export default function Layout({ children }: { children: ReactNode }) {
           <button
             onClick={() => setCollapsed((c) => !c)}
             className="shrink-0 p-1 rounded text-[var(--color-text-sidebar)] hover:text-[var(--color-text-sidebar-active)] hover:bg-[var(--color-bg-sidebar-hover)] transition-colors"
-            title={collapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
+            title={
+              collapsed
+                ? `${t("sidebar.expand")} (⌘B)`
+                : `${t("sidebar.collapse")} (⌘B)`
+            }
           >
             <ToggleIcon size={18} strokeWidth={1.5} />
           </button>
@@ -237,20 +248,22 @@ export default function Layout({ children }: { children: ReactNode }) {
                 : "float-none w-full px-0 pb-2 text-xs font-medium text-[var(--color-text-sidebar)]"
             }
           >
-            Theme
+            {t("sidebar.theme")}
           </legend>
           <div
             className={`flex ${collapsed ? "flex-col items-center gap-1" : "gap-1"}`}
           >
-            {sidebarThemeModes.map(({ value, label, icon: Icon }) => {
+            {sidebarThemeModes.map(({ value, labelKey, icon: Icon }) => {
               const active = mode === value;
+              const label = t(`themes.${labelKey}`);
+              const withModeLabel = t("themes.themeWithMode", { mode: label });
               const btn = (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setMode(value)}
                   aria-pressed={active}
-                  title={collapsed ? `${label} theme` : undefined}
+                  title={collapsed ? withModeLabel : undefined}
                   className={`rounded-md transition-colors ${
                     collapsed
                       ? "flex size-9 items-center justify-center"
@@ -273,7 +286,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 return (
                   <Tooltip
                     key={value}
-                    content={`${label} theme`}
+                    content={withModeLabel}
                     placement="right"
                     delay={100}
                   >
@@ -286,44 +299,61 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         </fieldset>
 
+        {/* Language switcher */}
+        <div
+          className={`border-t border-[var(--color-bg-sidebar-hover)] ${
+            collapsed ? "p-1.5 flex justify-center" : "p-3"
+          }`}
+        >
+          <LanguageSwitcher variant={collapsed ? "compact" : "full"} />
+        </div>
+
         {/* Current user + lock */}
         {currentUser && (
           <div
             className={`border-t border-[var(--color-bg-sidebar-hover)] flex ${collapsed ? "flex-col items-center gap-1 p-2" : "items-center gap-2 p-3"}`}
           >
-            {collapsed ? (
-              <Tooltip
-                content={`${currentUser.name} · ${currentUser.role === "superadmin" ? "Owner" : currentUser.role}`}
-                placement="right"
-                delay={100}
-              >
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
-                  {getInitials(currentUser.name)}
-                </div>
-              </Tooltip>
-            ) : (
-              <>
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
-                  {getInitials(currentUser.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
-                    {currentUser.name}
-                  </p>
-                  <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">
-                    {currentUser.role === "superadmin"
-                      ? "Owner"
-                      : currentUser.role}
-                  </p>
-                </div>
-              </>
-            )}
-            <Tooltip content="Lock app" placement="right" delay={100}>
+            {(() => {
+              const roleLabel =
+                currentUser.role === "superadmin"
+                  ? t("sidebar.owner")
+                  : currentUser.role;
+              return collapsed ? (
+                <Tooltip
+                  content={`${currentUser.name} · ${roleLabel}`}
+                  placement="right"
+                  delay={100}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
+                    {getInitials(currentUser.name)}
+                  </div>
+                </Tooltip>
+              ) : (
+                <>
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
+                    {getInitials(currentUser.name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                      {currentUser.name}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">
+                      {roleLabel}
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
+            <Tooltip
+              content={t("sidebar.lockApp")}
+              placement="right"
+              delay={100}
+            >
               <button
                 type="button"
                 onClick={lock}
                 className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-danger)] transition-colors shrink-0"
-                aria-label="Lock app"
+                aria-label={t("sidebar.lockApp")}
               >
                 <Lock size={16} strokeWidth={1.75} />
               </button>

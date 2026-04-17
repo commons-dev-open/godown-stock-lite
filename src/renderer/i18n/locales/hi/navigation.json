@@ -1,0 +1,31 @@
+{
+  "home": "होम",
+  "units": "इकाइयाँ",
+  "stock": "प्रोडक्ट और स्टॉक",
+  "mahajans": "महाजन",
+  "transactions": "लेन-देन",
+  "sales": "दैनिक बिक्री",
+  "invoices": "बिल",
+  "team": "टीम",
+  "settings": "सेटिंग्स",
+  "help": "सहायता",
+  "sections": {
+    "main": "मेन",
+    "system": "सिस्टम"
+  },
+  "sidebar": {
+    "expand": "साइडबार खोलें",
+    "collapse": "साइडबार बंद करें",
+    "language": "भाषा",
+    "theme": "थीम",
+    "lockApp": "ऐप लॉक करें",
+    "trial": "ट्रायल",
+    "owner": "ओनर"
+  },
+  "themes": {
+    "light": "लाइट",
+    "dark": "डार्क",
+    "system": "सिस्टम",
+    "themeWithMode": "{{mode}} थीम"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "title": "ইনভয়েস",
+    "subtitle": "ইনভয়েস তৈরি ও ডাউনলোড করুন"
+  },
+  "actions": {
+    "newInvoice": "নতুন ইনভয়েস",
+    "edit": "এডিট",
+    "delete": "ডিলিট",
+    "download": "PDF ডাউনলোড",
+    "print": "প্রিন্ট"
+  },
+  "columns": {
+    "number": "ইনভয়েস #",
+    "date": "তারিখ",
+    "customer": "কাস্টমার",
+    "amount": "পরিমাণ",
+    "status": "স্ট্যাটাস"
+  },
+  "form": {
+    "customerPlaceholder": "কাস্টমারের নাম",
+    "addressPlaceholder": "ঠিকানা",
+    "gstinPlaceholder": "GSTIN (অপশনাল)",
+    "notesPlaceholder": "নোট"
+  },
+  "empty": {
+    "title": "এখনও কোনো ইনভয়েস নেই",
+    "message": "প্রথম ইনভয়েস তৈরি করুন।",
+    "cta": "নতুন ইনভয়েস"
+  }
+}

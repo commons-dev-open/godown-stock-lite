@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "title": "ইউনিট",
+    "subtitle": "মাপের ইউনিট"
+  },
+  "actions": {
+    "addUnit": "ইউনিট অ্যাড",
+    "editUnit": "ইউনিট এডিট",
+    "deleteUnit": "ইউনিট ডিলিট"
+  },
+  "tabs": {
+    "units": "ইউনিট",
+    "categories": "ক্যাটাগরি"
+  },
+  "columns": {
+    "name": "নাম",
+    "symbol": "সিম্বল"
+  },
+  "empty": {
+    "title": "এখনও কোনো ইউনিট নেই",
+    "message": "kg, litre, piece এর মতো ইউনিট অ্যাড করুন।",
+    "cta": "ইউনিট অ্যাড করুন"
+  }
+}

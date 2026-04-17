@@ -7,6 +7,19 @@
   src: url('./assets/fonts/InterVariable.woff2') format('woff2');
 }
 
+/* ── Noto Sans Devanagari (for Hindi) ────────────────────── */
+/* Registered under the same 'Inter' family with Devanagari unicode-range
+   so Devanagari glyphs fall through to Noto while Latin glyphs use Inter.
+   No per-component font switching needed. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/NotoSansDevanagari-Variable.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+A8E0-A8FF, U+1CD0-1CFF, U+200C-200D, U+25CC;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

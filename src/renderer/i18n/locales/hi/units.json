@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "title": "इकाइयाँ",
+    "subtitle": "माप की यूनिट्स"
+  },
+  "actions": {
+    "addUnit": "इकाई जोड़ें",
+    "editUnit": "इकाई एडिट करें",
+    "deleteUnit": "इकाई डिलीट करें"
+  },
+  "tabs": {
+    "units": "इकाइयाँ",
+    "categories": "कैटेगरी"
+  },
+  "columns": {
+    "name": "नाम",
+    "symbol": "सिंबल"
+  },
+  "empty": {
+    "title": "अभी कोई इकाई नहीं",
+    "message": "kg, litre, piece जैसी माप यूनिट जोड़ें।",
+    "cta": "इकाई जोड़ें"
+  }
+}

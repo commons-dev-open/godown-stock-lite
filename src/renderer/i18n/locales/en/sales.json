@@ -1,0 +1,28 @@
+{
+  "hero": {
+    "title": "Daily Sales",
+    "subtitle": "Record and review your daily sales"
+  },
+  "actions": {
+    "recordSale": "Record Sale",
+    "addLine": "Add Line",
+    "removeLine": "Remove"
+  },
+  "columns": {
+    "date": "Date",
+    "item": "Item",
+    "quantity": "Qty",
+    "price": "Price",
+    "total": "Total"
+  },
+  "summary": {
+    "salesToday": "Sales Today",
+    "itemsSold": "Items Sold",
+    "revenue": "Revenue"
+  },
+  "empty": {
+    "title": "No sales today yet",
+    "message": "Record your first sale to get started.",
+    "cta": "Record Sale"
+  }
+}

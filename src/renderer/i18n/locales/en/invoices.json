@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "title": "Invoices",
+    "subtitle": "Create and download invoices"
+  },
+  "actions": {
+    "newInvoice": "New Invoice",
+    "edit": "Edit",
+    "delete": "Delete",
+    "download": "Download PDF",
+    "print": "Print"
+  },
+  "columns": {
+    "number": "Invoice #",
+    "date": "Date",
+    "customer": "Customer",
+    "amount": "Amount",
+    "status": "Status"
+  },
+  "form": {
+    "customerPlaceholder": "Customer name",
+    "addressPlaceholder": "Address",
+    "gstinPlaceholder": "GSTIN (optional)",
+    "notesPlaceholder": "Notes"
+  },
+  "empty": {
+    "title": "No invoices yet",
+    "message": "Create your first invoice.",
+    "cta": "New Invoice"
+  }
+}

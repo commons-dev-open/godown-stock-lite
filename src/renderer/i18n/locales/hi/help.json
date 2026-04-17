@@ -1,0 +1,22 @@
+{
+  "hero": {
+    "title": "सहायता",
+    "subtitle": "गाइड और सपोर्ट"
+  },
+  "tabs": {
+    "gettingStarted": "शुरुआत",
+    "features": "फीचर्स",
+    "faq": "FAQ",
+    "contact": "संपर्क"
+  },
+  "contact": {
+    "developer": "डेवलपर",
+    "email": "ईमेल",
+    "website": "वेबसाइट",
+    "reportIssue": "इश्यू रिपोर्ट करें"
+  },
+  "empty": {
+    "title": "कोई गाइड नहीं चुना",
+    "message": "हेल्प देखने के लिए बाईं तरफ से कोई टॉपिक चुनें।"
+  }
+}

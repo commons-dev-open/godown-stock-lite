@@ -1,0 +1,31 @@
+{
+  "home": "হোম",
+  "units": "ইউনিট",
+  "stock": "প্রোডাক্টস ও স্টক",
+  "mahajans": "মহাজন",
+  "transactions": "ট্রানজ্যাকশন",
+  "sales": "ডেইলি সেলস",
+  "invoices": "ইনভয়েস",
+  "team": "টিম",
+  "settings": "সেটিংস",
+  "help": "হেল্প",
+  "sections": {
+    "main": "মেইন",
+    "system": "সিস্টেম"
+  },
+  "sidebar": {
+    "expand": "সাইডবার বড় করুন",
+    "collapse": "সাইডবার ছোট করুন",
+    "language": "ভাষা",
+    "theme": "থিম",
+    "lockApp": "অ্যাপ লক",
+    "trial": "ট্রায়াল",
+    "owner": "ওনার"
+  },
+  "themes": {
+    "light": "লাইট",
+    "dark": "ডার্ক",
+    "system": "সিস্টেম",
+    "themeWithMode": "{{mode}} থিম"
+  }
+}

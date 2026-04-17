@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { Toaster } from "react-hot-toast";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext";
+import "./i18n";
+import { LocaleProvider } from "./i18n/LocaleContext";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
@@ -49,9 +51,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       )}
     >
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <App />
-          <Toaster
+        <LocaleProvider>
+          <ThemeProvider>
+            <App />
+            <Toaster
             position="bottom-right"
             toastOptions={{
               duration: 3000,
@@ -65,7 +68,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               },
             }}
           />
-        </ThemeProvider>
+          </ThemeProvider>
+        </LocaleProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>

@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "title": "হোম",
+    "subtitle": "এক নজরে আপনার ব্যবসা"
+  },
+  "sections": {
+    "quickActions": "কুইক অ্যাকশন",
+    "weeklyMomentum": "সাপ্তাহিক মোমেন্টাম",
+    "weeklyDetails": "সাপ্তাহিক ডিটেইলস",
+    "rangeComposition": "রেঞ্জ কম্পোজিশন",
+    "lenderSummary": "মহাজন সারাংশ",
+    "lowStockAlerts": "লো স্টক অ্যালার্ট"
+  },
+  "quickActions": {
+    "addItem": "আইটেম অ্যাড",
+    "recordSale": "সেল রেকর্ড",
+    "addLender": "মহাজন অ্যাড",
+    "viewInvoices": "ইনভয়েস দেখুন"
+  },
+  "empty": {
+    "title": "Godown Stock-এ স্বাগতম",
+    "message": "ড্যাশবোর্ডে লাইভ ডেটা দেখতে প্রথমে একটি আইটেম অ্যাড করুন বা সেল রেকর্ড করুন।"
+  },
+  "lowStock": {
+    "noAlerts": "এখন লো স্টক নেই",
+    "itemsAtOrBelow": "লো স্টক থ্রেশহোল্ডে বা তার নিচে থাকা আইটেম",
+    "seeAll": "সব আইটেম দেখুন"
+  },
+  "lender": {
+    "totalOwed": "মোট পাওনা",
+    "totalReceivable": "মোট প্রাপ্য",
+    "seeAll": "সব মহাজন দেখুন"
+  },
+  "momentum": {
+    "thisWeek": "এই সপ্তাহ",
+    "lastWeek": "গত সপ্তাহ",
+    "change": "পরিবর্তন"
+  }
+}

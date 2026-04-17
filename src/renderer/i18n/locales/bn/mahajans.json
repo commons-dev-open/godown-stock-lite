@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "মহাজন",
+    "subtitle": "কার কাছে দেনা, কার কাছে পাওনা সব ট্র্যাক করুন"
+  },
+  "actions": {
+    "addMahajan": "মহাজন অ্যাড",
+    "editMahajan": "মহাজন এডিট",
+    "deleteMahajan": "মহাজন ডিলিট",
+    "viewLedger": "লেজার দেখুন",
+    "addLend": "ধার দিন",
+    "addDeposit": "জমা"
+  },
+  "search": {
+    "placeholder": "মহাজন সার্চ করুন…"
+  },
+  "columns": {
+    "name": "নাম",
+    "phone": "ফোন",
+    "openingBalance": "ওপেনিং ব্যালান্স",
+    "balance": "ব্যালান্স",
+    "lastActivity": "সর্বশেষ অ্যাক্টিভিটি"
+  },
+  "summary": {
+    "totalPayable": "মোট প্রদানযোগ্য",
+    "totalReceivable": "মোট প্রাপ্য",
+    "netPosition": "নেট পজিশন"
+  },
+  "form": {
+    "namePlaceholder": "মহাজনের নাম",
+    "phonePlaceholder": "ফোন নম্বর",
+    "openingBalancePlaceholder": "ওপেনিং ব্যালান্স",
+    "openingBalanceHint": "পজিটিভ হলে সে আপনাকে দেবে; নেগেটিভ হলে আপনি দেবেন।",
+    "notesPlaceholder": "অপশনাল নোট"
+  },
+  "ledger": {
+    "hero": "লেজার",
+    "openingBalance": "ওপেনিং",
+    "closing": "ক্লোজিং",
+    "debit": "ডেবিট",
+    "credit": "ক্রেডিট",
+    "filtersBar": "ফিল্টার"
+  },
+  "empty": {
+    "title": "এখনও কোনো মহাজন নেই",
+    "message": "পেমেন্ট ও জমা ট্র্যাক করতে মহাজন অ্যাড করুন।",
+    "cta": "প্রথম মহাজন অ্যাড করুন"
+  },
+  "toast": {
+    "created": "মহাজন তৈরি হয়েছে",
+    "updated": "মহাজন আপডেট হয়েছে",
+    "deleted": "মহাজন ডিলিট হয়েছে",
+    "lendAdded": "ধার এন্ট্রি যোগ হয়েছে",
+    "depositAdded": "জমা এন্ট্রি যোগ হয়েছে"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "Products & Stock",
+    "subtitle": "Manage your inventory"
+  },
+  "actions": {
+    "addItem": "Add Item",
+    "editItem": "Edit Item",
+    "deleteItem": "Delete Item",
+    "adjustStock": "Adjust Stock",
+    "toggleArchive": "Archive",
+    "toggleUnarchive": "Unarchive"
+  },
+  "search": {
+    "placeholder": "Search by name or code…"
+  },
+  "columns": {
+    "name": "Name",
+    "code": "Code",
+    "unit": "Unit",
+    "stock": "Stock",
+    "price": "Price",
+    "lowStockAt": "Low Stock At",
+    "status": "Status"
+  },
+  "filters": {
+    "all": "All",
+    "active": "Active",
+    "archived": "Archived",
+    "lowStock": "Low Stock"
+  },
+  "form": {
+    "namePlaceholder": "Item name",
+    "codePlaceholder": "SKU / code",
+    "pricePlaceholder": "Selling price",
+    "stockPlaceholder": "Current stock",
+    "lowStockPlaceholder": "Low stock threshold",
+    "notesPlaceholder": "Optional notes"
+  },
+  "empty": {
+    "title": "No items yet",
+    "message": "Add your first product to start tracking stock.",
+    "cta": "Add First Item"
+  },
+  "toast": {
+    "created": "Item created",
+    "updated": "Item updated",
+    "deleted": "Item deleted",
+    "archived": "Item archived",
+    "unarchived": "Item unarchived"
+  },
+  "confirmDelete": {
+    "title": "Delete item?",
+    "body": "This will permanently remove the item and its stock history."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "title": "Home",
+    "subtitle": "Your business at a glance"
+  },
+  "sections": {
+    "quickActions": "Quick Actions",
+    "weeklyMomentum": "Weekly Momentum",
+    "weeklyDetails": "Weekly Details",
+    "rangeComposition": "Range Composition",
+    "lenderSummary": "Lender Summary",
+    "lowStockAlerts": "Low Stock Alerts"
+  },
+  "quickActions": {
+    "addItem": "Add Item",
+    "recordSale": "Record Sale",
+    "addLender": "Add Lender",
+    "viewInvoices": "View Invoices"
+  },
+  "empty": {
+    "title": "Welcome to Godown Stock",
+    "message": "Add your first item or record a sale to see your dashboard come alive."
+  },
+  "lowStock": {
+    "noAlerts": "Nothing running low",
+    "itemsAtOrBelow": "Items at or below their low stock threshold",
+    "seeAll": "See all items"
+  },
+  "lender": {
+    "totalOwed": "Total Owed",
+    "totalReceivable": "Total Receivable",
+    "seeAll": "See all lenders"
+  },
+  "momentum": {
+    "thisWeek": "This Week",
+    "lastWeek": "Last Week",
+    "change": "Change"
+  }
+}

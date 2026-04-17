@@ -43,6 +43,8 @@ import {
   type SettingsTabId,
 } from "../components/settings-page";
 import AppleToggle from "../components/AppleToggle";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
 type DangerAction =
   | "export"
@@ -169,6 +171,7 @@ const THEME_MODES: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
 
 function AppearanceTab() {
   const { mode, brandColor, setMode, setBrandColor } = useTheme();
+  const { t: settingsT } = useTranslation("settings");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { data: settings = {} } = useQuery({
@@ -243,10 +246,21 @@ function AppearanceTab() {
           </Button>
         </div>
       </section>
+      {/* Language */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+          {settingsT("preferences.language")}
+        </h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+          {settingsT("preferences.languageHint")}
+        </p>
+        <LanguageSwitcher variant="full" />
+      </section>
+
       {/* Theme Mode */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          Theme
+          {settingsT("preferences.theme")}
         </h2>
         <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
           Choose light, dark, or follow your system preference.

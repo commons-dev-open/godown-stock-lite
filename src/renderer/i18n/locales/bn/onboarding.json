@@ -1,0 +1,72 @@
+{
+  "onboarding": {
+    "title": "Godown Stock-এ স্বাগতম",
+    "subtitle": "এক মিনিটে আপনার ব্যবসা সেটআপ করুন",
+    "stepCompany": "আপনার ব্যবসা",
+    "stepOwner": "আপনি",
+    "stepPin": "PIN সেট করুন",
+    "stepRecovery": "রিকভারি কী",
+    "companyNameLabel": "কোম্পানির নাম",
+    "companyNamePlaceholder": "যেমন: ABC Traders Pvt Ltd",
+    "ownerNameLabel": "ওনারের নাম",
+    "ownerNamePlaceholder": "যেমন: Arindam Hazra",
+    "businessDisplayNameLabel": "বিজনেস ডিসপ্লে নাম",
+    "businessDisplayNamePlaceholder": "সাইডবার ও টাইটেলে দেখাবে",
+    "businessDisplayNameCountHint": "{{count}}/{{max}} - সাইডবার ও উইন্ডো টাইটেলে দেখানো হবে।",
+    "sameAsCompany": "কোম্পানির নামই ব্যবহার করুন",
+    "phoneLabel": "ফোন",
+    "phonePlaceholder": "10 ডিজিট ফোন নম্বর",
+    "gstinLabel": "GSTIN (অপশনাল)",
+    "pinLabel": "4 ডিজিট PIN তৈরি করুন",
+    "pinConfirmLabel": "PIN আবার দিন",
+    "recoveryKeyLabel": "Owner Recovery Key",
+    "recoveryKeyConfirmLabel": "Owner Recovery Key আবার দিন",
+    "recoveryKeyPlaceholder": "একটি শক্তিশালী রিকভারি কী দিন",
+    "recoveryKeyConfirmPlaceholder": "রিকভারি কী আবার লিখুন",
+    "recoveryKeyHint": "Owner PIN recovery-র জন্য এই কী লাগবে এবং সেটআপের পর এই কম্পিউটারে সেভ হবে। নিরাপদে রাখুন।",
+    "recoverySavedAlert": "রিকভারি কী সেভ হয়েছে:\n{{path}}\n\nফাইলটি নিরাপদে রাখুন। Owner access রিকভার করতে এই কী লাগবে।",
+    "settingUp": "সেটআপ হচ্ছে...",
+    "getStarted": "শুরু করুন",
+    "saveKey": "ডিভাইসে কী সেভ করুন",
+    "iHaveSaved": "আমি রিকভারি কী সেভ করেছি",
+    "finish": "শেষ করুন",
+    "errors": {
+      "companyNameRequired": "কোম্পানির নাম প্রয়োজন।",
+      "ownerNameRequired": "ওনারের নাম প্রয়োজন।",
+      "businessDisplayNameRequired": "বিজনেস ডিসপ্লে নাম প্রয়োজন।",
+      "pinLength": "PIN ঠিক 4 ডিজিট হতে হবে।",
+      "pinConfirmMismatch": "PIN মিলছে না।",
+      "recoveryAcknowledge": "রিকভারি কী সেভ করেছেন তা নিশ্চিত করুন।",
+      "recoveryKeyRequired": "রিকভারি কী প্রয়োজন।",
+      "recoveryKeyMismatch": "রিকভারি কী মিলছে না।",
+      "setupFailed": "সেটআপ ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"
+    }
+  },
+  "pinEntry": {
+    "title": "আপনার PIN দিন",
+    "subtitle": "{{app}} আনলক করুন",
+    "forgotPin": "PIN ভুলে গেছেন?",
+    "wrongPin": "PIN ভুল হয়েছে। আবার চেষ্টা করুন।",
+    "lockedOut": "অনেকবার ভুল হয়েছে। একটু পর আবার চেষ্টা করুন।"
+  },
+  "userSelector": {
+    "title": "কে ব্যবহার করছেন?",
+    "subtitle": "চালিয়ে যেতে একজন টিম মেম্বার বেছে নিন"
+  },
+  "forcePinChange": {
+    "title": "PIN পরিবর্তন করুন",
+    "subtitle": "নিরাপত্তার জন্য নতুন PIN সেট করুন।",
+    "currentPin": "বর্তমান PIN",
+    "newPin": "নতুন PIN",
+    "confirmPin": "নতুন PIN নিশ্চিত করুন"
+  },
+  "masterKeyRecovery": {
+    "title": "অ্যাক্সেস রিকভার করুন",
+    "subtitle": "PIN রিসেট করতে আপনার রিকভারি কী দিন।",
+    "recoveryKeyLabel": "রিকভারি কী",
+    "newPinLabel": "নতুন PIN",
+    "confirmPinLabel": "নতুন PIN নিশ্চিত করুন",
+    "recover": "অ্যাক্সেস রিকভার",
+    "invalidKey": "রিকভারি কী সঠিক নয়।"
+  }
+}

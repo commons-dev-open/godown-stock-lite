@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "महाजन",
+    "subtitle": "किसे देना है और किससे लेना है, इसे ट्रैक करें"
+  },
+  "actions": {
+    "addMahajan": "महाजन जोड़ें",
+    "editMahajan": "महाजन एडिट करें",
+    "deleteMahajan": "महाजन डिलीट करें",
+    "viewLedger": "बही-खाता देखें",
+    "addLend": "उधार दें",
+    "addDeposit": "जमा करें"
+  },
+  "search": {
+    "placeholder": "महाजन खोजें…"
+  },
+  "columns": {
+    "name": "नाम",
+    "phone": "फ़ोन",
+    "openingBalance": "ओपनिंग बैलेंस",
+    "balance": "शेष",
+    "lastActivity": "आखिरी गतिविधि"
+  },
+  "summary": {
+    "totalPayable": "कुल देना",
+    "totalReceivable": "कुल लेना",
+    "netPosition": "नेट पोजिशन"
+  },
+  "form": {
+    "namePlaceholder": "महाजन का नाम",
+    "phonePlaceholder": "फ़ोन नंबर",
+    "openingBalancePlaceholder": "ओपनिंग बैलेंस",
+    "openingBalanceHint": "पॉजिटिव मतलब: वह आपको पैसे देंगे। नेगेटिव मतलब: आपको उन्हें पैसे देने हैं।",
+    "notesPlaceholder": "वैकल्पिक नोट्स"
+  },
+  "ledger": {
+    "hero": "बही-खाता",
+    "openingBalance": "ओपनिंग",
+    "closing": "समापन",
+    "debit": "डेबिट",
+    "credit": "जमा",
+    "filtersBar": "फ़िल्टर"
+  },
+  "empty": {
+    "title": "अभी कोई महाजन नहीं",
+    "message": "उधार और जमा ट्रैक करने के लिए महाजन जोड़ें।",
+    "cta": "पहला महाजन जोड़ें"
+  },
+  "toast": {
+    "created": "महाजन बन गया",
+    "updated": "महाजन अपडेट हो गया",
+    "deleted": "महाजन डिलीट हो गया",
+    "lendAdded": "उधार दर्ज हो गया",
+    "depositAdded": "जमा दर्ज हो गया"
+  }
+}

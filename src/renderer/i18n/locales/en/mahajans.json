@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "Lenders",
+    "subtitle": "Track who you owe and who owes you"
+  },
+  "actions": {
+    "addMahajan": "Add Lender",
+    "editMahajan": "Edit Lender",
+    "deleteMahajan": "Delete Lender",
+    "viewLedger": "View Ledger",
+    "addLend": "Lend",
+    "addDeposit": "Deposit"
+  },
+  "search": {
+    "placeholder": "Search lenders…"
+  },
+  "columns": {
+    "name": "Name",
+    "phone": "Phone",
+    "openingBalance": "Opening Balance",
+    "balance": "Balance",
+    "lastActivity": "Last Activity"
+  },
+  "summary": {
+    "totalPayable": "Total Payable",
+    "totalReceivable": "Total Receivable",
+    "netPosition": "Net Position"
+  },
+  "form": {
+    "namePlaceholder": "Lender name",
+    "phonePlaceholder": "Phone number",
+    "openingBalancePlaceholder": "Opening balance",
+    "openingBalanceHint": "Positive means they owe you; negative means you owe them.",
+    "notesPlaceholder": "Optional notes"
+  },
+  "ledger": {
+    "hero": "Ledger",
+    "openingBalance": "Opening",
+    "closing": "Closing",
+    "debit": "Debit",
+    "credit": "Credit",
+    "filtersBar": "Filters"
+  },
+  "empty": {
+    "title": "No lenders yet",
+    "message": "Add lenders to track payments and deposits.",
+    "cta": "Add First Lender"
+  },
+  "toast": {
+    "created": "Lender created",
+    "updated": "Lender updated",
+    "deleted": "Lender deleted",
+    "lendAdded": "Lend recorded",
+    "depositAdded": "Deposit recorded"
+  }
+}

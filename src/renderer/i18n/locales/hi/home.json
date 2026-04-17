@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "title": "होम",
+    "subtitle": "आपका बिज़नेस एक नज़र में"
+  },
+  "sections": {
+    "quickActions": "क्विक एक्शन",
+    "weeklyMomentum": "साप्ताहिक मोमेंटम",
+    "weeklyDetails": "साप्ताहिक डिटेल",
+    "rangeComposition": "रेंज कंपोजिशन",
+    "lenderSummary": "महाजन सारांश",
+    "lowStockAlerts": "लो स्टॉक अलर्ट"
+  },
+  "quickActions": {
+    "addItem": "आइटम जोड़ें",
+    "recordSale": "बिक्री दर्ज करें",
+    "addLender": "महाजन जोड़ें",
+    "viewInvoices": "बिल देखें"
+  },
+  "empty": {
+    "title": "गोदाम स्टॉक में आपका स्वागत है",
+    "message": "डैशबोर्ड शुरू करने के लिए पहला आइटम जोड़ें या बिक्री दर्ज करें।"
+  },
+  "lowStock": {
+    "noAlerts": "अभी कोई आइटम कम नहीं है",
+    "itemsAtOrBelow": "जो आइटम लो स्टॉक लिमिट पर हैं या उससे नीचे हैं",
+    "seeAll": "सभी आइटम देखें"
+  },
+  "lender": {
+    "totalOwed": "कुल देना",
+    "totalReceivable": "कुल लेना",
+    "seeAll": "सभी महाजन देखें"
+  },
+  "momentum": {
+    "thisWeek": "इस सप्ताह",
+    "lastWeek": "पिछला सप्ताह",
+    "change": "बदलाव"
+  }
+}

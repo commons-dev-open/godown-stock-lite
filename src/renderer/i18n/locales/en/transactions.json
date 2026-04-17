@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "title": "Transactions",
+    "subtitle": "Your money in and out"
+  },
+  "search": {
+    "placeholder": "Search transactions…"
+  },
+  "columns": {
+    "date": "Date",
+    "mahajan": "Lender",
+    "type": "Type",
+    "amount": "Amount",
+    "notes": "Notes"
+  },
+  "types": {
+    "lend": "Lend",
+    "deposit": "Deposit"
+  },
+  "empty": {
+    "title": "No transactions yet",
+    "message": "Your lend and deposit entries will appear here."
+  }
+}

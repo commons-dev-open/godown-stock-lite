@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "প্রোডাক্টস ও স্টক",
+    "subtitle": "আপনার ইনভেন্টরি ম্যানেজ করুন"
+  },
+  "actions": {
+    "addItem": "আইটেম অ্যাড",
+    "editItem": "আইটেম এডিট",
+    "deleteItem": "আইটেম ডিলিট",
+    "adjustStock": "স্টক অ্যাডজাস্ট",
+    "toggleArchive": "আর্কাইভ",
+    "toggleUnarchive": "আনআর্কাইভ"
+  },
+  "search": {
+    "placeholder": "নাম বা কোড দিয়ে সার্চ করুন…"
+  },
+  "columns": {
+    "name": "নাম",
+    "code": "কোড",
+    "unit": "ইউনিট",
+    "stock": "স্টক",
+    "price": "দাম",
+    "lowStockAt": "লো স্টক লেভেল",
+    "status": "স্ট্যাটাস"
+  },
+  "filters": {
+    "all": "সব",
+    "active": "অ্যাকটিভ",
+    "archived": "আর্কাইভড",
+    "lowStock": "লো স্টক"
+  },
+  "form": {
+    "namePlaceholder": "আইটেমের নাম",
+    "codePlaceholder": "SKU / কোড",
+    "pricePlaceholder": "বিক্রয় মূল্য",
+    "stockPlaceholder": "বর্তমান স্টক",
+    "lowStockPlaceholder": "লো স্টক থ্রেশহোল্ড",
+    "notesPlaceholder": "অপশনাল নোট"
+  },
+  "empty": {
+    "title": "এখনও কোনো আইটেম নেই",
+    "message": "স্টক ট্র্যাকিং শুরু করতে প্রথম প্রোডাক্ট অ্যাড করুন।",
+    "cta": "প্রথম আইটেম অ্যাড করুন"
+  },
+  "toast": {
+    "created": "আইটেম তৈরি হয়েছে",
+    "updated": "আইটেম আপডেট হয়েছে",
+    "deleted": "আইটেম ডিলিট হয়েছে",
+    "archived": "আইটেম আর্কাইভ হয়েছে",
+    "unarchived": "আইটেম আনআর্কাইভ হয়েছে"
+  },
+  "confirmDelete": {
+    "title": "আইটেম ডিলিট করবেন?",
+    "body": "এতে আইটেম ও তার স্টক হিস্ট্রি স্থায়ীভাবে মুছে যাবে।"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "onboarding": {
+    "title": "Godown Stock में आपका स्वागत है",
+    "subtitle": "एक मिनट में अपना बिज़नेस सेट करें",
+    "stepCompany": "आपका व्यवसाय",
+    "stepOwner": "आप",
+    "stepPin": "PIN सेट करें",
+    "stepRecovery": "रिकवरी कुंजी",
+    "companyNameLabel": "कंपनी का नाम",
+    "companyNamePlaceholder": "उदा. शर्मा ट्रेडर्स प्रा. लि.",
+    "ownerNameLabel": "मालिक का नाम",
+    "ownerNamePlaceholder": "उदा. Arindam Hazra",
+    "businessDisplayNameLabel": "बिज़नेस डिस्प्ले नाम",
+    "businessDisplayNamePlaceholder": "साइडबार और टाइटल में दिखेगा",
+    "businessDisplayNameCountHint": "{{count}}/{{max}} - साइडबार और विंडो टाइटल में दिखेगा।",
+    "sameAsCompany": "कंपनी नाम जैसा रखें",
+    "phoneLabel": "फ़ोन",
+    "phonePlaceholder": "10 अंकों का फ़ोन नंबर",
+    "gstinLabel": "GSTIN (वैकल्पिक)",
+    "pinLabel": "4 अंकों का PIN बनाएं",
+    "pinConfirmLabel": "PIN कन्फर्म करें",
+    "recoveryKeyLabel": "ओनर रिकवरी की",
+    "recoveryKeyConfirmLabel": "ओनर रिकवरी की कन्फर्म करें",
+    "recoveryKeyPlaceholder": "मजबूत रिकवरी की बनाएं",
+    "recoveryKeyConfirmPlaceholder": "रिकवरी की फिर से डालें",
+    "recoveryKeyHint": "यह की ओनर PIN रिकवरी के लिए ज़रूरी है और सेटअप के बाद इस कंप्यूटर में सेव हो जाएगी। इसे सुरक्षित रखें।",
+    "recoverySavedAlert": "रिकवरी की यहां सेव हुई:\n{{path}}\n\nइस फाइल को सुरक्षित रखें। ओनर एक्सेस वापस पाने के लिए यही की चाहिए होगी।",
+    "settingUp": "सेटअप हो रहा है...",
+    "getStarted": "शुरू करें",
+    "saveKey": "डिवाइस में की सेव करें",
+    "iHaveSaved": "मैंने रिकवरी की सेव कर ली है",
+    "finish": "समाप्त",
+    "errors": {
+      "companyNameRequired": "कंपनी का नाम आवश्यक है।",
+      "ownerNameRequired": "ओनर का नाम ज़रूरी है।",
+      "businessDisplayNameRequired": "बिज़नेस डिस्प्ले नाम ज़रूरी है।",
+      "pinLength": "PIN ठीक 4 अंकों का होना चाहिए।",
+      "pinConfirmMismatch": "PIN मैच नहीं कर रहे।",
+      "recoveryAcknowledge": "कृपया कन्फर्म करें कि आपने रिकवरी की सेव कर ली है।",
+      "recoveryKeyRequired": "रिकवरी की ज़रूरी है।",
+      "recoveryKeyMismatch": "रिकवरी की मैच नहीं कर रही।",
+      "setupFailed": "सेटअप फेल हो गया। फिर कोशिश करें।"
+    }
+  },
+  "pinEntry": {
+    "title": "अपना PIN दर्ज करें",
+    "subtitle": "{{app}} अनलॉक करें",
+    "forgotPin": "PIN भूल गए?",
+    "wrongPin": "गलत PIN। फिर कोशिश करें।",
+    "lockedOut": "बहुत ज़्यादा कोशिशें हो गईं। थोड़ा रुककर फिर कोशिश करें।"
+  },
+  "userSelector": {
+    "title": "अभी कौन इस्तेमाल कर रहा है?",
+    "subtitle": "आगे बढ़ने के लिए Team Member चुनें"
+  },
+  "forcePinChange": {
+    "title": "अपना PIN बदलें",
+    "subtitle": "सुरक्षा के लिए नया PIN सेट करें।",
+    "currentPin": "वर्तमान PIN",
+    "newPin": "नया PIN",
+    "confirmPin": "नया PIN कन्फर्म करें"
+  },
+  "masterKeyRecovery": {
+    "title": "एक्सेस वापस पाएं",
+    "subtitle": "PIN रीसेट करने के लिए रिकवरी की दर्ज करें।",
+    "recoveryKeyLabel": "रिकवरी की",
+    "newPinLabel": "नया PIN",
+    "confirmPinLabel": "नया PIN कन्फर्म करें",
+    "recover": "एक्सेस रिकवर करें",
+    "invalidKey": "गलत रिकवरी की।"
+  }
+}

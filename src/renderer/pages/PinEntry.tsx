@@ -4,6 +4,8 @@ import { useAuth, type UserRole } from "../context/AuthContext";
 import PinDots from "../components/PinDots";
 import PinPad from "../components/PinPad";
 import MasterKeyRecovery from "./MasterKeyRecovery";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import ThemeSwitcher from "../components/ThemeSwitcher";
 
 function getInitials(name: string) {
   return name
@@ -121,6 +123,10 @@ export default function PinEntry() {
           `,
         }}
       >
+        <div className="absolute right-6 top-6 flex items-center gap-2">
+          <ThemeSwitcher variant="compact" />
+          <LanguageSwitcher variant="compact" compactTone="surface" />
+        </div>
         <MasterKeyRecovery
           onBack={() => setShowRecovery(false)}
           onSuccess={() => {
@@ -154,7 +160,11 @@ export default function PinEntry() {
       </button>
 
       {/* Business name */}
-      <p className="absolute top-6 right-6 text-sm text-[var(--color-text-tertiary)]">{businessName}</p>
+      <div className="absolute top-6 right-6 flex items-center gap-3">
+        <p className="text-sm text-[var(--color-text-tertiary)]">{businessName}</p>
+        <ThemeSwitcher variant="compact" />
+        <LanguageSwitcher variant="compact" compactTone="surface" />
+      </div>
 
       {/* User avatar */}
       <div className="flex flex-col items-center gap-3">

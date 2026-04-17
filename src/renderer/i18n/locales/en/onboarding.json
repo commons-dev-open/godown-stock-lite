@@ -1,0 +1,72 @@
+{
+  "onboarding": {
+    "title": "Welcome to Godown Stock",
+    "subtitle": "Set up your business in a minute",
+    "stepCompany": "Your Business",
+    "stepOwner": "You",
+    "stepPin": "Set a PIN",
+    "stepRecovery": "Recovery Key",
+    "companyNameLabel": "Company Name",
+    "companyNamePlaceholder": "e.g. Sharma Traders Pvt Ltd",
+    "ownerNameLabel": "Owner Name",
+    "ownerNamePlaceholder": "e.g. Arindam Hazra",
+    "businessDisplayNameLabel": "Business Display Name",
+    "businessDisplayNamePlaceholder": "Shown in sidebar & title",
+    "businessDisplayNameCountHint": "{{count}}/{{max}} - shown in sidebar and window title.",
+    "sameAsCompany": "Same as company name",
+    "phoneLabel": "Phone",
+    "phonePlaceholder": "10-digit phone number",
+    "gstinLabel": "GSTIN (optional)",
+    "pinLabel": "Create 4-digit PIN",
+    "pinConfirmLabel": "Confirm PIN",
+    "recoveryKeyLabel": "Owner Recovery Key",
+    "recoveryKeyConfirmLabel": "Confirm Owner Recovery Key",
+    "recoveryKeyPlaceholder": "Create a strong recovery key",
+    "recoveryKeyConfirmPlaceholder": "Re-enter recovery key",
+    "recoveryKeyHint": "This key is required for owner PIN recovery and will be saved to this computer after setup. Keep it somewhere safe.",
+    "recoverySavedAlert": "Recovery key saved to:\n{{path}}\n\nKeep this file somewhere safe. You will need this key to recover owner access.",
+    "settingUp": "Setting up...",
+    "getStarted": "Get Started",
+    "saveKey": "Save Key to Device",
+    "iHaveSaved": "I have saved my recovery key",
+    "finish": "Finish",
+    "errors": {
+      "companyNameRequired": "Company name is required.",
+      "ownerNameRequired": "Owner name is required.",
+      "businessDisplayNameRequired": "Business display name is required.",
+      "pinLength": "PIN must be exactly 4 digits.",
+      "pinConfirmMismatch": "PINs do not match.",
+      "recoveryAcknowledge": "Please confirm you've saved the recovery key.",
+      "recoveryKeyRequired": "Recovery key is required.",
+      "recoveryKeyMismatch": "Recovery keys do not match.",
+      "setupFailed": "Setup failed. Try again."
+    }
+  },
+  "pinEntry": {
+    "title": "Enter your PIN",
+    "subtitle": "Unlock {{app}}",
+    "forgotPin": "Forgot PIN?",
+    "wrongPin": "Incorrect PIN. Try again.",
+    "lockedOut": "Too many attempts. Please wait and try again."
+  },
+  "userSelector": {
+    "title": "Who's using this?",
+    "subtitle": "Select a team member to continue"
+  },
+  "forcePinChange": {
+    "title": "Change your PIN",
+    "subtitle": "For security, please set a new PIN.",
+    "currentPin": "Current PIN",
+    "newPin": "New PIN",
+    "confirmPin": "Confirm New PIN"
+  },
+  "masterKeyRecovery": {
+    "title": "Recover Access",
+    "subtitle": "Enter your recovery key to reset your PIN.",
+    "recoveryKeyLabel": "Recovery Key",
+    "newPinLabel": "New PIN",
+    "confirmPinLabel": "Confirm New PIN",
+    "recover": "Recover Access",
+    "invalidKey": "Invalid recovery key."
+  }
+}

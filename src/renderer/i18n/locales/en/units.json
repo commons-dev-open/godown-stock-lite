@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "title": "Units",
+    "subtitle": "Units of measurement"
+  },
+  "actions": {
+    "addUnit": "Add Unit",
+    "editUnit": "Edit Unit",
+    "deleteUnit": "Delete Unit"
+  },
+  "tabs": {
+    "units": "Units",
+    "categories": "Categories"
+  },
+  "columns": {
+    "name": "Name",
+    "symbol": "Symbol"
+  },
+  "empty": {
+    "title": "No units yet",
+    "message": "Add measurement units like kg, litre, piece.",
+    "cta": "Add Unit"
+  }
+}

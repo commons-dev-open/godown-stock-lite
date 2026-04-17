@@ -1,0 +1,56 @@
+{
+  "hero": {
+    "title": "प्रोडक्ट और स्टॉक",
+    "subtitle": "अपना इन्वेंटरी मैनेज करें"
+  },
+  "actions": {
+    "addItem": "आइटम जोड़ें",
+    "editItem": "आइटम एडिट करें",
+    "deleteItem": "आइटम डिलीट करें",
+    "adjustStock": "स्टॉक एडजस्ट करें",
+    "toggleArchive": "आर्काइव करें",
+    "toggleUnarchive": "अनआर्काइव करें"
+  },
+  "search": {
+    "placeholder": "नाम या कोड से खोजें…"
+  },
+  "columns": {
+    "name": "नाम",
+    "code": "कोड",
+    "unit": "इकाई",
+    "stock": "स्टॉक",
+    "price": "मूल्य",
+    "lowStockAt": "लो स्टॉक लिमिट",
+    "status": "स्थिति"
+  },
+  "filters": {
+    "all": "सभी",
+    "active": "सक्रिय",
+    "archived": "आर्काइव",
+    "lowStock": "लो स्टॉक"
+  },
+  "form": {
+    "namePlaceholder": "आइटम का नाम",
+    "codePlaceholder": "SKU / कोड",
+    "pricePlaceholder": "सेलिंग प्राइस",
+    "stockPlaceholder": "वर्तमान स्टॉक",
+    "lowStockPlaceholder": "लो स्टॉक लिमिट",
+    "notesPlaceholder": "वैकल्पिक नोट्स"
+  },
+  "empty": {
+    "title": "अभी कोई आइटम नहीं",
+    "message": "स्टॉक ट्रैक करने के लिए पहला प्रोडक्ट जोड़ें।",
+    "cta": "पहला आइटम जोड़ें"
+  },
+  "toast": {
+    "created": "आइटम बन गया",
+    "updated": "आइटम अपडेट हो गया",
+    "deleted": "आइटम डिलीट हो गया",
+    "archived": "आइटम आर्काइव हो गया",
+    "unarchived": "आइटम अनआर्काइव हो गया"
+  },
+  "confirmDelete": {
+    "title": "आइटम डिलीट करें?",
+    "body": "इससे आइटम और उसकी स्टॉक हिस्ट्री हमेशा के लिए हट जाएगी।"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "hero": {
+    "title": "सेटिंग्स",
+    "subtitle": "प्रेफरेंस, डेटा और आपका बिज़नेस प्रोफाइल"
+  },
+  "tabs": {
+    "general": "सामान्य",
+    "business": "व्यवसाय",
+    "preferences": "प्रेफरेंस",
+    "data": "डेटा",
+    "security": "सुरक्षा",
+    "activity": "गतिविधि",
+    "danger": "डेंजर ज़ोन"
+  },
+  "preferences": {
+    "language": "भाषा",
+    "languageHint": "ऐप में इस्तेमाल होने वाली भाषा चुनें।",
+    "theme": "थीम",
+    "brandColor": "ब्रांड रंग",
+    "numberAbbreviation": "नंबर शॉर्ट फॉर्म",
+    "numberAbbreviationHint": "समरी कार्ड में बड़े नंबर कैसे छोटे दिखें, यह चुनें।",
+    "abbreviation": {
+      "indian": "Indian (लाख, करोड़)",
+      "us": "अमेरिकी (M, B)",
+      "si": "SI (K, M, B)"
+    }
+  },
+  "business": {
+    "companyName": "कंपनी का नाम",
+    "ownerName": "ओनर का नाम",
+    "gstin": "GSTIN",
+    "gstEnabled": "GST चालू",
+    "address": "पता",
+    "phone": "फ़ोन",
+    "email": "ईमेल"
+  },
+  "data": {
+    "exportDb": "डेटाबेस एक्सपोर्ट",
+    "exportDbHint": "पूरा डेटा बैकअप फाइल में सेव करें।",
+    "importDb": "डेटाबेस इंपोर्ट",
+    "importDbHint": "बैकअप फाइल से डेटा वापस लाएं।",
+    "clearAll": "सारा डेटा साफ करें",
+    "clearAllHint": "सारे रिकॉर्ड हटेंगे, लेकिन सेटिंग्स बनी रहेंगी।",
+    "resetDb": "डेटाबेस रीसेट करें",
+    "resetDbHint": "सब कुछ हटाकर फिर से शुरू करें।"
+  },
+  "security": {
+    "changePin": "PIN बदलें",
+    "recoveryKey": "रिकवरी की",
+    "saveRecoveryKey": "रिकवरी की सेव करें",
+    "regenerateRecoveryKey": "दोबारा बनाएं"
+  },
+  "toast": {
+    "saved": "सेटिंग्स सेव हो गईं",
+    "exported": "डेटाबेस एक्सपोर्ट हो गया",
+    "imported": "डेटाबेस इंपोर्ट हो गया",
+    "cleared": "डेटा साफ हो गया",
+    "reset": "डेटाबेस रीसेट हो गया"
+  },
+  "confirm": {
+    "clearTitle": "सारा डेटा साफ करें?",
+    "clearBody": "सभी आइटम, महाजन, लेन-देन और बिल हट जाएंगे। सेटिंग्स बनी रहेंगी।",
+    "resetTitle": "डेटाबेस रीसेट करें?",
+    "resetBody": "आपका बिज़नेस प्रोफाइल समेत सब कुछ हट जाएगा।"
+  }
+}

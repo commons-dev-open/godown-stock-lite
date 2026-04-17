@@ -1,0 +1,22 @@
+{
+  "hero": {
+    "title": "Help",
+    "subtitle": "Guides and support"
+  },
+  "tabs": {
+    "gettingStarted": "Getting Started",
+    "features": "Features",
+    "faq": "FAQ",
+    "contact": "Contact"
+  },
+  "contact": {
+    "developer": "Developer",
+    "email": "Email",
+    "website": "Website",
+    "reportIssue": "Report an issue"
+  },
+  "empty": {
+    "title": "No guide selected",
+    "message": "Pick a topic from the left to view help."
+  }
+}

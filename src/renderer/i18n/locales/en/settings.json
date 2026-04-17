@@ -1,0 +1,66 @@
+{
+  "hero": {
+    "title": "Settings",
+    "subtitle": "Preferences, data, and your business profile"
+  },
+  "tabs": {
+    "general": "General",
+    "business": "Business",
+    "preferences": "Preferences",
+    "data": "Data",
+    "security": "Security",
+    "activity": "Activity",
+    "danger": "Danger Zone"
+  },
+  "preferences": {
+    "language": "Language",
+    "languageHint": "Choose the language used across the app.",
+    "theme": "Theme",
+    "brandColor": "Brand Color",
+    "numberAbbreviation": "Number Abbreviation",
+    "numberAbbreviationHint": "How large numbers are shortened on summary cards.",
+    "abbreviation": {
+      "indian": "Indian (Lac, Cr)",
+      "us": "US (M, B)",
+      "si": "SI (K, M, B)"
+    }
+  },
+  "business": {
+    "companyName": "Company Name",
+    "ownerName": "Owner Name",
+    "gstin": "GSTIN",
+    "gstEnabled": "GST enabled",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email"
+  },
+  "data": {
+    "exportDb": "Export database",
+    "exportDbHint": "Back up all your data to a file.",
+    "importDb": "Import database",
+    "importDbHint": "Restore data from a backup file.",
+    "clearAll": "Clear all data",
+    "clearAllHint": "Remove all records but keep your settings.",
+    "resetDb": "Reset database",
+    "resetDbHint": "Wipe everything and start fresh."
+  },
+  "security": {
+    "changePin": "Change PIN",
+    "recoveryKey": "Recovery Key",
+    "saveRecoveryKey": "Save Recovery Key",
+    "regenerateRecoveryKey": "Regenerate"
+  },
+  "toast": {
+    "saved": "Settings saved",
+    "exported": "Database exported",
+    "imported": "Database imported",
+    "cleared": "Data cleared",
+    "reset": "Database reset"
+  },
+  "confirm": {
+    "clearTitle": "Clear all data?",
+    "clearBody": "All items, lenders, transactions, and invoices will be removed. Settings will remain.",
+    "resetTitle": "Reset database?",
+    "resetBody": "Everything will be wiped, including your business profile."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "hero": {
+    "title": "Team",
+    "subtitle": "Manage team members and access"
+  },
+  "actions": {
+    "addUser": "Add Member",
+    "editUser": "Edit Member",
+    "deleteUser": "Remove"
+  },
+  "columns": {
+    "name": "Name",
+    "role": "Role",
+    "status": "Status"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member"
+  },
+  "empty": {
+    "title": "No team members yet",
+    "message": "Add colleagues to collaborate.",
+    "cta": "Add Member"
+  }
+}
