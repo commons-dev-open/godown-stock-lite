@@ -74,8 +74,12 @@ export default function UserSelector() {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--color-accent)] text-white mb-3 shadow-md">
           <Building2 size={28} strokeWidth={1.5} />
         </div>
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">{businessName}</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">Who is logging in?</p>
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+          {businessName}
+        </h1>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+          Who is logging in?
+        </p>
       </div>
 
       {/* User grid */}
@@ -85,9 +89,13 @@ export default function UserSelector() {
           Loading…
         </div>
       ) : users.length === 0 ? (
-        <p className="text-[var(--color-text-tertiary)] text-sm">No users found.</p>
+        <p className="text-[var(--color-text-tertiary)] text-sm">
+          No users found.
+        </p>
       ) : (
-        <div className={`grid gap-4 w-full max-w-lg ${users.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+        <div
+          className={`grid gap-4 w-full max-w-lg ${users.length <= 1 ? "grid-cols-1" : users.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}
+        >
           {users.map((u) => (
             <button
               key={u.id}
@@ -100,7 +108,9 @@ export default function UserSelector() {
                 {getInitials(u.name)}
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate max-w-[100px]">{u.name}</p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate max-w-fit">
+                  {u.name}
+                </p>
                 <RoleBadge role={u.role} />
               </div>
             </button>

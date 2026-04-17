@@ -6,49 +6,77 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
   overview: (
     <div className="space-y-1">
       <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-        This application helps you manage a godown (warehouse) or retail stock:
-        products, units, stock levels, daily sales, lender (parties you receive
-        credit purchase from and make settlement to) ledgers, transactions
-        (credit purchase from lender, settlement to lender, cash purchase),
-        invoices, and reports. Data is stored locally in a database on your
-        computer.
+        Godown Stock Lite is a desktop-first business app for inventory, sales,
+        lender credit, and invoicing. Everything you enter is stored in a local
+        SQLite database on this machine—there is no cloud account required for
+        day-to-day work, which keeps latency low and your books under your
+        control. Use the topic tabs above to move through this guide; each
+        section lines up with a major area of the sidebar.
       </p>
-      <HelpSubSection title="Main areas">
+      <HelpSubSection title="What you can run from here">
         <HelpBulletList
           items={[
-            "Home: Dashboard with shortcuts to Stock, Add Sale, and Reports.",
-            "Units: Define stock units (e.g. kg, pcs) and invoice units for billing.",
-            "Products & Stock: Add products, track current stock, add or reduce stock.",
-            "Lenders: Manage lenders (parties you receive credit purchase from and make settlement to); view balance and ledger.",
-            "Transactions: Record credit purchase from lender, settlement to lender, and cash purchase.",
-            "Daily Sales: Log daily summary (invoice sales auto from invoices, misc/cash sales, cash in hand, expenditure).",
-            "Invoices: Create and edit customer invoices with line items.",
-            "Reports: Weekly sale, total sale for a date range, and profit/loss.",
-            "Settings: Company details, app display name, and database backup/restore.",
+            "Home: Rolling KPIs (today, week, month, lender net), 7-Day Sale Momentum, Range Composition with date presets, Quick Actions (Create Invoice, Credit Purchase) plus a weekly cash vs expenditure strip, low-stock alerts, Weekly Sale Detail, and a lender summary with navigation into the underlying pages when you need detail.",
+            "Units: Master list of stock units with optional types, plus standard conversions so quantities stay consistent when you bill or move stock in different measures.",
+            "Products & Stock: Catalogue, on-hand quantity, reorder hints, per-product selling defaults and GST/HSN, product-level unit conversions, manual add/reduce stock, search, export, and print.",
+            "Lenders: Parties you buy from on credit and pay back; balances, ledgers, and exports. The screen label is Lenders; older data paths may still say “mahajan” internally.",
+            "Transactions: One place for credit purchase, settlement, and cash purchase, with filters and export/print.",
+            "Daily Sales: One row per calendar day—invoice-backed totals, misc cash sales, cash in hand, and expenditure.",
+            "Invoices: Customer bills with line items, GST-aware totals when enabled, discounts from Settings, and PDF/print using your business profile.",
+            "Team: Named sign-ins, roles, PINs, and activation for people who share this machine (see the Team topic).",
+            "Settings: Business profile, tax and GST, discounts, appearance, security, activity log, and data tools (backup, restore, reset, sample data).",
+            "Help: This page—reference material you can read alongside the live screens.",
           ]}
         />
+      </HelpSubSection>
+      <HelpSubSection title="How the pieces depend on each other">
+        <p className="mb-2">
+          Units and unit types sit underneath products. Products feed invoices
+          and stock movements. Credit purchase and cash purchase increase stock
+          when you receive goods. Invoices push their dated totals into Daily
+          Sales as invoice sales. Lender credit purchase and settlement do not
+          by themselves replace your cash book—they track what you owe
+          suppliers—while Daily Sales is where you reconcile the day’s cash
+          picture including misc sales and till balance.
+        </p>
       </HelpSubSection>
     </div>
   ),
 
   "getting-started": (
     <div className="space-y-1">
+      <HelpSubSection title="First sign-in">
+        <p className="mb-2">
+          On a fresh install you create an owner account, pick a user, and set
+          a four-digit PIN. After that the main layout unlocks. You can lock
+          again from the header or from Settings → Security; unlocking always
+          uses the current user&apos;s PIN. If you share the PC, each person
+          should have their own sign-in on Team so the activity log stays meaningful.
+        </p>
+      </HelpSubSection>
       <HelpSubSection title="Recommended setup order">
+        <p className="mb-2">
+          You can enter data in any order, but this sequence avoids rework:
+          business identity and tax rules first, then units and products, then
+          operational flows.
+        </p>
         <HelpStepList
           steps={[
-            "Go to Settings and fill in Company name, Address, GSTIN, Owner name, and Phone. Optionally set an App display name (used in header and PDFs).",
-            "Open Units and add Stock units (e.g. Kg, Pcs, Box) that you will use for products. Add Invoice units if you use different units on invoices.",
-            "Go to Products & Stock and add your products (name, code, unit, optional reorder level and retail/other units).",
-            "If you work with lenders, add them under Lenders, then use Transactions to record credit purchase from lender and settlement to lender.",
-            "Use Daily Sales to record each day’s sale and cash position; use Reports to view weekly sale, total sale, and P&L.",
+            "Open Settings → Business and save company name, address, GSTIN, owner name, and phone. These fields appear on printed invoices and many exports.",
+            "If you issue GST bills, open Settings → Tax & GST: enable GST, default slab, inclusive or exclusive pricing, place of supply, and optional customer GSTIN or HSN columns. Invoice screens read these toggles directly.",
+            "Still in Settings, review Discounts so only the mechanisms you actually use (percentage, flat, BOGO, coupons, tiers, rounding) appear on invoices.",
+            "Open Units: add a few unit types (Mass, Count, Volume, etc.), add stock units under All units (name, symbol, type), then add Standard conversions for pairs you will convert often (for example kg ↔ g).",
+            "Go to Products & Stock and create products with base unit, optional reorder level, retail/other units, per-product conversions if they differ from global ones, and optional default selling price, GST rate, and HSN.",
+            "If you purchase on credit from suppliers, add them under Lenders, then record Credit Purchase and Settlement from Transactions or from a lender’s Ledger.",
+            "Operate day to day with Invoices and Daily Sales; use Home when you want charts, alerts, and cross-cutting totals without opening each register.",
           ]}
         />
       </HelpSubSection>
       <HelpSubSection title="Trial mode">
         <p>
-          If you see a &quot;Trial&quot; badge, the app is running in trial
-          mode. A timer may limit usage. The full version will be provided
-          after payment; functionality is the same.
+          If you see a Trial badge, the build is time-limited. After the window
+          ends the app prompts you to purchase the full version; behaviour is
+          otherwise the same while the trial is active.
         </p>
       </HelpSubSection>
     </div>
@@ -56,79 +84,116 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
 
   units: (
     <div className="space-y-1">
-      <HelpSubSection title="Stock units">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        The Units page has three segments—All units, Unit types, and Standard
+        conversions. Together they define how quantities are named, grouped, and
+        converted. Invoices and stock screens combine these definitions with
+        each product&apos;s own alternate units and conversion rows.
+      </p>
+      <HelpSubSection title="All units (stock units)">
         <p className="mb-2">
-          Stock units are used for products (e.g. Kg, Pcs, Box, Ltr). Each
-          unit has a <strong>name</strong> and an optional <strong>symbol</strong> (short
-          label for display).
+          These are the units every product references (kilogram, piece, box,
+          litre, and so on). Each row has a name, an optional short symbol for
+          tables and PDFs, and a unit type so the app knows which conversions are
+          physically meaningful.
         </p>
         <HelpStepList
           steps={[
-            "Open Units from the sidebar.",
-            "Ensure the “Stock units” tab is selected.",
-            "Click “Add unit”, enter name (e.g. Kilogram) and symbol (e.g. Kg), then save.",
-            "Edit or delete units from the table. Deleting a unit that is used by products may not be allowed.",
+            "Open Units from the sidebar and stay on the “All units” tab.",
+            "Click “Add unit”, enter name and symbol, pick a unit type, then save.",
+            "Edit from the row actions. Delete only when nothing depends on the unit; seeded system units are protected from deletion.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Invoice units">
+      <HelpSubSection title="Unit types">
         <p className="mb-2">
-          Invoice units are used on invoice line items. They can have a name,
-          symbol, and sort order (to control display order on invoices).
+          Types are lightweight categories—Mass, Volume, Count, and whatever
+          else matches your trade. They do not perform maths by themselves; they
+          gate standard conversions so you cannot accidentally link incompatible
+          measures.
         </p>
         <HelpStepList
           steps={[
-            "In Units, switch to the “Invoice units” tab.",
-            "Click “Add invoice unit”, enter name and symbol, set sort order if needed, then save.",
-            "Edit or delete from the table as required.",
+            "Switch to the “Unit types” tab.",
+            "Use “Add type”, enter a name, save, then attach types to units on the All units tab.",
           ]}
         />
+      </HelpSubSection>
+      <HelpSubSection title="Standard conversions">
+        <p className="mb-2">
+          A conversion row states how many “to” units equal one “from” unit
+          (for example 1 kg → 1000 g). The app uses these together with
+          product-level conversion tables when resolving invoice quantities and
+          rates across units.
+        </p>
+        <HelpStepList
+          steps={[
+            "Open the “Standard conversions” tab.",
+            "Click “Add conversion”, choose from/to units (same type), enter the numeric factor, and save.",
+            "Maintain conversions as your catalogue grows; inconsistent factors will show up as odd rates or stock discrepancies long before the database complains.",
+          ]}
+        />
+      </HelpSubSection>
+      <HelpSubSection title="How this connects to invoices">
+        <p>
+          When you add invoice lines, unit choices come from the product&apos;s
+          primary and alternate units, assisted by standard and per-product
+          conversions. If a unit is missing from a line’s dropdown, fix the
+          product’s unit setup first, then revisit the invoice.
+        </p>
       </HelpSubSection>
     </div>
   ),
 
   products: (
     <div className="space-y-1">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        Products are the catalogue spine: they drive stock levels, default
+        invoice behaviour, and low-stock alerts. Spend a little time getting
+        units and default tax fields right up front so invoices stay fast at
+        the counter.
+      </p>
       <HelpSubSection title="Adding a product">
         <HelpStepList
           steps={[
             "Go to Products & Stock and click “Add Product”.",
-            "Enter product Name and optional Code.",
-            "Select the primary Unit (stock unit).",
-            "Optionally set Current stock and Reorder level.",
-            "Optionally set Retail primary unit and add Other units (e.g. for selling in different units). Use “Import units from another product” to copy units from an existing product.",
-            "Save. The product appears in the table with current stock and unit.",
+            "Enter product name and optional code.",
+            "Select the primary stock unit.",
+            "Optionally set current stock and reorder level.",
+            "Under retail and other units, describe how you sell the item in alternate measures; use “Import units from another product” when a new SKU mirrors an existing one.",
+            "Optionally add per-product unit conversions (from the base unit to another unit) when they differ from global standard conversions.",
+            "Optionally set default selling price and selling price unit, GST rate slab, and HSN code—these pre-fill invoice lines and stay editable per bill.",
+            "Save. The product appears in the table with quantity and unit.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Editing or deleting a product">
+      <HelpSubSection title="Editing or deleting">
         <p className="mb-2">
-          Click the edit (pencil) icon on a row to change name, code, unit,
-          retail/other units, reorder level, etc. To delete a product, use the
-          delete (trash) icon; deletion may require current stock to be zero.
+          Use the pencil icon to change any of the fields above. Deletion is
+          intentionally strict: you will usually need zero on-hand stock and no
+          blocking references before the trash action succeeds, so you do not
+          silently break historical invoices.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Add Stock / Reduce Stock">
         <HelpStepList
           steps={[
-            "Add Stock: Click “Add Stock”, select the product, enter the quantity to add, and confirm. Current stock increases.",
-            "Reduce Stock: Click “Reduce Stock”, select the product, enter the quantity to reduce, and confirm. Use this for sales or write-offs (quantity must not exceed current stock).",
+            "Add Stock: choose the product, confirm quantity (and unit where applicable), submit. On-hand quantity increases—use for purchases you are not modelling as lender or cash purchase, opening balances, or corrections.",
+            "Reduce Stock: same flow for shrinkage, shop-floor use, or sales you are not running through invoices. Quantity cannot exceed what is on hand.",
           ]}
         />
       </HelpSubSection>
       <HelpSubSection title="Search and pagination">
         <p>
-          Use the search box to filter by product name or code. The table is
-          paginated; use the pagination controls at the bottom to move between
-          pages.
+          Search filters by name or code. Pagination keeps large catalogues
+          responsive; remember filters apply before export when you need a slice
+          of the list.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Export and print">
         <p>
-          Click “Export” to choose: Export as CSV, Export as PDF, or Print. CSV
-          and PDF save a snapshot of the product list (all items when
-          exporting). Print opens the browser print dialog for the current
-          table view.
+          Export offers CSV and PDF snapshots of the catalogue; print sends the
+          current table view to the system print dialog. Treat exports as point-in-time backups of the list, not a substitute for Settings → Data database export when you are moving machines.
         </p>
       </HelpSubSection>
     </div>
@@ -137,32 +202,66 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
   lenders: (
     <div className="space-y-1">
       <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-        Lenders are parties you receive credit purchase from (goods/money) and
-        make settlement to (pay back). Each lender has a ledger of credit
-        purchase and settlement transactions and a running balance.
+        A lender is any counterparty you receive credit purchase from and later
+        settle with cash, bank, UPI, or cheque. Balances roll up from those two
+        families of transactions; cash purchases from the open market are handled
+        separately under Transactions → Cash Purchase.
       </p>
       <HelpSubSection title="Adding a lender">
         <HelpStepList
           steps={[
-            "Go to Lenders and click “Add Lender”.",
-            "Enter Name and optionally Phone, Address, and GSTIN.",
-            "Save. The lender appears in the list.",
+            "Go to Lenders and click “Add lender” in the hero.",
+            "Enter name plus optional phone, address, and GSTIN.",
+            "Save. The lender appears in the directory with search across those fields.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Viewing balance and ledger">
+      <HelpSubSection title="Hero metrics and staying current">
+        <p className="mb-2">
+          The top cards summarise how many lenders you track, aggregate credit
+          purchase, aggregate settlements, and net balance. When ledger activity
+          elsewhere might have changed these totals, use “Fetch latest” to
+          refresh without reloading the whole app.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Balances in the directory">
         <HelpBulletList
           items={[
-            "Balance: Click “Balance” on a row to load and show that lender’s current balance. Positive balance means you owe the lender (you have received more than you have settled); negative means the lender owes you.",
-            "Ledger: Click the lender name or “Ledger” to open the full ledger. There you can add Credit Purchase (receive from lender) or Settlement (pay to lender), filter by type and date, and export or print.",
+            "Per row you can request a single lender’s balance on demand when “Show balance” is off—useful on large lists.",
+            "Enable the “Show balance” checkbox in the search bar to pull every lender balance in one batch (slightly heavier query, clearer overview).",
+            "Positive balance means you still owe the lender; negative means they owe you—same colour language as Home.",
           ]}
         />
+      </HelpSubSection>
+      <HelpSubSection title="Ledger">
+        <p className="mb-2">
+          Open a lender by name or the Ledger action. Inside the ledger you can
+          post new credit purchase or settlement, filter by type and date, and
+          export or print that lender’s history. This is often faster than hunting
+          the same rows on the global Transactions page when you are reconciling
+          one supplier.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="What the modals capture (high level)">
+        <p className="mb-2">
+          Credit purchase lines can carry GST rate and inclusive/exclusive flag
+          per line, optional supplier invoice number, optional invoice file upload,
+          notes, and an optional “pay now” slice with payment method plus reference
+          fields (cash receipt, UPI ref, UTR, cheque no., etc.). That lets one
+          screen represent goods arriving and an immediate partial payment.
+        </p>
+        <p>
+          Settlement expects amount, date, payment method, reference, optional
+          notes, and—when you expand allocations—how much settles which prior
+          credit purchase. You can still post a simple lump settlement if you do
+          not need that granularity.
+        </p>
       </HelpSubSection>
       <HelpSubSection title="Export and print">
         <p>
-          From the Lenders list, use “Export” for CSV/PDF or “Print” for the
-          lender list. From a lender’s ledger page, use Export/Print for
-          that ledger’s transactions.
+          From the lender directory use Export or Print for the list itself.
+          From inside a ledger, export or print applies to that filtered ledger
+          view.
         </p>
       </HelpSubSection>
     </div>
@@ -171,45 +270,46 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
   transactions: (
     <div className="space-y-1">
       <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-        The Transactions page shows all ledger-style entries: Credit Purchase
-        from Lender, Settlement to Lender, and Cash Purchase. You can filter
-        by lender and type, and export or print.
+        Transactions is the global register for anything that touches lender
+        balances or immediate cash purchases of stock. It complements—not
+        replaces—per-lender ledgers: use whichever view matches the task.
       </p>
-      <HelpSubSection title="Add Credit Purchase from Lender">
+      <HelpSubSection title="Add Credit Purchase">
         <HelpStepList
           steps={[
             "Click “Add Credit Purchase”.",
-            "Select the Lender and Transaction date.",
-            "Add one or more lines: select Product, enter Quantity and Amount per line (goods/money received from the lender). Add optional Notes.",
-            "Save. Stock for the product increases automatically because you received goods from the lender.",
+            "Choose lender and transaction date.",
+            "Add lines: product, quantity, monetary amount, and—when GST applies—per-line GST rate and inclusive/exclusive mode.",
+            "Optionally record the supplier’s invoice number, attach a scan or photo, add notes, and split part of the amount into an on-the-spot payment with method + reference.",
+            "Confirm. Stock increases for the goods you received.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Add Settlement to Lender">
+      <HelpSubSection title="Add Settlement">
         <HelpStepList
           steps={[
             "Click “Add Settlement”.",
-            "Select the Lender and Transaction date.",
-            "Enter Amount and optional Notes (money you are paying to the lender).",
-            "Save. This records your settlement (payment) to the lender.",
+            "Choose lender, date, amount, payment method, and reference details.",
+            "Optionally expand allocations to tie the payment to specific credit purchases.",
+            "Save. The lender’s balance decreases by the settlement amount.",
           ]}
         />
       </HelpSubSection>
       <HelpSubSection title="Cash Purchase">
         <HelpStepList
           steps={[
-            "Click “Cash Purchase” (or “Add Cash Purchase”).",
-            "Select Transaction date and add lines: Product, Quantity, Amount.",
-            "Save. Stock for the product is increased automatically.",
+            "Click “Cash Purchase”.",
+            "Set the date and add lines with product, quantity, and amount.",
+            "Save. Stock increases without touching lender balances—this is the path for anonymous market buys.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Filters and list">
+      <HelpSubSection title="Filters, edits, exports">
         <p>
-          Use the lender filter and type filter (All / Credit Purchase / Settlement
-          / Cash purchase) to narrow the list. Edit or delete existing transactions
-          from the row actions. Export and Print work on the currently
-          filtered list.
+          Narrow by lender and by type (all, credit purchase only, settlement
+          only, cash purchase). Row actions support edit/delete where business
+          rules allow. Export and print honour the active filters so you can
+          produce statements for a single lender or a single transaction class.
         </p>
       </HelpSubSection>
     </div>
@@ -217,38 +317,41 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
 
   "daily-sales": (
     <div className="space-y-1">
-      <HelpSubSection title="How daily sales work">
+      <HelpSubSection title="Purpose of the register">
         <p>
-          Daily Sales track each day’s revenue and cash position.{" "}
-          <strong>Invoice Sales</strong> are filled automatically from invoices
-          for that date. Add <strong>Misc / Cash Sales</strong> for sales
-          without an invoice (e.g. walk-in cash, small items). Total Sale =
-          Invoice Sales + Misc Sales. <strong>Cash in Hand</strong> is the
-          amount physically in your till at end of day.{" "}
-          <strong>Expenditure</strong> is money spent that day.
+          Daily Sales is your end-of-day control totals.{" "}
+          <strong>Invoice sales</strong> aggregate automatically from every
+          invoice dated that day. <strong>Misc / cash sales</strong> cover
+          walk-ins, phone orders, or small counter sales you are not putting on a
+          formal invoice. <strong>Total sale</strong> is the sum of those two.{" "}
+          <strong>Cash in hand</strong> is what you physically counted in the
+          till; <strong>expenditure</strong> captures outflows that should reduce
+          the day’s net. None of this replaces double-entry accounting, but it
+          does give owners an honest picture of cash vs billed revenue.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Adding a daily sale">
+      <HelpSubSection title="Adding or updating a day">
         <HelpStepList
           steps={[
-            "Go to Daily Sales and click “Add Sale”.",
-            "Enter Sale date. If you have invoices for that date, their total is shown as Invoice Sales (read-only).",
-            "Enter Misc / Cash Sales (sales without an invoice), Cash in hand, and optionally Expenditure and Notes.",
-            "Save. The entry appears in the list. One entry per date; adding for an existing date updates that row.",
+            "Open Daily Sales → “Add Sale”.",
+            "Pick the sale date. Invoice sales populate read-only when invoices exist.",
+            "Enter misc/cash sales, cash in hand, optional expenditure and notes.",
+            "Save. One logical row per date; saving again on the same date updates that row instead of duplicating.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Date filter and pagination">
+      <HelpSubSection title="Drilling into invoices">
         <p>
-          Set “From” and “To” dates to filter by sale date. The table shows
-          paginated results. Use Edit/Delete on a row to correct or remove an
-          entry.
+          When invoice sales are non-zero, use the row action that jumps to
+          invoices filtered for that date to audit what made up the automatic
+          total—handy when a customer name was mistyped or a bill was voided.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Export and print">
+      <HelpSubSection title="Filters, edits, exports">
         <p>
-          Use “Export” for CSV/PDF or “Print” to print the (filtered) daily
-          sales list.
+          From/To date filters scope the grid; pagination keeps long histories
+          manageable. Edit or delete a row if you mis-keyed a day. Export CSV/PDF
+          or print obeys the same filters so month-end packs stay consistent.
         </p>
       </HelpSubSection>
     </div>
@@ -256,29 +359,120 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
 
   invoices: (
     <div className="space-y-1">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        Invoices are dated commercial documents. The editor pulls defaults from
+        each product (GST, HSN, selling hints) while still letting you override
+        line-by-line for one-off deals.
+      </p>
       <HelpSubSection title="Creating an invoice">
         <HelpStepList
           steps={[
-            "Go to Invoices and click “Add Invoice”.",
-            "Enter optional Invoice number and Customer name.",
-            "Add lines: select Product, enter Quantity, choose Unit (invoice unit), and enter Price. You can switch to “Total” mode to enter the line total instead of per-unit price.",
-            "Add more lines as needed. The total updates automatically.",
-            "Save. The invoice is stored and can be viewed, edited, or printed.",
+            "Open Invoices → “Create Invoice”.",
+            "Fill invoice number (optional), customer name, and optional phone or address when you want them on the PDF.",
+            "Add lines: pick product, quantity, billing unit, and price. Toggle “Total” mode when you prefer to type the line total and let the app back-solve rate per unit.",
+            "Apply order-level discounts or coupons only if you enabled them in Settings.",
+            "Save. You can reopen later for edits, PDF, or print.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Viewing, editing, and printing">
-        <p>
-          From the invoice list, use the view (eye) icon to open the invoice,
-          edit (pencil) to change it, or print/PDF to generate a printable
-          copy. Invoice PDF uses your company details from Settings.
+      <HelpSubSection title="GST, HSN, and customer-facing output">
+        <p className="mb-2">
+          When Settings → Tax & GST is on and a line carries a positive GST
+          rate, the invoice view and PDF can show taxable value split into CGST
+          and SGST columns, respecting inclusive vs exclusive mode. HSN columns
+          appear when the setting demands them and the lines contain codes.
+          Customer GSTIN prints when captured and enabled—useful for B2B bills.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Invoices and Daily Sales">
+      <HelpSubSection title="Viewing, editing, printing">
         <p>
-          When you create, edit, or delete an invoice, the Daily Sales for
-          that invoice date are updated automatically. Invoice totals for each
-          date appear as Invoice Sales on the Daily Sales page.
+          From the register, use the eye icon for read-only review, the pencil for
+          edits, and print/PDF actions for customer copies. Header branding comes
+          from Settings → Business and Appearance (short display name and accent
+          colour).
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Link to Daily Sales">
+        <p>
+          Creating, editing, or deleting an invoice recomputes invoice sales for
+          its date inside Daily Sales automatically—there is no manual re-linking
+          step. If a day looks wrong, fix the invoice first, then refresh Daily
+          Sales.
+        </p>
+      </HelpSubSection>
+    </div>
+  ),
+
+  team: (
+    <div className="space-y-1">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        Open Team from the sidebar (same placement as in the live app—after
+        Invoices, before Settings). The Team members table is where you define who
+        may unlock this install, what role they carry, and whether their account
+        is active. Four-digit PINs are always per user; locking the app is still
+        handled from the header or Settings → Security.
+      </p>
+      <HelpSubSection title="Why it exists">
+        <p>
+          Shared counters and back-office PCs benefit from named operators: the
+          activity log can show who changed prices, voided a line, or exported
+          data. If you are the only person who ever touches the machine, you can
+          stay on a single account until you need that accountability or want to
+          hand a staff member a limited role.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Roles">
+        <p className="mb-2">
+          <strong>Owner</strong> is the first account from onboarding; the roster
+          labels that row as Owner. Owner cannot be deactivated from this screen,
+          and administrative row actions (PIN reset, deactivate, rename) do not
+          apply to the Owner row when another signed-in user is looking at the
+          table—protecting the master account from accidental lockout.
+        </p>
+        <p className="mb-2">
+          <strong>Admins</strong> can add users, assign the User role, rename
+          people they manage, reset other users&apos; PINs, and activate or
+          deactivate accounts. Only an Owner can create another Admin when using
+          Add user. Admins never get administrative actions against the Owner row.
+        </p>
+        <p>
+          <strong>Users</strong> use the day-to-day business pages—stock,
+          invoices, lenders, and so on—after they unlock with their PIN. Any
+          signed-in person can use Edit name on their own row to fix spelling;
+          managers use the same action on others where policy allows.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Adding someone">
+        <HelpStepList
+          steps={[
+            "Sign in as an Owner or Admin, open Team, and choose Add user (the hero action when you have permission).",
+            "Enter display name, pick User or Admin (Admin option appears only for Owners), and set a temporary four-digit PIN.",
+            "After Create, hand the temporary PIN to the colleague privately. On their next sign-in the app requires a fresh PIN before work continues—look for a Temp PIN badge until they finish that step.",
+          ]}
+        />
+      </HelpSubSection>
+      <HelpSubSection title="PIN reset and activation">
+        <p className="mb-2">
+          Reset PIN starts a short flow: you confirm, enter a new temporary
+          four-digit PIN, and the affected user must choose a permanent PIN the
+          next time they sign in. Use it when someone forgets a PIN or you need
+          to revoke knowledge of the old one.
+        </p>
+        <p>
+          Deactivate removes sign-in for a row without deleting history; Activate
+          brings it back. You cannot deactivate your own row while you are
+          signed in, and the Owner row cannot be toggled off here. Pair these
+          habits with immediate lock when stepping away from a shared desk.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Team vs Settings">
+        <p>
+          Team owns identities—names, roles, PIN lifecycle, and which accounts
+          are allowed to unlock. Settings owns business rules, appearance, tax and
+          discount policy, security preferences such as recovery keys, activity
+          log viewing, and database backup paths for this install. Document both
+          when you hand a laptop from one shop manager to another so the next
+          owner knows where to look for people versus policy.
         </p>
       </HelpSubSection>
     </div>
@@ -286,89 +480,142 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
 
   reports: (
     <div className="space-y-1">
-      <HelpSubSection title="Executive Summary">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        The Home dashboard is the analytics layer: it reads the same
+        transactions, invoices, daily sales, and stock tables you maintain
+        elsewhere, then surfaces rollups so you can react without building
+        spreadsheets first.
+      </p>
+      <HelpSubSection title="KPI strip">
         <p className="mb-2">
-          At the top, you see key metrics without selecting dates: today&apos;s
-          sale, this week&apos;s total and expenditure, this month&apos;s
-          totals, and lender net balance (total credit purchase minus settlements). Data
-          loads automatically.
+          The top strip answers “how are we doing right now?” with today’s
+          sales, this week’s sales and spend, this month’s sales and spend, and
+          lender net (credit purchase minus settlements). Large numbers respect
+          your abbreviation style from Settings → Appearance (Indian Lac/Cr, US
+          M/B, or SI K/M/B).
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Weekly Sale">
+      <HelpSubSection title="7-Day Sale Momentum">
         <p className="mb-2">
-          The report shows 7 days of daily sales ending on the selected date
-          (newest first). It includes Sale, Invoice Sales, Misc Sales, Cash in
-          Hand, and Expenditure. The date defaults to today.
+          Pick the week-ending date to chart daily sales and expenditure across
+          seven days, with callouts for weekly totals, peak sale day, and how
+          many daily rows contributed. It is tuned for spotting rhythm: a quiet
+          Monday every week, a festival spike, or a sudden spend bubble.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Total Sale">
+      <HelpSubSection title="Range Composition">
         <p className="mb-2">
-          Enter From and To dates or use presets (This Week, This Month, Last
-          30 Days, This Year) to get total sale, invoice sales, misc sales, and
-          expenditure for that range.
+          Choose From/To manually or via presets (this week, this month, last 30
+          days, this year, etc.). The chart stacks invoice sales, misc sales, and
+          expenditure so you can see whether growth came from formal billing or
+          informal counter traffic.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Lender Summary">
+      <HelpSubSection title="Quick Actions">
         <p className="mb-2">
-          Shows total credit purchase, total settlements, and net balance (₹). Also shows
-          receivable count (lenders who owe you) and payable count (you owe).
-          Green = receivable, red = payable. Links to the Lenders page for
-          details.
+          Two large buttons jump straight into Create Invoice (opens Invoices with
+          a fresh draft) and Credit Purchase (opens Transactions with the lender
+          purchase flow). Underneath, the “Cash vs Expenditure (weekly)” card
+          plots the same seven-day window as a compact liquidity sanity check.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Low Stock Alerts">
         <p className="mb-2">
-          Lists items where current stock is at or below the reorder level.
-          Use this to plan restocking. Links to the Stock page to update items.
+          Lists catalogue lines at or below reorder level. Treat it as a dynamic
+          restock queue; clicking through lands in Products & Stock where you can
+          raise quantities or adjust thresholds if the business changed.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Profit / Loss">
+      <HelpSubSection title="Weekly Sale Detail">
         <p className="mb-2">
-          <strong>Profit/Loss</strong> = Total Sale − Total Expenditure (actual
-          operating result for the year). Credit purchase and settlement do not affect
-          P&L—they are balance-sheet items (receivables and repayments).
+          Tabular seven-day slice (newest date first) with sale amount, invoice
+          component, misc component, recorded cash in hand, and expenditure. It
+          mirrors Daily Sales rows for the chosen window so you can reconcile KPI
+          charts against ground truth numbers.
         </p>
-        <HelpStepList
-          steps={[
-            "Select the Year.",
-            "Set Opening balance for that year (you can save it for the year).",
-            "Enter Closing balance (or leave empty and use 0) and click Calculate.",
-            "Result shows Opening, Total Sale, Total Expenditure, Credit Purchase/Settlement (if any), Closing, Profit/Loss, and Cash variance for reconciliation.",
-          ]}
-        />
+      </HelpSubSection>
+      <HelpSubSection title="Lender Summary">
+        <p className="mb-2">
+          Aggregates credit purchase, settlements, and net balance with counts of
+          lenders who owe you versus lenders you owe. Colour cues align with the
+          KPI strip so you can triage payables before they become crises.
+        </p>
       </HelpSubSection>
     </div>
   ),
 
   "settings-data": (
     <div className="space-y-1">
-      <HelpSubSection title="Company / Business">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        Settings uses the same segmented pattern as Help: Business, Tax & GST,
+        Discounts, Appearance, Security, Activity log, and Data. Tax and
+        discount toggles are authoritative—invoice UI simply exposes what you
+        allow here.
+      </p>
+      <HelpSubSection title="Business">
         <p>
-          Enter Company name, Address, GSTIN, Owner name, and Phone. These can
-          be used in invoices and PDFs. Click Save to store.
+          Legal identity block for PDFs: company name, address, GSTIN, owner
+          name, phone. Keep it current before you send customer-facing documents
+          out of season.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Tax & GST">
+        <p>
+          Master GST switch, default slab, inclusive vs exclusive pricing, place
+          of supply, optional customer GSTIN field, and HSN column behaviour.
+          Changes apply to new edits immediately; review open invoices if you
+          flip major switches mid-period.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Discounts">
+        <p>
+          Choose which discount mechanics exist in your shop—percentage, flat
+          amount, BOGO, coupon tables, tiered or volume rules, and final bill
+          rounding. Disabled mechanisms stay hidden on invoices to reduce clutter
+          and mistakes.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Appearance">
+        <p className="mb-2">
+          Short display name (header and lightweight PDF branding), accent
+          colour, and global number abbreviation style for dashboards and tables.
+        </p>
         <p>
-          App display name: optional short name shown in the header and in
-          PDFs/print (max 25 characters). Leave blank to use the default app
-          name.
+          Light, dark, and system themes also live on the sidebar footer; both
+          paths write the same preference.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Danger zone — use with care">
+      <HelpSubSection title="Security">
+        <p>
+          Change PIN, maintain the recovery master key, and lock the workstation
+          immediately. Locking is the correct habit when stepping away from a
+          shared counter.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Activity log">
+        <p>
+          Append-only style trail of notable events—who did what and when. Pair
+          it with named sign-ins on Team for accountability; it is not a
+          replacement for statutory accounting ledgers but it settles internal
+          disputes quickly.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Data">
         <HelpBulletList
           items={[
-            "Export database: Saves a full copy of your database to a file. Use for backup or moving to another computer.",
-            "Import database: Replaces the current database with the file you select. All existing data is overwritten; export a backup first if needed.",
-            "Clear all data: Empties all tables (items, lenders, transactions, invoices, daily sales, etc.) but keeps the database structure. Use to start fresh without losing units/schema.",
-            "Reset database: Deletes the database file and creates a new empty database. Everything is lost. Export a backup first if you might need the data.",
+            "Export database: copies the entire SQLite file—best full-fidelity backup before hardware swaps or risky experiments.",
+            "Import database: replaces the live database with a chosen file; always export first on this machine.",
+            "Clear all data: wipes business rows across tables while preserving schema—faster than uninstall when you want a clean slate without fighting file permissions.",
+            "Reset database: deletes the database file and recreates an empty one—total loss unless you exported.",
+            "Fill with sample data: only when the app detects an empty business dataset, inserts demo lenders, products, invoices, transactions, and daily sales so trainees can click around safely.",
           ]}
         />
       </HelpSubSection>
-      <HelpSubSection title="Database location">
+      <HelpSubSection title="Database path">
         <p>
-          Settings shows the path to the database file on your computer. You
-          can copy or back up this file manually if needed.
+          The Data tab exposes the on-disk location of your SQLite file so you
+          can include it in wider backup policies—Time Machine, corporate sync,
+          encrypted drives—alongside in-app export.
         </p>
       </HelpSubSection>
     </div>

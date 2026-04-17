@@ -7,6 +7,7 @@ export type HelpTabId =
   | "transactions"
   | "daily-sales"
   | "invoices"
+  | "team"
   | "reports"
   | "settings-data";
 
@@ -19,6 +20,7 @@ export const HELP_TAB_ORDER: HelpTabId[] = [
   "transactions",
   "daily-sales",
   "invoices",
+  "team",
   "reports",
   "settings-data",
 ];
@@ -41,8 +43,10 @@ export function helpTabLabel(id: HelpTabId): string {
       return "Daily sales";
     case "invoices":
       return "Invoices";
+    case "team":
+      return "Team";
     case "reports":
-      return "Reports";
+      return "Home & insights";
     case "settings-data":
       return "Settings & data";
     default:
@@ -62,17 +66,17 @@ export const HELP_SECTION_META: Record<
   "getting-started": {
     title: "Getting started",
     description:
-      "Recommended setup order and how trial mode works if you see a trial badge.",
+      "Sign-in, setup order (including tax and discounts), and trial behaviour.",
   },
   units: {
     title: "Units",
     description:
-      "Stock units for products and invoice units for billing line items.",
+      "Stock units, unit types, standard conversions, and how invoices pick units.",
   },
   products: {
     title: "Products & stock",
     description:
-      "Add products, adjust stock, search, export, and manage reorder levels.",
+      "Catalogue, stock moves, selling defaults, GST/HSN, conversions, export, print.",
   },
   lenders: {
     title: "Lenders",
@@ -92,16 +96,21 @@ export const HELP_SECTION_META: Record<
   invoices: {
     title: "Invoices",
     description:
-      "Line items, units, totals, PDFs, and how invoices feed daily sales.",
+      "Line items, settings-driven GST and discounts, PDFs, and how totals feed daily sales.",
+  },
+  team: {
+    title: "Team",
+    description:
+      "Team members, roles (Owner, Admin, User), PINs, activation, and how this differs from Settings.",
   },
   reports: {
-    title: "Reports",
+    title: "Home & insights",
     description:
-      "Executive summary, weekly and range totals, lender summary, low stock, and P&L.",
+      "What appears on the Home dashboard: KPIs, charts, quick actions, weekly detail, lenders, and low stock.",
   },
   "settings-data": {
     title: "Settings & data",
     description:
-      "Company details, appearance, danger zone actions, and database location.",
+      "Business, tax, discounts, appearance, security, activity log, backups, and database path.",
   },
 };

@@ -17,6 +17,7 @@ import {
   Scale,
   Settings,
   Sparkles,
+  UserCog,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -32,12 +33,13 @@ const TAB_ITEMS: readonly TabItem[] = [
   { id: "overview", label: "Overview", Icon: Home },
   { id: "getting-started", label: "Getting started", Icon: Sparkles },
   { id: "units", label: "Units", Icon: Scale },
-  { id: "products", label: "Products", Icon: Package },
+  { id: "products", label: "Products & stock", Icon: Package },
   { id: "lenders", label: "Lenders", Icon: Users },
   { id: "transactions", label: "Transactions", Icon: ArrowLeftRight },
   { id: "daily-sales", label: "Daily sales", Icon: CalendarDays },
   { id: "invoices", label: "Invoices", Icon: FileText },
-  { id: "reports", label: "Reports", Icon: PieChart },
+  { id: "team", label: "Team", Icon: UserCog },
+  { id: "reports", label: "Home & insights", Icon: PieChart },
   { id: "settings-data", label: "Settings & data", Icon: Settings },
 ];
 

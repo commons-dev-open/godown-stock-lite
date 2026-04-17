@@ -26,6 +26,8 @@ export default function Help() {
 
   const bodies = guideQuery.data;
   const activeBody = bodies ? bodies[activeTab] : null;
+  const activeGuideBody =
+    activeBody === null ? null : <div className="pt-1">{activeBody}</div>;
 
   return (
     <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
@@ -67,9 +69,7 @@ export default function Help() {
               errorTitle="Could not load help"
               errorDescription="The guide module failed to load. Check the installation and try again."
             >
-              {activeBody === null ? null : (
-                <div className="pt-1">{activeBody}</div>
-              )}
+              {activeGuideBody}
             </AsyncDataPanel>
           </div>
         </HelpSectionPanel>
