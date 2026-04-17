@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -34,6 +34,7 @@ import {
 } from "../../shared/numbers";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import { AsyncDataPanel } from "../components/async-data-panel";
+import DataTable from "../components/DataTable";
 import {
   ActivityLogSection,
   SettingsHero,
@@ -208,6 +209,34 @@ function AppearanceTab() {
 
   return (
     <div className="space-y-8">
+      {/* App Display Name */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+          App Display Name
+        </h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+          Shown in sidebar header, PDFs and print. Max {DISPLAY_NAME_MAX}{" "}
+          characters. Leave blank for default.
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={DISPLAY_NAME_MAX}
+              className="input-base w-full"
+              placeholder="Godown Stock Lite"
+            />
+          </div>
+          <Button
+            onClick={saveDisplayName}
+            disabled={setSettingsMutation.isPending}
+          >
+            <Check size={16} className="mr-1" aria-hidden="true" />
+            Save
+          </Button>
+        </div>
+      </section>
       {/* Theme Mode */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
@@ -331,43 +360,15 @@ function AppearanceTab() {
         </FormField>
         <p className="text-xs text-[var(--color-text-tertiary)] mt-2">
           {
-            NUMBER_ABBREVIATION_OPTIONS.find((o) => o.value === numberAbbreviation)
-              ?.hint
+            NUMBER_ABBREVIATION_OPTIONS.find(
+              (o) => o.value === numberAbbreviation
+            )?.hint
           }
         </p>
         <div className="mt-4">
           <Button
             type="button"
             onClick={saveNumberAbbreviation}
-            disabled={setSettingsMutation.isPending}
-          >
-            <Check size={16} className="mr-1" aria-hidden="true" />
-            Save
-          </Button>
-        </div>
-      </section>
-
-      {/* App Display Name */}
-      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-          App Display Name
-        </h2>
-        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-          Shown in sidebar header, PDFs and print. Max {DISPLAY_NAME_MAX}{" "}
-          characters. Leave blank for default.
-        </p>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              maxLength={DISPLAY_NAME_MAX}
-              className="input-base w-full"
-              placeholder="Godown Stock Lite"
-            />
-          </div>
-          <Button
-            onClick={saveDisplayName}
             disabled={setSettingsMutation.isPending}
           >
             <Check size={16} className="mr-1" aria-hidden="true" />
@@ -515,6 +516,84 @@ function CouponsAndTieredSection({
     setTieredModal({ mode: "edit", id: t.id });
   };
 
+  const couponColumns = useMemo(
+    () => [
+      {
+        key: "code",
+        label: "Code",
+        render: (c: CouponRow) => <span className="font-mono">{c.code}</span>,
+      },
+      { key: "discount_type", label: "Type" },
+      {
+        key: "discount_value",
+        label: "Value",
+        render: (c: CouponRow) => (
+          <span className="block text-right">
+            {c.discount_type === "percent"
+              ? `${c.discount_value}%`
+              : `₹${c.discount_value}`}
+          </span>
+        ),
+      },
+      {
+        key: "min_order_amount",
+        label: "Min order",
+        render: (c: CouponRow) => (
+          <span className="block text-right text-[var(--color-text-secondary)]">
+            {c.min_order_amount != null ? `₹${c.min_order_amount}` : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "used_count",
+        label: "Used",
+        render: (c: CouponRow) => (
+          <span className="block text-right text-[var(--color-text-secondary)]">
+            {c.usage_limit != null
+              ? `${c.used_count}/${c.usage_limit}`
+              : c.used_count}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const tieredColumns = useMemo(
+    () => [
+      {
+        key: "min_order_amount",
+        label: "Min order (₹)",
+        render: (t: TieredRow) => (
+          <span className="block text-right">₹{t.min_order_amount}</span>
+        ),
+      },
+      {
+        key: "discount_display",
+        label: "Discount",
+        render: (t: TieredRow) => {
+          const hasFlat = (t.discount_flat ?? 0) > 0;
+          const discountDisplay = hasFlat
+            ? `₹${t.discount_flat}`
+            : (t.discount_percent ?? 0) > 0
+              ? `${t.discount_percent}%`
+              : "—";
+          return <span className="block text-right">{discountDisplay}</span>;
+        },
+      },
+      {
+        key: "max_discount_amount",
+        label: "Max (₹)",
+        render: (t: TieredRow) => (
+          <span className="block text-right text-[var(--color-text-secondary)]">
+            {t.max_discount_amount != null ? `₹${t.max_discount_amount}` : "—"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -543,86 +622,33 @@ function CouponsAndTieredSection({
             Add coupon
           </Button>
         </div>
-        {coupons.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-tertiary)]">
-            No coupons yet.
-          </p>
-        ) : (
-          <div className="border border-[var(--color-border-default)] rounded-xl overflow-hidden text-sm">
-            <table className="min-w-full">
-              <thead className="bg-[var(--color-bg-surface-raised)]">
-                <tr>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Code
-                  </th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Type
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Value
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Min order
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Used
-                  </th>
-                  <th className="px-3 py-2 w-16" />
-                </tr>
-              </thead>
-              <tbody>
-                {coupons.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-t border-[var(--color-border-subtle)]"
-                  >
-                    <td className="px-3 py-2 font-mono text-[var(--color-text-primary)]">
-                      {c.code}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {c.discount_type}
-                    </td>
-                    <td className="px-3 py-2 text-right text-[var(--color-text-primary)]">
-                      {c.discount_type === "percent"
-                        ? `${c.discount_value}%`
-                        : `₹${c.discount_value}`}
-                    </td>
-                    <td className="px-3 py-2 text-right text-[var(--color-text-secondary)]">
-                      {c.min_order_amount != null
-                        ? `₹${c.min_order_amount}`
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right text-[var(--color-text-secondary)]">
-                      {c.usage_limit != null
-                        ? `${c.used_count}/${c.usage_limit}`
-                        : c.used_count}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openCouponEdit(c)}
-                          className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-                          aria-label="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteCouponId(c.id)}
-                          className="text-[var(--color-danger)] hover:opacity-80"
-                          aria-label="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<CouponRow>
+          columns={couponColumns}
+          data={coupons}
+          emptyMessage="No coupons yet."
+          pagination={{ type: "client" }}
+          alwaysShowRowActions
+          extraActions={(c) => (
+            <>
+              <button
+                type="button"
+                onClick={() => openCouponEdit(c)}
+                className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                aria-label="Edit"
+              >
+                <Pencil size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteCouponId(c.id)}
+                className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                aria-label="Delete"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
+        />
       </div>
 
       <div>
@@ -653,78 +679,33 @@ function CouponsAndTieredSection({
           Either % or flat amount per rule. Use max amount to cap the discount.
           Highest qualifying tier applies.
         </p>
-        {tieredRules.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-tertiary)]">
-            No tiered rules yet.
-          </p>
-        ) : (
-          <div className="border border-[var(--color-border-default)] rounded-xl overflow-hidden text-sm">
-            <table className="min-w-full">
-              <thead className="bg-[var(--color-bg-surface-raised)]">
-                <tr>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Min order (₹)
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Discount
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
-                    Max (₹)
-                  </th>
-                  <th className="px-3 py-2 w-16" />
-                </tr>
-              </thead>
-              <tbody>
-                {tieredRules.map((t) => {
-                  const hasFlat = (t.discount_flat ?? 0) > 0;
-                  const discountDisplay = hasFlat
-                    ? `₹${t.discount_flat}`
-                    : (t.discount_percent ?? 0) > 0
-                      ? `${t.discount_percent}%`
-                      : "—";
-                  return (
-                    <tr
-                      key={t.id}
-                      className="border-t border-[var(--color-border-subtle)]"
-                    >
-                      <td className="px-3 py-2 text-right text-[var(--color-text-primary)]">
-                        ₹{t.min_order_amount}
-                      </td>
-                      <td className="px-3 py-2 text-right text-[var(--color-text-primary)]">
-                        {discountDisplay}
-                      </td>
-                      <td className="px-3 py-2 text-right text-[var(--color-text-secondary)]">
-                        {t.max_discount_amount != null
-                          ? `₹${t.max_discount_amount}`
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openTieredEdit(t)}
-                            className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-                            aria-label="Edit"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTieredId(t.id)}
-                            className="text-[var(--color-danger)] hover:opacity-80"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<TieredRow>
+          columns={tieredColumns}
+          data={tieredRules}
+          emptyMessage="No tiered rules yet."
+          pagination={{ type: "client" }}
+          alwaysShowRowActions
+          extraActions={(t) => (
+            <>
+              <button
+                type="button"
+                onClick={() => openTieredEdit(t)}
+                className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                aria-label="Edit"
+              >
+                <Pencil size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteTieredId(t.id)}
+                className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                aria-label="Delete"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
+        />
       </div>
 
       {couponModal && (
@@ -1216,12 +1197,15 @@ export default function Settings() {
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>("business");
   const sectionMeta = SETTINGS_SECTION_META[activeTab];
-  const companyHeroName = (form.company_name ?? settings.company_name ?? "").trim();
+  const companyHeroName = (
+    form.company_name ??
+    settings.company_name ??
+    ""
+  ).trim();
 
   return (
     <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
       <SettingsHero
-        activeTab={activeTab}
         companyName={companyHeroName.length > 0 ? companyHeroName : "—"}
         gstEnabled={gstEnabled}
       />
@@ -1255,210 +1239,216 @@ export default function Settings() {
               loaderRows={6}
             >
               {activeTab === "business" ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              {Object.entries(SETTING_KEYS).map(([key, label]) => (
-                <FormField key={key} label={label}>
-                  <input
-                    value={form[key] ?? ""}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                    className="input-base w-full"
-                    placeholder={label}
-                  />
-                </FormField>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Button type="submit" disabled={setSettingsMutation.isPending}>
-                <Check size={16} className="mr-1" aria-hidden="true" />
-                Save
-              </Button>
-            </div>
-        </form>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-4">
+                    {Object.entries(SETTING_KEYS).map(([key, label]) => (
+                      <FormField key={key} label={label}>
+                        <input
+                          value={form[key] ?? ""}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          className="input-base w-full"
+                          placeholder={label}
+                        />
+                      </FormField>
+                    ))}
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      type="submit"
+                      disabled={setSettingsMutation.isPending}
+                    >
+                      <Check size={16} className="mr-1" aria-hidden="true" />
+                      Save
+                    </Button>
+                  </div>
+                </form>
               ) : activeTab === "tax" ? (
-        <div className="space-y-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={gstEnabled}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    gst_enabled: e.target.checked ? "true" : "false",
-                  }))
-                }
-                className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-              />
-              <span className="text-sm font-medium text-[var(--color-text-secondary)]">
-                Enable GST
-              </span>
-            </label>
-            <div
-              className={`space-y-4 ${!gstEnabled ? "opacity-60 pointer-events-none" : ""}`}
-            >
-              <FormField label="Default GST Rate">
-                <select
-                  value={form.gst_default_rate ?? "0"}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      gst_default_rate: e.target.value,
-                    }))
-                  }
-                  className="input-base w-full"
-                >
-                  {GST_RATES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}%
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Default Price Mode">
-                <select
-                  value={form.gst_default_mode ?? "exclusive"}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      gst_default_mode: e.target.value,
-                    }))
-                  }
-                  className="input-base w-full"
-                >
-                  {GST_MODES.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField
-                label="Place of Supply"
-                extra={
-                  <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Seller&apos;s state; shown on Tax Invoice PDF
-                  </p>
-                }
-              >
-                <input
-                  value={form.place_of_supply ?? ""}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      place_of_supply: e.target.value,
-                    }))
-                  }
-                  className="input-base w-full"
-                  placeholder="e.g. Maharashtra"
-                />
-              </FormField>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.customer_gstin_enabled === "true"}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      customer_gstin_enabled: e.target.checked
-                        ? "true"
-                        : "false",
-                    }))
-                  }
-                  className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-                />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  Show Customer GSTIN field (B2B mode)
-                </span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.hsn_enabled !== "false"}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      hsn_enabled: e.target.checked ? "true" : "false",
-                    }))
-                  }
-                  className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-                />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  Enable HSN (Harmonized System of Nomenclature) code
-                </span>
-              </label>
-            </div>
-            <div className="mt-4">
-              <Button
-                type="button"
-                onClick={saveGstSettings}
-                disabled={setSettingsMutation.isPending}
-              >
-                <Check size={16} className="mr-1" aria-hidden="true" />
-                Save GST settings
-              </Button>
-            </div>
-        </div>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={gstEnabled}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          gst_enabled: e.target.checked ? "true" : "false",
+                        }))
+                      }
+                      className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                    />
+                    <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+                      Enable GST
+                    </span>
+                  </label>
+                  <div
+                    className={`space-y-4 ${!gstEnabled ? "opacity-60 pointer-events-none" : ""}`}
+                  >
+                    <FormField label="Default GST Rate">
+                      <select
+                        value={form.gst_default_rate ?? "0"}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            gst_default_rate: e.target.value,
+                          }))
+                        }
+                        className="input-base w-full"
+                      >
+                        {GST_RATES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}%
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                    <FormField label="Default Price Mode">
+                      <select
+                        value={form.gst_default_mode ?? "exclusive"}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            gst_default_mode: e.target.value,
+                          }))
+                        }
+                        className="input-base w-full"
+                      >
+                        {GST_MODES.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                    <FormField
+                      label="Place of Supply"
+                      extra={
+                        <p className="text-xs text-[var(--color-text-tertiary)]">
+                          Seller&apos;s state; shown on Tax Invoice PDF
+                        </p>
+                      }
+                    >
+                      <input
+                        value={form.place_of_supply ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            place_of_supply: e.target.value,
+                          }))
+                        }
+                        className="input-base w-full"
+                        placeholder="e.g. Maharashtra"
+                      />
+                    </FormField>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.customer_gstin_enabled === "true"}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            customer_gstin_enabled: e.target.checked
+                              ? "true"
+                              : "false",
+                          }))
+                        }
+                        className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                      />
+                      <span className="text-sm text-[var(--color-text-secondary)]">
+                        Show Customer GSTIN field (B2B mode)
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.hsn_enabled !== "false"}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            hsn_enabled: e.target.checked ? "true" : "false",
+                          }))
+                        }
+                        className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                      />
+                      <span className="text-sm text-[var(--color-text-secondary)]">
+                        Enable HSN (Harmonized System of Nomenclature) code
+                      </span>
+                    </label>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      type="button"
+                      onClick={saveGstSettings}
+                      disabled={setSettingsMutation.isPending}
+                    >
+                      <Check size={16} className="mr-1" aria-hidden="true" />
+                      Save GST settings
+                    </Button>
+                  </div>
+                </div>
               ) : (
-        <div className="space-y-8">
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-              Discount toggles
-            </h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Enable or disable each discount type. Disabled types will not
-              appear in the invoice form.
-            </p>
-            <div className="space-y-3">
-              {(
-                Object.keys(
-                  DISCOUNT_SETTING_KEYS
-                ) as (keyof typeof DISCOUNT_SETTING_KEYS)[]
-              ).map((key) => (
-                <label key={key} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form[key] === "true"}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        [key]: e.target.checked ? "true" : "false",
-                      }))
-                    }
-                    className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-                  />
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    {DISCOUNT_SETTING_KEYS[key]}
-                  </span>
-                </label>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Button
-                type="button"
-                onClick={saveDiscountSettings}
-                disabled={setSettingsMutation.isPending}
-              >
-                <Check size={16} className="mr-1" aria-hidden="true" />
-                Save discount settings
-              </Button>
-            </div>
-          </div>
+                <div className="space-y-8">
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+                      Discount toggles
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                      Enable or disable each discount type. Disabled types will
+                      not appear in the invoice form.
+                    </p>
+                    <div className="space-y-3">
+                      {(
+                        Object.keys(
+                          DISCOUNT_SETTING_KEYS
+                        ) as (keyof typeof DISCOUNT_SETTING_KEYS)[]
+                      ).map((key) => (
+                        <label key={key} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={form[key] === "true"}
+                            onChange={(e) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                [key]: e.target.checked ? "true" : "false",
+                              }))
+                            }
+                            className="rounded border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                          />
+                          <span className="text-sm text-[var(--color-text-secondary)]">
+                            {DISCOUNT_SETTING_KEYS[key]}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        onClick={saveDiscountSettings}
+                        disabled={setSettingsMutation.isPending}
+                      >
+                        <Check size={16} className="mr-1" aria-hidden="true" />
+                        Save discount settings
+                      </Button>
+                    </div>
+                  </div>
 
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-              Coupons & tiered rules
-            </h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Manage coupon codes and tiered (volume) discount rules. Enable
-              coupons and tiered discounts in Discount Settings above.
-            </p>
-            <CouponsAndTieredSection api={getElectron()} />
-          </div>
-        </div>
-              )
-            }
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+                      Coupons & tiered rules
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                      Manage coupon codes and tiered (volume) discount rules.
+                      Enable coupons and tiered discounts in Discount Settings
+                      above.
+                    </p>
+                    <CouponsAndTieredSection api={getElectron()} />
+                  </div>
+                </div>
+              )}
             </AsyncDataPanel>
           ) : activeTab === "appearance" ? (
             <AppearanceTab />
@@ -1474,98 +1464,104 @@ export default function Settings() {
               loaderColumns={1}
               loaderRows={4}
             >
-        <div className="rounded-xl border border-[var(--color-danger)] border-opacity-30 bg-[var(--color-bg-surface)] p-6 shadow-xs">
-          <h2 className="text-base font-semibold text-[var(--color-danger-text)] flex items-center gap-2">
-            <AlertTriangle size={20} aria-hidden="true" />
-            Danger zone
-          </h2>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-1 mb-4">
-            These actions affect your database. Use with care.
-          </p>
+              <div className="rounded-xl border border-[var(--color-danger)] border-opacity-30 bg-[var(--color-bg-surface)] p-6 shadow-xs">
+                <h2 className="text-base font-semibold text-[var(--color-danger-text)] flex items-center gap-2">
+                  <AlertTriangle size={20} aria-hidden="true" />
+                  Danger zone
+                </h2>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1 mb-4">
+                  These actions affect your database. Use with care.
+                </p>
 
-          {dbPath && (
-            <div className="mb-4">
-              <p className="text-xs text-[var(--color-text-tertiary)] mb-0.5">
-                Database file location
-              </p>
-              <p className="text-sm text-[var(--color-text-secondary)] font-mono break-all">
-                {dbPath}
-              </p>
-            </div>
-          )}
+                {dbPath && (
+                  <div className="mb-4">
+                    <p className="text-xs text-[var(--color-text-tertiary)] mb-0.5">
+                      Database file location
+                    </p>
+                    <p className="text-sm text-[var(--color-text-secondary)] font-mono break-all">
+                      {dbPath}
+                    </p>
+                  </div>
+                )}
 
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setDangerAction("export")}
-              title="Save a copy of the database to a file"
-            >
-              Export database
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setDangerAction("import")}
-              title="Replace current database with a backup file"
-            >
-              Import database
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => setDangerAction("clearTables")}
-              disabled={clearTablesMutation.isPending}
-              title="Delete all rows in all tables; schema is kept"
-            >
-              {clearTablesMutation.isPending ? "Clearing..." : "Clear all data"}
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => setDangerAction("clearEntireDb")}
-              disabled={clearEntireDbMutation.isPending}
-              title="Delete the database file and create a new empty one"
-            >
-              {clearEntireDbMutation.isPending
-                ? "Resetting..."
-                : "Reset database"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setDangerAction("populateSampleData")}
-              disabled={populateSampleDataMutation.isPending}
-              title="Fill all main tables with realistic sample data (only when empty)"
-            >
-              {populateSampleDataMutation.isPending
-                ? "Filling sample data..."
-                : "Fill with sample data"}
-            </Button>
-          </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setDangerAction("export")}
+                    title="Save a copy of the database to a file"
+                  >
+                    Export database
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setDangerAction("import")}
+                    title="Replace current database with a backup file"
+                  >
+                    Import database
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => setDangerAction("clearTables")}
+                    disabled={clearTablesMutation.isPending}
+                    title="Delete all rows in all tables; schema is kept"
+                  >
+                    {clearTablesMutation.isPending
+                      ? "Clearing..."
+                      : "Clear all data"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => setDangerAction("clearEntireDb")}
+                    disabled={clearEntireDbMutation.isPending}
+                    title="Delete the database file and create a new empty one"
+                  >
+                    {clearEntireDbMutation.isPending
+                      ? "Resetting..."
+                      : "Reset database"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setDangerAction("populateSampleData")}
+                    disabled={populateSampleDataMutation.isPending}
+                    title="Fill all main tables with realistic sample data (only when empty)"
+                  >
+                    {populateSampleDataMutation.isPending
+                      ? "Filling sample data..."
+                      : "Fill with sample data"}
+                  </Button>
+                </div>
 
-          {dangerAction !== null && (
-            <ConfirmDangerModal
-              open
-              onClose={() => setDangerAction(null)}
-              title={DANGER_CONFIG[dangerAction].title}
-              message={DANGER_CONFIG[dangerAction].message}
-              onConfirm={runDangerAction}
-              isConfirming={isConfirming}
-            />
-          )}
+                {dangerAction !== null && (
+                  <ConfirmDangerModal
+                    open
+                    onClose={() => setDangerAction(null)}
+                    title={DANGER_CONFIG[dangerAction].title}
+                    message={DANGER_CONFIG[dangerAction].message}
+                    onConfirm={runDangerAction}
+                    isConfirming={isConfirming}
+                  />
+                )}
 
-          <p className="text-xs text-[var(--color-text-tertiary)] mt-4">
-            Clear all data: empties every table but keeps the structure. Reset
-            database: removes the database file and creates a new empty
-            database.
-          </p>
-        </div>
+                <p className="text-xs text-[var(--color-text-tertiary)] mt-4">
+                  Clear all data: empties every table but keeps the structure.
+                  Reset database: removes the database file and creates a new
+                  empty database.
+                </p>
+              </div>
             </AsyncDataPanel>
           ) : activeTab === "security" && currentUser ? (
-        <SecurityTab currentUserId={currentUser.id} onLock={lock} isSuperAdmin={currentUser.role === "superadmin"} />
+            <SecurityTab
+              currentUserId={currentUser.id}
+              onLock={lock}
+              isSuperAdmin={currentUser.role === "superadmin"}
+            />
           ) : activeTab === "activity" && currentUser ? (
-        <ActivityLogSection currentUser={currentUser} />
+            <ActivityLogSection currentUser={currentUser} />
           ) : null}
         </SettingsSectionPanel>
       </DashboardSectionBoundary>
@@ -1574,7 +1570,15 @@ export default function Settings() {
 }
 
 // ---- Security Tab ----
-function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: number; onLock: () => void; isSuperAdmin: boolean }) {
+function SecurityTab({
+  currentUserId,
+  onLock,
+  isSuperAdmin,
+}: {
+  currentUserId: number;
+  onLock: () => void;
+  isSuperAdmin: boolean;
+}) {
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -1590,14 +1594,22 @@ function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: n
 
   async function handleChangePin(e: React.FormEvent) {
     e.preventDefault();
-    setPinError(""); setPinSuccess(false);
-    if (!/^\d{4}$/.test(newPin)) return setPinError("PIN must be exactly 4 digits.");
+    setPinError("");
+    setPinSuccess(false);
+    if (!/^\d{4}$/.test(newPin))
+      return setPinError("PIN must be exactly 4 digits.");
     if (newPin !== confirmPin) return setPinError("PINs do not match.");
     setPinPending(true);
     try {
-      await window.electron.auth.changePin({ userId: currentUserId, currentPin, newPin });
+      await window.electron.auth.changePin({
+        userId: currentUserId,
+        currentPin,
+        newPin,
+      });
       setPinSuccess(true);
-      setCurrentPin(""); setNewPin(""); setConfirmPin("");
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
     } catch (err: unknown) {
       setPinError(err instanceof Error ? err.message : "Failed to change PIN.");
     } finally {
@@ -1607,12 +1619,17 @@ function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: n
 
   async function handleSetCustomerKey(e: React.FormEvent) {
     e.preventDefault();
-    setKeyError(""); setKeySuccess(false);
+    setKeyError("");
+    setKeySuccess(false);
     if (!customerKey.trim()) return setKeyError("Key cannot be empty.");
-    if (customerKey !== confirmCustomerKey) return setKeyError("Keys do not match.");
+    if (customerKey !== confirmCustomerKey)
+      return setKeyError("Keys do not match.");
     setKeyPending(true);
     try {
-      await window.electron.auth.setCustomerMasterKey({ key: customerKey.trim(), userId: currentUserId });
+      await window.electron.auth.setCustomerMasterKey({
+        key: customerKey.trim(),
+        userId: currentUserId,
+      });
       setKeySuccess(true);
       setCustomerKey("");
       setConfirmCustomerKey("");
@@ -1629,26 +1646,58 @@ function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: n
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
         <div className="flex items-center gap-2 mb-4">
           <Lock size={18} className="text-[var(--color-accent)]" />
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Change PIN</h2>
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+            Change PIN
+          </h2>
         </div>
         <form onSubmit={handleChangePin} className="space-y-4 max-w-sm">
           <FormField label="Current PIN">
-            <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
-              onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={currentPin}
+              onChange={(e) =>
+                setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+              }
+              placeholder="••••"
+              className="input-base w-full tracking-[0.5em]"
+            />
           </FormField>
           <FormField label="New PIN">
-            <input type="password" inputMode="numeric" maxLength={4} value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={newPin}
+              onChange={(e) =>
+                setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+              }
+              placeholder="••••"
+              className="input-base w-full tracking-[0.5em]"
+            />
           </FormField>
           <FormField label="Confirm New PIN">
-            <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={confirmPin}
+              onChange={(e) =>
+                setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+              }
+              placeholder="••••"
+              className="input-base w-full tracking-[0.5em]"
+            />
           </FormField>
-          {pinError && <p className="text-sm text-[var(--color-danger)]">{pinError}</p>}
-          {pinSuccess && <p className="text-sm text-[var(--color-success)] flex items-center gap-1"><ShieldCheck size={14} /> PIN updated.</p>}
+          {pinError && (
+            <p className="text-sm text-[var(--color-danger)]">{pinError}</p>
+          )}
+          {pinSuccess && (
+            <p className="text-sm text-[var(--color-success)] flex items-center gap-1">
+              <ShieldCheck size={14} /> PIN updated.
+            </p>
+          )}
           <Button type="submit" disabled={pinPending}>
             <Check size={16} className="mr-1" /> Update PIN
           </Button>
@@ -1660,24 +1709,42 @@ function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: n
         <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
           <div className="flex items-center gap-2 mb-1">
             <KeyRound size={18} className="text-[var(--color-warning)]" />
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Owner Recovery Key</h2>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              Owner Recovery Key
+            </h2>
           </div>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Set a recovery key for yourself as the owner. Use it to reset your PIN if you forget it. Changing this invalidates any previous recovery key.
+            Set a recovery key for yourself as the owner. Use it to reset your
+            PIN if you forget it. Changing this invalidates any previous
+            recovery key.
           </p>
           <form onSubmit={handleSetCustomerKey} className="space-y-4 max-w-sm">
             <FormField label="New Recovery Key">
-              <input type="password" value={customerKey}
+              <input
+                type="password"
+                value={customerKey}
                 onChange={(e) => setCustomerKey(e.target.value)}
-                placeholder="Enter recovery key" className="input-base w-full" />
+                placeholder="Enter recovery key"
+                className="input-base w-full"
+              />
             </FormField>
             <FormField label="Confirm Recovery Key">
-              <input type="password" value={confirmCustomerKey}
+              <input
+                type="password"
+                value={confirmCustomerKey}
                 onChange={(e) => setConfirmCustomerKey(e.target.value)}
-                placeholder="Re-enter recovery key" className="input-base w-full" />
+                placeholder="Re-enter recovery key"
+                className="input-base w-full"
+              />
             </FormField>
-            {keyError && <p className="text-sm text-[var(--color-danger)]">{keyError}</p>}
-            {keySuccess && <p className="text-sm text-[var(--color-success)] flex items-center gap-1"><ShieldCheck size={14} /> Key saved.</p>}
+            {keyError && (
+              <p className="text-sm text-[var(--color-danger)]">{keyError}</p>
+            )}
+            {keySuccess && (
+              <p className="text-sm text-[var(--color-success)] flex items-center gap-1">
+                <ShieldCheck size={14} /> Key saved.
+              </p>
+            )}
             <Button type="submit" disabled={keyPending} variant="secondary">
               <KeyRound size={16} className="mr-1" /> Save Key
             </Button>
@@ -1687,8 +1754,12 @@ function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: n
 
       {/* Lock session */}
       <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">Session</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-4">Lock the app immediately. PIN required to re-enter.</p>
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+          Session
+        </h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+          Lock the app immediately. PIN required to re-enter.
+        </p>
         <Button variant="secondary" onClick={onLock}>
           <Lock size={16} className="mr-1" /> Lock App Now
         </Button>

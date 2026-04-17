@@ -37,9 +37,6 @@ function MahajansHeroComponent({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
               Lenders
             </h1>
-            <span className="dashboard-context-pill self-start">
-              Master list & balances
-            </span>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
             <div className="dashboard-hero-metrics min-w-0 w-full max-w-full lg:w-auto lg:shrink-0">

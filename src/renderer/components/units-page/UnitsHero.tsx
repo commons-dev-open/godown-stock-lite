@@ -5,11 +5,8 @@ import {
   formatAbbreviatedInteger,
   type NumberAbbreviationStyle,
 } from "../../../shared/numbers";
-import type { UnitsTabId } from "./types";
-
 interface UnitsHeroProps {
   abbreviationStyle: NumberAbbreviationStyle;
-  activeTab: UnitsTabId;
   unitsCount: number;
   typesCount: number;
   conversionsCount: number;
@@ -17,19 +14,8 @@ interface UnitsHeroProps {
   onPrimary: () => void;
 }
 
-function tabContextLabel(tab: UnitsTabId): string {
-  if (tab === "all") {
-    return "All units";
-  }
-  if (tab === "types") {
-    return "Unit types";
-  }
-  return "Standard conversions";
-}
-
 function UnitsHeroComponent({
   abbreviationStyle,
-  activeTab,
   unitsCount,
   typesCount,
   conversionsCount,
@@ -44,9 +30,6 @@ function UnitsHeroComponent({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
               Units & conversions
             </h1>
-            <span className="dashboard-context-pill self-start">
-              Viewing: {tabContextLabel(activeTab)}
-            </span>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
             <div className="dashboard-hero-metrics min-w-0 w-full max-w-full lg:w-auto lg:shrink-0">

@@ -1,55 +1,55 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useFloating,
   autoUpdate,
-  offset,
   flip,
+  FloatingPortal,
+  offset,
   shift,
   useClick,
   useDismiss,
+  useFloating,
   useInteractions,
-  FloatingPortal,
 } from "@floating-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, FileDown, Printer } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { getElectron } from "../api/client";
-import { useAuth } from "../context/AuthContext";
-import DataTable from "../components/DataTable";
-import FormModal from "../components/FormModal";
-import ConfirmModal from "../components/ConfirmModal";
-import FormField from "../components/FormField";
-import Button from "../components/Button";
-import SearchFilterBar from "../components/SearchFilterBar";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
-import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import {
-  getLedgerUpdatesAvailable,
-  setLedgerUpdatesAvailable,
-} from "../lib/ledgerUpdatesFlag";
+  formatAbbreviatedInteger,
+  formatAbbreviatedRupee,
+  formatDecimal,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import type { Lender, Mahajan } from "../../shared/types";
+import { getElectron } from "../api/client";
+import Button from "../components/Button";
+import ConfirmModal from "../components/ConfirmModal";
+import DataTable from "../components/DataTable";
+import FormField from "../components/FormField";
+import FormModal from "../components/FormModal";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  buildMahajanTableColumns,
+  MahajansAsyncPanel,
+  MahajansHero,
+  MahajansSectionPanel,
+} from "../components/mahajans-page";
+import { PAGE_SIZE } from "../../shared/constants";
+import SearchFilterBar from "../components/SearchFilterBar";
+import { useAuth } from "../context/AuthContext";
+import { useMutationWithToast } from "../hooks/useMutationWithToast";
+import { getAppDisplayName } from "../lib/displayName";
 import {
   exportMahajansToCsv,
   exportMahajansToPdf,
   getPrintTableBody,
   type MahajanSummaryForExport,
 } from "../lib/exportMahajans";
-import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
-import { Download, FileDown, Printer } from "lucide-react";
-import type { Mahajan } from "../../shared/types";
 import {
-  formatDecimal,
-  formatAbbreviatedInteger,
-  formatAbbreviatedRupee,
-  NUMBER_ABBREVIATION_STYLE_KEY,
-  parseNumberAbbreviationStyle,
-} from "../../shared/numbers";
-import { DashboardSectionBoundary } from "../components/home-dashboard";
-import {
-  MahajansHero,
-  MahajansSectionPanel,
-  MahajansAsyncPanel,
-  buildMahajanTableColumns,
-} from "../components/mahajans-page";
+  getLedgerUpdatesAvailable,
+  setLedgerUpdatesAvailable,
+} from "../lib/ledgerUpdatesFlag";
 
 export default function Mahajans() {
   const queryClient = useQueryClient();
@@ -63,8 +63,7 @@ export default function Mahajans() {
   });
   const appName = getAppDisplayName(settings);
   const abbreviationStyle = useMemo(
-    () =>
-      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
   const [addOpen, setAddOpen] = useState(false);
@@ -156,17 +155,20 @@ export default function Mahajans() {
   const showUpdatesIndicator =
     (summary != null && isSummaryStale) || updatesAvailable;
 
-  const loadBalance = useCallback(async (mahajanId: number) => {
-    setLoadingBalanceId(mahajanId);
-    try {
-      const result = (await api.getMahajanBalance(mahajanId)) as {
-        balance: number;
-      };
-      setBalances((prev) => ({ ...prev, [mahajanId]: result.balance }));
-    } finally {
-      setLoadingBalanceId(null);
-    }
-  }, [api]);
+  const loadBalance = useCallback(
+    async (mahajanId: number) => {
+      setLoadingBalanceId(mahajanId);
+      try {
+        const result = (await api.getMahajanBalance(mahajanId)) as {
+          balance: number;
+        };
+        setBalances((prev) => ({ ...prev, [mahajanId]: result.balance }));
+      } finally {
+        setLoadingBalanceId(null);
+      }
+    },
+    [api]
+  );
 
   const tableColumns = useMemo(
     () =>
@@ -383,9 +385,7 @@ export default function Mahajans() {
   }, [summary]);
 
   const isListEmpty =
-    mahajansPageQuery.isSuccess &&
-    mahajansPage.length === 0 &&
-    !isPageError;
+    mahajansPageQuery.isSuccess && mahajansPage.length === 0 && !isPageError;
   const hasSearch = search.trim().length > 0;
   const emptyTitle = hasSearch ? "No matching lenders" : "No lenders yet";
   const emptyDescription = hasSearch
@@ -559,22 +559,21 @@ export default function Mahajans() {
             onEmptyAction={hasSearch ? undefined : () => setAddOpen(true)}
             loaderColumns={5}
           >
-            <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-              <DataTable<Mahajan>
-                scrollWrapClassName="table-scroll-wrap--shorter"
-                columns={tableColumns}
-                data={mahajansPage}
-                onEdit={setEditing}
-                onDelete={(row) => setDeleteConfirmMahajan(row)}
-                emptyMessage="No Lenders yet. Click Add Lender."
-              />
-              <Pagination
-                page={page}
-                total={totalMahajans}
-                limit={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            </div>
+            <DataTable<Lender>
+              scrollMaxHeight={`calc(100vh - 20.5rem)`}
+              columns={tableColumns}
+              data={mahajansPage}
+              onEdit={setEditing}
+              onDelete={(row) => setDeleteConfirmMahajan(row)}
+              emptyMessage="No Lenders yet. Click Add Lender."
+              pagination={{
+                type: "controlled",
+                page,
+                total: totalMahajans,
+                onPageChange: setPage,
+                pageSize: PAGE_SIZE,
+              }}
+            />
           </MahajansAsyncPanel>
         </MahajansSectionPanel>
       </DashboardSectionBoundary>
@@ -723,7 +722,9 @@ export default function Mahajans() {
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
               {appName}
             </p>
-            <p className="text-xs text-[var(--color-text-secondary)]">Lenders</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Lenders
+            </p>
             {printData.summary != null && (
               <div className="mt-2 space-y-1 text-xs">
                 <p className="text-[var(--color-text-secondary)]">

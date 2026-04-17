@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import { AsyncDataPanel } from "../components/async-data-panel";
 import {
+  HelpDeveloperContact,
   HelpEmptyState,
   HelpHero,
   HelpSectionPanel,
@@ -28,7 +29,7 @@ export default function Help() {
 
   return (
     <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
-      <HelpHero activeTab={activeTab} topicCount={HELP_TAB_ORDER.length} />
+      <HelpHero topicCount={HELP_TAB_ORDER.length} />
       <HelpSegmentedTabs active={activeTab} onChange={setActiveTab} />
 
       <DashboardSectionBoundary
@@ -52,9 +53,7 @@ export default function Help() {
                 void guideQuery.refetch();
               }}
               isEmpty={
-                guideQuery.isSuccess &&
-                bodies != null &&
-                activeBody === null
+                guideQuery.isSuccess && bodies != null && activeBody === null
               }
               empty={
                 <HelpEmptyState
@@ -76,10 +75,7 @@ export default function Help() {
         </HelpSectionPanel>
       </DashboardSectionBoundary>
 
-      <footer className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-4 py-3 text-center text-xs text-[var(--color-text-tertiary)]">
-        For more support, contact your provider or refer to your purchase
-        documentation.
-      </footer>
+      <HelpDeveloperContact />
     </div>
   );
 }

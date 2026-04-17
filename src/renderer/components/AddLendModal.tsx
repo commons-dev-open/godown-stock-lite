@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
@@ -8,6 +8,7 @@ import Tooltip from "./Tooltip";
 import MahajanBalanceCard from "./MahajanBalanceCard";
 import { ClipboardCheck, FileUp, X, Plus, Trash2 } from "lucide-react";
 import Button from "./Button";
+import DataTable from "./DataTable";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import type { Item } from "../../shared/types";
@@ -34,6 +35,14 @@ export type LendLine = {
   gst_rate: number;
   gst_inclusive: boolean;
 };
+
+interface LendConfirmPreviewRow {
+  id: number;
+  productLabel: string;
+  oldStock: number;
+  quantity: number;
+  after: number;
+}
 
 const emptyLine = (): LendLine => ({
   product_id: 0,
@@ -143,6 +152,34 @@ export default function AddLendModal({
         };
       }),
     [gstEnabled]
+  );
+
+  const lendConfirmColumns = useMemo(
+    () => [
+      { key: "productLabel", label: "Product" },
+      {
+        key: "oldStock",
+        label: "Old stock",
+        render: (r: LendConfirmPreviewRow) => (
+          <span className="block text-right tabular-nums">{r.oldStock}</span>
+        ),
+      },
+      {
+        key: "quantity",
+        label: "Received (credit purchase)",
+        render: (r: LendConfirmPreviewRow) => (
+          <span className="block text-right tabular-nums">{r.quantity}</span>
+        ),
+      },
+      {
+        key: "after",
+        label: "Total after update",
+        render: (r: LendConfirmPreviewRow) => (
+          <span className="block text-right tabular-nums">{r.after}</span>
+        ),
+      },
+    ],
+    []
   );
 
   const createLendBatch = useMutation({
@@ -750,41 +787,31 @@ export default function AddLendModal({
                 </span>
               </Tooltip>
             </p>
-            <div className="table-scroll-wrap overflow-auto max-h-60">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]">
-                    <th className="text-left p-2">Product</th>
-                    <th className="text-right p-2">Old stock</th>
-                    <th className="text-right p-2">Received (credit purchase)</th>
-                    <th className="text-right p-2">Total after update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {confirmPayload.lines.map((line, idx) => {
-                    const item = (
-                      items as {
-                        id: number;
-                        name: string;
-                        current_stock: number;
-                      }[]
-                    ).find((i) => i.id === line.product_id);
-                    const oldStock = item?.current_stock ?? 0;
-                    const after = oldStock + line.quantity;
-                    return (
-                      <tr key={idx} className="border-b border-[var(--color-border-default)]">
-                        <td className="p-2">
-                          {line.product_name || item?.name || "\u2014"}
-                        </td>
-                        <td className="p-2 text-right">{oldStock}</td>
-                        <td className="p-2 text-right">{line.quantity}</td>
-                        <td className="p-2 text-right">{after}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<LendConfirmPreviewRow>
+              scrollMaxHeight="15rem"
+              tableClassName="min-w-full text-sm border-collapse"
+              rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+              columns={lendConfirmColumns}
+              data={confirmPayload.lines.map((line, idx) => {
+                const item = (
+                  items as {
+                    id: number;
+                    name: string;
+                    current_stock: number;
+                  }[]
+                ).find((i) => i.id === line.product_id);
+                const oldStock = item?.current_stock ?? 0;
+                return {
+                  id: idx + 1,
+                  productLabel: line.product_name || item?.name || "\u2014",
+                  oldStock,
+                  quantity: line.quantity,
+                  after: oldStock + line.quantity,
+                };
+              })}
+              pagination={{ type: "client" }}
+              tableFrame={false}
+            />
             <p className="text-sm font-medium">
               Total credit purchase amount (this transaction): ₹
               {formatDecimal(

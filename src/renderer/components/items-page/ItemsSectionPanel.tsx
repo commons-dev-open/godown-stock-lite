@@ -22,7 +22,7 @@ export function ItemsSectionPanel({
             {badge}
           </h2>
           {description ? (
-            <p className="mt-1 text-sm text-[var(--color-text-tertiary)] max-w-3xl">
+            <p className="mt-1 text-sm text-[var(--color-text-tertiary)] max-w-4xl">
               {description}
             </p>
           ) : null}

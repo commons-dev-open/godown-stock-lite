@@ -27,7 +27,7 @@ import {
   ItemsSectionPanel,
 } from "../components/items-page";
 import type { LowStockItem } from "../components/home-dashboard/types";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { PAGE_SIZE } from "../../shared/constants";
 import toast from "react-hot-toast";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import {
@@ -59,7 +59,6 @@ import {
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
-
 
 type ItemWithUnits = Item & {
   other_units?: { id?: number; unit: string; sort_order: number }[];
@@ -167,8 +166,7 @@ export default function Items() {
   const hsnEnabled = settings.hsn_enabled !== "false";
 
   const abbreviationStyle = useMemo(
-    () =>
-      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
 
@@ -196,7 +194,6 @@ export default function Items() {
     }
     return u.name;
   };
-
 
   const itemsListQuery = useQuery({
     queryKey: ["items"],
@@ -475,7 +472,9 @@ export default function Items() {
   const emptyIsNoMatches =
     isListEmpty && search.trim().length > 0 && items.length > 0;
 
-  const emptyTitle = emptyIsNoMatches ? noMatchesMeta.title : emptyCatalogMeta.title;
+  const emptyTitle = emptyIsNoMatches
+    ? noMatchesMeta.title
+    : emptyCatalogMeta.title;
   const emptyDescription = emptyIsNoMatches
     ? noMatchesMeta.description
     : emptyCatalogMeta.description;
@@ -485,11 +484,6 @@ export default function Items() {
   const onEmptyAction = emptyIsNoMatches
     ? clearSearchAndPage
     : () => setAddProductOpen(true);
-
-  const filterPill =
-    search.trim().length > 0
-      ? `Filtered: "${search.trim()}" · ${totalItems} result${totalItems === 1 ? "" : "s"}`
-      : undefined;
 
   const countBadge = (
     <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
@@ -568,7 +562,6 @@ export default function Items() {
         catalogCount={items.length}
         lowStockCount={lowStockItems.length}
         unitsCount={units.length}
-        filterPill={filterPill}
         primaryLabel="Add product"
         onPrimary={() => setAddProductOpen(true)}
         toolbar={heroToolbar}
@@ -625,98 +618,98 @@ export default function Items() {
             onEmptyAction={onEmptyAction}
             loaderColumns={loaderColumns}
           >
-            <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)]">
-              <DataTable<Item>
-                columns={[
-                  { key: "name", label: "Name" },
-                  { key: "code", label: "Code" },
-                  {
-                    key: "current_stock",
-                    label: "Current Stock",
-                    render: (r) => formatDecimal(r.current_stock),
-                  },
-                  {
-                    key: "unit",
-                    label: "Unit",
-                    render: (r) => unitDisplay(r.unit),
-                  },
-                  ...(gstEnabled
-                    ? [
-                        {
-                          key: "selling_price" as const,
-                          label: "Selling Price",
-                          render: (r: Item) =>
-                            r.selling_price != null && r.selling_price > 0
-                              ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
-                              : "",
-                        },
-                        {
-                          key: "gst_rate" as const,
-                          label: "GST",
-                          render: (r: Item) =>
-                            (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
-                        },
-                        ...(hsnEnabled
-                          ? [
-                              {
-                                key: "hsn_code" as const,
-                                label: "HSN",
-                                render: (r: Item) => r.hsn_code ?? "",
-                              },
-                            ]
-                          : []),
-                      ]
-                    : []),
-                  {
-                    key: "reorder_level",
-                    label: "Reorder Level",
-                    render: (r) =>
-                      r.reorder_level != null
-                        ? formatDecimal(r.reorder_level)
-                        : "",
-                  },
-                ]}
-                data={itemsPage}
-                onEdit={async (row) => {
-                  const full = (await api.getItemById(row.id)) as ItemWithUnits;
-                  setEditing(full);
-                  setEditUnitSelect(full.unit);
-                  setEditRetailPrimary(full.retail_primary_unit ?? "");
-                  setEditSellingPrice(
-                    full.selling_price != null ? String(full.selling_price) : ""
-                  );
-                  setEditSellingPriceUnit(full.selling_price_unit ?? "");
-                  setEditGstRate(full.gst_rate ?? 0);
-                  setEditHsnCode(full.hsn_code ?? "");
-                  setEditStockUnit(full.unit);
-                  setEditConversions(
-                    (full as ItemWithUnits).item_unit_conversions?.length
-                      ? (full as ItemWithUnits).item_unit_conversions!
-                      : full.reference_unit
+            <DataTable<Item>
+              scrollMaxHeight={`calc(100vh - 20.5rem)`}
+              columns={[
+                { key: "name", label: "Name" },
+                { key: "code", label: "Code" },
+                {
+                  key: "current_stock",
+                  label: "Current Stock",
+                  render: (r) => formatDecimal(r.current_stock),
+                },
+                {
+                  key: "unit",
+                  label: "Unit",
+                  render: (r) => unitDisplay(r.unit),
+                },
+                ...(gstEnabled
+                  ? [
+                      {
+                        key: "selling_price" as const,
+                        label: "Selling Price",
+                        render: (r: Item) =>
+                          r.selling_price != null && r.selling_price > 0
+                            ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
+                            : "",
+                      },
+                      {
+                        key: "gst_rate" as const,
+                        label: "GST",
+                        render: (r: Item) =>
+                          (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
+                      },
+                      ...(hsnEnabled
                         ? [
                             {
-                              to_unit: full.reference_unit,
-                              factor: full.quantity_per_primary ?? 0,
+                              key: "hsn_code" as const,
+                              label: "HSN",
+                              render: (r: Item) => r.hsn_code ?? "",
                             },
                           ]
-                        : [{ to_unit: "", factor: 0 }]
-                  );
-                  setEditOtherUnits(
-                    full.other_units?.map((o) => ({
-                      unit: o.unit,
-                      sort_order: o.sort_order ?? 0,
-                    })) ?? []
-                  );
-                }}
-                onDelete={(row) => setDeleteConfirmItem(row)}
-                emptyMessage="No products yet. Click Add Product."
-              />
-            </div>
-            <Pagination
-              page={page}
-              total={totalItems}
-              limit={PAGE_SIZE}
-              onPageChange={setPage}
+                        : []),
+                    ]
+                  : []),
+                {
+                  key: "reorder_level",
+                  label: "Reorder Level",
+                  render: (r) =>
+                    r.reorder_level != null
+                      ? formatDecimal(r.reorder_level)
+                      : "",
+                },
+              ]}
+              data={itemsPage}
+              onEdit={async (row) => {
+                const full = (await api.getItemById(row.id)) as ItemWithUnits;
+                setEditing(full);
+                setEditUnitSelect(full.unit);
+                setEditRetailPrimary(full.retail_primary_unit ?? "");
+                setEditSellingPrice(
+                  full.selling_price != null ? String(full.selling_price) : ""
+                );
+                setEditSellingPriceUnit(full.selling_price_unit ?? "");
+                setEditGstRate(full.gst_rate ?? 0);
+                setEditHsnCode(full.hsn_code ?? "");
+                setEditStockUnit(full.unit);
+                setEditConversions(
+                  (full as ItemWithUnits).item_unit_conversions?.length
+                    ? (full as ItemWithUnits).item_unit_conversions!
+                    : full.reference_unit
+                      ? [
+                          {
+                            to_unit: full.reference_unit,
+                            factor: full.quantity_per_primary ?? 0,
+                          },
+                        ]
+                      : [{ to_unit: "", factor: 0 }]
+                );
+                setEditOtherUnits(
+                  full.other_units?.map((o) => ({
+                    unit: o.unit,
+                    sort_order: o.sort_order ?? 0,
+                  })) ?? []
+                );
+              }}
+              onDelete={(row) => setDeleteConfirmItem(row)}
+              emptyMessage="No products yet. Click Add Product."
+              pagination={{
+                type: "controlled",
+                page,
+                total: totalItems,
+                onPageChange: setPage,
+                pageSize: PAGE_SIZE,
+              }}
             />
           </ItemsAsyncPanel>
         </ItemsSectionPanel>
@@ -1175,7 +1168,7 @@ export default function Items() {
             onClick={() => {
               const id = Number(importProductId);
               if (!id) return;
-              api.getItemById(id).then((item: ItemWithUnits) => {
+              api.getItemById(id).then((item) => {
                 const retailPrimary =
                   item.retail_primary_unit != null
                     ? String(item.retail_primary_unit)

@@ -15,13 +15,13 @@ import {
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import TransactionTypeBadge, {
   type TransactionType,
 } from "../components/TransactionTypeBadge";
-import LedgerRowActions from "../components/LedgerRowActions";
+import DataTable from "../components/DataTable";
 import AddLendModal from "../components/AddLendModal";
 import AddDepositModal from "../components/AddDepositModal";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
@@ -41,10 +41,17 @@ import {
   toPurchaseRecord,
 } from "../lib/lenderLedgerRow";
 import {
+  type ModalFieldDiffRow,
+  MODAL_FIELD_DIFF_COLUMNS,
+  type ModalKVRow,
+  MODAL_KV_COLUMNS,
+} from "../lib/modalTableColumns";
+import {
   Download,
   Banknote,
   FileDown,
   Filter,
+  Pencil,
   Plus,
   Printer,
   Trash2,
@@ -95,6 +102,100 @@ function amountColorClass(type: string): string {
   if (type === "cash_purchase") return "text-[var(--color-accent)]";
   return "text-[var(--color-text-primary)]";
 }
+
+function buildDeleteConfirmModalRows(p: {
+  type: "credit_purchase" | "settlement" | "cash_purchase";
+  row: LenderLedgerPageRow;
+}): ModalKVRow[] {
+  const rows: ModalKVRow[] = [
+    {
+      id: 1,
+      fieldLabel: "Type",
+      value: <TransactionTypeBadge type={p.type as TransactionType} />,
+    },
+    {
+      id: 2,
+      fieldLabel: "Date",
+      value: formatDateForView(p.row.transaction_date),
+    },
+  ];
+  let nextId = 3;
+  if (p.type === "credit_purchase" || p.type === "cash_purchase") {
+    if (p.type === "credit_purchase") {
+      rows.push({
+        id: nextId++,
+        fieldLabel: "Lender",
+        value: p.row.lender_name ?? p.row.mahajan_name ?? "—",
+      });
+    }
+    rows.push(
+      {
+        id: nextId++,
+        fieldLabel: "Product",
+        value: p.row.product_name ?? "—",
+      },
+      {
+        id: nextId++,
+        fieldLabel: "Quantity",
+        value: p.row.quantity ?? "—",
+      }
+    );
+  }
+  rows.push(
+    {
+      id: nextId++,
+      fieldLabel: "Amount (₹)",
+      value: formatDecimal(p.row.amount),
+    },
+    {
+      id: nextId++,
+      fieldLabel: "Notes",
+      value: p.row.notes ?? "—",
+    }
+  );
+  return rows;
+}
+
+interface CashPurchasePreviewRow {
+  id: number;
+  product: string;
+  oldStock: number;
+  qty: number;
+  totalAfter: number;
+  amountDisplay: string;
+}
+
+const CASH_PURCHASE_PREVIEW_COLUMNS = [
+  { key: "product", label: "Product" },
+  {
+    key: "oldStock",
+    label: "Old stock",
+    render: (r: CashPurchasePreviewRow) => (
+      <span className="block text-right tabular-nums">{r.oldStock}</span>
+    ),
+  },
+  {
+    key: "qty",
+    label: "Qty",
+    render: (r: CashPurchasePreviewRow) => (
+      <span className="block text-right tabular-nums">{r.qty}</span>
+    ),
+  },
+  {
+    key: "totalAfter",
+    label: "Total after",
+    render: (r: CashPurchasePreviewRow) => (
+      <span className="block text-right tabular-nums">{r.totalAfter}</span>
+    ),
+  },
+  {
+    key: "amountDisplay",
+    label: "Amount (₹)",
+    render: (r: CashPurchasePreviewRow) => (
+      <span className="block text-right tabular-nums">{r.amountDisplay}</span>
+    ),
+  },
+];
 
 export default function Transactions() {
   const queryClient = useQueryClient();
@@ -598,27 +699,6 @@ export default function Transactions() {
     setPage(1);
   }, []);
 
-  const transactionsContextPill = useMemo(() => {
-    const typeLabel =
-      filterType === "all"
-        ? "All types"
-        : filterType === "credit_purchase"
-          ? "Credit"
-          : filterType === "settlement"
-            ? "Settlements"
-            : "Cash";
-    const lenderLabel =
-      filterType === "cash_purchase"
-        ? "Lender N/A"
-        : filterMahajanId === ""
-          ? "All lenders"
-          : (mahajanList.find((x) => x.id === filterMahajanId)?.name ??
-            "Selected lender");
-    const dateLabel =
-      filterDateFrom || filterDateTo ? "Date range" : "Any date";
-    return `Viewing: ${typeLabel} · ${lenderLabel} · ${dateLabel}`;
-  }, [filterDateFrom, filterDateTo, filterMahajanId, filterType, mahajanList]);
-
   const ledgerHasActiveFilters = appliedFilters.length > 0;
   const isLedgerEmpty =
     !ledgerLoading && !ledgerError && unifiedRows.length === 0;
@@ -629,11 +709,151 @@ export default function Transactions() {
     </span>
   );
 
+  const ledgerColumns = useMemo(
+    () => [
+      {
+        key: "type",
+        label: "Type",
+        render: (row: LenderLedgerPageRow) => (
+          <TransactionTypeBadge type={row.type as TransactionType} />
+        ),
+      },
+      {
+        key: "transaction_date",
+        label: "Date",
+        render: (row: LenderLedgerPageRow) => (
+          <Tooltip content={formatDateForForm(row.transaction_date)}>
+            <span>{formatDateForView(row.transaction_date)}</span>
+          </Tooltip>
+        ),
+      },
+      {
+        key: "lender",
+        label: "Lender",
+        render: (row: LenderLedgerPageRow) =>
+          (row.lender_id ?? row.mahajan_id) == null ? (
+            <span className="font-medium text-[var(--color-text-primary)]">
+              {row.lender_name ?? row.mahajan_name ?? "—"}
+            </span>
+          ) : (
+            <Link
+              to={`/mahajans/ledger/${row.lender_id ?? row.mahajan_id}`}
+              className="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
+            >
+              {row.lender_name ?? row.mahajan_name ?? "—"}
+            </Link>
+          ),
+      },
+      {
+        key: "product_name",
+        label: "Product",
+        render: (row: LenderLedgerPageRow) => (
+          <span className="text-[var(--color-text-secondary)]">
+            {row.type === "settlement" || row.type === "deposit"
+              ? "—"
+              : (row.product_name ?? "—")}
+          </span>
+        ),
+      },
+      {
+        key: "quantity",
+        label: "Qty",
+        render: (row: LenderLedgerPageRow) => (
+          <span className="block text-right text-[var(--color-text-primary)]">
+            {row.type === "settlement" || row.type === "deposit"
+              ? "—"
+              : row.quantity != null
+                ? String(row.quantity)
+                : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "unit",
+        label: "Unit",
+        render: (row: LenderLedgerPageRow) => {
+          if (row.type === "settlement" || row.type === "deposit") {
+            return (
+              <span className="text-[var(--color-text-secondary)]">—</span>
+            );
+          }
+          if (row.product_id != null) {
+            const item = (items as Item[]).find((i) => i.id === row.product_id);
+            return (
+              <span className="text-[var(--color-text-secondary)]">
+                {item?.unit ?? "—"}
+              </span>
+            );
+          }
+          return <span className="text-[var(--color-text-secondary)]">—</span>;
+        },
+      },
+      {
+        key: "amount",
+        label: "Amount (₹)",
+        render: (row: LenderLedgerPageRow) => (
+          <span
+            className={`block text-right text-sm font-medium ${amountColorClass(row.type)}`}
+          >
+            ₹{formatDecimal(row.amount)}
+          </span>
+        ),
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        render: (row: LenderLedgerPageRow) => (
+          <div
+            className="max-w-[12rem] text-sm text-[var(--color-text-secondary)]"
+            title={row.notes ?? ""}
+          >
+            <span className="block truncate">{row.notes ?? "—"}</span>
+            {row.type === "credit_purchase" &&
+              (row.lender_invoice_number || row.invoice_file_path) && (
+                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--color-text-tertiary)]">
+                  {row.lender_invoice_number && (
+                    <span>#{row.lender_invoice_number}</span>
+                  )}
+                  {row.invoice_file_path && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        api.openCreditPurchaseInvoice(row.invoice_file_path!)
+                      }
+                      className="text-[var(--color-accent)] hover:underline"
+                    >
+                      View invoice
+                    </button>
+                  )}
+                </span>
+              )}
+            {(row.type === "settlement" || row.type === "deposit") &&
+              (row.payment_method || row.reference_number) && (
+                <span className="mt-1 block text-xs text-[var(--color-text-tertiary)]">
+                  {row.payment_method && (
+                    <span className="capitalize">{row.payment_method}</span>
+                  )}
+                  {row.payment_method && row.reference_number && " · "}
+                  {row.reference_number && (
+                    <span title={row.reference_number}>
+                      {row.reference_number.length > 12
+                        ? `${row.reference_number.slice(0, 10)}…`
+                        : row.reference_number}
+                    </span>
+                  )}
+                </span>
+              )}
+          </div>
+        ),
+      },
+    ],
+    [items, api]
+  );
+
   return (
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
         title="Transactions"
-        contextPill={transactionsContextPill}
         metrics={[]}
         actions={
           <>
@@ -874,199 +1094,67 @@ export default function Transactions() {
               }
               loaderColumns={9}
             >
-              <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-                <div className="table-scroll-wrap overflow-x-auto">
-                  <table className="min-w-full divide-y divide-[var(--color-border-default)]">
-                    <thead className="bg-[var(--color-bg-surface-raised)]">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Type
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Date
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Lender
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Product
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Qty
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Unit
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Amount (₹)
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase max-w-[12rem]">
-                          Notes
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--color-border-default)]">
-                      {unifiedRows.map((row: LenderLedgerPageRow) => (
-                        <tr
-                          key={`${row.type}-${row.id}`}
-                          className="hover:bg-[var(--color-bg-surface-raised)]"
-                        >
-                          <td className="px-4 py-2 text-sm">
-                            <TransactionTypeBadge
-                              type={row.type as TransactionType}
-                            />
-                          </td>
-                          <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
-                            <Tooltip
-                              content={formatDateForForm(row.transaction_date)}
-                            >
-                              <span>
-                                {formatDateForView(row.transaction_date)}
-                              </span>
-                            </Tooltip>
-                          </td>
-                          <td className="px-4 py-2 text-sm font-medium text-[var(--color-text-primary)]">
-                            {(row.lender_id ?? row.mahajan_id) == null ? (
-                              (row.lender_name ?? row.mahajan_name ?? "—")
-                            ) : (
-                              <Link
-                                to={`/mahajans/ledger/${row.lender_id ?? row.mahajan_id}`}
-                                className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
-                              >
-                                {row.lender_name ?? row.mahajan_name ?? "—"}
-                              </Link>
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
-                            {row.type === "settlement" || row.type === "deposit"
-                              ? "—"
-                              : (row.product_name ?? "—")}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-right text-[var(--color-text-primary)]">
-                            {row.type === "settlement" || row.type === "deposit"
-                              ? "—"
-                              : row.quantity != null
-                                ? String(row.quantity)
-                                : "—"}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
-                            {(() => {
-                              if (
-                                row.type === "settlement" ||
-                                row.type === "deposit"
-                              )
-                                return "—";
-                              if (row.product_id != null) {
-                                const item = (items as Item[]).find(
-                                  (i) => i.id === row.product_id
-                                );
-                                return item?.unit ?? "—";
-                              }
-                              return "—";
-                            })()}
-                          </td>
-                          <td
-                            className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass(row.type)}`}
-                          >
-                            ₹{formatDecimal(row.amount)}
-                          </td>
-                          <td
-                            className="px-4 py-2 text-sm text-[var(--color-text-secondary)] max-w-[12rem]"
-                            title={row.notes ?? ""}
-                          >
-                            <span className="block truncate">
-                              {row.notes ?? "—"}
-                            </span>
-                            {row.type === "credit_purchase" &&
-                              (row.lender_invoice_number ||
-                                row.invoice_file_path) && (
-                                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                  {row.lender_invoice_number && (
-                                    <span>#{row.lender_invoice_number}</span>
-                                  )}
-                                  {row.invoice_file_path && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        api.openCreditPurchaseInvoice(
-                                          row.invoice_file_path!
-                                        )
-                                      }
-                                      className="text-[var(--color-accent)] hover:underline"
-                                    >
-                                      View invoice
-                                    </button>
-                                  )}
-                                </span>
-                              )}
-                            {(row.type === "settlement" ||
-                              row.type === "deposit") &&
-                              (row.payment_method || row.reference_number) && (
-                                <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                  {row.payment_method && (
-                                    <span className="capitalize">
-                                      {row.payment_method}
-                                    </span>
-                                  )}
-                                  {row.payment_method &&
-                                    row.reference_number &&
-                                    " · "}
-                                  {row.reference_number && (
-                                    <span title={row.reference_number}>
-                                      {row.reference_number.length > 12
-                                        ? `${row.reference_number.slice(0, 10)}…`
-                                        : row.reference_number}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                          </td>
-                          <LedgerRowActions
-                            type={
-                              row.type as
-                                | "credit_purchase"
-                                | "settlement"
-                                | "cash_purchase"
-                            }
-                            onEdit={() => {
-                              if (
-                                row.type === "credit_purchase" ||
-                                row.type === "lend"
-                              )
-                                setEditingLend(toLendRecord(row));
-                              else if (
-                                row.type === "settlement" ||
-                                row.type === "deposit"
-                              )
-                                setEditingDeposit(toDepositRecord(row));
-                              else setEditingPurchase(toPurchaseRecord(row));
-                            }}
-                            onDelete={() => {
-                              setDeleteConfirmPayload({
-                                type: row.type as
-                                  | "credit_purchase"
-                                  | "settlement"
-                                  | "cash_purchase",
-                                row,
-                              });
-                              setDeleteConfirmOpen(true);
-                            }}
-                          />
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <Pagination
-                  page={page}
-                  total={totalLedger}
-                  limit={PAGE_SIZE}
-                  onPageChange={setPage}
-                />
-              </div>
+              <DataTable<LenderLedgerPageRow>
+                scrollMaxHeight={`calc(100vh - 20.5rem)`}
+                columns={ledgerColumns}
+                data={unifiedRows}
+                getRowKey={(r) => `${r.type}-${r.id}`}
+                tableClassName="min-w-full divide-y divide-[var(--color-border-default)]"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                alwaysShowRowActions
+                extraActions={(row) => (
+                  <span className="inline-flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          row.type === "credit_purchase" ||
+                          row.type === "lend"
+                        ) {
+                          setEditingLend(toLendRecord(row));
+                        } else if (
+                          row.type === "settlement" ||
+                          row.type === "deposit"
+                        ) {
+                          setEditingDeposit(toDepositRecord(row));
+                        } else {
+                          setEditingPurchase(toPurchaseRecord(row));
+                        }
+                      }}
+                      className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                      title="Edit"
+                      aria-label="Edit"
+                    >
+                      <Pencil size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteConfirmPayload({
+                          type: row.type as
+                            | "credit_purchase"
+                            | "settlement"
+                            | "cash_purchase",
+                          row,
+                        });
+                        setDeleteConfirmOpen(true);
+                      }}
+                      className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                      title="Delete"
+                      aria-label="Delete"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </span>
+                )}
+                pagination={{
+                  type: "controlled",
+                  page,
+                  total: totalLedger,
+                  onPageChange: setPage,
+                  pageSize: PAGE_SIZE,
+                }}
+              />
             </SalesListAsyncPanel>
           </div>
         </SalesListSectionPanel>
@@ -1296,77 +1384,63 @@ export default function Transactions() {
               Summary of changes
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Current</th>
-                    <th className="text-left p-2">After update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditLendPayload.record.transaction_date
-                      )}
-                    </td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditLendPayload.newValues.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Lender</td>
-                    <td className="p-2">
-                      {mahajanList.find(
+              <DataTable<ModalFieldDiffRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_FIELD_DIFF_COLUMNS}
+                data={[
+                  {
+                    id: 1,
+                    fieldLabel: "Date",
+                    current: formatDateForView(
+                      confirmEditLendPayload.record.transaction_date
+                    ),
+                    after: formatDateForView(
+                      confirmEditLendPayload.newValues.transaction_date
+                    ),
+                  },
+                  {
+                    id: 2,
+                    fieldLabel: "Lender",
+                    current:
+                      mahajanList.find(
                         (m) => m.id === confirmEditLendPayload.record.lender_id
-                      )?.name ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.mahajanName}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Product</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.product_name ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.product_name ?? "—"}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Quantity</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.quantity ?? 0}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.quantity}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditLendPayload.record.amount)}
-                    </td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditLendPayload.newValues.amount)}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.notes ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      )?.name ?? "—",
+                    after: confirmEditLendPayload.newValues.mahajanName,
+                  },
+                  {
+                    id: 3,
+                    fieldLabel: "Product",
+                    current: confirmEditLendPayload.record.product_name ?? "—",
+                    after: confirmEditLendPayload.newValues.product_name ?? "—",
+                  },
+                  {
+                    id: 4,
+                    fieldLabel: "Quantity",
+                    current: confirmEditLendPayload.record.quantity ?? 0,
+                    after: confirmEditLendPayload.newValues.quantity,
+                  },
+                  {
+                    id: 5,
+                    fieldLabel: "Amount (₹)",
+                    current: formatDecimal(
+                      confirmEditLendPayload.record.amount
+                    ),
+                    after: formatDecimal(
+                      confirmEditLendPayload.newValues.amount
+                    ),
+                  },
+                  {
+                    id: 6,
+                    fieldLabel: "Notes",
+                    current: confirmEditLendPayload.record.notes ?? "—",
+                    after: confirmEditLendPayload.newValues.notes ?? "—",
+                  },
+                ]}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-warning-text)]">
@@ -1615,50 +1689,42 @@ export default function Transactions() {
               Summary of changes
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Current</th>
-                    <th className="text-left p-2">After update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditDepositPayload.record.transaction_date
-                      )}
-                    </td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditDepositPayload.newValues.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditDepositPayload.record.amount)}
-                    </td>
-                    <td className="p-2">
-                      {formatDecimal(
-                        confirmEditDepositPayload.newValues.amount
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {confirmEditDepositPayload.record.notes ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditDepositPayload.newValues.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalFieldDiffRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_FIELD_DIFF_COLUMNS}
+                data={[
+                  {
+                    id: 1,
+                    fieldLabel: "Date",
+                    current: formatDateForView(
+                      confirmEditDepositPayload.record.transaction_date
+                    ),
+                    after: formatDateForView(
+                      confirmEditDepositPayload.newValues.transaction_date
+                    ),
+                  },
+                  {
+                    id: 2,
+                    fieldLabel: "Amount (₹)",
+                    current: formatDecimal(
+                      confirmEditDepositPayload.record.amount
+                    ),
+                    after: formatDecimal(
+                      confirmEditDepositPayload.newValues.amount
+                    ),
+                  },
+                  {
+                    id: 3,
+                    fieldLabel: "Notes",
+                    current: confirmEditDepositPayload.record.notes ?? "—",
+                    after: confirmEditDepositPayload.newValues.notes ?? "—",
+                  },
+                ]}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-success)]">
@@ -2014,45 +2080,32 @@ export default function Transactions() {
                 ? ` — ${confirmPurchasePayload.notes}`
                 : ""}
             </p>
-            <div className="table-scroll-wrap overflow-auto max-h-60">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b bg-[var(--color-bg-surface-raised)]">
-                    <th className="text-left p-2">Product</th>
-                    <th className="text-right p-2">Old stock</th>
-                    <th className="text-right p-2">Qty</th>
-                    <th className="text-right p-2">Total after</th>
-                    <th className="text-right p-2">Amount (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {confirmPurchasePayload.lines.map((line, idx) => {
-                    const item = (
-                      items as {
-                        id: number;
-                        name: string;
-                        current_stock: number;
-                      }[]
-                    ).find((i) => i.id === line.product_id);
-                    const oldStock = item?.current_stock ?? 0;
-                    const after = oldStock + line.quantity;
-                    return (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2">
-                          {line.product_name || item?.name || "—"}
-                        </td>
-                        <td className="p-2 text-right">{oldStock}</td>
-                        <td className="p-2 text-right">{line.quantity}</td>
-                        <td className="p-2 text-right">{after}</td>
-                        <td className="p-2 text-right">
-                          ₹{formatDecimal(line.amount)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<CashPurchasePreviewRow>
+              scrollMaxHeight="15rem"
+              tableClassName="min-w-full text-sm border-collapse"
+              rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+              columns={CASH_PURCHASE_PREVIEW_COLUMNS}
+              data={confirmPurchasePayload.lines.map((line, idx) => {
+                const item = (
+                  items as {
+                    id: number;
+                    name: string;
+                    current_stock: number;
+                  }[]
+                ).find((i) => i.id === line.product_id);
+                const oldStock = item?.current_stock ?? 0;
+                return {
+                  id: idx + 1,
+                  product: line.product_name || item?.name || "—",
+                  oldStock,
+                  qty: line.quantity,
+                  totalAfter: oldStock + line.quantity,
+                  amountDisplay: `₹${formatDecimal(line.amount)}`,
+                };
+              })}
+              pagination={{ type: "client" }}
+              tableFrame={false}
+            />
             <p className="text-sm font-medium">
               Total amount: ₹
               {formatDecimal(
@@ -2233,65 +2286,56 @@ export default function Transactions() {
               Summary of changes
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Current</th>
-                    <th className="text-left p-2">After update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditPurchasePayload.record.transaction_date
-                      )}
-                    </td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditPurchasePayload.newValues.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Product</td>
-                    <td className="p-2" colSpan={2}>
-                      {confirmEditPurchasePayload.record.product_name ?? "—"}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Quantity</td>
-                    <td className="p-2">
-                      {confirmEditPurchasePayload.record.quantity}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditPurchasePayload.newValues.quantity}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditPurchasePayload.record.amount)}
-                    </td>
-                    <td className="p-2">
-                      {formatDecimal(
-                        confirmEditPurchasePayload.newValues.amount
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {confirmEditPurchasePayload.record.notes ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditPurchasePayload.newValues.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalFieldDiffRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_FIELD_DIFF_COLUMNS}
+                data={[
+                  {
+                    id: 1,
+                    fieldLabel: "Date",
+                    current: formatDateForView(
+                      confirmEditPurchasePayload.record.transaction_date
+                    ),
+                    after: formatDateForView(
+                      confirmEditPurchasePayload.newValues.transaction_date
+                    ),
+                  },
+                  {
+                    id: 2,
+                    fieldLabel: "Product",
+                    current:
+                      confirmEditPurchasePayload.record.product_name ?? "—",
+                    after:
+                      confirmEditPurchasePayload.record.product_name ?? "—",
+                  },
+                  {
+                    id: 3,
+                    fieldLabel: "Quantity",
+                    current: confirmEditPurchasePayload.record.quantity,
+                    after: confirmEditPurchasePayload.newValues.quantity,
+                  },
+                  {
+                    id: 4,
+                    fieldLabel: "Amount (₹)",
+                    current: formatDecimal(
+                      confirmEditPurchasePayload.record.amount
+                    ),
+                    after: formatDecimal(
+                      confirmEditPurchasePayload.newValues.amount
+                    ),
+                  },
+                  {
+                    id: 5,
+                    fieldLabel: "Notes",
+                    current: confirmEditPurchasePayload.record.notes ?? "—",
+                    after: confirmEditPurchasePayload.newValues.notes ?? "—",
+                  },
+                ]}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div className="rounded border border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-accent)]">
@@ -2376,69 +2420,15 @@ export default function Transactions() {
               You are about to delete this transaction. Summary:
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Type</td>
-                    <td className="p-2">
-                      <TransactionTypeBadge type={deleteConfirmPayload.type} />
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        deleteConfirmPayload.row.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  {(deleteConfirmPayload.type === "credit_purchase" ||
-                    deleteConfirmPayload.type === "cash_purchase") && (
-                    <>
-                      {deleteConfirmPayload.type === "credit_purchase" && (
-                        <tr className="border-b">
-                          <td className="p-2 font-medium">Lender</td>
-                          <td className="p-2">
-                            {deleteConfirmPayload.row.lender_name ??
-                              deleteConfirmPayload.row.mahajan_name ??
-                              "—"}
-                          </td>
-                        </tr>
-                      )}
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Product</td>
-                        <td className="p-2">
-                          {deleteConfirmPayload.row.product_name ?? "—"}
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Quantity</td>
-                        <td className="p-2">
-                          {deleteConfirmPayload.row.quantity ?? "—"}
-                        </td>
-                      </tr>
-                    </>
-                  )}
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(deleteConfirmPayload.row.amount)}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {deleteConfirmPayload.row.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalKVRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_KV_COLUMNS}
+                data={buildDeleteConfirmModalRows(deleteConfirmPayload)}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div
               className={`rounded border p-3 space-y-2 text-sm ${

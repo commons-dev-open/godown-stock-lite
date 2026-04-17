@@ -11,7 +11,6 @@ interface ItemsHeroProps {
   catalogCount: number;
   lowStockCount: number;
   unitsCount: number;
-  filterPill?: string;
   primaryLabel: string;
   onPrimary: () => void;
   toolbar: ReactNode;
@@ -22,7 +21,6 @@ function ItemsHeroComponent({
   catalogCount,
   lowStockCount,
   unitsCount,
-  filterPill,
   primaryLabel,
   onPrimary,
   toolbar,
@@ -35,11 +33,6 @@ function ItemsHeroComponent({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
               Products & stock
             </h1>
-            {filterPill ? (
-              <span className="dashboard-context-pill self-start max-w-full truncate">
-                {filterPill}
-              </span>
-            ) : null}
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
             <div className="dashboard-hero-metrics min-w-0 w-full max-w-full lg:w-auto lg:shrink-0">

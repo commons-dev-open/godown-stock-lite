@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import toast from "react-hot-toast";
@@ -9,7 +9,6 @@ import DataTable from "../components/DataTable";
 import FormField from "../components/FormField";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
-import Pagination from "../components/Pagination";
 import { AsyncDataPanel } from "../components/async-data-panel";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import {
@@ -64,20 +63,6 @@ export default function Users() {
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
     );
   }, [users]);
-
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
-
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return sortedUsers.slice(start, start + PAGE_SIZE);
-  }, [sortedUsers, page]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", pin: "", role: "user" });
@@ -308,7 +293,6 @@ export default function Users() {
         sectionTitle="Team members"
         containerClassName="dashboard-panel"
         resetKeys={[
-          page,
           usersQuery.isPending,
           usersQuery.isError,
           sortedUsers.length,
@@ -337,11 +321,10 @@ export default function Users() {
             loaderColumns={4}
             loaderRows={6}
           >
-            <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-              <DataTable<UserRow>
-                scrollWrapClassName="table-scroll-wrap--shorter"
+            <DataTable<UserRow>
+                scrollHeightPreset="compact"
                 columns={columns}
-                data={pageRows}
+                data={sortedUsers}
                 extraActions={(row) => {
                   const canEditName =
                     row.id === currentUser.id ||
@@ -397,14 +380,8 @@ export default function Users() {
                   );
                 }}
                 emptyMessage="No users on this page."
+                pagination={{ type: "client", pageSize: PAGE_SIZE }}
               />
-              <Pagination
-                page={page}
-                total={sortedUsers.length}
-                limit={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            </div>
           </AsyncDataPanel>
         </UsersSectionPanel>
       </DashboardSectionBoundary>

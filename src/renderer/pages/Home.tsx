@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReactECharts from "echarts-for-react";
 import { getElectron } from "../api/client";
 import TableLoader from "../components/TableLoader";
-import Table from "../components/Table";
+import DataTable from "../components/DataTable";
 import { formatDateForView, formatDateForForm, todayISO } from "../lib/date";
 import Tooltip from "../components/Tooltip";
 import {
@@ -258,13 +258,13 @@ export default function Home() {
       );
     }
     return (
-      <Table
+      <DataTable<LowStockItem>
+        scrollHeightPreset="compact"
         columns={[
           { key: "name", label: "Item" },
           {
             key: "current_stock",
             label: "Current",
-            align: "right",
             render: (item: LowStockItem) => {
               const isZero = item.current_stock === 0;
               const colorClass = isZero
@@ -274,7 +274,7 @@ export default function Home() {
                 ? "bg-[var(--color-danger)]"
                 : "bg-[var(--color-warning)]";
               return (
-                <span className={`inline-flex items-center ${colorClass}`}>
+                <span className={`inline-flex items-center justify-end ${colorClass}`}>
                   <span
                     className={`w-2 h-2 rounded-full inline-block mr-2 ${dotClass}`}
                   />
@@ -286,14 +286,16 @@ export default function Home() {
           {
             key: "reorder_level",
             label: "Reorder At",
-            align: "right",
-            render: (item: LowStockItem) => formatDecimal(item.reorder_level),
+            render: (item: LowStockItem) => (
+              <span className="block text-right">
+                {formatDecimal(item.reorder_level)}
+              </span>
+            ),
           },
           { key: "unit", label: "Unit" },
         ]}
         data={lowStockItems}
-        getRowKey={(item: LowStockItem) => item.id}
-        scrollWrapClassName="table-scroll-wrap--shorter"
+        pagination={{ type: "client" }}
       />
     );
   }, [lowStockError, lowStockItems, lowStockLoading]);
@@ -390,7 +392,7 @@ export default function Home() {
     );
   } else if (hasWeeklySales) {
     weeklyDetailsContent = (
-      <Table<WeeklyRow>
+      <DataTable<WeeklyRow>
         columns={[
           {
             key: "sale_date",
@@ -404,36 +406,51 @@ export default function Home() {
           {
             key: "sale_amount",
             label: "Sale",
-            align: "right",
-            render: (sale) => formatRupee(sale.sale_amount),
+            render: (sale) => (
+              <span className="block text-right tabular-nums">
+                {formatRupee(sale.sale_amount)}
+              </span>
+            ),
           },
           {
             key: "invoice_sales",
             label: "Invoice",
-            align: "right",
-            render: (sale) => formatRupee(sale.invoice_sales ?? 0),
+            render: (sale) => (
+              <span className="block text-right tabular-nums">
+                {formatRupee(sale.invoice_sales ?? 0)}
+              </span>
+            ),
           },
           {
             key: "misc_sales",
             label: "Misc",
-            align: "right",
-            render: (sale) => formatRupee(sale.misc_sales ?? 0),
+            render: (sale) => (
+              <span className="block text-right tabular-nums">
+                {formatRupee(sale.misc_sales ?? 0)}
+              </span>
+            ),
           },
           {
             key: "cash_in_hand",
             label: "Cash in Hand",
-            align: "right",
-            render: (sale) => formatRupee(sale.cash_in_hand),
+            render: (sale) => (
+              <span className="block text-right tabular-nums">
+                {formatRupee(sale.cash_in_hand)}
+              </span>
+            ),
           },
           {
             key: "expenditure_amount",
             label: "Expenditure",
-            align: "right",
-            render: (sale) => formatRupee(sale.expenditure_amount ?? 0),
+            render: (sale) => (
+              <span className="block text-right tabular-nums">
+                {formatRupee(sale.expenditure_amount ?? 0)}
+              </span>
+            ),
           },
         ]}
         data={weeklySales}
-        getRowKey={(sale) => sale.sale_date}
+        pagination={{ type: "client" }}
       />
     );
   } else {

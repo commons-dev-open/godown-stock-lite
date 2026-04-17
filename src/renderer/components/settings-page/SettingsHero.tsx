@@ -1,16 +1,11 @@
 import { memo } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
-import type { SettingsTabId } from "./types";
-import { settingsTabLabel } from "./types";
-
 interface SettingsHeroProps {
-  activeTab: SettingsTabId;
   companyName: string;
   gstEnabled: boolean;
 }
 
 function SettingsHeroComponent({
-  activeTab,
   companyName,
   gstEnabled,
 }: Readonly<SettingsHeroProps>) {
@@ -33,9 +28,6 @@ function SettingsHeroComponent({
                 Settings
               </h1>
             </div>
-            <span className="dashboard-context-pill self-start">
-              Viewing: {settingsTabLabel(activeTab)}
-            </span>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
             <div className="dashboard-hero-metrics min-w-0 w-full max-w-full lg:w-auto lg:shrink-0">

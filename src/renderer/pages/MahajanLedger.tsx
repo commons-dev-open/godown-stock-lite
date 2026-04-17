@@ -16,10 +16,13 @@ import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
 import DateInput from "../components/DateInput";
-import TransactionTypeBadge from "../components/TransactionTypeBadge";
+import TransactionTypeBadge, {
+  type TransactionType,
+} from "../components/TransactionTypeBadge";
+import DataTable from "../components/DataTable";
 import AddLendModal from "../components/AddLendModal";
 import AddDepositModal from "../components/AddDepositModal";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { PAGE_SIZE } from "../../shared/constants";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import {
   MahajansSectionPanel,
@@ -56,6 +59,60 @@ import {
   toDepositRecord,
   type LenderLedgerPageRow,
 } from "../lib/lenderLedgerRow";
+import {
+  type ModalFieldDiffRow,
+  MODAL_FIELD_DIFF_COLUMNS,
+  type ModalKVRow,
+  MODAL_KV_COLUMNS,
+} from "../lib/modalTableColumns";
+
+function buildMahajanLedgerDeleteRows(p: {
+  type: "credit_purchase" | "settlement";
+  row: LenderLedgerPageRow;
+  record: MahajanLend | MahajanDeposit;
+}): ModalKVRow[] {
+  const rows: ModalKVRow[] = [
+    {
+      id: 1,
+      fieldLabel: "Type",
+      value: <TransactionTypeBadge type={p.type as TransactionType} />,
+    },
+    {
+      id: 2,
+      fieldLabel: "Date",
+      value: formatDateForView(p.row.transaction_date),
+    },
+  ];
+  let nextId = 3;
+  if (p.type === "credit_purchase") {
+    const lend = p.record as MahajanLend;
+    rows.push(
+      {
+        id: nextId++,
+        fieldLabel: "Product",
+        value: lend.product_name ?? "—",
+      },
+      {
+        id: nextId++,
+        fieldLabel: "Quantity",
+        value: lend.quantity ?? "—",
+      }
+    );
+  }
+  rows.push(
+    {
+      id: nextId++,
+      fieldLabel: "Amount (₹)",
+      value: formatDecimal(p.record.amount),
+    },
+    {
+      id: nextId++,
+      fieldLabel: "Notes",
+      value: p.record.notes ?? "—",
+    }
+  );
+  return rows;
+}
 
 export default function MahajanLedger() {
   const { mahajanId } = useParams<{ mahajanId: string }>();
@@ -669,44 +726,43 @@ export default function MahajanLedger() {
                     }
               }
             >
-              <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-                <MahajanLedgerTable
-                  rows={unifiedRows}
-                  onOpenInvoice={(path) => {
-                    void api.openCreditPurchaseInvoice(path);
-                  }}
-                  onEditRow={(row) => {
-                    if (row.type === "credit_purchase") {
-                      setEditingLend(toLendRecord(row));
-                    } else {
-                      setEditingDeposit(toDepositRecord(row));
-                    }
-                  }}
-                  onDeleteRow={(row) => {
-                    if (row.type === "credit_purchase") {
-                      setDeleteConfirmPayload({
-                        type: "credit_purchase",
-                        row,
-                        record: toLendRecord(row),
-                      });
-                      setDeleteConfirmOpen(true);
-                    } else {
-                      setDeleteConfirmPayload({
-                        type: "settlement",
-                        row,
-                        record: toDepositRecord(row),
-                      });
-                      setDeleteConfirmOpen(true);
-                    }
-                  }}
-                />
-                <Pagination
-                  page={page}
-                  total={totalLedger}
-                  limit={PAGE_SIZE}
-                  onPageChange={setPage}
-                />
-              </div>
+              <MahajanLedgerTable
+                rows={unifiedRows}
+                onOpenInvoice={(path) => {
+                  void api.openCreditPurchaseInvoice(path);
+                }}
+                onEditRow={(row) => {
+                  if (row.type === "credit_purchase") {
+                    setEditingLend(toLendRecord(row));
+                  } else {
+                    setEditingDeposit(toDepositRecord(row));
+                  }
+                }}
+                onDeleteRow={(row) => {
+                  if (row.type === "credit_purchase") {
+                    setDeleteConfirmPayload({
+                      type: "credit_purchase",
+                      row,
+                      record: toLendRecord(row),
+                    });
+                    setDeleteConfirmOpen(true);
+                  } else {
+                    setDeleteConfirmPayload({
+                      type: "settlement",
+                      row,
+                      record: toDepositRecord(row),
+                    });
+                    setDeleteConfirmOpen(true);
+                  }
+                }}
+                pagination={{
+                  type: "controlled",
+                  page,
+                  total: totalLedger,
+                  onPageChange: setPage,
+                  pageSize: PAGE_SIZE,
+                }}
+              />
             </MahajanLedgerAsyncPanel>
           </div>
         </MahajansSectionPanel>
@@ -902,66 +958,56 @@ export default function MahajanLedger() {
               Summary of changes
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Current</th>
-                    <th className="text-left p-2">After update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditLendPayload.record.transaction_date
-                      )}
-                    </td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditLendPayload.newValues.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Product</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.product_name ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.product_name ?? "—"}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Quantity</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.quantity ?? 0}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.quantity}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditLendPayload.record.amount)}
-                    </td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditLendPayload.newValues.amount)}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.record.notes ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditLendPayload.newValues.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalFieldDiffRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_FIELD_DIFF_COLUMNS}
+                data={[
+                  {
+                    id: 1,
+                    fieldLabel: "Date",
+                    current: formatDateForView(
+                      confirmEditLendPayload.record.transaction_date
+                    ),
+                    after: formatDateForView(
+                      confirmEditLendPayload.newValues.transaction_date
+                    ),
+                  },
+                  {
+                    id: 2,
+                    fieldLabel: "Product",
+                    current:
+                      confirmEditLendPayload.record.product_name ?? "—",
+                    after:
+                      confirmEditLendPayload.newValues.product_name ?? "—",
+                  },
+                  {
+                    id: 3,
+                    fieldLabel: "Quantity",
+                    current: confirmEditLendPayload.record.quantity ?? 0,
+                    after: confirmEditLendPayload.newValues.quantity,
+                  },
+                  {
+                    id: 4,
+                    fieldLabel: "Amount (₹)",
+                    current: formatDecimal(
+                      confirmEditLendPayload.record.amount
+                    ),
+                    after: formatDecimal(
+                      confirmEditLendPayload.newValues.amount
+                    ),
+                  },
+                  {
+                    id: 5,
+                    fieldLabel: "Notes",
+                    current: confirmEditLendPayload.record.notes ?? "—",
+                    after: confirmEditLendPayload.newValues.notes ?? "—",
+                  },
+                ]}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-warning-text)]">Impact after update</p>
@@ -1219,50 +1265,42 @@ export default function MahajanLedger() {
               Summary of changes
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Current</th>
-                    <th className="text-left p-2">After update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditDepositPayload.record.transaction_date
-                      )}
-                    </td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        confirmEditDepositPayload.newValues.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(confirmEditDepositPayload.record.amount)}
-                    </td>
-                    <td className="p-2">
-                      {formatDecimal(
-                        confirmEditDepositPayload.newValues.amount
-                      )}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {confirmEditDepositPayload.record.notes ?? "—"}
-                    </td>
-                    <td className="p-2">
-                      {confirmEditDepositPayload.newValues.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalFieldDiffRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_FIELD_DIFF_COLUMNS}
+                data={[
+                  {
+                    id: 1,
+                    fieldLabel: "Date",
+                    current: formatDateForView(
+                      confirmEditDepositPayload.record.transaction_date
+                    ),
+                    after: formatDateForView(
+                      confirmEditDepositPayload.newValues.transaction_date
+                    ),
+                  },
+                  {
+                    id: 2,
+                    fieldLabel: "Amount (₹)",
+                    current: formatDecimal(
+                      confirmEditDepositPayload.record.amount
+                    ),
+                    after: formatDecimal(
+                      confirmEditDepositPayload.newValues.amount
+                    ),
+                  },
+                  {
+                    id: 3,
+                    fieldLabel: "Notes",
+                    current: confirmEditDepositPayload.record.notes ?? "—",
+                    after: confirmEditDepositPayload.newValues.notes ?? "—",
+                  },
+                ]}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
               <p className="font-medium text-[var(--color-success)]">Impact after update</p>
@@ -1383,60 +1421,15 @@ export default function MahajanLedger() {
               You are about to delete this transaction. Summary:
             </p>
             <div className="rounded border border-[var(--color-border-default)] overflow-hidden text-sm">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-bg-surface-raised)] border-b">
-                    <th className="text-left p-2">Field</th>
-                    <th className="text-left p-2">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Type</td>
-                    <td className="p-2">
-                      <TransactionTypeBadge type={deleteConfirmPayload.type} />
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Date</td>
-                    <td className="p-2">
-                      {formatDateForView(
-                        deleteConfirmPayload.row.transaction_date
-                      )}
-                    </td>
-                  </tr>
-                  {deleteConfirmPayload.type === "credit_purchase" && (
-                    <>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Product</td>
-                        <td className="p-2">
-                          {(deleteConfirmPayload.record as MahajanLend)
-                            .product_name ?? "—"}
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Quantity</td>
-                        <td className="p-2">
-                          {(deleteConfirmPayload.record as MahajanLend)
-                            .quantity ?? "—"}
-                        </td>
-                      </tr>
-                    </>
-                  )}
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Amount (₹)</td>
-                    <td className="p-2">
-                      {formatDecimal(deleteConfirmPayload.record.amount)}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-2 font-medium">Notes</td>
-                    <td className="p-2">
-                      {deleteConfirmPayload.record.notes ?? "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable<ModalKVRow>
+                scrollMaxHeight="none"
+                tableClassName="w-full text-sm border-collapse"
+                rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
+                columns={MODAL_KV_COLUMNS}
+                data={buildMahajanLedgerDeleteRows(deleteConfirmPayload)}
+                pagination={{ type: "client" }}
+                tableFrame={false}
+              />
             </div>
             <div
               className={`rounded border p-3 space-y-2 text-sm ${

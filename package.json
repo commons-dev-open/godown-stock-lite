@@ -4,7 +4,10 @@
   "description": "Godown Stock Management Desktop App",
   "main": "dist/main/index.js",
   "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "node scripts/native-better-sqlite3-for-electron.mjs rebuild",
+    "predev": "node scripts/native-better-sqlite3-for-electron.mjs ensure",
+    "prestart": "node scripts/native-better-sqlite3-for-electron.mjs ensure",
+    "rebuild:native": "node scripts/native-better-sqlite3-for-electron.mjs rebuild",
     "dev": "npm run build:main && concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
     "dev:electron": "wait-on http://localhost:5173 && cross-env ELECTRON_DEV=true electron .",
@@ -23,6 +26,9 @@
   "keywords": [],
   "author": "Arindam Hazra",
   "license": "MIT",
+  "engines": {
+    "node": ">=20 <26"
+  },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

@@ -495,6 +495,8 @@ export interface ElectronAPI {
   >;
   importDb: () => Promise<{ canceled: true } | { canceled: false }>;
 
+  openExternal: (url: string) => Promise<void>;
+
   auth: {
     setupSuperAdmin: (payload: { companyName: string; ownerName: string; displayName: string; pin: string; customerMasterKey?: string }) => Promise<{ id: number }>;
     listUsers: () => Promise<{ id: number; name: string; role: string; is_active: number; pin_is_temporary: number; created_at: string }[]>;

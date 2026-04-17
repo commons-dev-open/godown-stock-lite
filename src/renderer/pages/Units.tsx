@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { getElectron } from "../api/client";
@@ -101,11 +96,17 @@ export default function Units() {
     staleTime: 60_000,
   });
   const abbreviationStyle = useMemo(
-    () =>
-      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
   const [activeSection, setActiveSection] = useState<UnitsTabId>("all");
+  const [tabTablePages, setTabTablePages] = useState<
+    Record<UnitsTabId, number>
+  >({
+    all: 1,
+    types: 1,
+    conversions: 1,
+  });
   const [allAddOpen, setAllAddOpen] = useState(false);
   const [stockEditing, setStockEditing] = useState<Unit | null>(null);
   const [deleteConfirmUnit, setDeleteConfirmUnit] = useState<Unit | null>(null);
@@ -294,6 +295,7 @@ export default function Units() {
   if (activeSection === "all") {
     tableContent = (
       <DataTable<Unit>
+        scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
           { key: "name", label: "Name" },
           {
@@ -336,11 +338,19 @@ export default function Units() {
         ]}
         data={units}
         emptyMessage="No units yet."
+        pagination={{
+          type: "client",
+          page: tabTablePages.all,
+          onPageChange: (page) => {
+            setTabTablePages((prev) => ({ ...prev, all: page }));
+          },
+        }}
       />
     );
   } else if (activeSection === "types") {
     tableContent = (
       <DataTable<UnitType>
+        scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
           { key: "name", label: "Name" },
           {
@@ -379,11 +389,19 @@ export default function Units() {
         ]}
         data={unitTypes}
         emptyMessage="No unit types."
+        pagination={{
+          type: "client",
+          page: tabTablePages.types,
+          onPageChange: (page) => {
+            setTabTablePages((prev) => ({ ...prev, types: page }));
+          },
+        }}
       />
     );
   } else {
     tableContent = (
       <DataTable<UnitConversion>
+        scrollMaxHeight={`calc(100vh - 19.8rem)`}
         columns={[
           { key: "from_unit", label: "From unit" },
           { key: "to_unit", label: "To unit" },
@@ -399,6 +417,13 @@ export default function Units() {
         onDelete={(row) => setDeleteConfirmConv(row)}
         canDelete={(row) => !isSeedConversion(row.from_unit, row.to_unit)}
         emptyMessage="No standard conversions."
+        pagination={{
+          type: "client",
+          page: tabTablePages.conversions,
+          onPageChange: (page) => {
+            setTabTablePages((prev) => ({ ...prev, conversions: page }));
+          },
+        }}
       />
     );
   }
@@ -414,7 +439,6 @@ export default function Units() {
     <div className="space-y-4 home-dashboard pb-3">
       <UnitsHero
         abbreviationStyle={abbreviationStyle}
-        activeTab={activeSection}
         unitsCount={units.length}
         typesCount={unitTypes.length}
         conversionsCount={unitConversions.length}

@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CurrentUser } from "../../context/AuthContext";
 import DataTable from "../DataTable";
-import Pagination from "../Pagination";
 import { AsyncDataPanel } from "../async-data-panel";
 import { PAGE_SIZE } from "../../../shared/constants";
 
@@ -200,22 +199,21 @@ export function ActivityLogSection({
         loaderColumns={5}
         loaderRows={8}
       >
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-          <DataTable<ActivityLogEntry>
-            scrollWrapClassName="table-scroll-wrap--shorter"
-            columns={columns}
-            data={rows}
-            emptyMessage="No rows on this page."
-          />
-          <Pagination
-            page={page}
-            total={total}
-            limit={PAGE_SIZE}
-            onPageChange={(p) => {
+        <DataTable<ActivityLogEntry>
+          scrollHeightPreset="compact"
+          columns={columns}
+          data={rows}
+          emptyMessage="No rows on this page."
+          pagination={{
+            type: "controlled",
+            page,
+            total,
+            onPageChange: (p) => {
               setPage(p);
-            }}
-          />
-        </div>
+            },
+            pageSize: PAGE_SIZE,
+          }}
+        />
       </AsyncDataPanel>
     </div>
   );

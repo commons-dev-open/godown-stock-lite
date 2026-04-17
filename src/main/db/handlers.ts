@@ -145,6 +145,24 @@ export function registerIpcHandlers(): void {
     return getDb();
   }
 
+  ipcMain.handle("app:openExternal", async (_, url: unknown) => {
+    if (typeof url !== "string") {
+      throw new Error("Invalid URL");
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error("Invalid URL");
+    }
+    const schemeOk =
+      parsed.protocol === "https:" || parsed.protocol === "mailto:";
+    if (!schemeOk) {
+      throw new Error("Unsupported URL scheme");
+    }
+    await shell.openExternal(url);
+  });
+
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {
     return db().prepare("SELECT * FROM items ORDER BY name").all();

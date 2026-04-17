@@ -1,4 +1,5 @@
 export interface WeeklyRow {
+  id: number;
   sale_date: string;
   sale_amount: number;
   cash_in_hand: number;

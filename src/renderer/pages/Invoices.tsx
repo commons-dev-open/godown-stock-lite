@@ -9,7 +9,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
 import SearchFilterBar from "../components/SearchFilterBar";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { PAGE_SIZE } from "../../shared/constants";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
@@ -34,7 +34,6 @@ import type {
 } from "../../shared/types";
 import DateInput from "../components/DateInput";
 import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
-import { formatDateForView } from "../lib/date";
 import {
   formatDecimal,
   roundDecimal,
@@ -102,10 +101,7 @@ const DEFAULT_LINE_ROW: LineRow = {
 };
 
 /** Payload line sent to API. */
-type LinePayload = Omit<
-  LineRow,
-  "priceMode" | "totalInput" | "priceUnit"
-> & {
+type LinePayload = Omit<LineRow, "priceMode" | "totalInput" | "priceUnit"> & {
   amount: number;
   price_entered_as: PriceMode;
   price_unit?: string | null;
@@ -192,8 +188,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
   const anyLineHasGst = invoice.lines.some((l) => (l.gst_rate ?? 0) > 0);
   const useGstLayout = gstEnabled && anyLineHasGst;
   const hsnEnabled = settings.hsn_enabled !== "false";
-  const hasHsn =
-    hsnEnabled && invoice.lines.some((l) => l.hsn_code?.trim());
+  const hasHsn = hsnEnabled && invoice.lines.some((l) => l.hsn_code?.trim());
   const taxableTotal = useGstLayout
     ? invoice.lines.reduce((s, l) => s + (l.taxable_amount ?? l.amount ?? 0), 0)
     : 0;
@@ -258,8 +253,12 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
               Product
             </th>
-            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">Qty</th>
-            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">Unit</th>
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
+              Qty
+            </th>
+            <th className="border border-[var(--color-border-strong)] px-2 py-1 text-left">
+              Unit
+            </th>
             <th className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
               Rate/unit
             </th>
@@ -376,8 +375,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
           </div>
         )}
         <div className="font-medium">
-          {useGstLayout ? "Grand Total: " : "Total: "}₹
-          {formatDecimal(netTotal)}
+          {useGstLayout ? "Grand Total: " : "Total: "}₹{formatDecimal(netTotal)}
         </div>
         {useGstLayout && (
           <div className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -619,17 +617,6 @@ export default function Invoices() {
     setPage(1);
   }, []);
 
-  const invoicesContextPill = useMemo(() => {
-    const searchPart = search.trim()
-      ? `Search “${search.trim().slice(0, 32)}${search.trim().length > 32 ? "…" : ""}”`
-      : "No search filter";
-    const datePart =
-      dateFrom || dateTo
-        ? `${dateFrom ? formatDateForView(dateFrom) : "…"} → ${dateTo ? formatDateForView(dateTo) : "…"}`
-        : "All dates";
-    return `Viewing: ${searchPart} · ${datePart}`;
-  }, [search, dateFrom, dateTo]);
-
   const invoicesHeroMetrics = useMemo(
     () => [
       {
@@ -648,18 +635,10 @@ export default function Invoices() {
       },
       {
         label: "Page total",
-        displayValue: formatAbbreviatedRupee(
-          pageInvoiceSum,
-          abbreviationStyle
-        ),
+        displayValue: formatAbbreviatedRupee(pageInvoiceSum, abbreviationStyle),
       },
     ],
-    [
-      abbreviationStyle,
-      invoicesPage.length,
-      pageInvoiceSum,
-      totalInvoices,
-    ]
+    [abbreviationStyle, invoicesPage.length, pageInvoiceSum, totalInvoices]
   );
 
   const invoicesHasFilters = !!(search.trim() || dateFrom || dateTo);
@@ -703,7 +682,6 @@ export default function Invoices() {
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
         title="Invoices"
-        contextPill={invoicesContextPill}
         metrics={invoicesHeroMetrics}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
@@ -806,19 +784,19 @@ export default function Invoices() {
               }
               loaderColumns={5}
             >
-              <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-                <DataTable<InvoiceRow>
-                  columns={tableColumns}
-                  data={invoicesPage}
-                  emptyMessage="No invoices."
-                />
-                <Pagination
-                  page={page}
-                  total={totalInvoices}
-                  limit={PAGE_SIZE}
-                  onPageChange={setPage}
-                />
-              </div>
+              <DataTable<InvoiceRow>
+                columns={tableColumns}
+                data={invoicesPage}
+                emptyMessage="No invoices."
+                scrollMaxHeight={`calc(100vh - 20.5rem)`}
+                pagination={{
+                  type: "controlled",
+                  page,
+                  total: totalInvoices,
+                  onPageChange: setPage,
+                  pageSize: PAGE_SIZE,
+                }}
+              />
             </SalesListAsyncPanel>
           </div>
         </SalesListSectionPanel>
@@ -907,8 +885,7 @@ export default function Invoices() {
           footer={
             <div className="flex w-full items-center justify-between gap-4 flex-wrap">
               <span className="font-medium text-[var(--color-text-primary)]">
-                Total: ₹
-                {formatDecimal(invoiceNetTotal(viewing, viewing.lines))}
+                Total: ₹{formatDecimal(invoiceNetTotal(viewing, viewing.lines))}
               </span>
               <div className="flex gap-2 items-center">
                 <Link
@@ -1099,14 +1076,23 @@ function InvoiceFormModal({
           line_discount_flat: line.line_discount_flat ?? 0,
           bogo_buy_qty: line.bogo_buy_qty ?? null,
           bogo_get_qty: line.bogo_get_qty ?? null,
-          bogo_discount_percent: (line.bogo_buy_qty && line.bogo_get_qty) ? (line.bogo_discount_percent ?? 100) : (line.bogo_discount_percent ?? undefined),
+          bogo_discount_percent:
+            line.bogo_buy_qty && line.bogo_get_qty
+              ? (line.bogo_discount_percent ?? 100)
+              : (line.bogo_discount_percent ?? undefined),
         };
       });
     }
     return [{ ...DEFAULT_LINE_ROW }];
   });
 
-  const inv = invoice as { order_discount_amount?: number; round_to_whole?: number; coupon_code?: string } | undefined;
+  const inv = invoice as
+    | {
+        order_discount_amount?: number;
+        round_to_whole?: number;
+        coupon_code?: string;
+      }
+    | undefined;
   const [orderDiscountPercent, setOrderDiscountPercent] = useState(0);
   const [orderDiscountFlat, setOrderDiscountFlat] = useState(0);
   const [couponCode, setCouponCode] = useState("");
@@ -1181,7 +1167,12 @@ function InvoiceFormModal({
     queryKey: ["tieredDiscountRules"],
     queryFn: () =>
       getElectron().getTieredDiscountRules() as Promise<
-        { min_order_amount: number; discount_percent: number; discount_flat: number; max_discount_amount: number | null }[]
+        {
+          min_order_amount: number;
+          discount_percent: number;
+          discount_flat: number;
+          max_discount_amount: number | null;
+        }[]
       >,
     enabled: open && discountTieredEnabled,
   });
@@ -1297,9 +1288,10 @@ function InvoiceFormModal({
       let priceUnit: string | null;
       const pricePerUnit =
         l.priceMode === "per_unit"
-          ? l.price ?? 0
-          : (l.totalInput && l.totalInput !== "" ? Number(l.totalInput) : l.amount ?? 0) /
-            (l.quantity || 1);
+          ? (l.price ?? 0)
+          : (l.totalInput && l.totalInput !== ""
+              ? Number(l.totalInput)
+              : (l.amount ?? 0)) / (l.quantity || 1);
       if (l.priceMode === "per_unit") {
         const conv = getLineConvFactor(l);
         gross = roundDecimal(l.quantity * conv * l.price, 2);
@@ -1356,7 +1348,10 @@ function InvoiceFormModal({
         line_discount_flat: l.line_discount_flat ?? 0,
         bogo_buy_qty: l.bogo_buy_qty ?? null,
         bogo_get_qty: l.bogo_get_qty ?? null,
-        bogo_discount_percent: (l.bogo_buy_qty && l.bogo_get_qty) ? (l.bogo_discount_percent ?? 100) : (l.bogo_discount_percent ?? undefined),
+        bogo_discount_percent:
+          l.bogo_buy_qty && l.bogo_get_qty
+            ? (l.bogo_discount_percent ?? 100)
+            : (l.bogo_discount_percent ?? undefined),
       };
     });
     const subtotal = linePayloads.reduce((s, l) => s + l.amount, 0);
@@ -1414,9 +1409,10 @@ function InvoiceFormModal({
       let gross: number;
       const pricePerUnit =
         l.priceMode === "per_unit"
-          ? l.price ?? 0
-          : (l.totalInput && l.totalInput !== "" ? Number(l.totalInput) : l.amount ?? 0) /
-            (l.quantity || 1);
+          ? (l.price ?? 0)
+          : (l.totalInput && l.totalInput !== ""
+              ? Number(l.totalInput)
+              : (l.amount ?? 0)) / (l.quantity || 1);
       if (l.priceMode === "per_unit") {
         const factor = getLineConvFactor(l);
         gross = (l.quantity || 0) * factor * (l.price || 0);
@@ -1424,7 +1420,7 @@ function InvoiceFormModal({
         gross =
           l.totalInput !== undefined && l.totalInput !== ""
             ? Number(l.totalInput)
-            : l.amount ?? (l.quantity || 0) * (l.price || 0);
+            : (l.amount ?? (l.quantity || 0) * (l.price || 0));
       }
       const lineDiscResult = computeLineWithDiscounts(
         {
@@ -1441,11 +1437,7 @@ function InvoiceFormModal({
       );
       const discountedGross = lineDiscResult.discountedGross;
       if (gstEnabled && l.gst_rate > 0) {
-        const r = computeLineGst(
-          discountedGross,
-          l.gst_rate,
-          l.gst_inclusive
-        );
+        const r = computeLineGst(discountedGross, l.gst_rate, l.gst_inclusive);
         taxable += r.taxable_amount;
         cgst += r.cgst_amount;
         sgst += r.sgst_amount;
@@ -1670,9 +1662,7 @@ function InvoiceFormModal({
                     step={0.5}
                     value={orderDiscountPercent || ""}
                     onChange={(e) =>
-                      setOrderDiscountPercent(
-                        Number(e.target.value) || 0
-                      )
+                      setOrderDiscountPercent(Number(e.target.value) || 0)
                     }
                     className="input-base w-full"
                     placeholder="0"
@@ -1793,7 +1783,7 @@ function InvoiceFormModal({
                             (line.quantity || 0) * (line.price || 0))) ?? 0);
                   const pricePerUnit =
                     line.priceMode === "per_unit"
-                      ? line.price ?? 0
+                      ? (line.price ?? 0)
                       : (line.quantity || 0) > 0
                         ? lineGross / (line.quantity || 1)
                         : 0;
@@ -1806,8 +1796,7 @@ function InvoiceFormModal({
                       line_discount_flat: line.line_discount_flat ?? 0,
                       bogo_buy_qty: line.bogo_buy_qty ?? null,
                       bogo_get_qty: line.bogo_get_qty ?? null,
-                      bogo_discount_percent:
-                        line.bogo_discount_percent ?? 100,
+                      bogo_discount_percent: line.bogo_discount_percent ?? 100,
                     },
                     {
                       discount_percentage_enabled:
@@ -1827,405 +1816,417 @@ function InvoiceFormModal({
                       : null;
                   const lineTotal = lineGst?.total_amount ?? discountedGross;
                   return (
-                    <div key={line.id ?? line._key ?? idx} className="space-y-0">
                     <div
-                      className={`grid gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
+                      key={line.id ?? line._key ?? idx}
+                      className="space-y-0"
                     >
-                      <select
-                        value={line.product_id || ""}
-                        onChange={(e) =>
-                          handleProductChange(idx, Number(e.target.value))
-                        }
-                        className="input-base w-full min-w-0"
-                        aria-label="Product"
+                      <div
+                        className={`grid gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm ${gstEnabled ? "grid-cols-[10rem_5rem_5rem_6rem_6rem_5rem_1fr_5rem_2.5rem]" : "grid-cols-[10rem_6rem_6rem_7rem_1fr_6rem_2.5rem]"}`}
                       >
-                        <option value="">Select product</option>
-                        {items.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="0"
-                        value={line.quantity || ""}
-                        onChange={(e) => {
-                          const qty = Number(e.target.value) || 0;
-                          setLines((prev) =>
-                            prev.map((p, i) => {
-                              if (i !== idx) return p;
-                              const next = { ...p, quantity: qty };
-                              if (
-                                p.priceMode === "total" &&
-                                p.totalInput !== undefined &&
-                                p.totalInput !== "" &&
-                                qty > 0
-                              ) {
-                                next.price = roundDecimal(
-                                  Number(p.totalInput) / qty,
-                                  4
-                                );
-                              }
-                              return next;
-                            })
-                          );
-                        }}
-                        className="input-base w-full text-right"
-                        aria-label="Quantity"
-                      />
-                      <select
-                        value={line.unit}
-                        onChange={(e) =>
-                          setLines((prev) =>
-                            prev.map((p, i) =>
-                              i === idx ? { ...p, unit: e.target.value } : p
+                        <select
+                          value={line.product_id || ""}
+                          onChange={(e) =>
+                            handleProductChange(idx, Number(e.target.value))
+                          }
+                          className="input-base w-full min-w-0"
+                          aria-label="Product"
+                        >
+                          <option value="">Select product</option>
+                          {items.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0"
+                          value={line.quantity || ""}
+                          onChange={(e) => {
+                            const qty = Number(e.target.value) || 0;
+                            setLines((prev) =>
+                              prev.map((p, i) => {
+                                if (i !== idx) return p;
+                                const next = { ...p, quantity: qty };
+                                if (
+                                  p.priceMode === "total" &&
+                                  p.totalInput !== undefined &&
+                                  p.totalInput !== "" &&
+                                  qty > 0
+                                ) {
+                                  next.price = roundDecimal(
+                                    Number(p.totalInput) / qty,
+                                    4
+                                  );
+                                }
+                                return next;
+                              })
+                            );
+                          }}
+                          className="input-base w-full text-right"
+                          aria-label="Quantity"
+                        />
+                        <select
+                          value={line.unit}
+                          onChange={(e) =>
+                            setLines((prev) =>
+                              prev.map((p, i) =>
+                                i === idx ? { ...p, unit: e.target.value } : p
+                              )
                             )
-                          )
-                        }
-                        className="input-base w-full min-w-0"
-                        aria-label="Unit"
-                      >
-                        <option value="">—</option>
-                        {getUnitsForLine(idx).map((u) => (
-                          <option key={u.id} value={u.name}>
-                            {(u.symbol && u.symbol.trim()) || u.name}
-                          </option>
-                        ))}
-                      </select>
-                      {gstEnabled && (
-                        <>
-                          <select
-                            value={line.gst_rate}
-                            onChange={(e) =>
-                              setLines((prev) =>
-                                prev.map((p, i) =>
-                                  i === idx
-                                    ? { ...p, gst_rate: Number(e.target.value) }
-                                    : p
+                          }
+                          className="input-base w-full min-w-0"
+                          aria-label="Unit"
+                        >
+                          <option value="">—</option>
+                          {getUnitsForLine(idx).map((u) => (
+                            <option key={u.id} value={u.name}>
+                              {(u.symbol && u.symbol.trim()) || u.name}
+                            </option>
+                          ))}
+                        </select>
+                        {gstEnabled && (
+                          <>
+                            <select
+                              value={line.gst_rate}
+                              onChange={(e) =>
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx
+                                      ? {
+                                          ...p,
+                                          gst_rate: Number(e.target.value),
+                                        }
+                                      : p
+                                  )
                                 )
-                              )
-                            }
-                            className="input-base w-full text-sm min-w-0"
-                            aria-label="GST rate"
-                          >
-                            {GST_SLABS.map((r) => (
-                              <option key={r} value={r}>
-                                {r}%
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={
-                              line.gst_inclusive ? "inclusive" : "exclusive"
-                            }
-                            onChange={(e) =>
-                              setLines((prev) =>
-                                prev.map((p, i) =>
-                                  i === idx
-                                    ? {
+                              }
+                              className="input-base w-full text-sm min-w-0"
+                              aria-label="GST rate"
+                            >
+                              {GST_SLABS.map((r) => (
+                                <option key={r} value={r}>
+                                  {r}%
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={
+                                line.gst_inclusive ? "inclusive" : "exclusive"
+                              }
+                              onChange={(e) =>
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx
+                                      ? {
+                                          ...p,
+                                          gst_inclusive:
+                                            e.target.value === "inclusive",
+                                        }
+                                      : p
+                                  )
+                                )
+                              }
+                              className="input-base w-full text-xs min-w-0"
+                              aria-label="GST mode"
+                            >
+                              <option value="exclusive">Excl.</option>
+                              <option value="inclusive">Incl.</option>
+                            </select>
+                          </>
+                        )}
+                        {(() => {
+                          const lineUnits = getUnitsForLine(idx);
+                          const typeValue =
+                            line.priceMode === "per_unit"
+                              ? line.priceUnit
+                              : "total";
+                          return (
+                            <select
+                              value={typeValue}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "total") {
+                                  setLines((prev) =>
+                                    prev.map((p, i) => {
+                                      if (i !== idx) return p;
+                                      const factor = getLineConvFactor(p);
+                                      const lineAmt =
+                                        p.amount ??
+                                        (p.quantity > 0
+                                          ? p.quantity * factor * p.price
+                                          : 0);
+                                      const totalInput =
+                                        lineAmt > 0
+                                          ? formatDecimal(lineAmt)
+                                          : "";
+                                      return {
                                         ...p,
-                                        gst_inclusive:
-                                          e.target.value === "inclusive",
-                                      }
-                                    : p
+                                        priceMode: "total",
+                                        totalInput,
+                                      };
+                                    })
+                                  );
+                                } else {
+                                  setLines((prev) =>
+                                    prev.map((p, i) =>
+                                      i !== idx
+                                        ? p
+                                        : {
+                                            ...p,
+                                            priceMode: "per_unit",
+                                            priceUnit: val,
+                                            totalInput: undefined,
+                                          }
+                                    )
+                                  );
+                                }
+                              }}
+                              className="input-base w-full text-sm min-w-0"
+                              title="Enter price per unit or total for this line"
+                              aria-label="Price type"
+                            >
+                              {lineUnits.length > 0 ? (
+                                lineUnits.map((u) => (
+                                  <option key={u.id} value={u.name}>
+                                    Per {u?.symbol?.trim() || u.name}
+                                  </option>
+                                ))
+                              ) : (
+                                <option value={line.priceUnit || ""}>
+                                  Per{" "}
+                                  {unitToShort(line.priceUnit, allUnits) ||
+                                    "unit"}
+                                </option>
+                              )}
+                              <option value="total">Total</option>
+                            </select>
+                          );
+                        })()}
+                        {line.priceMode === "per_unit" ? (
+                          <>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              placeholder="0"
+                              value={line.price || ""}
+                              onChange={(e) =>
+                                setLines((prev) =>
+                                  prev.map((p, i) =>
+                                    i === idx
+                                      ? {
+                                          ...p,
+                                          price: Number(e.target.value) || 0,
+                                        }
+                                      : p
+                                  )
                                 )
-                              )
-                            }
-                            className="input-base w-full text-xs min-w-0"
-                            aria-label="GST mode"
-                          >
-                            <option value="exclusive">Excl.</option>
-                            <option value="inclusive">Incl.</option>
-                          </select>
-                        </>
-                      )}
-                      {(() => {
-                        const lineUnits = getUnitsForLine(idx);
-                        const typeValue =
-                          line.priceMode === "per_unit"
-                            ? line.priceUnit
-                            : "total";
-                        return (
-                          <select
-                            value={typeValue}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "total") {
+                              }
+                              className="input-base w-full text-right"
+                              aria-label="Unit price"
+                            />
+                            <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
+                              ₹{formatDecimal(lineTotal)}
+                              {lineGst && line.gst_rate > 0 && (
+                                <span className="block text-[10px] text-[var(--color-text-tertiary)]">
+                                  (tax ₹
+                                  {formatDecimal(
+                                    lineGst.cgst_amount + lineGst.sgst_amount
+                                  )}
+                                  )
+                                </span>
+                              )}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              placeholder="0"
+                              value={getLineTotalDisplay(line)}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const total = Number(raw) || 0;
                                 setLines((prev) =>
                                   prev.map((p, i) => {
                                     if (i !== idx) return p;
-                                    const factor = getLineConvFactor(p);
-                                    const lineAmt =
-                                      p.amount ??
-                                      (p.quantity > 0
-                                        ? p.quantity * factor * p.price
-                                        : 0);
-                                    const totalInput =
-                                      lineAmt > 0 ? formatDecimal(lineAmt) : "";
-                                    return {
+                                    const next = {
                                       ...p,
-                                      priceMode: "total",
-                                      totalInput,
+                                      totalInput: raw,
                                     };
+                                    if (p.quantity > 0 && total >= 0) {
+                                      next.price = roundDecimal(
+                                        total / p.quantity,
+                                        4
+                                      );
+                                    }
+                                    return next;
                                   })
                                 );
-                              } else {
-                                setLines((prev) =>
-                                  prev.map((p, i) =>
-                                    i !== idx
-                                      ? p
-                                      : {
-                                          ...p,
-                                          priceMode: "per_unit",
-                                          priceUnit: val,
-                                          totalInput: undefined,
-                                        }
-                                  )
-                                );
-                              }
-                            }}
-                            className="input-base w-full text-sm min-w-0"
-                            title="Enter price per unit or total for this line"
-                            aria-label="Price type"
-                          >
-                            {lineUnits.length > 0 ? (
-                              lineUnits.map((u) => (
-                                <option key={u.id} value={u.name}>
-                                  Per {u?.symbol?.trim() || u.name}
-                                </option>
-                              ))
-                            ) : (
-                              <option value={line.priceUnit || ""}>
-                                Per{" "}
-                                {unitToShort(line.priceUnit, allUnits) ||
-                                  "unit"}
-                              </option>
-                            )}
-                            <option value="total">Total</option>
-                          </select>
-                        );
-                      })()}
-                      {line.priceMode === "per_unit" ? (
-                        <>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            placeholder="0"
-                            value={line.price || ""}
-                            onChange={(e) =>
-                              setLines((prev) =>
-                                prev.map((p, i) =>
-                                  i === idx
-                                    ? {
-                                        ...p,
-                                        price: Number(e.target.value) || 0,
-                                      }
-                                    : p
-                                )
-                              )
-                            }
-                            className="input-base w-full text-right"
-                            aria-label="Unit price"
-                          />
-                          <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
-                            ₹{formatDecimal(lineTotal)}
-                            {lineGst && line.gst_rate > 0 && (
-                              <span className="block text-[10px] text-[var(--color-text-tertiary)]">
-                                (tax ₹
-                                {formatDecimal(
-                                  lineGst.cgst_amount + lineGst.sgst_amount
-                                )}
-                                )
-                              </span>
-                            )}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            placeholder="0"
-                            value={getLineTotalDisplay(line)}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const total = Number(raw) || 0;
-                              setLines((prev) =>
-                                prev.map((p, i) => {
-                                  if (i !== idx) return p;
-                                  const next = {
-                                    ...p,
-                                    totalInput: raw,
-                                  };
-                                  if (p.quantity > 0 && total >= 0) {
-                                    next.price = roundDecimal(
-                                      total / p.quantity,
-                                      4
-                                    );
-                                  }
-                                  return next;
-                                })
-                              );
-                            }}
-                            className="input-base w-full text-right"
-                            title="Total amount for this line (quantity can be entered before or after)"
-                            aria-label="Line total"
-                          />
-                          <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
-                            ₹{formatDecimal(lineTotal)}
-                            {lineGst && line.gst_rate > 0 && (
-                              <span className="block text-[10px] text-[var(--color-text-tertiary)]">
-                                (tax ₹
-                                {formatDecimal(
-                                  lineGst.cgst_amount + lineGst.sgst_amount
-                                )}
-                                )
-                              </span>
-                            )}
-                          </span>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLines((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
-                        aria-label="Remove line"
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
-                    </div>
-                    {(discountPctEnabled ||
-                      discountFlatEnabled ||
-                      discountBogoEnabled) && (
-                      <div className="pl-2 pt-1 flex flex-wrap gap-4 text-xs">
-                        {discountPctEnabled && (
-                          <label className="flex items-center gap-1">
-                            <span className="text-[var(--color-text-secondary)]">% off:</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={0.5}
-                              value={
-                                (line.line_discount_percent ?? 0) || ""
-                              }
-                              onChange={(e) =>
-                                setLines((prev) =>
-                                  prev.map((p, i) =>
-                                    i === idx
-                                      ? {
-                                          ...p,
-                                          line_discount_percent:
-                                            Number(e.target.value) || 0,
-                                        }
-                                      : p
-                                  )
-                                )
-                              }
-                              className="input-base w-14 py-1 text-right"
+                              }}
+                              className="input-base w-full text-right"
+                              title="Total amount for this line (quantity can be entered before or after)"
+                              aria-label="Line total"
                             />
-                          </label>
-                        )}
-                        {discountFlatEnabled && (
-                          <label className="flex items-center gap-1">
-                            <span className="text-[var(--color-text-secondary)]">Rs off:</span>
-                            <input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              value={
-                                (line.line_discount_flat ?? 0) || ""
-                              }
-                              onChange={(e) =>
-                                setLines((prev) =>
-                                  prev.map((p, i) =>
-                                    i === idx
-                                      ? {
-                                          ...p,
-                                          line_discount_flat:
-                                            Number(e.target.value) || 0,
-                                        }
-                                      : p
+                            <span className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
+                              ₹{formatDecimal(lineTotal)}
+                              {lineGst && line.gst_rate > 0 && (
+                                <span className="block text-[10px] text-[var(--color-text-tertiary)]">
+                                  (tax ₹
+                                  {formatDecimal(
+                                    lineGst.cgst_amount + lineGst.sgst_amount
+                                  )}
                                   )
-                                )
-                              }
-                              className="input-base w-16 py-1 text-right"
-                            />
-                          </label>
-                        )}
-                        {discountBogoEnabled && (
-                          <>
-                            <label className="flex items-center gap-1">
-                              <span className="text-[var(--color-text-secondary)]">BOGO buy:</span>
-                              <input
-                                type="number"
-                                min={0}
-                                step={1}
-                                placeholder="—"
-                                value={
-                                  (line.bogo_buy_qty ?? "") === ""
-                                    ? ""
-                                    : line.bogo_buy_qty ?? ""
-                                }
-                                onChange={(e) =>
-                                  setLines((prev) =>
-                                    prev.map((p, i) =>
-                                      i === idx
-                                        ? {
-                                            ...p,
-                                            bogo_buy_qty:
-                                              e.target.value === ""
-                                                ? null
-                                                : Number(e.target.value) || 0,
-                                          }
-                                        : p
-                                    )
-                                  )
-                                }
-                                className="input-base w-12 py-1 text-right"
-                              />
-                            </label>
-                            <label className="flex items-center gap-1">
-                              <span className="text-[var(--color-text-secondary)]">get:</span>
-                              <input
-                                type="number"
-                                min={0}
-                                step={1}
-                                placeholder="—"
-                                value={
-                                  (line.bogo_get_qty ?? "") === ""
-                                    ? ""
-                                    : line.bogo_get_qty ?? ""
-                                }
-                                onChange={(e) =>
-                                  setLines((prev) =>
-                                    prev.map((p, i) =>
-                                      i === idx
-                                        ? {
-                                            ...p,
-                                            bogo_get_qty:
-                                              e.target.value === ""
-                                                ? null
-                                                : Number(e.target.value) || 0,
-                                          }
-                                        : p
-                                    )
-                                  )
-                                }
-                                className="input-base w-12 py-1 text-right"
-                              />
-                            </label>
+                                </span>
+                              )}
+                            </span>
                           </>
                         )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLines((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] text-xs font-medium py-1.5 px-2 rounded transition-colors inline-flex items-center gap-1"
+                          aria-label="Remove line"
+                        >
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
                       </div>
-                    )}
+                      {(discountPctEnabled ||
+                        discountFlatEnabled ||
+                        discountBogoEnabled) && (
+                        <div className="pl-2 pt-1 flex flex-wrap gap-4 text-xs">
+                          {discountPctEnabled && (
+                            <label className="flex items-center gap-1">
+                              <span className="text-[var(--color-text-secondary)]">
+                                % off:
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.5}
+                                value={(line.line_discount_percent ?? 0) || ""}
+                                onChange={(e) =>
+                                  setLines((prev) =>
+                                    prev.map((p, i) =>
+                                      i === idx
+                                        ? {
+                                            ...p,
+                                            line_discount_percent:
+                                              Number(e.target.value) || 0,
+                                          }
+                                        : p
+                                    )
+                                  )
+                                }
+                                className="input-base w-14 py-1 text-right"
+                              />
+                            </label>
+                          )}
+                          {discountFlatEnabled && (
+                            <label className="flex items-center gap-1">
+                              <span className="text-[var(--color-text-secondary)]">
+                                Rs off:
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={(line.line_discount_flat ?? 0) || ""}
+                                onChange={(e) =>
+                                  setLines((prev) =>
+                                    prev.map((p, i) =>
+                                      i === idx
+                                        ? {
+                                            ...p,
+                                            line_discount_flat:
+                                              Number(e.target.value) || 0,
+                                          }
+                                        : p
+                                    )
+                                  )
+                                }
+                                className="input-base w-16 py-1 text-right"
+                              />
+                            </label>
+                          )}
+                          {discountBogoEnabled && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <span className="text-[var(--color-text-secondary)]">
+                                  BOGO buy:
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  placeholder="—"
+                                  value={
+                                    (line.bogo_buy_qty ?? "") === ""
+                                      ? ""
+                                      : (line.bogo_buy_qty ?? "")
+                                  }
+                                  onChange={(e) =>
+                                    setLines((prev) =>
+                                      prev.map((p, i) =>
+                                        i === idx
+                                          ? {
+                                              ...p,
+                                              bogo_buy_qty:
+                                                e.target.value === ""
+                                                  ? null
+                                                  : Number(e.target.value) || 0,
+                                            }
+                                          : p
+                                      )
+                                    )
+                                  }
+                                  className="input-base w-12 py-1 text-right"
+                                />
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <span className="text-[var(--color-text-secondary)]">
+                                  get:
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  placeholder="—"
+                                  value={
+                                    (line.bogo_get_qty ?? "") === ""
+                                      ? ""
+                                      : (line.bogo_get_qty ?? "")
+                                  }
+                                  onChange={(e) =>
+                                    setLines((prev) =>
+                                      prev.map((p, i) =>
+                                        i === idx
+                                          ? {
+                                              ...p,
+                                              bogo_get_qty:
+                                                e.target.value === ""
+                                                  ? null
+                                                  : Number(e.target.value) || 0,
+                                            }
+                                          : p
+                                      )
+                                    )
+                                  }
+                                  className="input-base w-12 py-1 text-right"
+                                />
+                              </label>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

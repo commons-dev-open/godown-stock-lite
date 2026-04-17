@@ -7,14 +7,12 @@ export interface SalesListHeroMetric {
 
 interface SalesListHeroProps {
   title: string;
-  contextPill: string;
   metrics: readonly SalesListHeroMetric[];
   actions: ReactNode;
 }
 
 function SalesListHeroComponent({
   title,
-  contextPill,
   metrics,
   actions,
 }: Readonly<SalesListHeroProps>) {
@@ -28,9 +26,6 @@ function SalesListHeroComponent({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
               {title}
             </h1>
-            <span className="dashboard-context-pill self-start">
-              {contextPill}
-            </span>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-3 lg:shrink-0">
             {hasMetrics ? (

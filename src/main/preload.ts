@@ -530,6 +530,9 @@ const electronAPI = {
       { canceled: true } | { canceled: false }
     >,
 
+  openExternal: (url: string) =>
+    ipcRenderer.invoke("app:openExternal", url) as Promise<void>,
+
   // Auth
   auth: {
     setupSuperAdmin: (payload: {

@@ -16,7 +16,11 @@ interface MahajansSummarySectionProps {
 
 function SummarySkeleton() {
   return (
-    <div className="animate-pulse space-y-3" aria-busy="true" aria-label="Loading totals">
+    <div
+      className="animate-pulse space-y-3"
+      aria-busy="true"
+      aria-label="Loading totals"
+    >
       <div className="h-8 w-36 rounded-md bg-[var(--color-bg-surface-raised)]" />
       <div className="flex flex-wrap gap-3">
         <div className="h-4 w-40 rounded bg-[var(--color-bg-surface-raised)]" />
@@ -44,7 +48,7 @@ export function MahajansSummarySection({
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
             Totals across lenders
           </h2>
-          <p className="mt-1 text-sm text-[var(--color-text-tertiary)] max-w-3xl">
+          <p className="mt-1 text-sm text-[var(--color-text-tertiary)] max-w-4xl">
             Credit purchases and settlements roll up here. Use the{" "}
             <span className="text-[var(--color-text-secondary)]">
               Fetch latest
@@ -57,7 +61,10 @@ export function MahajansSummarySection({
       <div className="mt-4 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-4">
         {isLoading && <SummarySkeleton />}
         {!isLoading && isError && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <div
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            role="alert"
+          >
             <p className="text-sm text-[var(--color-danger)]">
               Failed to load totals
               {error instanceof Error ? `: ${error.message}` : ""}
@@ -114,7 +121,9 @@ export function MahajansSummarySection({
               </span>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[var(--color-text-secondary)]">Balance</span>
+              <span className="text-[var(--color-text-secondary)]">
+                Balance
+              </span>
               <span className={mahajanNetBalanceTextClass(summary.balance)}>
                 ₹{formatDecimal(Math.abs(summary.balance))}
                 {summary.balance > 0 && " (payable)"}
@@ -131,7 +140,9 @@ export function MahajansSummarySection({
               </span>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[var(--color-text-secondary)]">Payable</span>
+              <span className="text-[var(--color-text-secondary)]">
+                Payable
+              </span>
               <span className="font-medium text-[var(--color-danger)]">
                 {summary.countIOwe}{" "}
                 {summary.countIOwe === 1 ? "lender" : "lenders"}

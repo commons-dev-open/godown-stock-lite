@@ -18,7 +18,7 @@ import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import Button from "../components/Button";
-import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
@@ -82,8 +82,9 @@ export default function DailySales() {
     rows: string[][];
     filterDetails?: { label: string; value: string }[];
   } | null>(null);
-  const [deleteConfirmSale, setDeleteConfirmSale] =
-    useState<DailySale | null>(null);
+  const [deleteConfirmSale, setDeleteConfirmSale] = useState<DailySale | null>(
+    null
+  );
 
   const {
     refs: exportRefs,
@@ -107,9 +108,10 @@ export default function DailySales() {
   } = useInteractions([exportClick, exportDismiss]);
 
   useEffect(() => {
-    const state = location.state as
-      | { dateFrom?: string; dateTo?: string }
-      | null;
+    const state = location.state as {
+      dateFrom?: string;
+      dateTo?: string;
+    } | null;
     if (state?.dateFrom) setFromDate(state.dateFrom);
     if (state?.dateTo) setToDate(state.dateTo);
   }, [location.state]);
@@ -274,15 +276,6 @@ export default function DailySales() {
     setPage(1);
   }, []);
 
-  const dailySalesContextPill = useMemo(() => {
-    if (!fromDate && !toDate) {
-      return "Viewing: All dates · most recent first";
-    }
-    const fromLabel = fromDate ? formatDateForView(fromDate) : "Start";
-    const toLabel = toDate ? formatDateForView(toDate) : "End";
-    return `Viewing: ${fromLabel} → ${toLabel}`;
-  }, [fromDate, toDate]);
-
   const dailySalesHeroMetrics = useMemo(
     () => [
       {
@@ -317,7 +310,6 @@ export default function DailySales() {
     <div className="space-y-4 home-dashboard pb-3">
       <SalesListHero
         title="Daily Sales"
-        contextPill={dailySalesContextPill}
         metrics={dailySalesHeroMetrics}
         actions={
           <>
@@ -426,97 +418,97 @@ export default function DailySales() {
           </div>
 
           <div className="mt-4">
-          <SalesListAsyncPanel
-            isLoading={isLoading}
-            isError={salesPageError}
-            onRetry={() => {
-              void refetchDailySalesPage();
-            }}
-            isEmpty={isSalesEmpty}
-            emptyTitle={
-              salesHasDateFilters ? "No sales in this range" : "No daily sales yet"
-            }
-            emptyDescription={
-              salesHasDateFilters
-                ? "Try clearing the date filters or picking a wider range."
-                : "Add a sale for today or import history so this register stays in sync with your till and invoices."
-            }
-            emptyActionLabel={
-              salesHasDateFilters ? "Clear date filters" : "Add sale"
-            }
-            onEmptyAction={
-              salesHasDateFilters ? clearDateFilters : () => setAddOpen(true)
-            }
-            emptySecondaryLabel={
-              salesHasDateFilters ? "Add sale" : undefined
-            }
-            onEmptySecondary={
-              salesHasDateFilters ? () => setAddOpen(true) : undefined
-            }
-            loaderColumns={6}
-          >
-            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <DataTable<DailySale>
-              columns={[
-                {
-                  key: "sale_date",
-                  label: "Date",
-                  render: (r) => (
-                    <Tooltip content={formatDateForForm(r.sale_date)}>
-                      <span>{formatDateForView(r.sale_date)}</span>
-                    </Tooltip>
-                  ),
-                },
-                {
-                  key: "sale_amount",
-                  label: "Total Sale",
-                  render: (r) => formatDecimal(r.sale_amount),
-                },
-                {
-                  key: "invoice_sales",
-                  label: "Invoice Sales",
-                  render: (r) => formatDecimal(r.invoice_sales ?? 0),
-                },
-                {
-                  key: "misc_sales",
-                  label: "Misc / Cash Sales",
-                  render: (r) => formatDecimal(r.misc_sales ?? 0),
-                },
-                {
-                  key: "cash_in_hand",
-                  label: "Cash in Hand",
-                  render: (r) => formatDecimal(r.cash_in_hand),
-                },
-                {
-                  key: "expenditure_amount",
-                  label: "Expenditure",
-                  render: (r) => formatDecimal(r.expenditure_amount ?? 0),
-                },
-              ]}
-              data={sales}
-              onEdit={setEditing}
-              onDelete={(row) => setDeleteConfirmSale(row)}
-              extraActions={(row) => (
-                <Link
-                  to="/invoices"
-                  state={{ dateFrom: row.sale_date, dateTo: row.sale_date }}
-                  className="p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
-                  title="View invoices for this date"
-                  aria-label="View invoices for this date"
-                >
-                  <FileText size={20} />
-                </Link>
-              )}
-              emptyMessage="No sales yet. Click Add Sale or adjust filters."
-            />
-            <Pagination
-              page={page}
-              total={totalSales}
-              limit={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-            </div>
-          </SalesListAsyncPanel>
+            <SalesListAsyncPanel
+              isLoading={isLoading}
+              isError={salesPageError}
+              onRetry={() => {
+                void refetchDailySalesPage();
+              }}
+              isEmpty={isSalesEmpty}
+              emptyTitle={
+                salesHasDateFilters
+                  ? "No sales in this range"
+                  : "No daily sales yet"
+              }
+              emptyDescription={
+                salesHasDateFilters
+                  ? "Try clearing the date filters or picking a wider range."
+                  : "Add a sale for today or import history so this register stays in sync with your till and invoices."
+              }
+              emptyActionLabel={
+                salesHasDateFilters ? "Clear date filters" : "Add sale"
+              }
+              onEmptyAction={
+                salesHasDateFilters ? clearDateFilters : () => setAddOpen(true)
+              }
+              emptySecondaryLabel={salesHasDateFilters ? "Add sale" : undefined}
+              onEmptySecondary={
+                salesHasDateFilters ? () => setAddOpen(true) : undefined
+              }
+              loaderColumns={6}
+            >
+              <DataTable<DailySale>
+                scrollMaxHeight={`calc(100vh - 20.5rem)`}
+                columns={[
+                  {
+                    key: "sale_date",
+                    label: "Date",
+                    render: (r) => (
+                      <Tooltip content={formatDateForForm(r.sale_date)}>
+                        <span>{formatDateForView(r.sale_date)}</span>
+                      </Tooltip>
+                    ),
+                  },
+                  {
+                    key: "sale_amount",
+                    label: "Total Sale",
+                    render: (r) => formatDecimal(r.sale_amount),
+                  },
+                  {
+                    key: "invoice_sales",
+                    label: "Invoice Sales",
+                    render: (r) => formatDecimal(r.invoice_sales ?? 0),
+                  },
+                  {
+                    key: "misc_sales",
+                    label: "Misc / Cash Sales",
+                    render: (r) => formatDecimal(r.misc_sales ?? 0),
+                  },
+                  {
+                    key: "cash_in_hand",
+                    label: "Cash in Hand",
+                    render: (r) => formatDecimal(r.cash_in_hand),
+                  },
+                  {
+                    key: "expenditure_amount",
+                    label: "Expenditure",
+                    render: (r) => formatDecimal(r.expenditure_amount ?? 0),
+                  },
+                ]}
+                data={sales}
+                onEdit={setEditing}
+                onDelete={(row) => setDeleteConfirmSale(row)}
+                extraActions={(row) => (
+                  <Link
+                    to="/invoices"
+                    state={{ dateFrom: row.sale_date, dateTo: row.sale_date }}
+                    className="p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
+                    title="View invoices for this date"
+                    aria-label="View invoices for this date"
+                  >
+                    <FileText size={20} />
+                  </Link>
+                )}
+                emptyMessage="No sales yet. Click Add Sale or adjust filters."
+                pagination={{
+                  type: "controlled",
+                  page,
+                  total: totalSales,
+                  onPageChange: setPage,
+                  pageSize: PAGE_SIZE,
+                }}
+              />
+            </SalesListAsyncPanel>
           </div>
         </SalesListSectionPanel>
       </DashboardSectionBoundary>
@@ -760,14 +752,23 @@ export default function DailySales() {
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">Daily Sales</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {appName}
+            </p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Daily Sales
+            </p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
+                  <p className="font-medium text-[var(--color-text-secondary)]">
+                    Applied filters
+                  </p>
                   {printData.filterDetails.map((f) => (
-                    <p key={f.label} className="text-[var(--color-text-secondary)]">
+                    <p
+                      key={f.label}
+                      className="text-[var(--color-text-secondary)]"
+                    >
                       {f.label}: {f.value}
                     </p>
                   ))}

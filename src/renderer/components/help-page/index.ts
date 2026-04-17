@@ -1,3 +1,4 @@
+export { HelpDeveloperContact } from "./HelpDeveloperContact";
 export { HelpEmptyState } from "./HelpEmptyState";
 export { HelpHero } from "./HelpHero";
 export { HelpSectionPanel } from "./HelpSectionPanel";

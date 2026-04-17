@@ -79,7 +79,12 @@ function SidebarNavLink({
 
   const link = (
     <NavLink to={to} className={navClass} end={end}>
-      <Icon size={20} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+      <Icon
+        size={20}
+        strokeWidth={1.5}
+        className="shrink-0"
+        aria-hidden="true"
+      />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
@@ -140,7 +145,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     const handler = (e: KeyboardEvent) => {
       if (
         ["INPUT", "TEXTAREA", "SELECT"].includes(
-          (e.target as HTMLElement).tagName,
+          (e.target as HTMLElement).tagName
         )
       )
         return;
@@ -148,7 +153,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         if (e.key === "k") {
           e.preventDefault();
           const search = document.querySelector(
-            'input[type="search"], input[placeholder*="Search"]',
+            'input[type="search"], input[placeholder*="Search"]'
           ) as HTMLElement;
           search?.focus();
         }
@@ -197,11 +202,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             <ToggleIcon size={18} strokeWidth={1.5} />
           </button>
         </div>
-        <nav className={`flex-1 overflow-y-auto ${collapsed ? "p-1.5" : "p-3"}`}>
+        <nav
+          className={`flex-1 overflow-y-auto ${collapsed ? "p-1.5" : "p-3"}`}
+        >
           <ul className="space-y-0.5">
             {mainNavItems.map((item) => (
               <li key={item.to}>
-                <SidebarNavLink {...item} collapsed={collapsed} end={item.to === "/"} />
+                <SidebarNavLink
+                  {...item}
+                  collapsed={collapsed}
+                  end={item.to === "/"}
+                />
               </li>
             ))}
           </ul>
@@ -252,13 +263,20 @@ export default function Layout({ children }: { children: ReactNode }) {
                 >
                   <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
                   {!collapsed && (
-                    <span className="text-[10px] font-medium leading-none">{label}</span>
+                    <span className="text-[10px] font-medium leading-none">
+                      {label}
+                    </span>
                   )}
                 </button>
               );
               if (collapsed) {
                 return (
-                  <Tooltip key={value} content={`${label} theme`} placement="right" delay={100}>
+                  <Tooltip
+                    key={value}
+                    content={`${label} theme`}
+                    placement="right"
+                    delay={100}
+                  >
                     {btn}
                   </Tooltip>
                 );
@@ -270,7 +288,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         {/* Current user + lock */}
         {currentUser && (
-          <div className={`border-t border-[var(--color-bg-sidebar-hover)] flex ${collapsed ? "flex-col items-center gap-1 p-2" : "items-center gap-2 p-3"}`}>
+          <div
+            className={`border-t border-[var(--color-bg-sidebar-hover)] flex ${collapsed ? "flex-col items-center gap-1 p-2" : "items-center gap-2 p-3"}`}
+          >
             {collapsed ? (
               <Tooltip
                 content={`${currentUser.name} · ${currentUser.role === "superadmin" ? "Owner" : currentUser.role}`}
@@ -287,8 +307,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                   {getInitials(currentUser.name)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">{currentUser.name}</p>
-                  <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">{currentUser.role === "superadmin" ? "Owner" : currentUser.role}</p>
+                  <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                    {currentUser.name}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">
+                    {currentUser.role === "superadmin"
+                      ? "Owner"
+                      : currentUser.role}
+                  </p>
                 </div>
               </>
             )}
@@ -305,7 +331,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
       </aside>
-      <main className="flex-1 overflow-auto px-8 pb-6 animate-fade-in">{children}</main>
+      <main className="flex-1 overflow-auto px-8 pb-2 animate-fade-in">
+        {children}
+      </main>
     </div>
   );
 }

@@ -1,6 +1,17 @@
-import { ReactNode, useMemo, useState } from "react";
+import {
+  CSSProperties,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import Tooltip from "./Tooltip";
+import Pagination, { PAGE_SIZE } from "./Pagination";
+import {
+  useTableScrollMaxHeight,
+  type TableScrollHeightPreset,
+} from "../hooks/useTableScrollMaxHeight";
 
 interface Column<T> {
   key: string;
@@ -12,6 +23,30 @@ interface Column<T> {
 
 type SortDir = "asc" | "desc" | null;
 
+export interface DataTableClientPagination {
+  type: "client";
+  pageSize?: number;
+  /**
+   * When both are set, client page is controlled by the parent (e.g. separate
+   * page index per tab while the same DataTable component type is reconciled in place).
+   */
+  page?: number;
+  onPageChange?: (page: number) => void;
+}
+
+export interface DataTableControlledPagination {
+  type: "controlled";
+  page: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  pageSize?: number;
+}
+
+export type DataTablePagination =
+  | false
+  | DataTableClientPagination
+  | DataTableControlledPagination;
+
 interface DataTableProps<T extends { id: number }> {
   columns: Column<T>[];
   data: T[];
@@ -22,8 +57,26 @@ interface DataTableProps<T extends { id: number }> {
   /** Optional extra action buttons (e.g. link to related page) */
   extraActions?: (row: T) => ReactNode;
   emptyMessage?: string;
-  /** Optional class for the scroll wrapper (e.g. table-scroll-wrap--shorter) */
-  scrollWrapClassName?: string;
+  /** When set, overrides responsive preset height on the scroll wrapper. */
+  scrollMaxHeight?: CSSProperties["maxHeight"];
+  /**
+   * Responsive max-height when `scrollMaxHeight` is omitted (matches former CSS presets).
+   * @default "default"
+   */
+  scrollHeightPreset?: TableScrollHeightPreset;
+  /** Stable row key for lists where `id` alone is not unique (e.g. ledger type+id). */
+  getRowKey?: (row: T) => string | number;
+  tableClassName?: string;
+  rowClassName?: string;
+  /** When true, action / extraActions column stays visible without row hover. */
+  alwaysShowRowActions?: boolean;
+  /** Client-side paging (slice after sort) or controlled (parent passes paged rows + totals). */
+  pagination?: DataTablePagination;
+  /**
+   * When pagination is enabled, wraps the scroll area and footer in the standard card
+   * (rounded border + surface bg). Default true. Use false inside modals to avoid nested cards.
+   */
+  tableFrame?: boolean;
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -34,8 +87,67 @@ export default function DataTable<T extends { id: number }>({
   canDelete,
   extraActions,
   emptyMessage = "No data",
-  scrollWrapClassName,
+  scrollMaxHeight,
+  scrollHeightPreset = "default",
+  getRowKey,
+  tableClassName = "min-w-full",
+  rowClassName = "group border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-accent-subtle)] transition-colors",
+  alwaysShowRowActions = false,
+  pagination,
+  tableFrame,
 }: DataTableProps<T>) {
+  const presetMaxHeight = useTableScrollMaxHeight(
+    scrollMaxHeight != null ? null : scrollHeightPreset
+  );
+  const wrapStyle: CSSProperties | undefined =
+    scrollMaxHeight != null
+      ? { maxHeight: scrollMaxHeight }
+      : presetMaxHeight != null
+        ? { maxHeight: presetMaxHeight }
+        : undefined;
+
+  const rowKeyFn = getRowKey ?? ((row: T) => row.id);
+
+  const paginationEnabled =
+    pagination !== undefined && pagination !== false;
+
+  const isClient =
+    paginationEnabled && pagination && pagination.type === "client";
+
+  const isControlledClient =
+    isClient &&
+    pagination.type === "client" &&
+    typeof pagination.page === "number" &&
+    pagination.onPageChange !== undefined;
+
+  const pageSize =
+    paginationEnabled && pagination && pagination.type !== undefined
+      ? (pagination.pageSize ?? PAGE_SIZE)
+      : PAGE_SIZE;
+
+  const [internalClientPage, setInternalClientPage] = useState(1);
+
+  const clientPage = isControlledClient
+    ? pagination.page!
+    : internalClientPage;
+
+  const setClientPage = isControlledClient
+    ? pagination.onPageChange!
+    : setInternalClientPage;
+
+  useEffect(() => {
+    if (!isClient) {
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+    if (clientPage > totalPages) {
+      setClientPage(totalPages);
+    }
+  }, [isClient, data.length, pageSize, clientPage]);
+
+  const useTableCardFrame =
+    paginationEnabled && (tableFrame !== false);
+
   // ── Sort state ──────────────────────────────────────────────────────
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
@@ -78,22 +190,41 @@ export default function DataTable<T extends { id: number }>({
     });
   }, [data, sortKey, sortDir]);
 
-  // ── Render ──────────────────────────────────────────────────────────
-  if (data.length === 0) {
-    return (
-      <div className="text-center py-8 text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)]">
-        {emptyMessage}
-      </div>
-    );
-  }
-  return (
-    <div
-      className={
-        "table-scroll-wrap overflow-x-auto" +
-        (scrollWrapClassName ? ` ${scrollWrapClassName}` : "")
-      }
-    >
-      <table className="min-w-full">
+  useEffect(() => {
+    if (!isClient) {
+      return;
+    }
+    setClientPage(1);
+  }, [sortKey, sortDir, isClient]);
+
+  const displayRows = useMemo(() => {
+    if (!isClient) {
+      return sortedData;
+    }
+    const start = (clientPage - 1) * pageSize;
+    return sortedData.slice(start, start + pageSize);
+  }, [isClient, sortedData, clientPage, pageSize]);
+
+  const paginationNode =
+    paginationEnabled && pagination && pagination.type === "client" ? (
+      <Pagination
+        page={clientPage}
+        total={sortedData.length}
+        limit={pageSize}
+        onPageChange={setClientPage}
+      />
+    ) : paginationEnabled && pagination && pagination.type === "controlled" ? (
+      <Pagination
+        page={pagination.page}
+        total={pagination.total}
+        limit={pagination.pageSize ?? PAGE_SIZE}
+        onPageChange={pagination.onPageChange}
+      />
+    ) : null;
+
+  const tableBlock = (
+    <div className="table-scroll-wrap overflow-x-auto" style={wrapStyle}>
+      <table className={tableClassName}>
         <thead>
           <tr>
             {columns.map((col) => {
@@ -141,11 +272,8 @@ export default function DataTable<T extends { id: number }>({
           </tr>
         </thead>
         <tbody>
-          {sortedData.map((row) => (
-            <tr
-              key={row.id}
-              className="group border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-accent-subtle)] transition-colors"
-            >
+          {displayRows.map((row) => (
+            <tr key={String(rowKeyFn(row))} className={rowClassName}>
               {columns.map((col) => (
                 <td key={col.key} className="px-4 py-2.5 text-sm text-[var(--color-text-primary)]">
                   {col.render
@@ -155,7 +283,14 @@ export default function DataTable<T extends { id: number }>({
               ))}
               {(onEdit || onDelete || extraActions) && (
                 <td className="px-2 py-2.5 text-right text-sm w-[1%]">
-                  <span className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span
+                    className={
+                      "inline-flex items-center gap-0.5 transition-opacity" +
+                      (alwaysShowRowActions
+                        ? " opacity-100"
+                        : " opacity-0 group-hover:opacity-100")
+                    }
+                  >
                     {extraActions?.(row)}
                     {onEdit && (
                       <Tooltip content="Edit">
@@ -191,4 +326,33 @@ export default function DataTable<T extends { id: number }>({
       </table>
     </div>
   );
+
+  // ── Render ──────────────────────────────────────────────────────────
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-8 text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)]">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  if (paginationEnabled && paginationNode && useTableCardFrame) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        {tableBlock}
+        {paginationNode}
+      </div>
+    );
+  }
+
+  if (paginationEnabled && paginationNode) {
+    return (
+      <>
+        {tableBlock}
+        {paginationNode}
+      </>
+    );
+  }
+
+  return tableBlock;
 }
