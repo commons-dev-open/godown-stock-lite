@@ -12,6 +12,9 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outPath = path.resolve(__dirname, "..", "src", "shared", "buildConfig.ts");
 const trial = process.env.TRIAL_MODE === "true";
+const masterKeyDevHash = process.env.MASTER_KEY_DEV_HASH
+  ? JSON.stringify(process.env.MASTER_KEY_DEV_HASH)
+  : JSON.stringify("DEV_HASH_NOT_SET");
 
 let trialEndIso = '""';
 if (trial) {
@@ -35,6 +38,11 @@ const content = `/**
 export const TRIAL_MODE = ${trial};
 /** ISO date-time string when trial ends (e.g. "2025-04-15T23:59:59.000Z"). Empty when not trial. */
 export const TRIAL_END_ISO = ${trialEndIso};
+/**
+ * PBKDF2 pin hash for optional developer master key recovery.
+ * Set at build: MASTER_KEY_DEV_HASH='<salt:hash>' npm run build. DEV_HASH_NOT_SET disables.
+ */
+export const MASTER_KEY_DEV_HASH = ${masterKeyDevHash};
 `;
 
 fs.writeFileSync(outPath, content, "utf8");

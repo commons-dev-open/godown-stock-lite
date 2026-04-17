@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useFloating,
@@ -14,14 +13,13 @@ import {
 } from "@floating-ui/react";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
-import EmptyState from "../components/EmptyState";
 import SearchFilterBar from "../components/SearchFilterBar";
-import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import {
@@ -36,29 +34,39 @@ import {
 } from "../lib/exportMahajans";
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
-import {
-  Download,
-  FileDown,
-  Plus,
-  Printer,
-} from "lucide-react";
+import { Download, FileDown, Printer } from "lucide-react";
 import type { Mahajan } from "../../shared/types";
-import { formatDecimal } from "../../shared/numbers";
-
-function totalBalanceClass(total: number): string {
-  if (total > 0) return "font-medium text-[var(--color-danger)]";
-  if (total < 0) return "font-medium text-[var(--color-success)]";
-  return "font-medium text-[var(--color-text-primary)]";
-}
+import {
+  formatDecimal,
+  formatAbbreviatedInteger,
+  formatAbbreviatedRupee,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  MahajansHero,
+  MahajansSectionPanel,
+  MahajansAsyncPanel,
+  buildMahajanTableColumns,
+} from "../components/mahajans-page";
 
 export default function Mahajans() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { authState } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
+    staleTime: 60_000,
   });
   const appName = getAppDisplayName(settings);
+  const abbreviationStyle = useMemo(
+    () =>
+      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Mahajan | null>(null);
   const [page, setPage] = useState(1);
@@ -99,7 +107,7 @@ export default function Mahajans() {
     getFloatingProps: getExportFloatingProps,
   } = useInteractions([exportClick, exportDismiss]);
 
-  const { data: pageResult, isLoading } = useQuery({
+  const mahajansPageQuery = useQuery({
     queryKey: ["mahajansPage", search, page],
     queryFn: () =>
       api.getMahajansPage({
@@ -110,26 +118,36 @@ export default function Mahajans() {
         data: Mahajan[];
         total: number;
       }>,
+    staleTime: 15_000,
   });
+  const {
+    data: pageResult,
+    isLoading: isLoadingPage,
+    isError: isPageError,
+    refetch: refetchMahajansPage,
+  } = mahajansPageQuery;
+
   const {
     data: summaryResult,
     isLoading: isLoadingSummary,
     isError: isSummaryError,
-    error: summaryError,
     refetch: refetchSummary,
     isStale: isSummaryStale,
   } = useQuery({
     queryKey: ["mahajanSummary"],
     queryFn: () => api.getMahajanSummary(),
+    staleTime: 30_000,
   });
 
-  const { data: allBalancesResult, isLoading: isLoadingAllBalances } = useQuery(
-    {
-      queryKey: ["allMahajanBalances"],
-      queryFn: () => api.getAllMahajanBalances(),
-      enabled: showBalanceAll,
-    }
-  );
+  const {
+    data: allBalancesResult,
+    isLoading: isLoadingAllBalances,
+    refetch: refetchAllBalances,
+  } = useQuery({
+    queryKey: ["allMahajanBalances"],
+    queryFn: () => api.getAllMahajanBalances(),
+    enabled: showBalanceAll,
+  });
 
   const mahajansPage = pageResult?.data ?? [];
   const totalMahajans = pageResult?.total ?? 0;
@@ -138,7 +156,7 @@ export default function Mahajans() {
   const showUpdatesIndicator =
     (summary != null && isSummaryStale) || updatesAvailable;
 
-  async function loadBalance(mahajanId: number) {
+  const loadBalance = useCallback(async (mahajanId: number) => {
     setLoadingBalanceId(mahajanId);
     try {
       const result = (await api.getMahajanBalance(mahajanId)) as {
@@ -148,7 +166,27 @@ export default function Mahajans() {
     } finally {
       setLoadingBalanceId(null);
     }
-  }
+  }, [api]);
+
+  const tableColumns = useMemo(
+    () =>
+      buildMahajanTableColumns({
+        showBalanceAll,
+        allBalances,
+        balances,
+        isLoadingAllBalances,
+        loadingBalanceId,
+        onLoadBalance: loadBalance,
+      }),
+    [
+      showBalanceAll,
+      allBalances,
+      balances,
+      isLoadingAllBalances,
+      loadingBalanceId,
+      loadBalance,
+    ]
+  );
 
   const createMahajan = useMutation({
     mutationFn: (m: {
@@ -156,7 +194,7 @@ export default function Mahajans() {
       address?: string;
       phone?: string;
       gstin?: string;
-    }) => api.createMahajan(m),
+    }) => api.createMahajan({ ...m, _userId: currentUser?.id ?? null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajans"] });
       queryClient.invalidateQueries({ queryKey: ["mahajansPage"] });
@@ -173,7 +211,7 @@ export default function Mahajans() {
     }: {
       id: number;
       m: { name?: string; address?: string; phone?: string; gstin?: string };
-    }) => api.updateMahajan(id, m),
+    }) => api.updateMahajan(id, { ...m, _userId: currentUser?.id ?? null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajans"] });
       queryClient.invalidateQueries({ queryKey: ["mahajansPage"] });
@@ -224,11 +262,11 @@ export default function Mahajans() {
       toast.error("No data to export.");
       return;
     }
-    const [summary, balances] = await Promise.all([
+    const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    exportMahajansToCsv(data, summary, balances);
+    exportMahajansToCsv(data, summaryForExport, balances);
     toast.success("Exported as CSV.");
   }
 
@@ -239,11 +277,11 @@ export default function Mahajans() {
       toast.error("No data to export.");
       return;
     }
-    const [summary, balances] = await Promise.all([
+    const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    exportMahajansToPdf(data, summary, balances, appName);
+    exportMahajansToPdf(data, summaryForExport, balances, appName);
     toast.success("Exported as PDF.");
   }
 
@@ -254,15 +292,17 @@ export default function Mahajans() {
       toast.error("No data to export.");
       return;
     }
-    const [summary, balances] = await Promise.all([
+    const [summaryForExport, balances] = await Promise.all([
       getSummaryForExport(),
       getBalancesForExport(),
     ]);
-    setPrintData(getPrintTableBody(data, summary, balances));
+    setPrintData(getPrintTableBody(data, summaryForExport, balances));
   }
 
   useEffect(() => {
-    if (!printData) return;
+    if (!printData) {
+      return;
+    }
     const previousTitle = document.title;
     document.title = `Lenders_${formatDateForFile(new Date())}`;
     const onAfterPrint = () => {
@@ -278,280 +318,266 @@ export default function Mahajans() {
     };
   }, [printData]);
 
-  return (
-    <div>
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Lenders</h1>
-          <div className="flex items-center gap-2">
-            <div ref={exportRefs.setReference} {...getExportRefProps()}>
-              <Button variant="secondary" type="button">
-                <Download size={20} className="mr-1.5" aria-hidden="true" />
-                Export
-              </Button>
-            </div>
-            <FloatingPortal>
-              {exportOpen && (
-                <div
-                  ref={exportRefs.setFloating}
-                  style={exportFloatingStyles}
-                  {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
-                >
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportCsv}
-                  >
-                    <FileDown size={16} className="shrink-0" />
-                    Export as CSV
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportPdf}
-                  >
-                    <FileDown size={16} className="shrink-0" />
-                    Export as PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportPrint}
-                  >
-                    <Printer size={16} className="shrink-0" />
-                    Print
-                  </button>
-                </div>
-              )}
-            </FloatingPortal>
-            <Button variant="primary" onClick={() => setAddOpen(true)}>
-              <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add Lender
-            </Button>
-          </div>
-        </div>
+  const totalLendersDisplay =
+    isLoadingPage && pageResult == null
+      ? "—"
+      : formatAbbreviatedInteger(totalMahajans, abbreviationStyle);
+
+  const totalLendDisplay = useMemo(() => {
+    if (isLoadingSummary && summary == null) {
+      return "…";
+    }
+    if (summary != null) {
+      return formatAbbreviatedRupee(summary.totalLend, abbreviationStyle);
+    }
+    return "—";
+  }, [abbreviationStyle, isLoadingSummary, summary]);
+
+  const totalDepositDisplay = useMemo(() => {
+    if (isLoadingSummary && summary == null) {
+      return "…";
+    }
+    if (summary != null) {
+      return formatAbbreviatedRupee(summary.totalDeposit, abbreviationStyle);
+    }
+    return "—";
+  }, [abbreviationStyle, isLoadingSummary, summary]);
+
+  const balanceDisplay = useMemo(() => {
+    if (isLoadingSummary && summary == null) {
+      return "…";
+    }
+    if (summary != null) {
+      return formatAbbreviatedRupee(
+        Math.abs(summary.balance),
+        abbreviationStyle
+      );
+    }
+    return "—";
+  }, [abbreviationStyle, isLoadingSummary, summary]);
+
+  const balanceSuffix = useMemo(() => {
+    if (summary == null) {
+      return "";
+    }
+    if (summary.balance > 0) {
+      return "(payable)";
+    }
+    if (summary.balance < 0) {
+      return "(receivable)";
+    }
+    return "";
+  }, [summary]);
+
+  const balanceValueClassName = useMemo(() => {
+    if (summary == null) {
+      return "text-[var(--color-text-primary)]";
+    }
+    if (summary.balance > 0) {
+      return "text-[var(--color-danger)]";
+    }
+    if (summary.balance < 0) {
+      return "text-[var(--color-success)]";
+    }
+    return "text-[var(--color-text-primary)]";
+  }, [summary]);
+
+  const isListEmpty =
+    mahajansPageQuery.isSuccess &&
+    mahajansPage.length === 0 &&
+    !isPageError;
+  const hasSearch = search.trim().length > 0;
+  const emptyTitle = hasSearch ? "No matching lenders" : "No lenders yet";
+  const emptyDescription = hasSearch
+    ? "Try a different search, or clear filters to see the full list."
+    : "Add a lender to start recording credit purchases and settlements in their ledger.";
+
+  const receivableCountDisplay =
+    isLoadingSummary && summary == null
+      ? "…"
+      : summary != null
+        ? formatAbbreviatedInteger(summary.countOweMe, abbreviationStyle)
+        : "—";
+  const payableCountDisplay =
+    isLoadingSummary && summary == null
+      ? "…"
+      : summary != null
+        ? formatAbbreviatedInteger(summary.countIOwe, abbreviationStyle)
+        : "—";
+
+  const countBadge = (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+        {totalMahajans}
+      </span>
+      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium tabular-nums inline-flex items-center gap-1">
+        <span className="text-[var(--color-text-tertiary)]">Receivable</span>
+        <span className="text-[var(--color-success)]">
+          {receivableCountDisplay}
+        </span>
+      </span>
+      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium tabular-nums inline-flex items-center gap-1">
+        <span className="text-[var(--color-text-tertiary)]">Payable</span>
+        <span className="text-[var(--color-danger)]">
+          {payableCountDisplay}
+        </span>
+      </span>
+    </span>
+  );
+
+  const heroToolbar = (
+    <>
+      <div ref={exportRefs.setReference} {...getExportRefProps()}>
+        <Button variant="secondary" type="button" className="w-full sm:w-auto">
+          <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+          Export
+        </Button>
       </div>
-      <div className="flex flex-col gap-3 mb-4">
-        {/* Summary strip - totals load on mount; "Fetch latest" to refresh */}
-        <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
-          {isLoadingSummary && (
-            <div className="text-sm text-[var(--color-text-tertiary)]">Loading…</div>
-          )}
-          {!isLoadingSummary && isSummaryError && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--color-danger)]">
-                Failed to load
-                {summaryError instanceof Error
-                  ? `: ${summaryError.message}`
-                  : ""}
-              </span>
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => refetchSummary()}
-                className="!py-1 !text-xs"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-          {!isLoadingSummary && !isSummaryError && summary && (
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-              <Button
-                variant={showUpdatesIndicator ? "amber" : "secondary"}
-                type="button"
-                onClick={() => {
-                  refetchSummary().then(() => {
-                    setLedgerUpdatesAvailable(false);
-                    setUpdatesAvailable(false);
-                  });
-                }}
-                className="!py-1 !text-xs shrink-0"
-                title={
-                  showUpdatesIndicator
-                    ? "Totals may have changed - click to refresh"
-                    : "Refresh totals"
-                }
-              >
-                {showUpdatesIndicator ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-bg-surface)] shrink-0"
-                      aria-hidden
-                    />
-                    {"Fetch latest"}
-                  </span>
-                ) : (
-                  "Fetch latest"
-                )}
-              </Button>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[var(--color-text-secondary)]">Total Credit Purchase</span>
-                <span className="font-medium text-[var(--color-danger)]">
-                  ₹{formatDecimal(summary.totalLend)}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[var(--color-text-secondary)]">Total Settlements</span>
-                <span className="font-medium text-[var(--color-success)]">
-                  ₹{formatDecimal(summary.totalDeposit)}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[var(--color-text-secondary)]">Balance</span>
-                <span className={totalBalanceClass(summary.balance)}>
-                  ₹{formatDecimal(Math.abs(summary.balance))}
-                  {summary.balance > 0 && " (payable)"}
-                  {summary.balance < 0 && " (receivable)"}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[var(--color-text-secondary)]">Receivable</span>
-                <span className="font-medium text-[var(--color-success)]">
-                  {summary.countOweMe}{" "}
-                  {summary.countOweMe === 1 ? "lender" : "lenders"}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[var(--color-text-secondary)]">Payable</span>
-                <span className="font-medium text-[var(--color-danger)]">
-                  {summary.countIOwe}{" "}
-                  {summary.countIOwe === 1 ? "lender" : "lenders"}
-                </span>
-              </div>
-            </div>
-          )}
-          {!isLoadingSummary && !isSummaryError && !summary && (
-            <Button
-              variant="secondary"
+      <FloatingPortal>
+        {exportOpen && (
+          <div
+            ref={exportRefs.setFloating}
+            style={exportFloatingStyles}
+            {...getExportFloatingProps()}
+            className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
+          >
+            <button
               type="button"
-              onClick={() => refetchSummary()}
-              className="!py-1.5 !text-sm"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportCsv}
             >
-              Get totals
-            </Button>
-          )}
-        </div>
-
-        <SearchFilterBar
-          searchValue={search}
-          onSearchChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          onClearFilters={
-            search
-              ? () => {
-                  setSearch("");
-                  setPage(1);
-                }
-              : undefined
-          }
-          placeholder="Search by name, address, or phone…"
-          rightContent={
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showBalanceAll}
-                onChange={(e) => setShowBalanceAll(e.target.checked)}
-                className="rounded border-[var(--color-border-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
-              />
-              <span className="text-sm text-[var(--color-text-secondary)]">Show balance</span>
-            </label>
-          }
-        />
-      </div>
-
-      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-        {isLoading && <TableLoader />}
-        {!isLoading && mahajansPage.length === 0 && <EmptyState />}
-        {!isLoading && mahajansPage.length > 0 && (
-          <>
-            <DataTable<Mahajan>
-              scrollWrapClassName="table-scroll-wrap--shorter"
-              columns={[
-                { key: "name", label: "Name" },
-                { key: "address", label: "Address" },
-                { key: "phone", label: "Phone" },
-                {
-                  key: "balance",
-                  label: "Balance (Lend - Deposit)",
-                  render: (row) => {
-                    const bal = showBalanceAll
-                      ? allBalances[row.id]
-                      : balances[row.id];
-                    if (bal !== undefined) {
-                      let colorClass = "text-[var(--color-text-tertiary)]";
-                      if (bal > 0) colorClass = "text-[var(--color-danger)] font-medium";
-                      else if (bal < 0)
-                        colorClass = "text-[var(--color-success)] font-medium";
-                      let hint = "";
-                      if (bal > 0) hint = " (payable)";
-                      else if (bal < 0) hint = " (receivable)";
-                      return (
-                        <span className={colorClass}>
-                          ₹{formatDecimal(Math.abs(bal))}
-                          {hint && (
-                            <span className="text-[var(--color-text-tertiary)] font-normal">
-                              {hint}
-                            </span>
-                          )}
-                        </span>
-                      );
-                    }
-                    if (showBalanceAll && isLoadingAllBalances) {
-                      return (
-                        <span className="text-[var(--color-text-tertiary)] text-sm">Loading…</span>
-                      );
-                    }
-                    if (showBalanceAll) {
-                      return (
-                        <span className="text-[var(--color-text-tertiary)] text-sm">
-                          ₹0.00 (Settled)
-                        </span>
-                      );
-                    }
-                    const loading = loadingBalanceId === row.id;
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => loadBalance(row.id)}
-                        disabled={loading}
-                        className="text-sm text-[var(--color-accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loading ? "Loading…" : "View balance"}
-                      </button>
-                    );
-                  },
-                },
-                {
-                  key: "id",
-                  label: "Details",
-                  render: (row) => (
-                    <Link
-                      to={`/mahajans/ledger/${row.id}`}
-                      className="text-[var(--color-accent)] hover:underline"
-                    >
-                      Ledger
-                    </Link>
-                  ),
-                },
-              ]}
-              data={mahajansPage}
-              onEdit={setEditing}
-              onDelete={(row) => setDeleteConfirmMahajan(row)}
-              emptyMessage="No Lenders yet. Click Add Lender."
-            />
-            <Pagination
-              page={page}
-              total={totalMahajans}
-              limit={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </>
+              <FileDown size={16} className="shrink-0" />
+              Export as CSV
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportPdf}
+            >
+              <FileDown size={16} className="shrink-0" />
+              Export as PDF
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportPrint}
+            >
+              <Printer size={16} className="shrink-0" />
+              Print
+            </button>
+          </div>
         )}
-      </div>
+      </FloatingPortal>
+    </>
+  );
+
+  return (
+    <div className="space-y-4 home-dashboard pb-3">
+      <MahajansHero
+        totalLendersDisplay={totalLendersDisplay}
+        totalLendDisplay={totalLendDisplay}
+        totalDepositDisplay={totalDepositDisplay}
+        balanceDisplay={balanceDisplay}
+        balanceSuffix={balanceSuffix}
+        balanceValueClassName={balanceValueClassName}
+        showUpdatesIndicator={showUpdatesIndicator}
+        canFetchLatest={summary != null && !isSummaryError}
+        onFetchLatest={() => {
+          void refetchSummary().then(() => {
+            setLedgerUpdatesAvailable(false);
+            setUpdatesAvailable(false);
+          });
+        }}
+        toolbar={heroToolbar}
+        onAdd={() => setAddOpen(true)}
+      />
+
+      <DashboardSectionBoundary
+        sectionTitle="Lender directory"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          search,
+          page,
+          isLoadingPage,
+          isPageError,
+          mahajansPage.length,
+          showBalanceAll,
+        ]}
+      >
+        <MahajansSectionPanel
+          title="Lender directory"
+          description="Search the list, open a ledger, or load balances when you need them. Enable “Show balance” to fetch all balances at once."
+          badge={countBadge}
+        >
+          <div className="mb-4">
+            <SearchFilterBar
+              searchValue={search}
+              onSearchChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              onClearFilters={
+                search
+                  ? () => {
+                      setSearch("");
+                      setPage(1);
+                    }
+                  : undefined
+              }
+              placeholder="Search by name, address, or phone…"
+              rightContent={
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showBalanceAll}
+                    onChange={(e) => {
+                      setShowBalanceAll(e.target.checked);
+                      if (e.target.checked) {
+                        void refetchAllBalances();
+                      }
+                    }}
+                    className="rounded border-[var(--color-border-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]"
+                  />
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    Show balance
+                  </span>
+                </label>
+              }
+            />
+          </div>
+
+          <MahajansAsyncPanel
+            isLoading={isLoadingPage}
+            isError={isPageError}
+            onRetry={() => {
+              void refetchMahajansPage();
+            }}
+            isEmpty={isListEmpty}
+            emptyTitle={emptyTitle}
+            emptyDescription={emptyDescription}
+            emptyActionLabel={hasSearch ? undefined : "Add lender"}
+            onEmptyAction={hasSearch ? undefined : () => setAddOpen(true)}
+            loaderColumns={5}
+          >
+            <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+              <DataTable<Mahajan>
+                scrollWrapClassName="table-scroll-wrap--shorter"
+                columns={tableColumns}
+                data={mahajansPage}
+                onEdit={setEditing}
+                onDelete={(row) => setDeleteConfirmMahajan(row)}
+                emptyMessage="No Lenders yet. Click Add Lender."
+              />
+              <Pagination
+                page={page}
+                total={totalMahajans}
+                limit={PAGE_SIZE}
+                onPageChange={setPage}
+              />
+            </div>
+          </MahajansAsyncPanel>
+        </MahajansSectionPanel>
+      </DashboardSectionBoundary>
 
       <ConfirmModal
         open={deleteConfirmMahajan != null}
@@ -561,8 +587,9 @@ export default function Mahajans() {
         confirmLabel="Delete"
         confirmVariant="danger"
         onConfirm={() => {
-          if (deleteConfirmMahajan)
+          if (deleteConfirmMahajan) {
             deleteMahajan.mutate(deleteConfirmMahajan.id);
+          }
         }}
       />
 
@@ -693,7 +720,9 @@ export default function Mahajans() {
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {appName}
+            </p>
             <p className="text-xs text-[var(--color-text-secondary)]">Lenders</p>
             {printData.summary != null && (
               <div className="mt-2 space-y-1 text-xs">
@@ -710,7 +739,9 @@ export default function Mahajans() {
                   </span>
                 </p>
                 <p className="text-[var(--color-text-secondary)]">
-                  <span className="font-medium">Balance (Credit Purchase − Settlement)</span>
+                  <span className="font-medium">
+                    Balance (Credit Purchase − Settlement)
+                  </span>
                   <span className="ml-2">
                     ₹{formatDecimal(Math.abs(printData.summary.balance))}
                     {printData.summary.balance > 0 && " (payable)"}

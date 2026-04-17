@@ -1,471 +1,85 @@
-import { BookOpen } from "lucide-react";
-
-const Section = ({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: React.ReactNode;
-}) => {
-  const shortLabel = id.split("-")[0] ?? id;
-  return (
-    <section
-      id={id}
-      className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6 scroll-mt-6"
-    >
-      <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] text-sm font-medium">
-          {shortLabel}
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-};
-
-const SubSection = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
-  <div className="mb-6 last:mb-0">
-    <h3 className="text-base font-medium text-[var(--color-text-primary)] mb-2">{title}</h3>
-    <div className="text-sm text-[var(--color-text-secondary)] space-y-2">{children}</div>
-  </div>
-);
-
-const StepList = ({ steps }: { steps: string[] }) => (
-  <ol className="list-decimal list-inside space-y-1.5 text-[var(--color-text-secondary)]">
-    {steps.map((step) => (
-      <li key={step.slice(0, 80)}>{step}</li>
-    ))}
-  </ol>
-);
-
-const BulletList = ({ items }: { items: string[] }) => (
-  <ul className="list-disc list-inside space-y-1 text-[var(--color-text-secondary)]">
-    {items.map((item) => (
-      <li key={item.slice(0, 80)}>{item}</li>
-    ))}
-  </ul>
-);
-
-const NavAnchor = ({
-  sectionId,
-  label,
-}: {
-  sectionId: string;
-  label: string;
-}) => (
-  <button
-    type="button"
-    onClick={() => {
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }}
-    className="block w-full py-1.5 text-left text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
-  >
-    {label}
-  </button>
-);
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import { AsyncDataPanel } from "../components/async-data-panel";
+import {
+  HelpEmptyState,
+  HelpHero,
+  HelpSectionPanel,
+  HelpSegmentedTabs,
+  HELP_SECTION_META,
+  HELP_TAB_ORDER,
+  type HelpTabId,
+  loadHelpGuide,
+} from "../components/help-page";
 
 export default function Help() {
+  const [activeTab, setActiveTab] = useState<HelpTabId>("overview");
+  const sectionMeta = HELP_SECTION_META[activeTab];
+
+  const guideQuery = useQuery({
+    queryKey: ["help", "guide"],
+    queryFn: loadHelpGuide,
+    staleTime: Infinity,
+  });
+
+  const bodies = guideQuery.data;
+  const activeBody = bodies ? bodies[activeTab] : null;
+
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-3 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-accent-subtle)] text-[var(--color-accent)]">
-          <BookOpen size={28} aria-hidden="true" />
-        </div>
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-            How to Use This App
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">
-            Detailed guide to manage stock, lenders, sales, and reports
-          </p>
-        </div>
-      </div>
+    <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
+      <HelpHero activeTab={activeTab} topicCount={HELP_TAB_ORDER.length} />
+      <HelpSegmentedTabs active={activeTab} onChange={setActiveTab} />
 
-      <div className="bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] p-4">
-        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
-          Quick navigation
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
-          <NavAnchor sectionId="1-overview" label="1. Overview" />
-          <NavAnchor sectionId="2-getting-started" label="2. Getting Started" />
-          <NavAnchor sectionId="3-units" label="3. Units" />
-          <NavAnchor sectionId="4-products-stock" label="4. Products & Stock" />
-          <NavAnchor sectionId="5-lenders" label="5. Lenders" />
-          <NavAnchor sectionId="6-transactions" label="6. Transactions" />
-          <NavAnchor sectionId="7-daily-sales" label="7. Daily Sales" />
-          <NavAnchor sectionId="8-invoices" label="8. Invoices" />
-          <NavAnchor sectionId="9-reports" label="9. Reports" />
-          <NavAnchor sectionId="10-settings" label="10. Settings & Data" />
-        </div>
-      </div>
+      <DashboardSectionBoundary
+        sectionTitle={sectionMeta.title}
+        containerClassName="dashboard-panel"
+        resetKeys={[activeTab, guideQuery.status, guideQuery.dataUpdatedAt]}
+      >
+        <HelpSectionPanel
+          title={sectionMeta.title}
+          description={sectionMeta.description}
+        >
+          <div
+            role="tabpanel"
+            id={`help-panel-${activeTab}`}
+            aria-labelledby={`help-tab-${activeTab}`}
+          >
+            <AsyncDataPanel
+              isLoading={guideQuery.isPending}
+              isError={guideQuery.isError}
+              onRetry={() => {
+                void guideQuery.refetch();
+              }}
+              isEmpty={
+                guideQuery.isSuccess &&
+                bodies != null &&
+                activeBody === null
+              }
+              empty={
+                <HelpEmptyState
+                  onRetry={() => {
+                    void guideQuery.refetch();
+                  }}
+                />
+              }
+              loaderColumns={1}
+              loaderRows={8}
+              errorTitle="Could not load help"
+              errorDescription="The guide module failed to load. Check the installation and try again."
+            >
+              {activeBody === null ? null : (
+                <div className="pt-1">{activeBody}</div>
+              )}
+            </AsyncDataPanel>
+          </div>
+        </HelpSectionPanel>
+      </DashboardSectionBoundary>
 
-      <Section id="1-overview" title="Overview">
-        <p className="text-[var(--color-text-secondary)] mb-4">
-          This application helps you manage a godown (warehouse) or retail stock:
-          products, units, stock levels, daily sales, lender (parties you receive
-          credit purchase from and make settlement to) ledgers, transactions
-          (credit purchase from lender, settlement to lender, cash purchase),
-          invoices, and reports. Data is stored locally in a database on your
-          computer.
-        </p>
-        <SubSection title="Main areas">
-          <BulletList
-            items={[
-              "Home: Dashboard with shortcuts to Stock, Add Sale, and Reports.",
-              "Units: Define stock units (e.g. kg, pcs) and invoice units for billing.",
-              "Products & Stock: Add products, track current stock, add or reduce stock.",
-              "Lenders: Manage lenders (parties you receive credit purchase from and make settlement to); view balance and ledger.",
-              "Transactions: Record credit purchase from lender, settlement to lender, and cash purchase.",
-              "Daily Sales: Log daily summary (invoice sales auto from invoices, misc/cash sales, cash in hand, expenditure).",
-              "Invoices: Create and edit customer invoices with line items.",
-              "Reports: Weekly sale, total sale for a date range, and profit/loss.",
-              "Settings: Company details, app display name, and database backup/restore.",
-            ]}
-          />
-        </SubSection>
-      </Section>
-
-      <Section id="2-getting-started" title="Getting Started">
-        <SubSection title="Recommended setup order">
-          <StepList
-            steps={[
-              "Go to Settings and fill in Company name, Address, GSTIN, Owner name, and Phone. Optionally set an App display name (used in header and PDFs).",
-              "Open Units and add Stock units (e.g. Kg, Pcs, Box) that you will use for products. Add Invoice units if you use different units on invoices.",
-              "Go to Products & Stock and add your products (name, code, unit, optional reorder level and retail/other units).",
-              "If you work with lenders, add them under Lenders, then use Transactions to record credit purchase from lender and settlement to lender.",
-              "Use Daily Sales to record each day’s sale and cash position; use Reports to view weekly sale, total sale, and P&L.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Trial mode">
-          <p>
-            If you see a &quot;Trial&quot; badge, the app is running in trial
-            mode. A timer may limit usage. The full version will be provided
-            after payment; functionality is the same.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="3-units" title="Units">
-        <SubSection title="Stock units">
-          <p className="mb-2">
-            Stock units are used for products (e.g. Kg, Pcs, Box, Ltr). Each
-            unit has a <strong>name</strong> and an optional <strong>symbol</strong> (short
-            label for display).
-          </p>
-          <StepList
-            steps={[
-              "Open Units from the sidebar.",
-              "Ensure the “Stock units” tab is selected.",
-              "Click “Add unit”, enter name (e.g. Kilogram) and symbol (e.g. Kg), then save.",
-              "Edit or delete units from the table. Deleting a unit that is used by products may not be allowed.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Invoice units">
-          <p className="mb-2">
-            Invoice units are used on invoice line items. They can have a name,
-            symbol, and sort order (to control display order on invoices).
-          </p>
-          <StepList
-            steps={[
-              "In Units, switch to the “Invoice units” tab.",
-              "Click “Add invoice unit”, enter name and symbol, set sort order if needed, then save.",
-              "Edit or delete from the table as required.",
-            ]}
-          />
-        </SubSection>
-      </Section>
-
-      <Section id="4-products-stock" title="Products & Stock">
-        <SubSection title="Adding a product">
-          <StepList
-            steps={[
-              "Go to Products & Stock and click “Add Product”.",
-              "Enter product Name and optional Code.",
-              "Select the primary Unit (stock unit).",
-              "Optionally set Current stock and Reorder level.",
-              "Optionally set Retail primary unit and add Other units (e.g. for selling in different units). Use “Import units from another product” to copy units from an existing product.",
-              "Save. The product appears in the table with current stock and unit.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Editing or deleting a product">
-          <p className="mb-2">
-            Click the edit (pencil) icon on a row to change name, code, unit,
-            retail/other units, reorder level, etc. To delete a product, use the
-            delete (trash) icon; deletion may require current stock to be zero.
-          </p>
-        </SubSection>
-        <SubSection title="Add Stock / Reduce Stock">
-          <StepList
-            steps={[
-              "Add Stock: Click “Add Stock”, select the product, enter the quantity to add, and confirm. Current stock increases.",
-              "Reduce Stock: Click “Reduce Stock”, select the product, enter the quantity to reduce, and confirm. Use this for sales or write-offs (quantity must not exceed current stock).",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Search and pagination">
-          <p>
-            Use the search box to filter by product name or code. The table is
-            paginated; use the pagination controls at the bottom to move between
-            pages.
-          </p>
-        </SubSection>
-        <SubSection title="Export and print">
-          <p>
-            Click “Export” to choose: Export as CSV, Export as PDF, or Print. CSV
-            and PDF save a snapshot of the product list (all items when
-            exporting). Print opens the browser print dialog for the current
-            table view.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="5-lenders" title="Lenders">
-        <p className="text-[var(--color-text-secondary)] mb-4">
-          Lenders are parties you receive credit purchase from (goods/money) and
-          make settlement to (pay back). Each lender has a ledger of credit
-          purchase and settlement transactions and a running balance.
-        </p>
-        <SubSection title="Adding a lender">
-          <StepList
-            steps={[
-              "Go to Lenders and click “Add Lender”.",
-              "Enter Name and optionally Phone, Address, and GSTIN.",
-              "Save. The lender appears in the list.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Viewing balance and ledger">
-          <BulletList
-            items={[
-              "Balance: Click “Balance” on a row to load and show that lender’s current balance. Positive balance means you owe the lender (you have received more than you have settled); negative means the lender owes you.",
-              "Ledger: Click the lender name or “Ledger” to open the full ledger. There you can add Credit Purchase (receive from lender) or Settlement (pay to lender), filter by type and date, and export or print.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Export and print">
-          <p>
-            From the Lenders list, use “Export” for CSV/PDF or “Print” for the
-            lender list. From a lender’s ledger page, use Export/Print for
-            that ledger’s transactions.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="6-transactions" title="Transactions">
-        <p className="text-[var(--color-text-secondary)] mb-4">
-          The Transactions page shows all ledger-style entries: Credit Purchase
-          from Lender, Settlement to Lender, and Cash Purchase. You can filter
-          by lender and type, and export or print.
-        </p>
-        <SubSection title="Add Credit Purchase from Lender">
-          <StepList
-            steps={[
-              "Click “Add Credit Purchase”.",
-              "Select the Lender and Transaction date.",
-              "Add one or more lines: select Product, enter Quantity and Amount per line (goods/money received from the lender). Add optional Notes.",
-              "Save. Stock for the product increases automatically because you received goods from the lender.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Add Settlement to Lender">
-          <StepList
-            steps={[
-              "Click “Add Settlement”.",
-              "Select the Lender and Transaction date.",
-              "Enter Amount and optional Notes (money you are paying to the lender).",
-              "Save. This records your settlement (payment) to the lender.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Cash Purchase">
-          <StepList
-            steps={[
-              "Click “Cash Purchase” (or “Add Cash Purchase”).",
-              "Select Transaction date and add lines: Product, Quantity, Amount.",
-              "Save. Stock for the product is increased automatically.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Filters and list">
-          <p>
-            Use the lender filter and type filter (All / Credit Purchase / Settlement
-            / Cash purchase) to narrow the list. Edit or delete existing transactions
-            from the row actions. Export and Print work on the currently
-            filtered list.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="7-daily-sales" title="Daily Sales">
-        <SubSection title="How daily sales work">
-          <p>
-            Daily Sales track each day’s revenue and cash position.{" "}
-            <strong>Invoice Sales</strong> are filled automatically from invoices
-            for that date. Add <strong>Misc / Cash Sales</strong> for sales
-            without an invoice (e.g. walk-in cash, small items). Total Sale =
-            Invoice Sales + Misc Sales. <strong>Cash in Hand</strong> is the
-            amount physically in your till at end of day.{" "}
-            <strong>Expenditure</strong> is money spent that day.
-          </p>
-        </SubSection>
-        <SubSection title="Adding a daily sale">
-          <StepList
-            steps={[
-              "Go to Daily Sales and click “Add Sale”.",
-              "Enter Sale date. If you have invoices for that date, their total is shown as Invoice Sales (read-only).",
-              "Enter Misc / Cash Sales (sales without an invoice), Cash in hand, and optionally Expenditure and Notes.",
-              "Save. The entry appears in the list. One entry per date; adding for an existing date updates that row.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Date filter and pagination">
-          <p>
-            Set “From” and “To” dates to filter by sale date. The table shows
-            paginated results. Use Edit/Delete on a row to correct or remove an
-            entry.
-          </p>
-        </SubSection>
-        <SubSection title="Export and print">
-          <p>
-            Use “Export” for CSV/PDF or “Print” to print the (filtered) daily
-            sales list.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="8-invoices" title="Invoices">
-        <SubSection title="Creating an invoice">
-          <StepList
-            steps={[
-              "Go to Invoices and click “Add Invoice”.",
-              "Enter optional Invoice number and Customer name.",
-              "Add lines: select Product, enter Quantity, choose Unit (invoice unit), and enter Price. You can switch to “Total” mode to enter the line total instead of per-unit price.",
-              "Add more lines as needed. The total updates automatically.",
-              "Save. The invoice is stored and can be viewed, edited, or printed.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Viewing, editing, and printing">
-          <p>
-            From the invoice list, use the view (eye) icon to open the invoice,
-            edit (pencil) to change it, or print/PDF to generate a printable
-            copy. Invoice PDF uses your company details from Settings.
-          </p>
-        </SubSection>
-        <SubSection title="Invoices and Daily Sales">
-          <p>
-            When you create, edit, or delete an invoice, the Daily Sales for
-            that invoice date are updated automatically. Invoice totals for each
-            date appear as Invoice Sales on the Daily Sales page.
-          </p>
-        </SubSection>
-      </Section>
-
-      <Section id="9-reports" title="Reports">
-        <SubSection title="Executive Summary">
-          <p className="mb-2">
-            At the top, you see key metrics without selecting dates: today&apos;s
-            sale, this week&apos;s total and expenditure, this month&apos;s
-            totals, and lender net balance (total credit purchase minus settlements). Data
-            loads automatically.
-          </p>
-        </SubSection>
-        <SubSection title="Weekly Sale">
-          <p className="mb-2">
-            The report shows 7 days of daily sales ending on the selected date
-            (newest first). It includes Sale, Invoice Sales, Misc Sales, Cash in
-            Hand, and Expenditure. The date defaults to today.
-          </p>
-        </SubSection>
-        <SubSection title="Total Sale">
-          <p className="mb-2">
-            Enter From and To dates or use presets (This Week, This Month, Last
-            30 Days, This Year) to get total sale, invoice sales, misc sales, and
-            expenditure for that range.
-          </p>
-        </SubSection>
-        <SubSection title="Lender Summary">
-          <p className="mb-2">
-            Shows total credit purchase, total settlements, and net balance (₹). Also shows
-            receivable count (lenders who owe you) and payable count (you owe).
-            Green = receivable, red = payable. Links to the Lenders page for
-            details.
-          </p>
-        </SubSection>
-        <SubSection title="Low Stock Alerts">
-          <p className="mb-2">
-            Lists items where current stock is at or below the reorder level.
-            Use this to plan restocking. Links to the Stock page to update items.
-          </p>
-        </SubSection>
-        <SubSection title="Profit / Loss">
-          <p className="mb-2">
-            <strong>Profit/Loss</strong> = Total Sale − Total Expenditure (actual
-            operating result for the year). Credit purchase and settlement do not affect
-            P&L—they are balance-sheet items (receivables and repayments).
-          </p>
-          <StepList
-            steps={[
-              "Select the Year.",
-              "Set Opening balance for that year (you can save it for the year).",
-              "Enter Closing balance (or leave empty and use 0) and click Calculate.",
-              "Result shows Opening, Total Sale, Total Expenditure, Credit Purchase/Settlement (if any), Closing, Profit/Loss, and Cash variance for reconciliation.",
-            ]}
-          />
-        </SubSection>
-      </Section>
-
-      <Section id="10-settings" title="Settings & Data">
-        <SubSection title="Company / Business">
-          <p>
-            Enter Company name, Address, GSTIN, Owner name, and Phone. These can
-            be used in invoices and PDFs. Click Save to store.
-          </p>
-        </SubSection>
-        <SubSection title="Appearance">
-          <p>
-            App display name: optional short name shown in the header and in
-            PDFs/print (max 25 characters). Leave blank to use the default app
-            name.
-          </p>
-        </SubSection>
-        <SubSection title="Danger zone — use with care">
-          <BulletList
-            items={[
-              "Export database: Saves a full copy of your database to a file. Use for backup or moving to another computer.",
-              "Import database: Replaces the current database with the file you select. All existing data is overwritten; export a backup first if needed.",
-              "Clear all data: Empties all tables (items, lenders, transactions, invoices, daily sales, etc.) but keeps the database structure. Use to start fresh without losing units/schema.",
-              "Reset database: Deletes the database file and creates a new empty database. Everything is lost. Export a backup first if you might need the data.",
-            ]}
-          />
-        </SubSection>
-        <SubSection title="Database location">
-          <p>
-            Settings shows the path to the database file on your computer. You
-            can copy or back up this file manually if needed.
-          </p>
-        </SubSection>
-      </Section>
-
-      <div className="pt-4 pb-2 text-center text-sm text-[var(--color-text-tertiary)]">
+      <footer className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-4 py-3 text-center text-xs text-[var(--color-text-tertiary)]">
         For more support, contact your provider or refer to your purchase
         documentation.
-      </div>
+      </footer>
     </div>
   );
 }

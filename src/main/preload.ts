@@ -24,6 +24,7 @@ const electronAPI = {
     reorder_level?: number;
     other_units?: { unit: string; sort_order?: number }[];
     conversions?: { to_unit: string; factor: number }[];
+    _userId?: number | null;
   }) => ipcRenderer.invoke("items:create", item),
   updateItem: (
     id: number,
@@ -44,6 +45,7 @@ const electronAPI = {
       reorder_level?: number;
       other_units?: { unit: string; sort_order?: number }[];
       conversions?: { to_unit: string; factor: number }[];
+      _userId?: number | null;
     }
   ) => ipcRenderer.invoke("items:update", id, item),
   deleteItem: (id: number) => ipcRenderer.invoke("items:delete", id),
@@ -183,6 +185,7 @@ const electronAPI = {
       unit: string;
       price: number;
     }[];
+    _userId?: number | null;
   }) => ipcRenderer.invoke("invoices:create", payload),
   updateInvoice: (
     id: number,
@@ -329,9 +332,9 @@ const electronAPI = {
   getMahajans: () => ipcRenderer.invoke("lenders:getAll"),
   getMahajansPage: (opts: { search?: string; page?: number; limit?: number }) =>
     ipcRenderer.invoke("lenders:getPage", opts),
-  createMahajan: (m: { name: string; address?: string; phone?: string; gstin?: string }) =>
+  createMahajan: (m: { name: string; address?: string; phone?: string; gstin?: string; _userId?: number | null }) =>
     ipcRenderer.invoke("lenders:create", m),
-  updateMahajan: (id: number, m: { name?: string; address?: string; phone?: string; gstin?: string }) =>
+  updateMahajan: (id: number, m: { name?: string; address?: string; phone?: string; gstin?: string; _userId?: number | null }) =>
     ipcRenderer.invoke("lenders:update", id, m),
   deleteMahajan: (id: number) => ipcRenderer.invoke("lenders:delete", id),
   getMahajanLends: (id?: number) => ipcRenderer.invoke("creditPurchases:getAll", id),
@@ -399,6 +402,7 @@ const electronAPI = {
     cash_in_hand: number;
     expenditure_amount?: number;
     notes?: string;
+    _userId?: number | null;
   }) => ipcRenderer.invoke("dailySales:create", s),
   updateDailySale: (
     id: number,
@@ -409,6 +413,7 @@ const electronAPI = {
       cash_in_hand?: number;
       expenditure_amount?: number;
       notes?: string;
+      _userId?: number | null;
     }
   ) => ipcRenderer.invoke("dailySales:update", id, s),
   deleteDailySale: (id: number) => ipcRenderer.invoke("dailySales:delete", id),
@@ -524,6 +529,56 @@ const electronAPI = {
     ipcRenderer.invoke("db:importDb") as Promise<
       { canceled: true } | { canceled: false }
     >,
+
+  // Auth
+  auth: {
+    setupSuperAdmin: (payload: {
+      companyName: string;
+      ownerName: string;
+      displayName: string;
+      pin: string;
+      customerMasterKey?: string;
+    }) => ipcRenderer.invoke("auth:setupSuperAdmin", payload) as Promise<{ id: number }>,
+    listUsers: () =>
+      ipcRenderer.invoke("auth:listUsers") as Promise<
+        { id: number; name: string; role: string; is_active: number; pin_is_temporary: number; created_at: string }[]
+      >,
+    verifyPin: (payload: { userId: number; pin: string }) =>
+      ipcRenderer.invoke("auth:verifyPin", payload) as Promise<{ valid: boolean; pin_is_temporary: boolean }>,
+    changePin: (payload: { userId: number; currentPin: string; newPin: string }) =>
+      ipcRenderer.invoke("auth:changePin", payload) as Promise<{ success: boolean }>,
+    verifyMasterKey: (key: string) =>
+      ipcRenderer.invoke("auth:verifyMasterKey", key) as Promise<{ valid: boolean; keyType: "customer" | "developer" | null }>,
+    resetSuperAdminPin: (payload: { newPin: string }) =>
+      ipcRenderer.invoke("auth:resetSuperAdminPin", payload) as Promise<{ success: boolean }>,
+    setCustomerMasterKey: (payload: { key: string; userId: number }) =>
+      ipcRenderer.invoke("auth:setCustomerMasterKey", payload) as Promise<{ success: boolean }>,
+    forcePinChange: (payload: { userId: number; newPin: string }) =>
+      ipcRenderer.invoke("auth:forcePinChange", payload) as Promise<{ success: boolean }>,
+  },
+
+  // User management
+  users: {
+    getAll: () =>
+      ipcRenderer.invoke("users:getAll") as Promise<
+        { id: number; name: string; role: string; is_active: number; pin_is_temporary: number; created_at: string; created_by: number | null }[]
+      >,
+    create: (payload: { name: string; pin: string; role: string; createdBy: number }) =>
+      ipcRenderer.invoke("users:create", payload) as Promise<{ id: number }>,
+    update: (payload: { id: number; name?: string; role?: string; isActive?: boolean; updatedBy: number }) =>
+      ipcRenderer.invoke("users:update", payload) as Promise<{ id: number }>,
+    resetPin: (payload: { id: number; newPin: string; resetBy: number }) =>
+      ipcRenderer.invoke("users:resetPin", payload) as Promise<{ success: boolean }>,
+  },
+
+  // Activity log
+  activityLog: {
+    getPage: (opts: { page?: number; limit?: number; userId?: number | null; entityType?: string | null; action?: string | null; currentUserId: number; currentUserRole: "superadmin" | "admin" | "user" }) =>
+      ipcRenderer.invoke("activityLog:getPage", opts) as Promise<{
+        data: { id: number; user_id: number | null; user_name: string | null; action: string; entity_type: string; entity_id: number | null; entity_label: string | null; details: string | null; created_at: string }[];
+        total: number;
+      }>,
+  },
 };
 
 contextBridge.exposeInMainWorld("electron", electronAPI);

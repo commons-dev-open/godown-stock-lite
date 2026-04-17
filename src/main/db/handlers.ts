@@ -1,3 +1,4 @@
+import { randomBytes, pbkdf2Sync, timingSafeEqual } from "crypto";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -17,6 +18,66 @@ import {
   SEED_UNIT_TYPE_NAMES,
 } from "../../shared/seedConstants";
 import { populateSampleData } from "./sampleData";
+import { MASTER_KEY_DEV_HASH } from "../../shared/buildConfig";
+
+// ---- Auth helpers ----
+
+function hashPin(pin: string, salt: Buffer): string {
+  return pbkdf2Sync(pin, salt, 310000, 32, "sha256").toString("hex");
+}
+
+function createPinHash(pin: string): string {
+  const salt = randomBytes(16);
+  return salt.toString("hex") + ":" + hashPin(pin, salt);
+}
+
+function verifyPinHash(pin: string, stored: string): boolean {
+  const parts = stored.split(":");
+  if (parts.length !== 2) return false;
+  const [saltHex, hashHex] = parts;
+  try {
+    const salt = Buffer.from(saltHex, "hex");
+    const computed = Buffer.from(hashPin(pin, salt), "hex");
+    const expected = Buffer.from(hashHex, "hex");
+    if (computed.length !== expected.length) return false;
+    return timingSafeEqual(computed, expected);
+  } catch {
+    return false;
+  }
+}
+
+function logActivity(
+  database: ReturnType<typeof getDb>,
+  opts: {
+    userId: number | null;
+    action: "create" | "update" | "delete";
+    entityType: string;
+    entityId: number | null;
+    entityLabel: string;
+    details?: object;
+  }
+): void {
+  if (opts.userId == null) {
+    // activity_logs.user_id is NOT NULL FK — skip logging if no user context.
+    return;
+  }
+  try {
+    database
+      .prepare(
+        "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, entity_label, details) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        opts.userId,
+        opts.action,
+        opts.entityType,
+        opts.entityId ?? null,
+        opts.entityLabel,
+        opts.details ? JSON.stringify(opts.details) : null
+      );
+  } catch {
+    // log errors must never break main operation
+  }
+}
 
 function getUnitConversionsRows(): ConversionRow[] {
   return getDb()
@@ -220,6 +281,7 @@ export function registerIpcHandlers(): void {
         reorder_level?: number;
         other_units?: { unit: string; sort_order?: number }[];
         conversions?: { to_unit: string; factor: number }[];
+        _userId?: number | null;
       }
     ) => {
       const primaryUnit = item.unit || "pcs";
@@ -281,7 +343,7 @@ export function registerIpcHandlers(): void {
           : null);
       const result = db()
         .prepare(
-          "INSERT INTO items (name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, selling_price, selling_price_unit, selling_price_unit_id, gst_rate, hsn_code, current_stock, reorder_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO items (name, code, unit, unit_id, reference_unit, quantity_per_primary, retail_primary_unit, selling_price, selling_price_unit, selling_price_unit_id, gst_rate, hsn_code, current_stock, reorder_level, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           item.name,
@@ -297,7 +359,8 @@ export function registerIpcHandlers(): void {
           item.gst_rate ?? 0,
           item.hsn_code ?? null,
           stockPrimary,
-          item.reorder_level != null ? roundDecimal(item.reorder_level) : null
+          item.reorder_level != null ? roundDecimal(item.reorder_level) : null,
+          item._userId ?? null
         );
       const itemId = result.lastInsertRowid as number;
       const otherUnits = item.other_units ?? [];
@@ -331,6 +394,15 @@ export function registerIpcHandlers(): void {
           }
         }
       }
+      if (item._userId != null) {
+        logActivity(db(), {
+          userId: item._userId,
+          action: "create",
+          entityType: "item",
+          entityId: itemId,
+          entityLabel: item.name,
+        });
+      }
       return itemId;
     }
   );
@@ -358,6 +430,7 @@ export function registerIpcHandlers(): void {
         reorder_level?: number;
         other_units?: { unit: string; sort_order?: number }[];
         conversions?: { to_unit: string; factor: number }[];
+        _userId?: number | null;
       }
     ) => {
       const row = db().prepare("SELECT * FROM items WHERE id = ?").get(id) as
@@ -455,7 +528,7 @@ export function registerIpcHandlers(): void {
         item.hsn_code !== undefined ? item.hsn_code : (rowWithGst.hsn_code ?? null);
       db()
         .prepare(
-          "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, selling_price = ?, selling_price_unit = ?, selling_price_unit_id = ?, gst_rate = ?, hsn_code = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, selling_price = ?, selling_price_unit = ?, selling_price_unit_id = ?, gst_rate = ?, hsn_code = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?"
         )
         .run(
           item.name ?? row.name,
@@ -478,8 +551,18 @@ export function registerIpcHandlers(): void {
               ? roundDecimal(item.reorder_level)
               : null
             : row.reorder_level,
+          item._userId ?? null,
           id
         );
+      if (item._userId != null) {
+        logActivity(db(), {
+          userId: item._userId,
+          action: "update",
+          entityType: "item",
+          entityId: id,
+          entityLabel: item.name ?? row.name,
+        });
+      }
       db().prepare("DELETE FROM item_other_units WHERE item_id = ?").run(id);
       const otherUnits = item.other_units ?? [];
       if (otherUnits.length > 0) {
@@ -1356,6 +1439,8 @@ export function registerIpcHandlers(): void {
         order_discount_amount?: number;
         round_to_whole?: boolean | number;
         coupon_code?: string | null;
+        /** Set by renderer for audit trail (created_by + activity log). */
+        _userId?: number | null;
         lines: {
           product_id: number;
           product_name: string;
@@ -1423,7 +1508,7 @@ export function registerIpcHandlers(): void {
 
         const r = db()
           .prepare(
-            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes, order_discount_amount, round_to_whole, coupon_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes, order_discount_amount, round_to_whole, coupon_code, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
           .run(
             invoiceNumber,
@@ -1435,7 +1520,8 @@ export function registerIpcHandlers(): void {
             payload.notes ?? null,
             roundDecimal(payload.order_discount_amount ?? 0),
             payload.round_to_whole ? 1 : 0,
-            payload.coupon_code ?? null
+            payload.coupon_code ?? null,
+            payload._userId ?? null
           );
         const invoiceId = r.lastInsertRowid as number;
         const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
@@ -1555,6 +1641,16 @@ export function registerIpcHandlers(): void {
           invoiceTotal = roundDecimal(invoiceTotal);
         }
         upsertDailySalesForInvoice(db(), payload.invoice_date, invoiceTotal);
+
+        if (payload._userId != null) {
+          logActivity(db(), {
+            userId: payload._userId,
+            action: "create",
+            entityType: "invoice",
+            entityId: invoiceId,
+            entityLabel: invoiceNumber,
+          });
+        }
 
         return invoiceId;
       });
@@ -2090,13 +2186,22 @@ export function registerIpcHandlers(): void {
     "lenders:create",
     (
       _,
-      m: { name: string; address?: string; phone?: string; gstin?: string }
+      m: { name: string; address?: string; phone?: string; gstin?: string; _userId?: number | null }
     ) => {
       const result = db()
         .prepare(
-          "INSERT INTO lenders (name, address, phone, gstin) VALUES (?, ?, ?, ?)"
+          "INSERT INTO lenders (name, address, phone, gstin, created_by) VALUES (?, ?, ?, ?, ?)"
         )
-        .run(m.name, m.address ?? null, m.phone ?? null, m.gstin ?? null);
+        .run(m.name, m.address ?? null, m.phone ?? null, m.gstin ?? null, m._userId ?? null);
+      if (m._userId != null) {
+        logActivity(db(), {
+          userId: m._userId,
+          action: "create",
+          entityType: "lender",
+          entityId: Number(result.lastInsertRowid),
+          entityLabel: m.name,
+        });
+      }
       return result.lastInsertRowid;
     }
   );
@@ -2106,7 +2211,7 @@ export function registerIpcHandlers(): void {
     (
       _,
       id: number,
-      m: { name?: string; address?: string; phone?: string; gstin?: string }
+      m: { name?: string; address?: string; phone?: string; gstin?: string; _userId?: number | null }
     ) => {
       const row = db()
         .prepare("SELECT * FROM lenders WHERE id = ?")
@@ -2114,15 +2219,25 @@ export function registerIpcHandlers(): void {
       if (!row) throw new Error("Lender not found");
       db()
         .prepare(
-          "UPDATE lenders SET name = ?, address = ?, phone = ?, gstin = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE lenders SET name = ?, address = ?, phone = ?, gstin = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?"
         )
         .run(
           m.name ?? row.name,
           m.address !== undefined ? m.address : row.address,
           m.phone !== undefined ? m.phone : row.phone,
           m.gstin !== undefined ? m.gstin : row.gstin,
+          m._userId ?? null,
           id
         );
+      if (m._userId != null) {
+        logActivity(db(), {
+          userId: m._userId,
+          action: "update",
+          entityType: "lender",
+          entityId: id,
+          entityLabel: (m.name ?? row.name) as string,
+        });
+      }
       return id;
     }
   );
@@ -2781,6 +2896,7 @@ export function registerIpcHandlers(): void {
         cash_in_hand: number;
         expenditure_amount?: number;
         notes?: string;
+        _userId?: number | null;
       }
     ) => {
       const misc = roundDecimal(
@@ -2818,7 +2934,7 @@ export function registerIpcHandlers(): void {
       }
       const result = db()
         .prepare(
-          "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           s.sale_date,
@@ -2829,8 +2945,18 @@ export function registerIpcHandlers(): void {
             : null,
           invSales,
           misc,
-          s.notes ?? null
+          s.notes ?? null,
+          s._userId ?? null
         );
+      if (s._userId != null) {
+        logActivity(db(), {
+          userId: s._userId,
+          action: "create",
+          entityType: "daily_sale",
+          entityId: Number(result.lastInsertRowid),
+          entityLabel: s.sale_date,
+        });
+      }
       return result.lastInsertRowid as number;
     }
   );
@@ -2847,6 +2973,7 @@ export function registerIpcHandlers(): void {
         cash_in_hand?: number;
         expenditure_amount?: number;
         notes?: string;
+        _userId?: number | null;
       }
     ) => {
       const row = db()
@@ -2874,7 +3001,7 @@ export function registerIpcHandlers(): void {
       const saleAmount = roundDecimal(invSales + misc);
       db()
         .prepare(
-          "UPDATE daily_sales SET sale_date = ?, sale_amount = ?, misc_sales = ?, cash_in_hand = ?, expenditure_amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE daily_sales SET sale_date = ?, sale_amount = ?, misc_sales = ?, cash_in_hand = ?, expenditure_amount = ?, notes = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?"
         )
         .run(
           s.sale_date ?? row.sale_date,
@@ -2889,8 +3016,18 @@ export function registerIpcHandlers(): void {
               : null
             : row.expenditure_amount,
           s.notes !== undefined ? s.notes : row.notes,
+          s._userId ?? null,
           id
         );
+      if (s._userId != null) {
+        logActivity(db(), {
+          userId: s._userId,
+          action: "update",
+          entityType: "daily_sale",
+          entityId: id,
+          entityLabel: (s.sale_date ?? row.sale_date) as string,
+        });
+      }
       return id;
     }
   );
@@ -3458,4 +3595,413 @@ export function registerIpcHandlers(): void {
     getDb();
     return { canceled: false };
   });
+
+  // ---- Auth ----
+
+  ipcMain.handle(
+    "auth:setupSuperAdmin",
+    (
+      _,
+      payload: {
+        companyName: string;
+        ownerName: string;
+        displayName: string;
+        pin: string;
+        customerMasterKey?: string;
+      }
+    ) => {
+      if (!payload.ownerName?.trim()) throw new Error("Owner name is required.");
+      if (!/^\d{4}$/.test(payload.pin)) throw new Error("PIN must be exactly 4 digits.");
+      if (!payload.companyName?.trim()) throw new Error("Company name is required.");
+      if (!payload.displayName?.trim()) throw new Error("Business display name is required.");
+
+      const existing = db()
+        .prepare("SELECT id FROM users WHERE role = 'superadmin' LIMIT 1")
+        .get();
+      if (existing) throw new Error("Super admin already exists.");
+
+      const ownerName = payload.ownerName.trim();
+      const companyName = payload.companyName.trim();
+      const displayName = payload.displayName.trim().slice(0, 25);
+
+      const pinHash = createPinHash(payload.pin);
+      const result = db()
+        .prepare(
+          "INSERT INTO users (name, pin_hash, role, pin_is_temporary, is_active) VALUES (?, ?, 'superadmin', 0, 1)"
+        )
+        .run(ownerName, pinHash);
+
+      // Store canonical settings used by Settings page + Layout
+      const setBulk = db().prepare(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+      );
+      const runBulk = db().transaction(() => {
+        setBulk.run("onboarding_complete", "true");
+        setBulk.run("company_name", companyName);
+        setBulk.run("owner_name", ownerName);
+        setBulk.run("displayName", displayName);
+        if (payload.customerMasterKey?.trim()) {
+          setBulk.run("MASTER_KEY_CUSTOMER_HASH", createPinHash(payload.customerMasterKey.trim()));
+        }
+      });
+      runBulk();
+
+      logActivity(db(), {
+        userId: Number(result.lastInsertRowid),
+        action: "create",
+        entityType: "user",
+        entityId: Number(result.lastInsertRowid),
+        entityLabel: ownerName,
+        details: { role: "superadmin" },
+      });
+
+      return { id: Number(result.lastInsertRowid) };
+    }
+  );
+
+  ipcMain.handle("auth:listUsers", () => {
+    return db()
+      .prepare(
+        "SELECT id, name, role, is_active, pin_is_temporary, created_at FROM users WHERE is_active = 1 ORDER BY role DESC, name"
+      )
+      .all();
+  });
+
+  ipcMain.handle(
+    "auth:verifyPin",
+    (_, { userId, pin }: { userId: number; pin: string }) => {
+      const row = db()
+        .prepare("SELECT pin_hash, pin_is_temporary, is_active FROM users WHERE id = ?")
+        .get(userId) as
+        | { pin_hash: string; pin_is_temporary: number; is_active: number }
+        | undefined;
+      if (!row || !row.is_active) return { valid: false, pin_is_temporary: false };
+      const valid = verifyPinHash(pin, row.pin_hash);
+      return { valid, pin_is_temporary: valid ? row.pin_is_temporary === 1 : false };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:changePin",
+    (
+      _,
+      { userId, currentPin, newPin }: { userId: number; currentPin: string; newPin: string }
+    ) => {
+      const row = db()
+        .prepare("SELECT pin_hash FROM users WHERE id = ? AND is_active = 1")
+        .get(userId) as { pin_hash: string } | undefined;
+      if (!row) throw new Error("User not found.");
+      if (!verifyPinHash(currentPin, row.pin_hash))
+        throw new Error("Current PIN is incorrect.");
+      if (!/^\d{4}$/.test(newPin)) throw new Error("PIN must be exactly 4 digits.");
+      const newHash = createPinHash(newPin);
+      db()
+        .prepare(
+          "UPDATE users SET pin_hash = ?, pin_is_temporary = 0 WHERE id = ?"
+        )
+        .run(newHash, userId);
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:verifyMasterKey",
+    (_, key: string) => {
+      if (!key?.trim()) return { valid: false, keyType: null };
+
+      // Check developer master key (from buildConfig)
+      if (MASTER_KEY_DEV_HASH !== "DEV_HASH_NOT_SET") {
+        if (verifyPinHash(key.trim(), MASTER_KEY_DEV_HASH)) {
+          return { valid: true, keyType: "developer" };
+        }
+      }
+
+      // Check customer master key (stored in settings during onboarding)
+      const row = db()
+        .prepare("SELECT value FROM settings WHERE key = 'MASTER_KEY_CUSTOMER_HASH'")
+        .get() as { value: string } | undefined;
+      if (row?.value && verifyPinHash(key.trim(), row.value)) {
+        return { valid: true, keyType: "customer" };
+      }
+
+      return { valid: false, keyType: null };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:resetSuperAdminPin",
+    (_, { newPin }: { newPin: string }) => {
+      if (!/^\d{4}$/.test(newPin)) throw new Error("PIN must be exactly 4 digits.");
+      const superAdmin = db()
+        .prepare("SELECT id FROM users WHERE role = 'superadmin' LIMIT 1")
+        .get() as { id: number } | undefined;
+      if (!superAdmin) throw new Error("No superadmin found.");
+      const newHash = createPinHash(newPin);
+      db()
+        .prepare(
+          "UPDATE users SET pin_hash = ?, pin_is_temporary = 0 WHERE id = ?"
+        )
+        .run(newHash, superAdmin.id);
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:forcePinChange",
+    (_, { userId, newPin }: { userId: number; newPin: string }) => {
+      if (!/^\d{4}$/.test(newPin)) throw new Error("PIN must be exactly 4 digits.");
+      const row = db()
+        .prepare("SELECT id FROM users WHERE id = ? AND is_active = 1")
+        .get(userId) as { id: number } | undefined;
+      if (!row) throw new Error("User not found.");
+      const newHash = createPinHash(newPin);
+      db()
+        .prepare("UPDATE users SET pin_hash = ?, pin_is_temporary = 0 WHERE id = ?")
+        .run(newHash, userId);
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    "auth:setCustomerMasterKey",
+    (_, { key, userId }: { key: string; userId: number }) => {
+      if (!key?.trim()) throw new Error("Key cannot be empty.");
+      const hash = createPinHash(key.trim());
+      db()
+        .prepare(
+          "INSERT INTO settings (key, value) VALUES ('MASTER_KEY_CUSTOMER_HASH', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        )
+        .run(hash);
+      logActivity(db(), {
+        userId,
+        action: "update",
+        entityType: "settings",
+        entityId: null,
+        entityLabel: "Customer master key",
+      });
+      return { success: true };
+    }
+  );
+
+  // ---- Users (admin management) ----
+
+  ipcMain.handle("users:getAll", () => {
+    return db()
+      .prepare(
+        "SELECT id, name, role, is_active, pin_is_temporary, created_at, created_by FROM users ORDER BY role DESC, name"
+      )
+      .all();
+  });
+
+  ipcMain.handle(
+    "users:create",
+    (
+      _,
+      payload: {
+        name: string;
+        pin: string;
+        role: string;
+        createdBy: number;
+      }
+    ) => {
+      if (!payload.name?.trim()) throw new Error("Name is required.");
+      if (!/^\d{4}$/.test(payload.pin)) throw new Error("PIN must be exactly 4 digits.");
+      const allowed = ["admin", "user"];
+      if (!allowed.includes(payload.role)) throw new Error("Invalid role.");
+
+      const pinHash = createPinHash(payload.pin);
+      const result = db()
+        .prepare(
+          "INSERT INTO users (name, pin_hash, role, pin_is_temporary, is_active, created_by) VALUES (?, ?, ?, 1, 1, ?)"
+        )
+        .run(payload.name.trim(), pinHash, payload.role, payload.createdBy);
+
+      logActivity(db(), {
+        userId: payload.createdBy,
+        action: "create",
+        entityType: "user",
+        entityId: Number(result.lastInsertRowid),
+        entityLabel: payload.name.trim(),
+        details: { role: payload.role },
+      });
+
+      return { id: Number(result.lastInsertRowid) };
+    }
+  );
+
+  ipcMain.handle(
+    "users:update",
+    (
+      _,
+      payload: {
+        id: number;
+        name?: string;
+        role?: string;
+        isActive?: boolean;
+        updatedBy: number;
+      }
+    ) => {
+      const row = db()
+        .prepare("SELECT * FROM users WHERE id = ?")
+        .get(payload.id) as Record<string, unknown> | undefined;
+      if (!row) throw new Error("User not found.");
+
+      const caller = db()
+        .prepare("SELECT role, is_active FROM users WHERE id = ?")
+        .get(payload.updatedBy) as { role: string; is_active: number } | undefined;
+      if (!caller || caller.is_active !== 1) throw new Error("Not authorized.");
+      const callerIsPrivileged =
+        caller.role === "superadmin" || caller.role === "admin";
+      const isSelf = payload.updatedBy === payload.id;
+
+      // Non-privileged callers may only edit themselves, and only name
+      if (!callerIsPrivileged && !isSelf) throw new Error("Not authorized.");
+      if (!callerIsPrivileged && (payload.role !== undefined || payload.isActive !== undefined))
+        throw new Error("Not authorized.");
+      // No one may change their own role or active flag through this handler
+      if (isSelf && payload.role !== undefined)
+        throw new Error("Cannot change your own role.");
+      if (isSelf && payload.isActive !== undefined)
+        throw new Error("Cannot change your own active state.");
+
+      if (payload.name !== undefined) {
+        const trimmed = payload.name.trim();
+        if (!trimmed) throw new Error("Name cannot be empty.");
+        db().prepare("UPDATE users SET name = ? WHERE id = ?").run(trimmed, payload.id);
+      }
+      if (payload.role !== undefined) {
+        const allowed = ["admin", "user"];
+        if (!allowed.includes(payload.role)) throw new Error("Invalid role.");
+        db().prepare("UPDATE users SET role = ? WHERE id = ?").run(payload.role, payload.id);
+      }
+      if (payload.isActive !== undefined)
+        db().prepare("UPDATE users SET is_active = ? WHERE id = ?").run(payload.isActive ? 1 : 0, payload.id);
+
+      logActivity(db(), {
+        userId: payload.updatedBy,
+        action: "update",
+        entityType: "user",
+        entityId: payload.id,
+        entityLabel: (payload.name ?? row.name) as string,
+        details: { role: payload.role, isActive: payload.isActive },
+      });
+
+      return { id: payload.id };
+    }
+  );
+
+  ipcMain.handle(
+    "users:resetPin",
+    (
+      _,
+      payload: { id: number; newPin: string; resetBy: number }
+    ) => {
+      if (payload.resetBy === payload.id)
+        throw new Error("Cannot reset your own PIN here.");
+
+      const caller = db()
+        .prepare("SELECT role, is_active FROM users WHERE id = ?")
+        .get(payload.resetBy) as { role: string; is_active: number } | undefined;
+      if (!caller || caller.is_active !== 1) throw new Error("Not authorized.");
+      if (caller.role !== "superadmin" && caller.role !== "admin")
+        throw new Error("Not authorized.");
+
+      const row = db()
+        .prepare("SELECT name, role, is_active FROM users WHERE id = ?")
+        .get(payload.id) as { name: string; role: string; is_active: number } | undefined;
+      if (!row) throw new Error("User not found.");
+      if (row.role === "superadmin")
+        throw new Error("Cannot reset a superadmin PIN.");
+      if (row.is_active !== 1) throw new Error("User is inactive.");
+
+      if (!/^\d{4}$/.test(payload.newPin)) throw new Error("PIN must be exactly 4 digits.");
+
+      const newHash = createPinHash(payload.newPin);
+      db()
+        .prepare("UPDATE users SET pin_hash = ?, pin_is_temporary = 1 WHERE id = ?")
+        .run(newHash, payload.id);
+
+      logActivity(db(), {
+        userId: payload.resetBy,
+        action: "update",
+        entityType: "user",
+        entityId: payload.id,
+        entityLabel: row.name,
+        details: { note: "Temporary PIN issued by admin", temporary: true },
+      });
+
+      return { success: true };
+    }
+  );
+
+  // ---- Activity Log ----
+
+  ipcMain.handle(
+    "activityLog:getPage",
+    (
+      _,
+      opts: {
+        page?: number;
+        limit?: number;
+        userId?: number | null;
+        entityType?: string | null;
+        action?: string | null;
+        currentUserId?: number;
+        currentUserRole?: "superadmin" | "admin" | "user";
+      }
+    ) => {
+      const role = opts?.currentUserRole;
+      const currentUserId = opts?.currentUserId;
+      const isPrivileged = role === "admin" || role === "superadmin";
+      const isRegular = role === "user";
+
+      // Fail closed: invalid/missing role or missing id for a regular user → no data
+      if (!isPrivileged && !isRegular) {
+        return { data: [], total: 0 };
+      }
+      if (isRegular && typeof currentUserId !== "number") {
+        return { data: [], total: 0 };
+      }
+
+      const page = Math.max(1, opts?.page ?? 1);
+      const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
+      const offset = (page - 1) * limit;
+
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+
+      if (isRegular) {
+        // Regular users: force scope to own activity — ignore any client-supplied userId
+        conditions.push("al.user_id = ?");
+        params.push(currentUserId as number);
+      } else if (opts?.userId != null) {
+        conditions.push("al.user_id = ?");
+        params.push(opts.userId);
+      }
+      if (opts?.entityType) {
+        conditions.push("al.entity_type = ?");
+        params.push(opts.entityType);
+      }
+      if (opts?.action) {
+        conditions.push("al.action = ?");
+        params.push(opts.action);
+      }
+
+      const where = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
+      const countRow = db()
+        .prepare(`SELECT COUNT(*) AS total FROM activity_logs al ${where}`)
+        .get(...params) as { total: number };
+      const rows = db()
+        .prepare(
+          `SELECT al.*, u.name AS user_name
+           FROM activity_logs al
+           LEFT JOIN users u ON u.id = al.user_id
+           ${where}
+           ORDER BY al.created_at DESC LIMIT ? OFFSET ?`
+        )
+        .all(...params, limit, offset);
+
+      return { data: rows, total: countRow.total };
+    }
+  );
 }

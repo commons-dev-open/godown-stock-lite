@@ -13,11 +13,19 @@ import {
   HelpCircle,
   PanelLeftClose,
   PanelLeft,
+  Sun,
+  Moon,
+  Monitor,
+  Lock,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 import { getElectron } from "../api/client";
 import { getAppDisplayName } from "../lib/displayName";
 import { TRIAL_MODE } from "shared/buildConfig";
+import type { ThemeMode } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import TrialTimer from "./TrialTimer";
 import Tooltip from "./Tooltip";
 
@@ -38,11 +46,22 @@ const mainNavItems: NavItem[] = [
 ];
 
 const systemNavItems: NavItem[] = [
+  { to: "/users", label: "Team", icon: UserCog },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/help", label: "Help", icon: HelpCircle },
 ];
 
 const SIDEBAR_KEY = "sidebar-collapsed";
+
+const sidebarThemeModes: {
+  value: ThemeMode;
+  label: string;
+  icon: typeof Sun;
+}[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
 
 function SidebarNavLink({
   to,
@@ -76,7 +95,20 @@ function SidebarNavLink({
   return link;
 }
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
+  const { mode, setMode } = useTheme();
+  const { authState, lock } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
+
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_KEY) === "true";
@@ -182,6 +214,96 @@ export default function Layout({ children }: { children: ReactNode }) {
             ))}
           </ul>
         </nav>
+        <fieldset
+          className={`m-0 min-w-0 shrink-0 border-0 border-t border-solid border-[var(--color-bg-sidebar-hover)] ${
+            collapsed ? "p-1.5" : "p-3"
+          }`}
+        >
+          <legend
+            className={
+              collapsed
+                ? "sr-only"
+                : "float-none w-full px-0 pb-2 text-xs font-medium text-[var(--color-text-sidebar)]"
+            }
+          >
+            Theme
+          </legend>
+          <div
+            className={`flex ${collapsed ? "flex-col items-center gap-1" : "gap-1"}`}
+          >
+            {sidebarThemeModes.map(({ value, label, icon: Icon }) => {
+              const active = mode === value;
+              const btn = (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMode(value)}
+                  aria-pressed={active}
+                  title={collapsed ? `${label} theme` : undefined}
+                  className={`rounded-md transition-colors ${
+                    collapsed
+                      ? "flex size-9 items-center justify-center"
+                      : "flex flex-1 flex-col items-center gap-0.5 py-2"
+                  } ${
+                    active
+                      ? "bg-[var(--color-accent-muted)] text-[var(--color-accent)]"
+                      : "text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-text-sidebar-active)]"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+                  {!collapsed && (
+                    <span className="text-[10px] font-medium leading-none">{label}</span>
+                  )}
+                </button>
+              );
+              if (collapsed) {
+                return (
+                  <Tooltip key={value} content={`${label} theme`} placement="right" delay={100}>
+                    {btn}
+                  </Tooltip>
+                );
+              }
+              return btn;
+            })}
+          </div>
+        </fieldset>
+
+        {/* Current user + lock */}
+        {currentUser && (
+          <div className={`border-t border-[var(--color-bg-sidebar-hover)] flex ${collapsed ? "flex-col items-center gap-1 p-2" : "items-center gap-2 p-3"}`}>
+            {collapsed ? (
+              <Tooltip
+                content={`${currentUser.name} · ${currentUser.role === "superadmin" ? "Owner" : currentUser.role}`}
+                placement="right"
+                delay={100}
+              >
+                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
+                  {getInitials(currentUser.name)}
+                </div>
+              </Tooltip>
+            ) : (
+              <>
+                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold shrink-0">
+                  {getInitials(currentUser.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">{currentUser.name}</p>
+                  <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">{currentUser.role === "superadmin" ? "Owner" : currentUser.role}</p>
+                </div>
+              </>
+            )}
+            <Tooltip content="Lock app" placement="right" delay={100}>
+              <button
+                type="button"
+                onClick={lock}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-danger)] transition-colors shrink-0"
+                aria-label="Lock app"
+              >
+                <Lock size={16} strokeWidth={1.75} />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </aside>
       <main className="flex-1 overflow-auto px-8 pb-6 animate-fade-in">{children}</main>
     </div>

@@ -9,7 +9,11 @@ import {
   Sun,
   Moon,
   Monitor,
+  Lock,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormField from "../components/FormField";
@@ -22,8 +26,21 @@ import {
   useTheme,
   BRAND_COLOR_OPTIONS,
   type ThemeMode,
-  type BrandColor,
 } from "../context/ThemeContext";
+import {
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+  type NumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import { AsyncDataPanel } from "../components/async-data-panel";
+import {
+  ActivityLogSection,
+  SettingsHero,
+  SettingsSectionPanel,
+  SettingsSegmentedTabs,
+  type SettingsTabId,
+} from "../components/settings-page";
 
 type DangerAction =
   | "export"
@@ -98,6 +115,28 @@ const GST_MODES = [
 
 const DISPLAY_NAME_MAX = 25;
 
+const NUMBER_ABBREVIATION_OPTIONS: {
+  value: NumberAbbreviationStyle;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "indian",
+    label: "Indian",
+    hint: "Full amount under 1 Lac; then Lac and Cr (e.g. 12.5 Lac).",
+  },
+  {
+    value: "us",
+    label: "US",
+    hint: "Full amount under 1 million; then M and B.",
+  },
+  {
+    value: "si",
+    label: "International (SI)",
+    hint: "Thousands as K, then M and B (powers of 1000).",
+  },
+];
+
 type CouponRow = {
   id: number;
   code: string;
@@ -135,9 +174,17 @@ function AppearanceTab() {
     queryFn: () => api.getSettings(),
   });
   const [displayName, setDisplayName] = useState("");
+  const [numberAbbreviation, setNumberAbbreviation] =
+    useState<NumberAbbreviationStyle>("indian");
 
   useEffect(() => {
     setDisplayName(settings.displayName ?? "");
+  }, [settings]);
+
+  useEffect(() => {
+    setNumberAbbreviation(
+      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY])
+    );
   }, [settings]);
 
   const setSettingsMutation = useMutationWithToast({
@@ -150,6 +197,12 @@ function AppearanceTab() {
   const saveDisplayName = () => {
     setSettingsMutation.mutate({
       displayName: displayName.trim().slice(0, DISPLAY_NAME_MAX),
+    });
+  };
+
+  const saveNumberAbbreviation = () => {
+    setSettingsMutation.mutate({
+      [NUMBER_ABBREVIATION_STYLE_KEY]: numberAbbreviation,
     });
   };
 
@@ -246,6 +299,51 @@ function AppearanceTab() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Number abbreviations (dashboard heroes) */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+          Number abbreviations
+        </h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+          How large counts and rupee amounts are shortened on dashboard heroes
+          (Home, Products, Units, Lenders). Amounts below the threshold stay
+          fully written with grouping.
+        </p>
+        <FormField label="Style">
+          <select
+            value={numberAbbreviation}
+            onChange={(e) =>
+              setNumberAbbreviation(
+                parseNumberAbbreviationStyle(e.target.value)
+              )
+            }
+            className="input-base w-full"
+          >
+            {NUMBER_ABBREVIATION_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-2">
+          {
+            NUMBER_ABBREVIATION_OPTIONS.find((o) => o.value === numberAbbreviation)
+              ?.hint
+          }
+        </p>
+        <div className="mt-4">
+          <Button
+            type="button"
+            onClick={saveNumberAbbreviation}
+            disabled={setSettingsMutation.isPending}
+          >
+            <Check size={16} className="mr-1" aria-hidden="true" />
+            Save
+          </Button>
         </div>
       </section>
 
@@ -928,6 +1026,45 @@ function CouponsAndTieredSection({
   );
 }
 
+const SETTINGS_SECTION_META: Record<
+  SettingsTabId,
+  { title: string; description: string }
+> = {
+  business: {
+    title: "Company & business",
+    description:
+      "Legal and contact details used on invoices and inside the app.",
+  },
+  tax: {
+    title: "GST & tax",
+    description:
+      "Default GST rate, price mode, place of supply, and invoice field options.",
+  },
+  discounts: {
+    title: "Discounts",
+    description:
+      "Toggle discount types on invoices and manage coupons and tiered rules.",
+  },
+  appearance: {
+    title: "Appearance",
+    description: "Theme, accent color, display name, and number formatting.",
+  },
+  security: {
+    title: "Security",
+    description: "PIN, master key, and locking the app on this device.",
+  },
+  activity: {
+    title: "Activity log",
+    description:
+      "Recent changes across the app. Filters apply to the list below.",
+  },
+  data: {
+    title: "Data & backups",
+    description:
+      "Export, import, or reset your database. Irreversible actions require confirmation.",
+  },
+};
+
 /* ── Main Settings Page ───────────────────────────────────── */
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -935,15 +1072,17 @@ export default function Settings() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [dangerAction, setDangerAction] = useState<DangerAction>(null);
 
-  const { data: settings = {} } = useQuery({
+  const settingsQuery = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
   });
+  const { data: settings = {}, isPending, isError, refetch } = settingsQuery;
 
-  const { data: dbPath } = useQuery({
+  const dbPathQuery = useQuery({
     queryKey: ["dbPath"],
     queryFn: () => api.getDbPath(),
   });
+  const dbPath = dbPathQuery.data;
 
   useEffect(() => {
     const initial: Record<string, string> = {};
@@ -1072,46 +1211,51 @@ export default function Settings() {
     (dangerAction === "populateSampleData" &&
       populateSampleDataMutation.isPending);
 
-  const tabs = [
-    "Business",
-    "Tax & GST",
-    "Discounts",
-    "Appearance",
-    "Data",
-  ] as const;
-  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Business");
+  const { authState, lock } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
+
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("business");
+  const sectionMeta = SETTINGS_SECTION_META[activeTab];
+  const companyHeroName = (form.company_name ?? settings.company_name ?? "").trim();
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-5">
-        <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-          Settings
-        </h1>
-      </div>
+    <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
+      <SettingsHero
+        activeTab={activeTab}
+        companyName={companyHeroName.length > 0 ? companyHeroName : "—"}
+        gstEnabled={gstEnabled}
+      />
+      <SettingsSegmentedTabs active={activeTab} onChange={setActiveTab} />
 
-      <div className="flex gap-1 border-b border-[var(--color-border-default)] mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? "border-[var(--color-accent)] text-[var(--color-accent)]"
-                : "border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "Business" && (
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">
-              Company / Business
-            </h2>
+      <DashboardSectionBoundary
+        sectionTitle={sectionMeta.title}
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          activeTab,
+          isPending,
+          isError,
+          dbPathQuery.isPending,
+          dbPathQuery.isError,
+        ]}
+      >
+        <SettingsSectionPanel
+          title={sectionMeta.title}
+          description={sectionMeta.description}
+        >
+          {["business", "tax", "discounts"].includes(activeTab) ? (
+            <AsyncDataPanel
+              isLoading={isPending}
+              isError={isError}
+              onRetry={() => {
+                void refetch();
+              }}
+              isEmpty={false}
+              empty={<span className="sr-only">empty</span>}
+              loaderColumns={1}
+              loaderRows={6}
+            >
+              {activeTab === "business" ? (
+        <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               {Object.entries(SETTING_KEYS).map(([key, label]) => (
                 <FormField key={key} label={label}>
@@ -1132,16 +1276,9 @@ export default function Settings() {
                 Save
               </Button>
             </div>
-          </section>
         </form>
-      )}
-
-      {activeTab === "Tax & GST" && (
-        <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">
-            GST / Tax Settings
-          </h2>
-          <div className="space-y-4">
+              ) : activeTab === "tax" ? (
+        <div className="space-y-4">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -1262,16 +1399,13 @@ export default function Settings() {
                 Save GST settings
               </Button>
             </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === "Discounts" && (
+        </div>
+              ) : (
         <div className="space-y-8">
-          <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">
-              Discount Settings
-            </h2>
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+              Discount toggles
+            </h3>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
               Enable or disable each discount type. Disabled types will not
               appear in the invoice form.
@@ -1310,25 +1444,37 @@ export default function Settings() {
                 Save discount settings
               </Button>
             </div>
-          </section>
+          </div>
 
-          <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">
-              Coupons & Tiered Discount Rules
-            </h2>
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-raised)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+              Coupons & tiered rules
+            </h3>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
               Manage coupon codes and tiered (volume) discount rules. Enable
               coupons and tiered discounts in Discount Settings above.
             </p>
             <CouponsAndTieredSection api={getElectron()} />
-          </section>
+          </div>
         </div>
-      )}
-
-      {activeTab === "Appearance" && <AppearanceTab />}
-
-      {activeTab === "Data" && (
-        <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-danger)] border-opacity-30 shadow-xs p-6">
+              )
+            }
+            </AsyncDataPanel>
+          ) : activeTab === "appearance" ? (
+            <AppearanceTab />
+          ) : activeTab === "data" ? (
+            <AsyncDataPanel
+              isLoading={dbPathQuery.isPending}
+              isError={dbPathQuery.isError}
+              onRetry={() => {
+                void dbPathQuery.refetch();
+              }}
+              isEmpty={false}
+              empty={<span className="sr-only">empty</span>}
+              loaderColumns={1}
+              loaderRows={4}
+            >
+        <div className="rounded-xl border border-[var(--color-danger)] border-opacity-30 bg-[var(--color-bg-surface)] p-6 shadow-xs">
           <h2 className="text-base font-semibold text-[var(--color-danger-text)] flex items-center gap-2">
             <AlertTriangle size={20} aria-hidden="true" />
             Danger zone
@@ -1414,8 +1560,139 @@ export default function Settings() {
             database: removes the database file and creates a new empty
             database.
           </p>
+        </div>
+            </AsyncDataPanel>
+          ) : activeTab === "security" && currentUser ? (
+        <SecurityTab currentUserId={currentUser.id} onLock={lock} isSuperAdmin={currentUser.role === "superadmin"} />
+          ) : activeTab === "activity" && currentUser ? (
+        <ActivityLogSection currentUser={currentUser} />
+          ) : null}
+        </SettingsSectionPanel>
+      </DashboardSectionBoundary>
+    </div>
+  );
+}
+
+// ---- Security Tab ----
+function SecurityTab({ currentUserId, onLock, isSuperAdmin }: { currentUserId: number; onLock: () => void; isSuperAdmin: boolean }) {
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinSuccess, setPinSuccess] = useState(false);
+  const [pinPending, setPinPending] = useState(false);
+
+  const [customerKey, setCustomerKey] = useState("");
+  const [confirmCustomerKey, setConfirmCustomerKey] = useState("");
+  const [keyError, setKeyError] = useState("");
+  const [keySuccess, setKeySuccess] = useState(false);
+  const [keyPending, setKeyPending] = useState(false);
+
+  async function handleChangePin(e: React.FormEvent) {
+    e.preventDefault();
+    setPinError(""); setPinSuccess(false);
+    if (!/^\d{4}$/.test(newPin)) return setPinError("PIN must be exactly 4 digits.");
+    if (newPin !== confirmPin) return setPinError("PINs do not match.");
+    setPinPending(true);
+    try {
+      await window.electron.auth.changePin({ userId: currentUserId, currentPin, newPin });
+      setPinSuccess(true);
+      setCurrentPin(""); setNewPin(""); setConfirmPin("");
+    } catch (err: unknown) {
+      setPinError(err instanceof Error ? err.message : "Failed to change PIN.");
+    } finally {
+      setPinPending(false);
+    }
+  }
+
+  async function handleSetCustomerKey(e: React.FormEvent) {
+    e.preventDefault();
+    setKeyError(""); setKeySuccess(false);
+    if (!customerKey.trim()) return setKeyError("Key cannot be empty.");
+    if (customerKey !== confirmCustomerKey) return setKeyError("Keys do not match.");
+    setKeyPending(true);
+    try {
+      await window.electron.auth.setCustomerMasterKey({ key: customerKey.trim(), userId: currentUserId });
+      setKeySuccess(true);
+      setCustomerKey("");
+      setConfirmCustomerKey("");
+    } catch (err: unknown) {
+      setKeyError(err instanceof Error ? err.message : "Failed to set key.");
+    } finally {
+      setKeyPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Change PIN */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Lock size={18} className="text-[var(--color-accent)]" />
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Change PIN</h2>
+        </div>
+        <form onSubmit={handleChangePin} className="space-y-4 max-w-sm">
+          <FormField label="Current PIN">
+            <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
+              onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+          </FormField>
+          <FormField label="New PIN">
+            <input type="password" inputMode="numeric" maxLength={4} value={newPin}
+              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+          </FormField>
+          <FormField label="Confirm New PIN">
+            <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
+              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="••••" className="input-base w-full tracking-[0.5em]" />
+          </FormField>
+          {pinError && <p className="text-sm text-[var(--color-danger)]">{pinError}</p>}
+          {pinSuccess && <p className="text-sm text-[var(--color-success)] flex items-center gap-1"><ShieldCheck size={14} /> PIN updated.</p>}
+          <Button type="submit" disabled={pinPending}>
+            <Check size={16} className="mr-1" /> Update PIN
+          </Button>
+        </form>
+      </section>
+
+      {/* Owner master key — superadmin only */}
+      {isSuperAdmin && (
+        <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <KeyRound size={18} className="text-[var(--color-warning)]" />
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Owner Recovery Key</h2>
+          </div>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+            Set a recovery key for yourself as the owner. Use it to reset your PIN if you forget it. Changing this invalidates any previous recovery key.
+          </p>
+          <form onSubmit={handleSetCustomerKey} className="space-y-4 max-w-sm">
+            <FormField label="New Recovery Key">
+              <input type="password" value={customerKey}
+                onChange={(e) => setCustomerKey(e.target.value)}
+                placeholder="Enter recovery key" className="input-base w-full" />
+            </FormField>
+            <FormField label="Confirm Recovery Key">
+              <input type="password" value={confirmCustomerKey}
+                onChange={(e) => setConfirmCustomerKey(e.target.value)}
+                placeholder="Re-enter recovery key" className="input-base w-full" />
+            </FormField>
+            {keyError && <p className="text-sm text-[var(--color-danger)]">{keyError}</p>}
+            {keySuccess && <p className="text-sm text-[var(--color-success)] flex items-center gap-1"><ShieldCheck size={14} /> Key saved.</p>}
+            <Button type="submit" disabled={keyPending} variant="secondary">
+              <KeyRound size={16} className="mr-1" /> Save Key
+            </Button>
+          </form>
         </section>
       )}
+
+      {/* Lock session */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">Session</h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">Lock the app immediately. PIN required to re-enter.</p>
+        <Button variant="secondary" onClick={onLock}>
+          <Lock size={16} className="mr-1" /> Lock App Now
+        </Button>
+      </section>
     </div>
   );
 }

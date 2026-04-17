@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,9 +15,7 @@ import {
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
-import EmptyState from "../components/EmptyState";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
-import TableLoader from "../components/TableLoader";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
 import TransactionTypeBadge, {
@@ -37,6 +35,12 @@ import {
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
 import {
+  type LenderLedgerPageRow,
+  toLendRecord,
+  toDepositRecord,
+  toPurchaseRecord,
+} from "../lib/lenderLedgerRow";
+import {
   Download,
   Banknote,
   FileDown,
@@ -55,14 +59,19 @@ import type {
   Settlement,
   Purchase,
 } from "../../shared/types";
-import { formatDecimal } from "../../shared/numbers";
+import {
+  formatDecimal,
+  formatAbbreviatedInteger,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  SalesListHero,
+  SalesListSectionPanel,
+  SalesListAsyncPanel,
+} from "../components/sales-list-page";
 
-type LendLine = {
-  product_id: number;
-  product_name: string;
-  quantity: number;
-  amount: number;
-};
 type PurchaseRow = Purchase & { product_name?: string };
 type PurchaseLine = {
   product_id: number;
@@ -71,31 +80,6 @@ type PurchaseLine = {
   amount: number;
 };
 
-type LedgerRow = {
-  type: string;
-  id: number;
-  lender_id: number | null;
-  lender_name: string | null;
-  mahajan_id?: number | null;
-  mahajan_name?: string | null;
-  product_id: number | null;
-  transaction_date: string;
-  product_name: string | null;
-  quantity: number | null;
-  amount: number;
-  notes: string | null;
-  lender_invoice_number?: string | null;
-  invoice_file_path?: string | null;
-  payment_method?: string | null;
-  reference_number?: string | null;
-};
-
-const emptyLine = (): LendLine => ({
-  product_id: 0,
-  product_name: "",
-  quantity: 0,
-  amount: 0,
-});
 const emptyPurchaseLine = (): PurchaseLine => ({
   product_id: 0,
   product_name: "",
@@ -104,8 +88,10 @@ const emptyPurchaseLine = (): PurchaseLine => ({
 });
 
 function amountColorClass(type: string): string {
-  if (type === "credit_purchase" || type === "lend") return "text-[var(--color-warning-text)]";
-  if (type === "settlement" || type === "deposit") return "text-[var(--color-success)]";
+  if (type === "credit_purchase" || type === "lend")
+    return "text-[var(--color-warning-text)]";
+  if (type === "settlement" || type === "deposit")
+    return "text-[var(--color-success)]";
   if (type === "cash_purchase") return "text-[var(--color-accent)]";
   return "text-[var(--color-text-primary)]";
 }
@@ -118,6 +104,10 @@ export default function Transactions() {
     queryFn: () => api.getSettings(),
   });
   const appName = getAppDisplayName(settings);
+  const abbreviationStyle = useMemo(
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
   const [lendOpen, setLendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
@@ -180,7 +170,7 @@ export default function Transactions() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
     type: "credit_purchase" | "settlement" | "cash_purchase";
-    row: LedgerRow;
+    row: LenderLedgerPageRow;
   } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -232,7 +222,7 @@ export default function Transactions() {
       const e = editingLend;
       queueMicrotask(() => {
         setEditLendProductId(e.product_id ?? null);
-        setEditLendMahajanId(e.mahajan_id);
+        setEditLendMahajanId(e.lender_id);
         setEditLendQuantity(e.quantity ?? 0);
         setEditLendAmount(e.amount);
         setEditLendNotes(e.notes ?? "");
@@ -287,7 +277,12 @@ export default function Transactions() {
     queryFn: () => api.getItems(),
   });
 
-  const { data: ledgerPage, isLoading: ledgerLoading } = useQuery({
+  const {
+    data: ledgerPage,
+    isLoading: ledgerLoading,
+    isError: ledgerError,
+    refetch: refetchLedger,
+  } = useQuery({
     queryKey: [
       "mahajanLedger",
       filterMahajanId || null,
@@ -309,7 +304,7 @@ export default function Transactions() {
         dateTo: filterDateTo || undefined,
         page,
         limit: PAGE_SIZE,
-      }) as Promise<{ data: LedgerRow[]; total: number }>,
+      }) as Promise<{ data: LenderLedgerPageRow[]; total: number }>,
   });
   const unifiedRows = ledgerPage?.data ?? [];
   const totalLedger = ledgerPage?.total ?? 0;
@@ -317,7 +312,7 @@ export default function Transactions() {
   const editReviewLenderId =
     confirmEditLendOpen && confirmEditLendPayload
       ? (confirmEditLendPayload.newValues.mahajan_id ??
-         (confirmEditLendPayload.record as CreditPurchase).lender_id)
+        (confirmEditLendPayload.record as CreditPurchase).lender_id)
       : confirmEditDepositOpen && confirmEditDepositPayload
         ? (confirmEditDepositPayload.record as Settlement).lender_id
         : null;
@@ -326,8 +321,7 @@ export default function Transactions() {
       queryKey: ["mahajanBalance", editReviewLenderId],
       queryFn: () => api.getMahajanBalance(editReviewLenderId!),
       enabled:
-        !!editReviewLenderId &&
-        (confirmEditLendOpen || confirmEditDepositOpen),
+        !!editReviewLenderId && (confirmEditLendOpen || confirmEditDepositOpen),
     });
 
   const deleteReviewMahajanId =
@@ -335,7 +329,8 @@ export default function Transactions() {
     deleteConfirmPayload &&
     (deleteConfirmPayload.type === "credit_purchase" ||
       deleteConfirmPayload.type === "settlement")
-      ? (deleteConfirmPayload.row.lender_id ?? deleteConfirmPayload.row.mahajan_id)
+      ? (deleteConfirmPayload.row.lender_id ??
+        deleteConfirmPayload.row.mahajan_id)
       : null;
   const { data: deleteReviewBalance, isFetching: deleteReviewBalanceLoading } =
     useQuery({
@@ -511,7 +506,7 @@ export default function Transactions() {
       dateTo: filterDateTo || undefined,
       page: 1,
       limit: 999999,
-    })) as { data: LedgerRow[]; total: number };
+    })) as { data: LenderLedgerPageRow[]; total: number };
     const rows = result?.data ?? [];
     return rows.map((row) => {
       const item =
@@ -521,7 +516,7 @@ export default function Transactions() {
       return {
         type: row.type,
         transaction_date: row.transaction_date,
-        mahajan_name: row.lender_name ?? row.mahajan_name,
+        mahajan_name: row.lender_name ?? row.mahajan_name ?? null,
         product_name: row.product_name,
         quantity: row.quantity,
         unit: item?.unit ?? "—",
@@ -595,46 +590,53 @@ export default function Transactions() {
     setPage(1);
   };
 
-  const toLendRecord = (row: LedgerRow): MahajanLend => ({
-    id: row.id,
-    lender_id: row.lender_id ?? row.mahajan_id ?? 0,
-    product_id: row.product_id,
-    product_name: row.product_name,
-    quantity: row.quantity ?? 0,
-    transaction_date: row.transaction_date,
-    amount: row.amount,
-    notes: row.notes,
-    created_at: "",
-    updated_at: "",
-  });
-  const toDepositRecord = (row: LedgerRow): MahajanDeposit => ({
-    id: row.id,
-    lender_id: row.lender_id ?? row.mahajan_id ?? 0,
-    transaction_date: row.transaction_date,
-    amount: row.amount,
-    notes: row.notes,
-    created_at: "",
-    updated_at: "",
-  });
+  const clearLedgerFilters = useCallback(() => {
+    setFilterMahajanId("");
+    setFilterType("all");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setPage(1);
+  }, []);
 
-  const toPurchaseRecord = (row: LedgerRow): PurchaseRow => ({
-    id: row.id,
-    product_id: row.product_id ?? 0,
-    product_name: row.product_name ?? undefined,
-    transaction_date: row.transaction_date,
-    quantity: row.quantity ?? 0,
-    amount: row.amount,
-    notes: row.notes,
-    created_at: "",
-    updated_at: "",
-  });
+  const transactionsContextPill = useMemo(() => {
+    const typeLabel =
+      filterType === "all"
+        ? "All types"
+        : filterType === "credit_purchase"
+          ? "Credit"
+          : filterType === "settlement"
+            ? "Settlements"
+            : "Cash";
+    const lenderLabel =
+      filterType === "cash_purchase"
+        ? "Lender N/A"
+        : filterMahajanId === ""
+          ? "All lenders"
+          : (mahajanList.find((x) => x.id === filterMahajanId)?.name ??
+            "Selected lender");
+    const dateLabel =
+      filterDateFrom || filterDateTo ? "Date range" : "Any date";
+    return `Viewing: ${typeLabel} · ${lenderLabel} · ${dateLabel}`;
+  }, [filterDateFrom, filterDateTo, filterMahajanId, filterType, mahajanList]);
+
+  const ledgerHasActiveFilters = appliedFilters.length > 0;
+  const isLedgerEmpty =
+    !ledgerLoading && !ledgerError && unifiedRows.length === 0;
+
+  const ledgerCountBadge = (
+    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+      {formatAbbreviatedInteger(totalLedger, abbreviationStyle)}
+    </span>
+  );
 
   return (
-    <div>
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Transactions</h1>
-          <div className="flex gap-2">
+    <div className="space-y-4 home-dashboard pb-3">
+      <SalesListHero
+        title="Transactions"
+        contextPill={transactionsContextPill}
+        metrics={[]}
+        actions={
+          <>
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
                 <Download size={20} className="mr-1.5" aria-hidden="true" />
@@ -692,324 +694,385 @@ export default function Transactions() {
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Settlement
             </Button>
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-4 mb-4">
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
-          <select
-            className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
-            value={filterType}
-            onChange={(e) =>
-              handleFilterChange({
-                type: e.target.value as
-                  | "all"
-                  | "credit_purchase"
-                  | "settlement"
-                  | "cash_purchase",
-              })
-            }
-          >
-            <option value="all">All (Credit Purchase + Settlement + Cash purchase)</option>
-            <option value="credit_purchase">Credit Purchase only</option>
-            <option value="settlement">Settlement only</option>
-            <option value="cash_purchase">Cash purchase only</option>
-          </select>
-          <select
-            className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
-            value={filterMahajanId}
-            onChange={(e) =>
-              handleFilterChange({
-                mahajanId: e.target.value ? Number(e.target.value) : "",
-              })
-            }
-            disabled={filterType === "cash_purchase"}
-          >
-            <option value="">All Lenders</option>
-            {mahajanList.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
+          </>
+        }
+      />
+      <DashboardSectionBoundary
+        sectionTitle="Transaction ledger"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          filterMahajanId,
+          filterType,
+          filterDateFrom,
+          filterDateTo,
+          page,
+          ledgerLoading,
+          ledgerError,
+          unifiedRows.length,
+        ]}
+      >
+        <SalesListSectionPanel
+          title="Ledger"
+          description="Credit purchases, settlements, and cash purchases appear here with the latest first within your filters."
+          badge={ledgerCountBadge}
+        >
+          <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
+            <select
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
+              value={filterType}
+              onChange={(e) =>
+                handleFilterChange({
+                  type: e.target.value as
+                    | "all"
+                    | "credit_purchase"
+                    | "settlement"
+                    | "cash_purchase",
+                })
+              }
+            >
+              <option value="all">
+                All (Credit Purchase + Settlement + Cash purchase)
               </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => setMoreFiltersOpen(true)}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
-          >
-            <Filter size={16} aria-hidden="true" />
-            More filters
-            {(filterDateFrom || filterDateTo) && (
-              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
-                1
-              </span>
-            )}
-          </button>
-        </div>
+              <option value="credit_purchase">Credit Purchase only</option>
+              <option value="settlement">Settlement only</option>
+              <option value="cash_purchase">Cash purchase only</option>
+            </select>
+            <select
+              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
+              value={filterMahajanId}
+              onChange={(e) =>
+                handleFilterChange({
+                  mahajanId: e.target.value ? Number(e.target.value) : "",
+                })
+              }
+              disabled={filterType === "cash_purchase"}
+            >
+              <option value="">All Lenders</option>
+              {mahajanList.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setMoreFiltersOpen(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
+            >
+              <Filter size={16} aria-hidden="true" />
+              More filters
+              {(filterDateFrom || filterDateTo) && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
+                  1
+                </span>
+              )}
+            </button>
+          </div>
 
-        {moreFiltersOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setMoreFiltersOpen(false)}
-              aria-hidden
-            />
-            <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">More filters</h2>
-                <button
-                  type="button"
-                  onClick={() => setMoreFiltersOpen(false)}
-                  className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
-                  aria-label="Close"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="flex flex-col gap-4">
-                <label
-                  htmlFor="more-filters-date-from"
-                  className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
-                >
-                  From date
-                  <DateInput
-                    id="more-filters-date-from"
-                    value={filterDateFrom}
-                    onChange={(v) => handleFilterChange({ dateFrom: v })}
-                    className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
-                  />
-                </label>
-                <label
-                  htmlFor="more-filters-date-to"
-                  className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
-                >
-                  To date
-                  <DateInput
-                    id="more-filters-date-to"
-                    value={filterDateTo}
-                    onChange={(v) => handleFilterChange({ dateTo: v })}
-                    className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
-                  />
-                </label>
-                {(filterMahajanId !== "" ||
-                  filterType !== "all" ||
-                  filterDateFrom ||
-                  filterDateTo) && (
+          {moreFiltersOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setMoreFiltersOpen(false)}
+                aria-hidden
+              />
+              <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">More filters</h2>
                   <button
                     type="button"
-                    onClick={() => {
-                      handleFilterChange({
-                        mahajanId: "",
-                        type: "all",
-                        dateFrom: "",
-                        dateTo: "",
-                      });
-                      setMoreFiltersOpen(false);
-                    }}
-                    className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline self-start"
+                    onClick={() => setMoreFiltersOpen(false)}
+                    className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
+                    aria-label="Close"
                   >
-                    Clear filters
+                    <X size={20} />
                   </button>
-                )}
+                </div>
+                <div className="flex flex-col gap-4">
+                  <label
+                    htmlFor="more-filters-date-from"
+                    className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
+                  >
+                    From date
+                    <DateInput
+                      id="more-filters-date-from"
+                      value={filterDateFrom}
+                      onChange={(v) => handleFilterChange({ dateFrom: v })}
+                      className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
+                    />
+                  </label>
+                  <label
+                    htmlFor="more-filters-date-to"
+                    className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
+                  >
+                    To date
+                    <DateInput
+                      id="more-filters-date-to"
+                      value={filterDateTo}
+                      onChange={(v) => handleFilterChange({ dateTo: v })}
+                      className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
+                    />
+                  </label>
+                  {(filterMahajanId !== "" ||
+                    filterType !== "all" ||
+                    filterDateFrom ||
+                    filterDateTo) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleFilterChange({
+                          mahajanId: "",
+                          type: "all",
+                          dateFrom: "",
+                          dateTo: "",
+                        });
+                        setMoreFiltersOpen(false);
+                      }}
+                      className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline self-start"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-          {ledgerLoading ? (
-            <TableLoader />
-          ) : unifiedRows.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              <div className="table-scroll-wrap overflow-x-auto">
-                <table className="min-w-full divide-y divide-[var(--color-border-default)]">
-                  <thead className="bg-[var(--color-bg-surface-raised)]">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Type
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Date
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Lender
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Product
-                      </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Qty
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Unit
-                      </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Amount (₹)
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase max-w-[12rem]">
-                        Notes
-                      </th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border-default)]">
-                    {unifiedRows.map((row: LedgerRow) => (
-                      <tr
-                        key={`${row.type}-${row.id}`}
-                        className="hover:bg-[var(--color-bg-surface-raised)]"
-                      >
-                        <td className="px-4 py-2 text-sm">
-                          <TransactionTypeBadge
-                            type={row.type as TransactionType}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
-                          <Tooltip
-                            content={formatDateForForm(row.transaction_date)}
-                          >
-                            <span>
-                              {formatDateForView(row.transaction_date)}
-                            </span>
-                          </Tooltip>
-                        </td>
-                        <td className="px-4 py-2 text-sm font-medium text-[var(--color-text-primary)]">
-                          {(row.lender_id ?? row.mahajan_id) == null ? (
-                            (row.lender_name ?? row.mahajan_name ?? "—")
-                          ) : (
-                            <Link
-                              to={`/mahajans/ledger/${row.lender_id ?? row.mahajan_id}`}
-                              className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
+          <div className="mt-4">
+            <SalesListAsyncPanel
+              isLoading={ledgerLoading}
+              isError={ledgerError}
+              onRetry={() => {
+                void refetchLedger();
+              }}
+              isEmpty={isLedgerEmpty}
+              emptyTitle={
+                ledgerHasActiveFilters
+                  ? "No matching transactions"
+                  : "No transactions yet"
+              }
+              emptyDescription={
+                ledgerHasActiveFilters
+                  ? "Try clearing filters or widening the date range."
+                  : "Record cash purchases, credit purchases from lenders, or settlement payments. Use the buttons in the header to add an entry."
+              }
+              emptyActionLabel={
+                ledgerHasActiveFilters ? "Clear filters" : "Cash purchase"
+              }
+              onEmptyAction={
+                ledgerHasActiveFilters
+                  ? clearLedgerFilters
+                  : () => setPurchaseAddOpen(true)
+              }
+              emptySecondaryLabel={
+                ledgerHasActiveFilters ? "Cash purchase" : "Credit purchase"
+              }
+              onEmptySecondary={
+                ledgerHasActiveFilters
+                  ? () => setPurchaseAddOpen(true)
+                  : () => setLendOpen(true)
+              }
+              loaderColumns={9}
+            >
+              <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+                <div className="table-scroll-wrap overflow-x-auto">
+                  <table className="min-w-full divide-y divide-[var(--color-border-default)]">
+                    <thead className="bg-[var(--color-bg-surface-raised)]">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Type
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Date
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Lender
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Product
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Qty
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Unit
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Amount (₹)
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase max-w-[12rem]">
+                          Notes
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--color-border-default)]">
+                      {unifiedRows.map((row: LenderLedgerPageRow) => (
+                        <tr
+                          key={`${row.type}-${row.id}`}
+                          className="hover:bg-[var(--color-bg-surface-raised)]"
+                        >
+                          <td className="px-4 py-2 text-sm">
+                            <TransactionTypeBadge
+                              type={row.type as TransactionType}
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
+                            <Tooltip
+                              content={formatDateForForm(row.transaction_date)}
                             >
-                              {row.lender_name ?? row.mahajan_name ?? "—"}
-                            </Link>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
-                          {row.type === "settlement" || row.type === "deposit"
-                            ? "—"
-                            : (row.product_name ?? "—")}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-right text-[var(--color-text-primary)]">
-                          {row.type === "settlement" || row.type === "deposit"
-                            ? "—"
-                            : row.quantity != null
-                              ? String(row.quantity)
-                              : "—"}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
-                          {(() => {
-                            if (row.type === "settlement" || row.type === "deposit") return "—";
-                            if (row.product_id != null) {
-                              const item = (items as Item[]).find(
-                                (i) => i.id === row.product_id
-                              );
-                              return item?.unit ?? "—";
-                            }
-                            return "—";
-                          })()}
-                        </td>
-                        <td
-                          className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass(row.type)}`}
-                        >
-                          ₹{formatDecimal(row.amount)}
-                        </td>
-                        <td
-                          className="px-4 py-2 text-sm text-[var(--color-text-secondary)] max-w-[12rem]"
-                          title={row.notes ?? ""}
-                        >
-                          <span className="block truncate">
-                            {row.notes ?? "—"}
-                          </span>
-                          {row.type === "credit_purchase" &&
-                            (row.lender_invoice_number || row.invoice_file_path) && (
-                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                {row.lender_invoice_number && (
-                                  <span>#{row.lender_invoice_number}</span>
-                                )}
-                                {row.invoice_file_path && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      api.openCreditPurchaseInvoice(
-                                        row.invoice_file_path!
-                                      )
-                                    }
-                                    className="text-[var(--color-accent)] hover:underline"
-                                  >
-                                    View invoice
-                                  </button>
-                                )}
+                              <span>
+                                {formatDateForView(row.transaction_date)}
                               </span>
+                            </Tooltip>
+                          </td>
+                          <td className="px-4 py-2 text-sm font-medium text-[var(--color-text-primary)]">
+                            {(row.lender_id ?? row.mahajan_id) == null ? (
+                              (row.lender_name ?? row.mahajan_name ?? "—")
+                            ) : (
+                              <Link
+                                to={`/mahajans/ledger/${row.lender_id ?? row.mahajan_id}`}
+                                className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
+                              >
+                                {row.lender_name ?? row.mahajan_name ?? "—"}
+                              </Link>
                             )}
-                          {(row.type === "settlement" || row.type === "deposit") &&
-                            (row.payment_method || row.reference_number) && (
-                              <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                {row.payment_method && (
-                                  <span className="capitalize">
-                                    {row.payment_method}
-                                  </span>
-                                )}
-                                {row.payment_method &&
-                                  row.reference_number &&
-                                  " · "}
-                                {row.reference_number && (
-                                  <span
-                                    title={row.reference_number}
-                                  >
-                                    {row.reference_number.length > 12
-                                      ? `${row.reference_number.slice(0, 10)}…`
-                                      : row.reference_number}
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                        </td>
-                        <LedgerRowActions
-                          type={
-                            row.type as "credit_purchase" | "settlement" | "cash_purchase"
-                          }
-                          onEdit={() => {
-                            if (row.type === "credit_purchase" || row.type === "lend")
-                              setEditingLend(toLendRecord(row));
-                            else if (row.type === "settlement" || row.type === "deposit")
-                              setEditingDeposit(toDepositRecord(row));
-                            else setEditingPurchase(toPurchaseRecord(row));
-                          }}
-                          onDelete={() => {
-                            setDeleteConfirmPayload({
-                              type: row.type as
+                          </td>
+                          <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
+                            {row.type === "settlement" || row.type === "deposit"
+                              ? "—"
+                              : (row.product_name ?? "—")}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-right text-[var(--color-text-primary)]">
+                            {row.type === "settlement" || row.type === "deposit"
+                              ? "—"
+                              : row.quantity != null
+                                ? String(row.quantity)
+                                : "—"}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-[var(--color-text-secondary)]">
+                            {(() => {
+                              if (
+                                row.type === "settlement" ||
+                                row.type === "deposit"
+                              )
+                                return "—";
+                              if (row.product_id != null) {
+                                const item = (items as Item[]).find(
+                                  (i) => i.id === row.product_id
+                                );
+                                return item?.unit ?? "—";
+                              }
+                              return "—";
+                            })()}
+                          </td>
+                          <td
+                            className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass(row.type)}`}
+                          >
+                            ₹{formatDecimal(row.amount)}
+                          </td>
+                          <td
+                            className="px-4 py-2 text-sm text-[var(--color-text-secondary)] max-w-[12rem]"
+                            title={row.notes ?? ""}
+                          >
+                            <span className="block truncate">
+                              {row.notes ?? "—"}
+                            </span>
+                            {row.type === "credit_purchase" &&
+                              (row.lender_invoice_number ||
+                                row.invoice_file_path) && (
+                                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
+                                  {row.lender_invoice_number && (
+                                    <span>#{row.lender_invoice_number}</span>
+                                  )}
+                                  {row.invoice_file_path && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        api.openCreditPurchaseInvoice(
+                                          row.invoice_file_path!
+                                        )
+                                      }
+                                      className="text-[var(--color-accent)] hover:underline"
+                                    >
+                                      View invoice
+                                    </button>
+                                  )}
+                                </span>
+                              )}
+                            {(row.type === "settlement" ||
+                              row.type === "deposit") &&
+                              (row.payment_method || row.reference_number) && (
+                                <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
+                                  {row.payment_method && (
+                                    <span className="capitalize">
+                                      {row.payment_method}
+                                    </span>
+                                  )}
+                                  {row.payment_method &&
+                                    row.reference_number &&
+                                    " · "}
+                                  {row.reference_number && (
+                                    <span title={row.reference_number}>
+                                      {row.reference_number.length > 12
+                                        ? `${row.reference_number.slice(0, 10)}…`
+                                        : row.reference_number}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                          </td>
+                          <LedgerRowActions
+                            type={
+                              row.type as
                                 | "credit_purchase"
                                 | "settlement"
-                                | "cash_purchase",
-                              row,
-                            });
-                            setDeleteConfirmOpen(true);
-                          }}
-                        />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                                | "cash_purchase"
+                            }
+                            onEdit={() => {
+                              if (
+                                row.type === "credit_purchase" ||
+                                row.type === "lend"
+                              )
+                                setEditingLend(toLendRecord(row));
+                              else if (
+                                row.type === "settlement" ||
+                                row.type === "deposit"
+                              )
+                                setEditingDeposit(toDepositRecord(row));
+                              else setEditingPurchase(toPurchaseRecord(row));
+                            }}
+                            onDelete={() => {
+                              setDeleteConfirmPayload({
+                                type: row.type as
+                                  | "credit_purchase"
+                                  | "settlement"
+                                  | "cash_purchase",
+                                row,
+                              });
+                              setDeleteConfirmOpen(true);
+                            }}
+                          />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  page={page}
+                  total={totalLedger}
+                  limit={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
               </div>
-              <Pagination
-                page={page}
-                total={totalLedger}
-                limit={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            </>
-          )}
-        </div>
-      </div>
+            </SalesListAsyncPanel>
+          </div>
+        </SalesListSectionPanel>
+      </DashboardSectionBoundary>
 
-      <AddLendModal
-        open={lendOpen}
-        onClose={() => setLendOpen(false)}
-      />
+      <AddLendModal open={lendOpen} onClose={() => setLendOpen(false)} />
 
       <AddDepositModal
         open={depositOpen}
@@ -1259,7 +1322,7 @@ export default function Transactions() {
                     <td className="p-2 font-medium">Lender</td>
                     <td className="p-2">
                       {mahajanList.find(
-                        (m) => m.id === confirmEditLendPayload.record.mahajan_id
+                        (m) => m.id === confirmEditLendPayload.record.lender_id
                       )?.name ?? "—"}
                     </td>
                     <td className="p-2">
@@ -1306,7 +1369,9 @@ export default function Transactions() {
               </table>
             </div>
             <div className="rounded border border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)] p-3 space-y-2 text-sm">
-              <p className="font-medium text-[var(--color-warning-text)]">Impact after update</p>
+              <p className="font-medium text-[var(--color-warning-text)]">
+                Impact after update
+              </p>
               {(() => {
                 const qtyDelta =
                   confirmEditLendPayload.newValues.quantity -
@@ -1344,7 +1409,9 @@ export default function Transactions() {
                 );
               })()}
               {editReviewBalanceLoading ? (
-                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">
+                  Loading balance…
+                </p>
               ) : editReviewBalance != null ? (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
@@ -1387,7 +1454,8 @@ export default function Transactions() {
                               : "font-medium text-[var(--color-success)]"
                           }
                         >
-                          After this update: Total Credit Purchase will change by ₹
+                          After this update: Total Credit Purchase will change
+                          by ₹
                           {formatDecimal(
                             confirmEditLendPayload.newValues.amount -
                               confirmEditLendPayload.record.amount
@@ -1593,9 +1661,13 @@ export default function Transactions() {
               </table>
             </div>
             <div className="rounded border border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)] p-3 space-y-2 text-sm">
-              <p className="font-medium text-[var(--color-success)]">Impact after update</p>
+              <p className="font-medium text-[var(--color-success)]">
+                Impact after update
+              </p>
               {editReviewBalanceLoading ? (
-                <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                <p className="text-[var(--color-text-tertiary)]">
+                  Loading balance…
+                </p>
               ) : editReviewBalance != null ? (
                 <div className="space-y-1 text-[var(--color-text-secondary)]">
                   <p>
@@ -2222,7 +2294,9 @@ export default function Transactions() {
               </table>
             </div>
             <div className="rounded border border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)] p-3 space-y-2 text-sm">
-              <p className="font-medium text-[var(--color-accent)]">Impact after update</p>
+              <p className="font-medium text-[var(--color-accent)]">
+                Impact after update
+              </p>
               {(() => {
                 const qtyDelta =
                   confirmEditPurchasePayload.newValues.quantity -
@@ -2327,11 +2401,13 @@ export default function Transactions() {
                   {(deleteConfirmPayload.type === "credit_purchase" ||
                     deleteConfirmPayload.type === "cash_purchase") && (
                     <>
-                      {deleteConfirmPayload.type === "lend" && (
+                      {deleteConfirmPayload.type === "credit_purchase" && (
                         <tr className="border-b">
                           <td className="p-2 font-medium">Lender</td>
                           <td className="p-2">
-                            {deleteConfirmPayload.row.lender_name ?? deleteConfirmPayload.row.mahajan_name ?? "—"}
+                            {deleteConfirmPayload.row.lender_name ??
+                              deleteConfirmPayload.row.mahajan_name ??
+                              "—"}
                           </td>
                         </tr>
                       )}
@@ -2384,7 +2460,7 @@ export default function Transactions() {
               >
                 Impact after delete
               </p>
-              {(deleteConfirmPayload.type === "lend" ||
+              {(deleteConfirmPayload.type === "credit_purchase" ||
                 deleteConfirmPayload.type === "cash_purchase") &&
                 deleteConfirmPayload.row.product_id != null && (
                   <p className="text-[var(--color-text-secondary)]">
@@ -2407,11 +2483,13 @@ export default function Transactions() {
                     })()}
                   </p>
                 )}
-              {(deleteConfirmPayload.type === "lend" ||
-                    deleteConfirmPayload.type === "settlement") && (
+              {(deleteConfirmPayload.type === "credit_purchase" ||
+                deleteConfirmPayload.type === "settlement") && (
                 <>
                   {deleteReviewBalanceLoading ? (
-                    <p className="text-[var(--color-text-tertiary)]">Loading balance…</p>
+                    <p className="text-[var(--color-text-tertiary)]">
+                      Loading balance…
+                    </p>
                   ) : deleteReviewBalance != null ? (
                     <div className="space-y-1 text-[var(--color-text-secondary)]">
                       <p>
@@ -2456,7 +2534,7 @@ export default function Transactions() {
                             }
                           >
                             After this delete:{" "}
-                            {deleteConfirmPayload.type === "lend"
+                            {deleteConfirmPayload.type === "credit_purchase"
                               ? "Total Credit Purchase"
                               : "Total Settlements"}{" "}
                             will decrease by ₹
@@ -2491,14 +2569,23 @@ export default function Transactions() {
           aria-hidden
         >
           <header className="mb-4 border-b border-[var(--color-border-default)] pb-3">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{appName}</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">Transactions</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {appName}
+            </p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Transactions
+            </p>
             {printData.filterDetails != null &&
               printData.filterDetails.length > 0 && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <p className="font-medium text-[var(--color-text-secondary)]">Applied filters</p>
+                  <p className="font-medium text-[var(--color-text-secondary)]">
+                    Applied filters
+                  </p>
                   {printData.filterDetails.map((f) => (
-                    <p key={f.label} className="text-[var(--color-text-secondary)]">
+                    <p
+                      key={f.label}
+                      className="text-[var(--color-text-secondary)]"
+                    >
                       {f.label}: {f.value}
                     </p>
                   ))}

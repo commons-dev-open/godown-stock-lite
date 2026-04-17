@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,8 +18,6 @@ import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import Button from "../components/Button";
-import EmptyState from "../components/EmptyState";
-import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import DateInput from "../components/DateInput";
 import Tooltip from "../components/Tooltip";
@@ -41,17 +39,36 @@ import {
   X,
 } from "lucide-react";
 import type { DailySale } from "../../shared/types";
-import { formatDecimal } from "../../shared/numbers";
+import {
+  formatDecimal,
+  formatAbbreviatedInteger,
+  formatAbbreviatedRupee,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { useAuth } from "../context/AuthContext";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  SalesListHero,
+  SalesListSectionPanel,
+  SalesListAsyncPanel,
+} from "../components/sales-list-page";
 
 export default function DailySales() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { authState } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
   const location = useLocation();
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
   });
   const appName = getAppDisplayName(settings);
+  const abbreviationStyle = useMemo(
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<DailySale | null>(null);
   const [page, setPage] = useState(1);
@@ -111,7 +128,12 @@ export default function DailySales() {
     if (editing) queueMicrotask(() => setEditSaleDate(editing.sale_date));
   }, [editing]);
 
-  const { data: pageResult, isLoading } = useQuery({
+  const {
+    data: pageResult,
+    isLoading,
+    isError: salesPageError,
+    refetch: refetchDailySalesPage,
+  } = useQuery({
     queryKey: [
       "dailySalesPage",
       fromDate || undefined,
@@ -128,6 +150,15 @@ export default function DailySales() {
   });
   const sales = pageResult?.data ?? [];
   const totalSales = pageResult?.total ?? 0;
+  const pageSaleAmountSum = useMemo(
+    () =>
+      sales.reduce(
+        (sum, row) =>
+          sum + (Number.isFinite(row.sale_amount) ? row.sale_amount : 0),
+        0
+      ),
+    [sales]
+  );
 
   const createSale = useMutation({
     mutationFn: (s: {
@@ -136,7 +167,7 @@ export default function DailySales() {
       cash_in_hand: number;
       expenditure_amount?: number;
       notes?: string;
-    }) => api.createDailySale(s),
+    }) => api.createDailySale({ ...s, _userId: currentUser?.id ?? null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
       queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
@@ -157,7 +188,7 @@ export default function DailySales() {
         expenditure_amount?: number;
         notes?: string;
       };
-    }) => api.updateDailySale(id, s),
+    }) => api.updateDailySale(id, { ...s, _userId: currentUser?.id ?? null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
       queryClient.invalidateQueries({ queryKey: ["dailySalesPage"] });
@@ -237,12 +268,59 @@ export default function DailySales() {
     };
   }, [printData]);
 
+  const clearDateFilters = useCallback(() => {
+    setFromDate("");
+    setToDate("");
+    setPage(1);
+  }, []);
+
+  const dailySalesContextPill = useMemo(() => {
+    if (!fromDate && !toDate) {
+      return "Viewing: All dates · most recent first";
+    }
+    const fromLabel = fromDate ? formatDateForView(fromDate) : "Start";
+    const toLabel = toDate ? formatDateForView(toDate) : "End";
+    return `Viewing: ${fromLabel} → ${toLabel}`;
+  }, [fromDate, toDate]);
+
+  const dailySalesHeroMetrics = useMemo(
+    () => [
+      {
+        label: "Matching days",
+        displayValue: formatAbbreviatedInteger(totalSales, abbreviationStyle),
+      },
+      {
+        label: "On this page",
+        displayValue: formatAbbreviatedInteger(sales.length, abbreviationStyle),
+      },
+      {
+        label: "Page total sale",
+        displayValue: formatAbbreviatedRupee(
+          pageSaleAmountSum,
+          abbreviationStyle
+        ),
+      },
+    ],
+    [abbreviationStyle, pageSaleAmountSum, sales.length, totalSales]
+  );
+
+  const salesHasDateFilters = !!(fromDate || toDate);
+  const isSalesEmpty = !isLoading && !salesPageError && sales.length === 0;
+
+  const salesCountBadge = (
+    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+      {formatAbbreviatedInteger(totalSales, abbreviationStyle)}
+    </span>
+  );
+
   return (
-    <div>
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">Daily Sales</h1>
-          <div className="flex items-center gap-2">
+    <div className="space-y-4 home-dashboard pb-3">
+      <SalesListHero
+        title="Daily Sales"
+        contextPill={dailySalesContextPill}
+        metrics={dailySalesHeroMetrics}
+        actions={
+          <>
             <div ref={exportRefs.setReference} {...getExportRefProps()}>
               <Button variant="secondary" type="button">
                 <Download size={20} className="mr-1.5" aria-hidden="true" />
@@ -288,57 +366,96 @@ export default function DailySales() {
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
               Add Sale
             </Button>
+          </>
+        }
+      />
+      <DashboardSectionBoundary
+        sectionTitle="Daily sales list"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          fromDate,
+          toDate,
+          page,
+          isLoading,
+          salesPageError,
+          sales.length,
+        ]}
+      >
+        <SalesListSectionPanel
+          title="Daily totals"
+          description="Each row is one calendar day: invoice totals, misc sales, cash in hand, and expenditure."
+          badge={salesCountBadge}
+        >
+          <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-lg border border-[var(--color-border-default)] overflow-hidden">
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
+              From
+              <DateInput
+                value={fromDate}
+                onChange={(v) => {
+                  setFromDate(v);
+                  setPage(1);
+                }}
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
+              To
+              <DateInput
+                value={toDate}
+                onChange={(v) => {
+                  setToDate(v);
+                  setPage(1);
+                }}
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
+              />
+            </label>
+            {(fromDate || toDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFromDate("");
+                  setToDate("");
+                  setPage(1);
+                }}
+                className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                <X size={16} aria-hidden="true" />
+                Clear filters
+              </button>
+            )}
           </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
-          <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-            From
-            <DateInput
-              value={fromDate}
-              onChange={(v) => {
-                setFromDate(v);
-                setPage(1);
-              }}
-              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
-            />
-          </label>
-          <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-            To
-            <DateInput
-              value={toDate}
-              onChange={(v) => {
-                setToDate(v);
-                setPage(1);
-              }}
-              className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
-            />
-          </label>
-          {(fromDate || toDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setFromDate("");
-                setToDate("");
-                setPage(1);
-              }}
-              className="inline-flex items-center gap-1 shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-            >
-              <X size={16} aria-hidden="true" />
-              Clear filters
-            </button>
-          )}
-        </div>
-      </div>
 
-      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-        {isLoading ? (
-          <TableLoader />
-        ) : sales.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
+          <div className="mt-4">
+          <SalesListAsyncPanel
+            isLoading={isLoading}
+            isError={salesPageError}
+            onRetry={() => {
+              void refetchDailySalesPage();
+            }}
+            isEmpty={isSalesEmpty}
+            emptyTitle={
+              salesHasDateFilters ? "No sales in this range" : "No daily sales yet"
+            }
+            emptyDescription={
+              salesHasDateFilters
+                ? "Try clearing the date filters or picking a wider range."
+                : "Add a sale for today or import history so this register stays in sync with your till and invoices."
+            }
+            emptyActionLabel={
+              salesHasDateFilters ? "Clear date filters" : "Add sale"
+            }
+            onEmptyAction={
+              salesHasDateFilters ? clearDateFilters : () => setAddOpen(true)
+            }
+            emptySecondaryLabel={
+              salesHasDateFilters ? "Add sale" : undefined
+            }
+            onEmptySecondary={
+              salesHasDateFilters ? () => setAddOpen(true) : undefined
+            }
+            loaderColumns={6}
+          >
+            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <DataTable<DailySale>
               columns={[
                 {
@@ -398,9 +515,11 @@ export default function DailySales() {
               limit={PAGE_SIZE}
               onPageChange={setPage}
             />
-          </>
-        )}
-      </div>
+            </div>
+          </SalesListAsyncPanel>
+          </div>
+        </SalesListSectionPanel>
+      </DashboardSectionBoundary>
 
       <ConfirmModal
         open={deleteConfirmSale != null}

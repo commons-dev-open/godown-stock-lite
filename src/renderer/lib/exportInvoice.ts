@@ -8,6 +8,11 @@ import {
   formatDateForFile,
   sanitizeForFilename,
 } from "./exportUtils";
+import {
+  invoiceLinesSubtotal,
+  invoiceNetTotal,
+  invoiceProductLabelWithDiscount,
+} from "./invoiceDisplayTotals";
 import type { Invoice, InvoiceLine, Unit } from "../../shared/types";
 
 export type CompanySettings = Record<string, string>;
@@ -160,7 +165,7 @@ export function exportInvoiceToPdf(
           (line as { price_unit?: string | null }).price_unit ?? line.unit;
         const row = [
           ...(hasHsn ? [hsn] : []),
-          line.product_name ?? "",
+          invoiceProductLabelWithDiscount(line),
           formatDecimal(line.quantity),
           unitToShort(line.unit, invoiceUnits),
           PDF_RUPEE +
@@ -180,7 +185,7 @@ export function exportInvoiceToPdf(
         const priceUnit =
           (line as { price_unit?: string | null }).price_unit ?? line.unit;
         return [
-          line.product_name ?? "",
+          invoiceProductLabelWithDiscount(line),
           formatDecimal(line.quantity),
           unitToShort(line.unit, invoiceUnits),
           PDF_RUPEE +
@@ -199,6 +204,13 @@ export function exportInvoiceToPdf(
       cellWidth: colWidth,
       fontSize: 9,
       halign: i >= 1 && i < colCount - 1 ? "right" : "left",
+    };
+  }
+  if (useGstLayout) {
+    const productCol = hasHsn ? 1 : 0;
+    columnStyles[productCol] = {
+      ...columnStyles[productCol],
+      overflow: "linebreak",
     };
   }
   if (!useGstLayout) {
@@ -236,22 +248,14 @@ export function exportInvoiceToPdf(
   const finalY =
     (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
       ?.finalY ?? y + 15;
-  const subtotal = lines.reduce(
-    (sum, line) => sum + (line.amount ?? line.quantity * line.price),
-    0
-  );
+  const subtotal = invoiceLinesSubtotal(lines);
   const inv = invoice as {
     order_discount_amount?: number;
     round_to_whole?: number;
     coupon_code?: string | null;
   };
   const orderDisc = inv?.order_discount_amount ?? 0;
-  let total = subtotal - orderDisc;
-  if (inv?.round_to_whole) {
-    total = Math.round(total);
-  } else {
-    total = Math.round(total * 100) / 100;
-  }
+  const total = invoiceNetTotal(invoice, lines);
   const taxableTotal = useGstLayout
     ? lines.reduce(
         (s, l) =>
@@ -285,6 +289,14 @@ export function exportInvoiceToPdf(
   if (useGstLayout) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
+    if (orderDisc > 0) {
+      doc.text(
+        `Subtotal (lines): ${PDF_RUPEE}${formatDecimal(subtotal)}`,
+        MARGIN_MM,
+        y
+      );
+      y += 5;
+    }
     doc.text(
       `Taxable Amount: ${PDF_RUPEE}${formatDecimal(taxableTotal)}`,
       MARGIN_MM,

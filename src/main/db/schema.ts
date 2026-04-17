@@ -3,6 +3,7 @@ interface DbLike {
 }
 
 export function createSchema(db: DbLike): void {
+  db.exec(`PRAGMA foreign_keys = ON;`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +47,9 @@ export function createSchema(db: DbLike): void {
       current_stock REAL NOT NULL DEFAULT 0 CHECK(current_stock >= -0.005),
       reorder_level REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id),
+      updated_by INTEGER REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS item_other_units (
@@ -88,7 +91,9 @@ export function createSchema(db: DbLike): void {
       phone TEXT,
       gstin TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id),
+      updated_by INTEGER REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS transactions (
@@ -112,7 +117,8 @@ export function createSchema(db: DbLike): void {
       cgst_amount REAL NOT NULL DEFAULT 0,
       sgst_amount REAL NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS settlement_allocations (
@@ -133,7 +139,9 @@ export function createSchema(db: DbLike): void {
       misc_sales REAL NOT NULL DEFAULT 0,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id),
+      updated_by INTEGER REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS opening_balance (
@@ -160,7 +168,9 @@ export function createSchema(db: DbLike): void {
       round_to_whole INTEGER NOT NULL DEFAULT 0,
       coupon_code TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id),
+      updated_by INTEGER REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS invoice_lines (
@@ -224,6 +234,28 @@ export function createSchema(db: DbLike): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      pin_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      pin_is_temporary INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by INTEGER REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id INTEGER,
+      entity_label TEXT,
+      details TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     DROP TABLE IF EXISTS unit_sort_order;
 
     -- Foreign-key and lookup indexes
@@ -239,8 +271,10 @@ export function createSchema(db: DbLike): void {
     CREATE INDEX IF NOT EXISTS idx_item_unit_conversions_item_id ON item_unit_conversions(item_id);
     CREATE INDEX IF NOT EXISTS idx_stock_adjustments_item_id ON stock_adjustments(item_id);
   `);
+  ensureUserColumns(db);
   ensureGstColumns(db);
   ensureDiscountColumns(db);
+  migrateBusinessNameToCompanyName(db);
 }
 
 function addColumnIfMissing(db: DbLike, table: string, sql: string): void {
@@ -249,6 +283,18 @@ function addColumnIfMissing(db: DbLike, table: string, sql: string): void {
   } catch {
     /* column already exists */
   }
+}
+
+function ensureUserColumns(db: DbLike): void {
+  addColumnIfMissing(db, "invoices", "ALTER TABLE invoices ADD COLUMN created_by INTEGER");
+  addColumnIfMissing(db, "invoices", "ALTER TABLE invoices ADD COLUMN updated_by INTEGER");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN created_by INTEGER");
+  addColumnIfMissing(db, "items", "ALTER TABLE items ADD COLUMN updated_by INTEGER");
+  addColumnIfMissing(db, "lenders", "ALTER TABLE lenders ADD COLUMN created_by INTEGER");
+  addColumnIfMissing(db, "lenders", "ALTER TABLE lenders ADD COLUMN updated_by INTEGER");
+  addColumnIfMissing(db, "transactions", "ALTER TABLE transactions ADD COLUMN created_by INTEGER");
+  addColumnIfMissing(db, "daily_sales", "ALTER TABLE daily_sales ADD COLUMN created_by INTEGER");
+  addColumnIfMissing(db, "daily_sales", "ALTER TABLE daily_sales ADD COLUMN updated_by INTEGER");
 }
 
 function ensureGstColumns(db: DbLike): void {
@@ -278,4 +324,22 @@ function ensureDiscountColumns(db: DbLike): void {
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN bogo_discount_percent REAL NOT NULL DEFAULT 100");
   addColumnIfMissing(db, "tiered_discount_rules", "ALTER TABLE tiered_discount_rules ADD COLUMN discount_flat REAL NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "tiered_discount_rules", "ALTER TABLE tiered_discount_rules ADD COLUMN max_discount_amount REAL");
+}
+
+function migrateBusinessNameToCompanyName(db: DbLike): void {
+  try {
+    db.exec(`
+      INSERT INTO settings (key, value)
+      SELECT 'company_name', value FROM settings
+      WHERE key = 'business_name'
+        AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'company_name');
+
+      INSERT INTO settings (key, value)
+      SELECT 'displayName', substr(value, 1, 25) FROM settings
+      WHERE key = 'company_name'
+        AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'displayName');
+    `);
+  } catch {
+    /* settings table not yet initialized or already migrated */
+  }
 }

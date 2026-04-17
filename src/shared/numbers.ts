@@ -16,6 +16,14 @@ export function formatRupee(value: number, places?: number): string {
   return `₹${formatDecimal(value, places)}`;
 }
 
+export {
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+  formatAbbreviatedInteger,
+  formatAbbreviatedRupee,
+  type NumberAbbreviationStyle,
+} from "./numberAbbreviation";
+
 /**
  * Round a number to a fixed number of decimal places for storage.
  * Uses DECIMAL_PLACES from constants (default 2).

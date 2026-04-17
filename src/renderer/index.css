@@ -77,6 +77,8 @@
 
   /* Font */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  color-scheme: light;
 }
 
 /* ── Design Tokens: Dark Theme ──────────────────────────── */
@@ -118,6 +120,8 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-overlay: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
 }
 
 /* ── Base ────────────────────────────────────────────────── */
@@ -129,6 +133,77 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'cv01', 'cv02', 'tnum';
+}
+
+/* Text fields without .input-base: inherit UA “light field” unless bg/color are set */
+@layer base {
+  input:where(
+    :not([type]),
+    [type="text"],
+    [type="search"],
+    [type="email"],
+    [type="password"],
+    [type="number"],
+    [type="tel"],
+    [type="url"],
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="week"],
+    [type="time"]
+  ),
+  textarea,
+  select {
+    background-color: var(--color-bg-surface);
+    color: var(--color-text-primary);
+  }
+
+  input:where(
+    :not([type]),
+    [type="text"],
+    [type="search"],
+    [type="email"],
+    [type="password"],
+    [type="number"],
+    [type="tel"],
+    [type="url"],
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="week"],
+    [type="time"]
+  )::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  input:where(
+    :not([type]),
+    [type="text"],
+    [type="search"],
+    [type="email"],
+    [type="password"],
+    [type="number"],
+    [type="tel"],
+    [type="url"]
+  ):-webkit-autofill,
+  input:where(
+    :not([type]),
+    [type="text"],
+    [type="search"],
+    [type="email"],
+    [type="password"],
+    [type="number"],
+    [type="tel"],
+    [type="url"]
+  ):-webkit-autofill:hover,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover {
+    -webkit-text-fill-color: var(--color-text-primary);
+    caret-color: var(--color-text-primary);
+    box-shadow: 0 0 0 1000px var(--color-bg-surface) inset;
+    transition: background-color 9999s ease-out;
+  }
 }
 
 /* ── Shared form input styling ───────────────────────────── */
@@ -150,6 +225,150 @@ body {
   .input-base:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+/* ── Home dashboard visual system ─────────────────────────── */
+@layer components {
+  .home-dashboard {
+    position: relative;
+    --home-hero-top-offset: 10px;
+  }
+  .dashboard-hero-sticky {
+    position: sticky;
+    top: var(--home-hero-top-offset);
+    z-index: 30;
+    transition: top var(--transition-default);
+  }
+  .dashboard-hero-sticky--compact {
+    top: 4px;
+  }
+  .dashboard-hero {
+    background:
+      radial-gradient(1200px 360px at 85% -20%, color-mix(in srgb, var(--color-accent) 24%, transparent), transparent 55%),
+      radial-gradient(800px 280px at 10% -30%, color-mix(in srgb, var(--color-success) 16%, transparent), transparent 56%),
+      var(--color-bg-surface);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    transition: padding var(--transition-default), box-shadow var(--transition-default), border-color var(--transition-default);
+  }
+  .dashboard-hero-sticky--compact .dashboard-hero {
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border-default));
+    padding: 0.5rem 0.75rem !important;
+  }
+  @media (min-width: 640px) {
+    .dashboard-hero-sticky--compact .dashboard-hero {
+      padding: 0.5rem 1rem !important;
+    }
+  }
+  .dashboard-hero-row--compact {
+    gap: 0.5rem !important;
+    align-items: stretch !important;
+  }
+  .dashboard-hero-metrics {
+    overflow: visible;
+    max-height: none;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .dashboard-hero-metrics--compact {
+    max-height: none;
+    opacity: 1;
+    transform: none;
+  }
+  .dashboard-hero-compact-summary {
+    display: none;
+  }
+  .dashboard-hero-metrics--compact > .grid {
+    max-height: none;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+  .dashboard-hero-kpi-value {
+    font-size: clamp(0.9rem, 1.65vw, 1.15rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+  .dashboard-context-pill {
+    border: 1px solid var(--color-border-default);
+    background-color: color-mix(in srgb, var(--color-bg-surface) 76%, var(--color-accent-subtle));
+    color: var(--color-text-secondary);
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 4px 8px;
+    transition: background-color var(--transition-default), border-color var(--transition-default), color var(--transition-default);
+  }
+  .dashboard-panel {
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-bg-surface);
+    box-shadow: var(--shadow-xs);
+    padding: 16px;
+    transition: box-shadow var(--transition-default), transform var(--transition-fast);
+  }
+  .dashboard-panel:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  .dashboard-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .dashboard-metric-card {
+    border: 1px solid var(--color-border-default);
+    border-radius: calc(var(--radius-lg) + 2px);
+    background-color: color-mix(in srgb, var(--color-bg-surface) 92%, var(--color-accent-subtle) 8%);
+    box-shadow: var(--shadow-xs);
+    padding: 10px 12px;
+  }
+  .dashboard-hero .dashboard-metric-card {
+    padding: 6px 10px;
+  }
+  .dashboard-mini-stat {
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-surface-raised);
+    padding: 10px;
+  }
+  .dashboard-action-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-surface-raised);
+    padding: 12px;
+    text-decoration: none;
+    transition: border-color var(--transition-default), transform var(--transition-fast), box-shadow var(--transition-default);
+  }
+  .dashboard-action-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+  .dashboard-chart-skeleton {
+    width: 100%;
+    height: 280px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-default);
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-bg-surface-raised) 95%, transparent) 20%,
+        color-mix(in srgb, var(--color-bg-surface) 85%, var(--color-accent-subtle) 15%) 48%,
+        color-mix(in srgb, var(--color-bg-surface-raised) 95%, transparent) 76%
+      );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
   }
 }
 
@@ -243,6 +462,17 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+.animate-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
 /* ── Print: show only the print container ────────────────── */
 /* IMPORTANT: Print styles use hardcoded colors — no CSS variables */
 @media print {
@@ -303,6 +533,17 @@ body {
     margin-bottom: 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid #e5e7eb;
+    font-size: 7px;
+    line-height: 1.2;
+    color: #111827 !important;
+  }
+  .invoice-print-container .invoice-print-header * {
+    color: #111827 !important;
+    font-size: 7px !important;
+  }
+  .invoice-print-container .invoice-print-header .font-semibold {
+    font-size: 8px !important;
+    font-weight: 600;
   }
   .invoice-print-container .invoice-print-header > div {
     line-height: 1.2;
@@ -322,6 +563,28 @@ body {
   }
   .invoice-print-container .invoice-view-content .mt-1 {
     margin-top: 2px !important;
+  }
+  /* Invoice body: dark ink; neutralize Tailwind text-sm on wrapper (~14px) for thermal width */
+  .invoice-print-container .invoice-view-content.text-sm {
+    font-size: 7px !important;
+    line-height: 1.25;
+  }
+  .invoice-print-container .invoice-view-content,
+  .invoice-print-container .invoice-view-content * {
+    color: #111827 !important;
+  }
+  .invoice-print-container .invoice-view-content thead th {
+    background-color: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+  .invoice-print-container .invoice-view-content .text-sm,
+  .invoice-print-container .invoice-view-content .text-xs {
+    font-size: 7px !important;
+    line-height: 1.25;
+  }
+  .invoice-print-container .invoice-view-content .mt-2 .font-medium {
+    font-size: 8px !important;
+    font-weight: 600;
   }
   .items-print-header {
     border-bottom: 1px solid #e5e7eb;
@@ -346,7 +609,7 @@ body {
     border: 1px solid #d1d5db;
   }
   .items-print-thead th {
-    background-color: rgb(66, 139, 202);
+    background-color: rgb(36, 97, 150);
     color: #fff;
     border: 1px solid #d1d5db;
     padding: 4px 6px;

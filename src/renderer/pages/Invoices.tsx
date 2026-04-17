@@ -2,18 +2,22 @@ import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getElectron } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
-import EmptyState from "../components/EmptyState";
 import SearchFilterBar from "../components/SearchFilterBar";
-import TableLoader from "../components/TableLoader";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
 import { exportInvoiceToPdf } from "../lib/exportInvoice";
+import {
+  formatInvoiceLineDiscountNote,
+  invoiceLinesSubtotal,
+  invoiceNetTotal,
+} from "../lib/invoiceDisplayTotals";
 import { computeProductUnits } from "../../shared/computeProductUnits";
 import { amountInWords, computeLineGst } from "../../shared/gst";
 import {
@@ -30,7 +34,21 @@ import type {
 } from "../../shared/types";
 import DateInput from "../components/DateInput";
 import { formatBillDateTime, formatDateForFile } from "../lib/exportUtils";
-import { formatDecimal, roundDecimal } from "../../shared/numbers";
+import { formatDateForView } from "../lib/date";
+import {
+  formatDecimal,
+  roundDecimal,
+  formatAbbreviatedInteger,
+  formatAbbreviatedRupee,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  SalesListHero,
+  SalesListSectionPanel,
+  SalesListAsyncPanel,
+} from "../components/sales-list-page";
 import {
   Check,
   FileDown,
@@ -167,10 +185,9 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
   invoiceUnits?: Unit[];
   settings?: Record<string, string>;
 }) {
-  const total = invoice.lines.reduce(
-    (s, l) => s + (l.amount ?? l.quantity * l.price),
-    0
-  );
+  const linesSubtotal = invoiceLinesSubtotal(invoice.lines);
+  const netTotal = invoiceNetTotal(invoice, invoice.lines);
+  const orderDiscAmount = invoice.order_discount_amount ?? 0;
   const gstEnabled = settings.gst_enabled === "true";
   const anyLineHasGst = invoice.lines.some((l) => (l.gst_rate ?? 0) > 0);
   const useGstLayout = gstEnabled && anyLineHasGst;
@@ -271,6 +288,7 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
             const taxable = line.taxable_amount ?? amount;
             const cgst = line.cgst_amount ?? 0;
             const sgst = line.sgst_amount ?? 0;
+            const lineDiscNote = formatInvoiceLineDiscountNote(line);
             return (
               <tr key={line.id}>
                 {useGstLayout && hasHsn && (
@@ -279,7 +297,12 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
                   </td>
                 )}
                 <td className="border border-[var(--color-border-strong)] px-2 py-1">
-                  {line.product_name ?? ""}
+                  <div>{line.product_name ?? ""}</div>
+                  {lineDiscNote ? (
+                    <div className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                      {lineDiscNote}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="border border-[var(--color-border-strong)] px-2 py-1 text-right">
                   {formatDecimal(line.quantity)}
@@ -317,27 +340,51 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
           })}
         </tbody>
       </table>
-      {(isPrint || useGstLayout) && (
-        <div className="mt-2 space-y-0.5">
-          {useGstLayout && (
-            <>
-              <div className="text-sm">
-                Taxable Amount: ₹{formatDecimal(taxableTotal)}
-              </div>
-              <div className="text-sm">CGST: ₹{formatDecimal(cgstTotal)}</div>
-              <div className="text-sm">SGST: ₹{formatDecimal(sgstTotal)}</div>
-            </>
-          )}
-          <div className="font-medium">
-            {useGstLayout ? "Grand Total: " : "Total: "}₹{formatDecimal(total)}
+      <div className="mt-2 space-y-0.5">
+        {useGstLayout && orderDiscAmount > 0 && (
+          <div className="text-sm">
+            Subtotal (lines): ₹{formatDecimal(linesSubtotal)}
           </div>
-          {useGstLayout && (
-            <div className="text-sm text-[var(--color-text-secondary)] mt-1">
-              {amountInWords(total)}
+        )}
+        {useGstLayout && (
+          <>
+            <div className="text-sm">
+              Taxable Amount: ₹{formatDecimal(taxableTotal)}
             </div>
-          )}
+            <div className="text-sm">CGST: ₹{formatDecimal(cgstTotal)}</div>
+            <div className="text-sm">SGST: ₹{formatDecimal(sgstTotal)}</div>
+          </>
+        )}
+        {!useGstLayout && orderDiscAmount > 0 && (
+          <div className="text-sm">
+            Subtotal: ₹{formatDecimal(linesSubtotal)}
+          </div>
+        )}
+        {orderDiscAmount > 0 && (
+          <div className="text-sm text-[var(--color-warning-text)]">
+            Order discount: -₹{formatDecimal(orderDiscAmount)}
+          </div>
+        )}
+        {orderDiscAmount > 0 && invoice.coupon_code?.trim() && (
+          <div className="text-sm text-[var(--color-text-secondary)]">
+            Coupon {invoice.coupon_code.trim()}: applied
+          </div>
+        )}
+        {Boolean(invoice.round_to_whole) && (
+          <div className="text-xs text-[var(--color-text-tertiary)]">
+            Rounded to nearest whole
+          </div>
+        )}
+        <div className="font-medium">
+          {useGstLayout ? "Grand Total: " : "Total: "}₹
+          {formatDecimal(netTotal)}
         </div>
-      )}
+        {useGstLayout && (
+          <div className="text-sm text-[var(--color-text-secondary)] mt-1">
+            {amountInWords(netTotal)}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
@@ -345,6 +392,8 @@ const ViewInvoiceContent = memo(function ViewInvoiceContent({
 export default function Invoices() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { authState } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<InvoiceWithLines | null>(null);
   const [viewing, setViewing] = useState<InvoiceWithLines | null>(null);
@@ -399,7 +448,12 @@ export default function Invoices() {
     queryFn: () => api.getSettings(),
   });
 
-  const { data: pageResult, isLoading } = useQuery({
+  const {
+    data: pageResult,
+    isLoading,
+    isError: invoicesPageError,
+    refetch: refetchInvoicesPage,
+  } = useQuery({
     queryKey: ["invoicesPage", search, dateFrom, dateTo, page],
     queryFn: () =>
       api.getInvoicesPage({
@@ -412,6 +466,18 @@ export default function Invoices() {
   });
   const invoicesPage = pageResult?.data ?? [];
   const totalInvoices = pageResult?.total ?? 0;
+  const abbreviationStyle = useMemo(
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
+  const pageInvoiceSum = useMemo(
+    () =>
+      invoicesPage.reduce((sum, row) => {
+        const t = row.total;
+        return sum + (t != null && Number.isFinite(t) ? t : 0);
+      }, 0),
+    [invoicesPage]
+  );
 
   const createInvoice = useMutationWithToast({
     mutationFn: (payload: {
@@ -424,7 +490,7 @@ export default function Invoices() {
       round_to_whole?: boolean;
       coupon_code?: string | null;
       lines: LinePayload[];
-    }) => api.createInvoice(payload),
+    }) => api.createInvoice({ ...payload, _userId: currentUser?.id ?? null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicesPage"] });
       queryClient.invalidateQueries({ queryKey: ["dailySales"] });
@@ -546,6 +612,66 @@ export default function Invoices() {
     [fetchAndView, fetchAndEdit]
   );
 
+  const clearInvoiceFilters = useCallback(() => {
+    setSearch("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  }, []);
+
+  const invoicesContextPill = useMemo(() => {
+    const searchPart = search.trim()
+      ? `Search “${search.trim().slice(0, 32)}${search.trim().length > 32 ? "…" : ""}”`
+      : "No search filter";
+    const datePart =
+      dateFrom || dateTo
+        ? `${dateFrom ? formatDateForView(dateFrom) : "…"} → ${dateTo ? formatDateForView(dateTo) : "…"}`
+        : "All dates";
+    return `Viewing: ${searchPart} · ${datePart}`;
+  }, [search, dateFrom, dateTo]);
+
+  const invoicesHeroMetrics = useMemo(
+    () => [
+      {
+        label: "Matching invoices",
+        displayValue: formatAbbreviatedInteger(
+          totalInvoices,
+          abbreviationStyle
+        ),
+      },
+      {
+        label: "On this page",
+        displayValue: formatAbbreviatedInteger(
+          invoicesPage.length,
+          abbreviationStyle
+        ),
+      },
+      {
+        label: "Page total",
+        displayValue: formatAbbreviatedRupee(
+          pageInvoiceSum,
+          abbreviationStyle
+        ),
+      },
+    ],
+    [
+      abbreviationStyle,
+      invoicesPage.length,
+      pageInvoiceSum,
+      totalInvoices,
+    ]
+  );
+
+  const invoicesHasFilters = !!(search.trim() || dateFrom || dateTo);
+  const isInvoicesEmpty =
+    !isLoading && !invoicesPageError && invoicesPage.length === 0;
+
+  const invoicesCountBadge = (
+    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+      {formatAbbreviatedInteger(totalInvoices, abbreviationStyle)}
+    </span>
+  );
+
   useEffect(() => {
     if (!printData) return;
     const previousTitle = document.title;
@@ -574,81 +700,129 @@ export default function Invoices() {
   }, [printData]);
 
   return (
-    <div className="space-y-4">
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-1 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Invoices</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus size={20} className="mr-1.5" aria-hidden="true" />
-          Create Invoice
-        </Button>
-      </div>
-
-      <SearchFilterBar
-        searchValue={search}
-        onSearchChange={setSearch}
-        placeholder="Search by invoice # or customer..."
-        hasActiveFilters={!!(search || dateFrom || dateTo)}
-        onClearFilters={
-          search || dateFrom || dateTo
-            ? () => {
-                setSearch("");
-                setDateFrom("");
-                setDateTo("");
-                setPage(1);
-              }
-            : undefined
-        }
-        rightContent={
-          <>
-            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-              From
-              <DateInput
-                value={dateFrom}
-                onChange={(v) => {
-                  setDateFrom(v);
-                  setPage(1);
-                }}
-                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
-              />
-            </label>
-            <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
-              To
-              <DateInput
-                value={dateTo}
-                onChange={(v) => {
-                  setDateTo(v);
-                  setPage(1);
-                }}
-                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
-              />
-            </label>
-          </>
+    <div className="space-y-4 home-dashboard pb-3">
+      <SalesListHero
+        title="Invoices"
+        contextPill={invoicesContextPill}
+        metrics={invoicesHeroMetrics}
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus size={20} className="mr-1.5" aria-hidden="true" />
+            Create Invoice
+          </Button>
         }
       />
 
-      {isLoading ? (
-        <TableLoader />
-      ) : invoicesPage.length === 0 ? (
-        <EmptyState
-          message="No invoices yet."
-          actionLabel="Create Invoice"
-          onAction={() => setCreateOpen(true)}
-        />
-      ) : (
-        <>
-          <DataTable<InvoiceRow>
-            columns={tableColumns}
-            data={invoicesPage}
-            emptyMessage="No invoices."
+      <DashboardSectionBoundary
+        sectionTitle="Invoices list"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          search,
+          dateFrom,
+          dateTo,
+          page,
+          isLoading,
+          invoicesPageError,
+          invoicesPage.length,
+        ]}
+      >
+        <SalesListSectionPanel
+          title="Invoice register"
+          description="Search by number or customer, narrow by issue date, then view or edit full line items."
+          badge={invoicesCountBadge}
+        >
+          <SearchFilterBar
+            searchValue={search}
+            onSearchChange={setSearch}
+            placeholder="Search by invoice # or customer..."
+            hasActiveFilters={!!(search || dateFrom || dateTo)}
+            onClearFilters={
+              search || dateFrom || dateTo
+                ? () => {
+                    setSearch("");
+                    setDateFrom("");
+                    setDateTo("");
+                    setPage(1);
+                  }
+                : undefined
+            }
+            rightContent={
+              <>
+                <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
+                  From
+                  <DateInput
+                    value={dateFrom}
+                    onChange={(v) => {
+                      setDateFrom(v);
+                      setPage(1);
+                    }}
+                    className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">
+                  To
+                  <DateInput
+                    value={dateTo}
+                    onChange={(v) => {
+                      setDateTo(v);
+                      setPage(1);
+                    }}
+                    className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] w-[10rem] shrink-0 min-w-0"
+                  />
+                </label>
+              </>
+            }
           />
-          <Pagination
-            page={page}
-            total={totalInvoices}
-            limit={PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+
+          <div className="mt-4">
+            <SalesListAsyncPanel
+              isLoading={isLoading}
+              isError={invoicesPageError}
+              onRetry={() => {
+                void refetchInvoicesPage();
+              }}
+              isEmpty={isInvoicesEmpty}
+              emptyTitle={
+                invoicesHasFilters ? "No invoices match" : "No invoices yet"
+              }
+              emptyDescription={
+                invoicesHasFilters
+                  ? "Try clearing search or widening the date range."
+                  : "Create your first invoice to print a bill and feed daily sales automatically."
+              }
+              emptyActionLabel={
+                invoicesHasFilters ? "Clear filters" : "Create invoice"
+              }
+              onEmptyAction={
+                invoicesHasFilters
+                  ? clearInvoiceFilters
+                  : () => setCreateOpen(true)
+              }
+              emptySecondaryLabel={
+                invoicesHasFilters ? "Create invoice" : undefined
+              }
+              onEmptySecondary={
+                invoicesHasFilters ? () => setCreateOpen(true) : undefined
+              }
+              loaderColumns={5}
+            >
+              <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+                <DataTable<InvoiceRow>
+                  columns={tableColumns}
+                  data={invoicesPage}
+                  emptyMessage="No invoices."
+                />
+                <Pagination
+                  page={page}
+                  total={totalInvoices}
+                  limit={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </SalesListAsyncPanel>
+          </div>
+        </SalesListSectionPanel>
+      </DashboardSectionBoundary>
 
       <ConfirmModal
         open={deleteConfirmInvoiceId != null}
@@ -734,12 +908,7 @@ export default function Invoices() {
             <div className="flex w-full items-center justify-between gap-4 flex-wrap">
               <span className="font-medium text-[var(--color-text-primary)]">
                 Total: ₹
-                {formatDecimal(
-                  viewing.lines.reduce(
-                    (s, l) => s + (l.amount ?? l.quantity * l.price),
-                    0
-                  ) - (viewing.order_discount_amount ?? 0)
-                )}
+                {formatDecimal(invoiceNetTotal(viewing, viewing.lines))}
               </span>
               <div className="flex gap-2 items-center">
                 <Link

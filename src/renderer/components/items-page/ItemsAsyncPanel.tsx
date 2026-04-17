@@ -1,0 +1,66 @@
+import { type ReactNode } from "react";
+import TableLoader from "../TableLoader";
+import { ItemsEmptyState } from "./ItemsEmptyState";
+
+interface ItemsAsyncPanelProps {
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  isEmpty: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
+  loaderColumns?: number;
+  children: ReactNode;
+}
+
+export function ItemsAsyncPanel({
+  isLoading,
+  isError,
+  onRetry,
+  isEmpty,
+  emptyTitle,
+  emptyDescription,
+  emptyActionLabel,
+  onEmptyAction,
+  loaderColumns = 6,
+  children,
+}: Readonly<ItemsAsyncPanelProps>) {
+  if (isLoading) {
+    return <TableLoader columns={loaderColumns} rows={6} />;
+  }
+  if (isError) {
+    return (
+      <div
+        className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-4 py-8 text-center"
+        role="alert"
+      >
+        <p className="text-sm font-semibold text-[var(--color-danger)]">
+          Something went wrong
+        </p>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          Products could not be loaded. Check your connection and try again.
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (isEmpty) {
+    return (
+      <ItemsEmptyState
+        title={emptyTitle}
+        description={emptyDescription}
+        actionLabel={emptyActionLabel}
+        onAction={onEmptyAction}
+      />
+    );
+  }
+  return <>{children}</>;
+}

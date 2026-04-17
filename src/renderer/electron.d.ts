@@ -38,6 +38,7 @@ export interface ElectronAPI {
     reorder_level?: number;
     other_units?: { unit: string; sort_order?: number }[];
     conversions?: { to_unit: string; factor: number }[];
+    _userId?: number | null;
   }) => Promise<number>;
   updateItem: (
     id: number,
@@ -58,6 +59,7 @@ export interface ElectronAPI {
       reorder_level?: number;
       other_units?: { unit: string; sort_order?: number }[];
       conversions?: { to_unit: string; factor: number }[];
+      _userId?: number | null;
     }
   ) => Promise<number>;
   deleteItem: (id: number) => Promise<number>;
@@ -214,6 +216,7 @@ export interface ElectronAPI {
       amount: number;
       price_entered_as: "per_unit" | "total";
     }[];
+    _userId?: number | null;
   }) => Promise<number>;
   updateInvoice: (
     id: number,
@@ -247,10 +250,11 @@ export interface ElectronAPI {
     address?: string;
     phone?: string;
     gstin?: string;
+    _userId?: number | null;
   }) => Promise<number>;
   updateMahajan: (
     id: number,
-    m: { name?: string; address?: string; phone?: string; gstin?: string }
+    m: { name?: string; address?: string; phone?: string; gstin?: string; _userId?: number | null }
   ) => Promise<number>;
   deleteMahajan: (id: number) => Promise<number>;
   getMahajanLends: (mahajanId?: number) => Promise<unknown[]>;
@@ -323,7 +327,13 @@ export interface ElectronAPI {
   getMahajanDeposits: (mahajanId?: number) => Promise<unknown[]>;
   getMahajanLedgerPage: (opts: {
     mahajanId?: number | null;
-    transactionType?: "all" | "lend" | "deposit" | "cash_purchase";
+    transactionType?:
+      | "all"
+      | "lend"
+      | "deposit"
+      | "cash_purchase"
+      | "credit_purchase"
+      | "settlement";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -376,6 +386,7 @@ export interface ElectronAPI {
     cash_in_hand: number;
     expenditure_amount?: number;
     notes?: string;
+    _userId?: number | null;
   }) => Promise<number>;
   updateDailySale: (
     id: number,
@@ -386,6 +397,7 @@ export interface ElectronAPI {
       cash_in_hand?: number;
       expenditure_amount?: number;
       notes?: string;
+      _userId?: number | null;
     }
   ) => Promise<number>;
   deleteDailySale: (id: number) => Promise<number>;
@@ -482,6 +494,31 @@ export interface ElectronAPI {
     { canceled: true } | { canceled: false; path: string }
   >;
   importDb: () => Promise<{ canceled: true } | { canceled: false }>;
+
+  auth: {
+    setupSuperAdmin: (payload: { companyName: string; ownerName: string; displayName: string; pin: string; customerMasterKey?: string }) => Promise<{ id: number }>;
+    listUsers: () => Promise<{ id: number; name: string; role: string; is_active: number; pin_is_temporary: number; created_at: string }[]>;
+    verifyPin: (payload: { userId: number; pin: string }) => Promise<{ valid: boolean; pin_is_temporary: boolean }>;
+    changePin: (payload: { userId: number; currentPin: string; newPin: string }) => Promise<{ success: boolean }>;
+    verifyMasterKey: (key: string) => Promise<{ valid: boolean; keyType: "customer" | "developer" | null }>;
+    resetSuperAdminPin: (payload: { newPin: string }) => Promise<{ success: boolean }>;
+    setCustomerMasterKey: (payload: { key: string; userId: number }) => Promise<{ success: boolean }>;
+    forcePinChange: (payload: { userId: number; newPin: string }) => Promise<{ success: boolean }>;
+  };
+
+  users: {
+    getAll: () => Promise<{ id: number; name: string; role: string; is_active: number; pin_is_temporary: number; created_at: string; created_by: number | null }[]>;
+    create: (payload: { name: string; pin: string; role: string; createdBy: number }) => Promise<{ id: number }>;
+    update: (payload: { id: number; name?: string; role?: string; isActive?: boolean; updatedBy: number }) => Promise<{ id: number }>;
+    resetPin: (payload: { id: number; newPin: string; resetBy: number }) => Promise<{ success: boolean }>;
+  };
+
+  activityLog: {
+    getPage: (opts: { page?: number; limit?: number; userId?: number | null; entityType?: string | null; action?: string | null; currentUserId: number; currentUserRole: "superadmin" | "admin" | "user" }) => Promise<{
+      data: { id: number; user_id: number | null; user_name: string | null; action: string; entity_type: string; entity_id: number | null; entity_label: string | null; details: string | null; created_at: string }[];
+      total: number;
+    }>;
+  };
 }
 
 declare global {

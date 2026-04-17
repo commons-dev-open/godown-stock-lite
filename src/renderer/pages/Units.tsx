@@ -1,13 +1,11 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeftRight,
-  Check,
-  List,
-  Plus,
-  Tag,
-  Trash2,
-} from "lucide-react";
+  useCallback,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { getElectron } from "../api/client";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
@@ -21,13 +19,93 @@ import {
   isSeedUnit,
   isSeedUnitType,
 } from "../../shared/seedConstants";
+import {
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  UnitsAsyncPanel,
+  UnitsHero,
+  UnitsSectionPanel,
+  UnitsSegmentedTabs,
+  type UnitsTabId,
+} from "../components/units-page";
+
+interface TabSectionMeta {
+  title: string;
+  description: string;
+  loaderColumns: number;
+}
+
+const TAB_SECTION_META: Record<UnitsTabId, TabSectionMeta> = {
+  all: {
+    title: "All units",
+    description:
+      "Every product and stock movement references a unit from this list.",
+    loaderColumns: 4,
+  },
+  types: {
+    title: "Unit types",
+    description:
+      "Unit types (e.g. Mass, Volume, Count) help group units and restrict conversions to the same type.",
+    loaderColumns: 2,
+  },
+  conversions: {
+    title: "Standard conversions",
+    description:
+      "Link units with a numeric factor so the app can convert stock and quantities consistently.",
+    loaderColumns: 3,
+  },
+};
+
+interface TabEmptyCopy {
+  title: string;
+  description: string;
+  actionLabel: string;
+}
+
+const TAB_EMPTY_COPY: Record<UnitsTabId, TabEmptyCopy> = {
+  all: {
+    title: "No units yet",
+    description:
+      "Create units you sell or stock in (kg, pcs, boxes). You can attach an optional symbol and type.",
+    actionLabel: "Add unit",
+  },
+  types: {
+    title: "No unit types",
+    description:
+      "Add types such as Mass, Volume, or Count so conversions stay within compatible units.",
+    actionLabel: "Add type",
+  },
+  conversions: {
+    title: "No standard conversions",
+    description:
+      "Add a row for each pair you need (for example 1 kg = 1000 g) so quantities convert automatically.",
+    actionLabel: "Add conversion",
+  },
+};
+
+const PRIMARY_LABELS: Record<UnitsTabId, string> = {
+  all: "Add unit",
+  types: "Add type",
+  conversions: "Add conversion",
+};
 
 export default function Units() {
   const queryClient = useQueryClient();
   const api = getElectron();
-  const [activeSection, setActiveSection] = useState<
-    "all" | "types" | "conversions"
-  >("all");
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+    staleTime: 60_000,
+  });
+  const abbreviationStyle = useMemo(
+    () =>
+      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
+  const [activeSection, setActiveSection] = useState<UnitsTabId>("all");
   const [allAddOpen, setAllAddOpen] = useState(false);
   const [stockEditing, setStockEditing] = useState<Unit | null>(null);
   const [deleteConfirmUnit, setDeleteConfirmUnit] = useState<Unit | null>(null);
@@ -41,24 +119,32 @@ export default function Units() {
     null
   );
 
-  const { data: unitTypes = [] } = useQuery({
+  const unitTypesQuery = useQuery({
     queryKey: ["unitTypes"],
     queryFn: () => api.getUnitTypes() as Promise<UnitType[]>,
+    staleTime: 30_000,
   });
 
-  const { data: units = [] } = useQuery({
+  const unitsQuery = useQuery({
     queryKey: ["units"],
     queryFn: () => api.getUnits() as Promise<Unit[]>,
+    staleTime: 30_000,
   });
 
-  const { data: unitConversions = [] } = useQuery({
+  const unitConversionsQuery = useQuery({
     queryKey: ["unitConversions"],
     queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
+    staleTime: 30_000,
   });
 
-  const allUnitNames = units
-    .map((u) => u.name)
-    .sort((a, b) => a.localeCompare(b));
+  const unitTypes = unitTypesQuery.data ?? [];
+  const units = unitsQuery.data ?? [];
+  const unitConversions = unitConversionsQuery.data ?? [];
+
+  const allUnitNames = useMemo(
+    () => units.map((u) => u.name).sort((a, b) => a.localeCompare(b)),
+    [units]
+  );
 
   const createUnitType = useMutation({
     mutationFn: (name: string) => api.createUnitType(name),
@@ -161,190 +247,217 @@ export default function Units() {
     },
   });
 
+  const openPrimaryAction = useCallback(() => {
+    if (activeSection === "all") {
+      setAllAddOpen(true);
+      return;
+    }
+    if (activeSection === "types") {
+      setTypesAddOpen(true);
+      return;
+    }
+    setConvAddOpen(true);
+  }, [activeSection]);
+
+  const primaryActionLabel = PRIMARY_LABELS[activeSection];
+
+  const activeListQuery = useMemo(() => {
+    if (activeSection === "all") {
+      return unitsQuery;
+    }
+    if (activeSection === "types") {
+      return unitTypesQuery;
+    }
+    return unitConversionsQuery;
+  }, [activeSection, unitsQuery, unitTypesQuery, unitConversionsQuery]);
+
+  const {
+    title: sectionTitle,
+    description: sectionDescription,
+    loaderColumns,
+  } = TAB_SECTION_META[activeSection];
+
+  const tabCountBadge =
+    activeSection === "all"
+      ? units.length
+      : activeSection === "types"
+        ? unitTypes.length
+        : unitConversions.length;
+
+  const countBadge = (
+    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+      {tabCountBadge}
+    </span>
+  );
+
+  let tableContent: ReactNode;
+  if (activeSection === "all") {
+    tableContent = (
+      <DataTable<Unit>
+        columns={[
+          { key: "name", label: "Name" },
+          {
+            key: "symbol",
+            label: "Symbol",
+            render: (r) => r.symbol?.trim() || "—",
+          },
+          {
+            key: "unit_type_name",
+            label: "Type",
+            render: (r) => r.unit_type_name?.trim() || "—",
+          },
+          {
+            key: "actions",
+            label: "Actions",
+            render: (row) => (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  className="!py-1 !px-2 text-xs"
+                  onClick={() => setStockEditing(row)}
+                >
+                  Edit
+                </Button>
+                {!isSeedUnit(row.name) && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmUnit(row)}
+                    className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
+                    title="Delete unit"
+                    aria-label="Delete unit"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        data={units}
+        emptyMessage="No units yet."
+      />
+    );
+  } else if (activeSection === "types") {
+    tableContent = (
+      <DataTable<UnitType>
+        columns={[
+          { key: "name", label: "Name" },
+          {
+            key: "actions",
+            label: "Actions",
+            render: (row) => (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  className="!py-1 !px-2 text-xs"
+                  onClick={() =>
+                    setTypeEditing({
+                      id: row.id,
+                      name: row.name,
+                      created_at: row.created_at,
+                    })
+                  }
+                >
+                  Edit
+                </Button>
+                {!isSeedUnitType(row.name) && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmType(row)}
+                    className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
+                    title="Delete type"
+                    aria-label="Delete type"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        data={unitTypes}
+        emptyMessage="No unit types."
+      />
+    );
+  } else {
+    tableContent = (
+      <DataTable<UnitConversion>
+        columns={[
+          { key: "from_unit", label: "From unit" },
+          { key: "to_unit", label: "To unit" },
+          {
+            key: "factor",
+            label: "Factor",
+            render: (row) =>
+              `1 ${row.from_unit} = ${row.factor} ${row.to_unit}`,
+          },
+        ]}
+        data={unitConversions}
+        onEdit={(row) => setConvEditing(row)}
+        onDelete={(row) => setDeleteConfirmConv(row)}
+        canDelete={(row) => !isSeedConversion(row.from_unit, row.to_unit)}
+        emptyMessage="No standard conversions."
+      />
+    );
+  }
+
+  const emptyCopy = TAB_EMPTY_COPY[activeSection];
+
+  const isListEmpty =
+    activeListQuery.isSuccess &&
+    Array.isArray(activeListQuery.data) &&
+    activeListQuery.data.length === 0;
+
   return (
-    <div className="space-y-6">
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 -mb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Units</h1>
-        </div>
-      </div>
+    <div className="space-y-4 home-dashboard pb-3">
+      <UnitsHero
+        abbreviationStyle={abbreviationStyle}
+        activeTab={activeSection}
+        unitsCount={units.length}
+        typesCount={unitTypes.length}
+        conversionsCount={unitConversions.length}
+        primaryLabel={primaryActionLabel}
+        onPrimary={openPrimaryAction}
+      />
 
-      <div className="flex gap-2 border-b border-[var(--color-border-default)]">
-        <button
-          type="button"
-          onClick={() => setActiveSection("all")}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
-            activeSection === "all"
-              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
-              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-          }`}
+      <UnitsSegmentedTabs active={activeSection} onChange={setActiveSection} />
+
+      <DashboardSectionBoundary
+        sectionTitle={sectionTitle}
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          activeSection,
+          units.length,
+          unitTypes.length,
+          unitConversions.length,
+          activeListQuery.isLoading,
+          activeListQuery.isError,
+        ]}
+      >
+        <UnitsSectionPanel
+          title={sectionTitle}
+          description={sectionDescription}
+          badge={countBadge}
         >
-          <List size={16} aria-hidden="true" />
-          All units
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection("types")}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
-            activeSection === "types"
-              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
-              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <Tag size={16} aria-hidden="true" />
-          Unit types
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection("conversions")}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px ${
-            activeSection === "conversions"
-              ? "bg-[var(--color-bg-surface)] border border-b-0 border-[var(--color-border-default)] text-[var(--color-text-primary)]"
-              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <ArrowLeftRight size={16} aria-hidden="true" />
-          Standard conversions
-        </button>
-      </div>
-
-      {activeSection === "all" && (
-        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setAllAddOpen(true)}>
-              <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add unit
-            </Button>
-          </div>
-          <DataTable<Unit>
-            columns={[
-              { key: "name", label: "Name" },
-              {
-                key: "symbol",
-                label: "Symbol",
-                render: (r) => r.symbol?.trim() || "—",
-              },
-              {
-                key: "unit_type_name",
-                label: "Type",
-                render: (r) => r.unit_type_name?.trim() || "—",
-              },
-              {
-                key: "actions",
-                label: "Actions",
-                render: (row) => (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      className="!py-1 !px-2 text-xs"
-                      onClick={() => setStockEditing(row)}
-                    >
-                      Edit
-                    </Button>
-                    {!isSeedUnit(row.name) && (
-                      <button
-                        type="button"
-                        onClick={() => setDeleteConfirmUnit(row)}
-                        className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
-                        title="Delete unit"
-                        aria-label="Delete unit"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-            data={units}
-            emptyMessage="No units yet. Add one to get started."
-          />
-        </div>
-      )}
-
-      {activeSection === "types" && (
-        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
-          <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-            Unit types (e.g. Mass, Volume, Count) help group units and restrict
-            conversions to the same type.
-          </p>
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setTypesAddOpen(true)}>
-              <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add type
-            </Button>
-          </div>
-          <DataTable<UnitType>
-            columns={[
-              { key: "name", label: "Name" },
-              {
-                key: "actions",
-                label: "Actions",
-                render: (row) => (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      className="!py-1 !px-2 text-xs"
-                      onClick={() =>
-                        setTypeEditing({
-                          id: row.id,
-                          name: row.name,
-                          created_at: row.created_at,
-                        })
-                      }
-                    >
-                      Edit
-                    </Button>
-                    {!isSeedUnitType(row.name) && (
-                      <button
-                        type="button"
-                        onClick={() => setDeleteConfirmType(row)}
-                        className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors"
-                        title="Delete type"
-                        aria-label="Delete type"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-            data={unitTypes}
-            emptyMessage="No unit types. Add one (e.g. Mass, Volume, Count)."
-          />
-        </div>
-      )}
-
-      {activeSection === "conversions" && (
-        <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setConvAddOpen(true)}>
-              <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add conversion
-            </Button>
-          </div>
-          <DataTable<UnitConversion>
-            columns={[
-              { key: "from_unit", label: "From unit" },
-              { key: "to_unit", label: "To unit" },
-              {
-                key: "factor",
-                label: "Factor",
-                render: (row) =>
-                  `1 ${row.from_unit} = ${row.factor} ${row.to_unit}`,
-              },
-            ]}
-            data={unitConversions}
-            onEdit={(row) => setConvEditing(row)}
-            onDelete={(row) => setDeleteConfirmConv(row)}
-            canDelete={(row) => !isSeedConversion(row.from_unit, row.to_unit)}
-            emptyMessage="No standard conversions. Add one to link units (e.g. 1 kg = 1000 g)."
-          />
-        </div>
-      )}
+          <UnitsAsyncPanel
+            isLoading={activeListQuery.isLoading}
+            isError={activeListQuery.isError}
+            onRetry={() => {
+              void activeListQuery.refetch();
+            }}
+            isEmpty={isListEmpty}
+            emptyTitle={emptyCopy.title}
+            emptyDescription={emptyCopy.description}
+            emptyActionLabel={emptyCopy.actionLabel}
+            onEmptyAction={openPrimaryAction}
+            loaderColumns={loaderColumns}
+          >
+            {tableContent}
+          </UnitsAsyncPanel>
+        </UnitsSectionPanel>
+      </DashboardSectionBoundary>
 
       <ConfirmModal
         open={deleteConfirmUnit != null}

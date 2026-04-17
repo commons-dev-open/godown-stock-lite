@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,17 +14,24 @@ import {
 } from "@floating-ui/react";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
-import TableLoader from "../components/TableLoader";
 import FormModal from "../components/FormModal";
 import DateInput from "../components/DateInput";
-import Tooltip from "../components/Tooltip";
 import TransactionTypeBadge from "../components/TransactionTypeBadge";
-import LedgerRowActions from "../components/LedgerRowActions";
 import AddLendModal from "../components/AddLendModal";
 import AddDepositModal from "../components/AddDepositModal";
-import MahajanBalanceCard from "../components/MahajanBalanceCard";
-import EmptyState from "../components/EmptyState";
-import { formatDateForView, formatDateForForm } from "../lib/date";
+import Pagination, { PAGE_SIZE } from "../components/Pagination";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  MahajansSectionPanel,
+} from "../components/mahajans-page";
+import {
+  MahajanLedgerHero,
+  MahajanLedgerFiltersBar,
+  MahajanLedgerTable,
+  MahajanLedgerAsyncPanel,
+} from "../components/mahajan-ledger-page";
+import { mahajanNetBalanceTextClass } from "../components/mahajans-page/mahajanBalanceTextClass";
+import { formatDateForView } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import {
   exportMahajanLedgerToCsv,
@@ -34,23 +41,21 @@ import {
 } from "../lib/exportMahajanLedger";
 import { getAppDisplayName } from "../lib/displayName";
 import { formatDateForFile } from "../lib/exportUtils";
-import {
-  Download,
-  ArrowLeft,
-  FileDown,
-  Filter,
-  Plus,
-  Printer,
-  X,
-} from "lucide-react";
+import { Download, FileDown, Printer } from "lucide-react";
 import Button from "../components/Button";
-import type {
-  LedgerRow,
-  MahajanLend,
-  MahajanDeposit,
-  Item,
-} from "../../shared/types";
-import { formatDecimal } from "../../shared/numbers";
+import type { MahajanLend, MahajanDeposit, Item } from "../../shared/types";
+import {
+  formatDecimal,
+  formatAbbreviatedRupee,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
+import {
+  pageRowToLedgerRow,
+  toLendRecord,
+  toDepositRecord,
+  type LenderLedgerPageRow,
+} from "../lib/lenderLedgerRow";
 
 export default function MahajanLedger() {
   const { mahajanId } = useParams<{ mahajanId: string }>();
@@ -60,8 +65,14 @@ export default function MahajanLedger() {
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
+    staleTime: 60_000,
   });
   const appName = getAppDisplayName(settings);
+  const abbreviationStyle = useMemo(
+    () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
+  const [page, setPage] = useState(1);
   const id = Number(mahajanId);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
@@ -101,7 +112,7 @@ export default function MahajanLedger() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
     type: "credit_purchase" | "settlement";
-    row: LedgerRow;
+    row: LenderLedgerPageRow;
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -171,27 +182,36 @@ export default function MahajanLedger() {
     }
   }, [editingDeposit]);
 
-  const { data: mahajans = [] } = useQuery({
+  const { data: mahajans = [], isSuccess: mahajansLoaded } = useQuery({
     queryKey: ["mahajans"],
     queryFn: () => api.getMahajans(),
   });
 
-  const { data: ledger = [], isLoading } = useQuery({
-    queryKey: ["mahajanLedger", id],
-    queryFn: () => api.getMahajanLedger(id) as Promise<LedgerRow[]>,
-    enabled: !!id,
-  });
-
-  const { data: lends = [] } = useQuery<MahajanLend[]>({
-    queryKey: ["mahajanLends", id],
-    queryFn: () => api.getMahajanLends(id) as Promise<MahajanLend[]>,
-    enabled: !!id,
-  });
-
-  const { data: deposits = [] } = useQuery<MahajanDeposit[]>({
-    queryKey: ["mahajanDeposits", id],
-    queryFn: () => api.getMahajanDeposits(id) as Promise<MahajanDeposit[]>,
-    enabled: !!id,
+  const {
+    data: ledgerPage,
+    isLoading: ledgerLoading,
+    isError: ledgerError,
+    refetch: refetchLedger,
+  } = useQuery({
+    queryKey: [
+      "mahajanLedger",
+      id,
+      filterType,
+      filterDateFrom,
+      filterDateTo,
+      page,
+    ],
+    queryFn: () =>
+      api.getMahajanLedgerPage({
+        mahajanId: id,
+        transactionType: filterType,
+        dateFrom: filterDateFrom || undefined,
+        dateTo: filterDateTo || undefined,
+        page,
+        limit: PAGE_SIZE,
+      }) as Promise<{ data: LenderLedgerPageRow[]; total: number }>,
+    enabled: Number.isFinite(id) && id > 0,
+    staleTime: 15_000,
   });
 
   const { data: items = [] } = useQuery({
@@ -207,7 +227,7 @@ export default function MahajanLedger() {
         totalDeposits: number;
         balance: number;
       }>,
-    enabled: !!id,
+    enabled: Number.isFinite(id) && id > 0,
   });
 
   const mahajan = (mahajans as { id: number; name: string }[]).find(
@@ -232,9 +252,8 @@ export default function MahajanLedger() {
       };
     }) => api.updateMahajanLend(lendId, l),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
-      queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
@@ -256,9 +275,8 @@ export default function MahajanLedger() {
       d: { transaction_date?: string; amount?: number; notes?: string };
     }) => api.updateMahajanDeposit(depositId, d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
-      queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
@@ -272,9 +290,8 @@ export default function MahajanLedger() {
   const deleteLend = useMutation({
     mutationFn: (lendId: number) => api.deleteMahajanLend(lendId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
-      queryClient.invalidateQueries({ queryKey: ["mahajanLends", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
@@ -289,9 +306,8 @@ export default function MahajanLedger() {
   const deleteDeposit = useMutation({
     mutationFn: (depositId: number) => api.deleteMahajanDeposit(depositId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mahajanLedger", id] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
-      queryClient.invalidateQueries({ queryKey: ["mahajanDeposits", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
@@ -301,20 +317,6 @@ export default function MahajanLedger() {
       toast.error(err.message ?? "Failed to delete settlement"),
   });
 
-  const getLendRecord = (row: LedgerRow): MahajanLend | undefined =>
-    lends.find((l) => l.id === row.id);
-  const getDepositRecord = (row: LedgerRow): MahajanDeposit | undefined =>
-    deposits.find((d) => d.id === row.id);
-
-  const filteredLedger = useMemo(() => {
-    return ledger.filter((row) => {
-      if (filterType !== "all" && row.type !== filterType) return false;
-      if (filterDateFrom && row.transaction_date < filterDateFrom) return false;
-      if (filterDateTo && row.transaction_date > filterDateTo) return false;
-      return true;
-    });
-  }, [ledger, filterType, filterDateFrom, filterDateTo]);
-
   const handleFilterChange = (updates: {
     type?: "all" | "credit_purchase" | "settlement";
     dateFrom?: string;
@@ -323,37 +325,135 @@ export default function MahajanLedger() {
     if (updates.type !== undefined) setFilterType(updates.type);
     if (updates.dateFrom !== undefined) setFilterDateFrom(updates.dateFrom);
     if (updates.dateTo !== undefined) setFilterDateTo(updates.dateTo);
+    setPage(1);
   };
+
+  const clearLedgerFilters = useCallback(() => {
+    setFilterType("all");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setPage(1);
+  }, []);
 
   const mahajanLabel = mahajan?.name ?? `ID ${id}`;
 
+  const unifiedRows = ledgerPage?.data ?? [];
+  const totalLedger = ledgerPage?.total ?? 0;
+
+  const filterTypeDisplay =
+    filterType === "credit_purchase"
+      ? "Credit purchase"
+      : filterType === "settlement"
+        ? "Settlement"
+        : filterType;
+
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
-    if (filterType !== "all") list.push({ label: "Type", value: filterType });
-    if (filterDateFrom)
+    if (filterType !== "all") {
+      list.push({ label: "Type", value: filterTypeDisplay });
+    }
+    if (filterDateFrom) {
       list.push({ label: "Date From", value: filterDateFrom });
-    if (filterDateTo) list.push({ label: "Date To", value: filterDateTo });
+    }
+    if (filterDateTo) {
+      list.push({ label: "Date To", value: filterDateTo });
+    }
     return list;
-  }, [filterType, filterDateFrom, filterDateTo]);
+  }, [filterType, filterTypeDisplay, filterDateFrom, filterDateTo]);
 
-  function handleExportCsv() {
+  const fetchLedgerRowsForExport = useCallback(async () => {
+    const result = (await api.getMahajanLedgerPage({
+      mahajanId: id,
+      transactionType: filterType,
+      dateFrom: filterDateFrom || undefined,
+      dateTo: filterDateTo || undefined,
+      page: 1,
+      limit: 999_999,
+    })) as { data: LenderLedgerPageRow[]; total: number };
+    return (result.data ?? []).map(pageRowToLedgerRow);
+  }, [api, id, filterType, filterDateFrom, filterDateTo]);
+
+  const ledgerHasActiveFilters =
+    filterType !== "all" || Boolean(filterDateFrom) || Boolean(filterDateTo);
+  const isLedgerEmpty =
+    !ledgerLoading &&
+    !ledgerError &&
+    totalLedger === 0 &&
+    !ledgerPage?.data?.length;
+
+  const totalCreditDisplay = useMemo(() => {
+    if (balanceLoading && balance == null) {
+      return "…";
+    }
+    if (balance != null) {
+      return formatAbbreviatedRupee(balance.totalLends, abbreviationStyle);
+    }
+    return "—";
+  }, [abbreviationStyle, balanceLoading, balance]);
+
+  const totalSettlementDisplay = useMemo(() => {
+    if (balanceLoading && balance == null) {
+      return "…";
+    }
+    if (balance != null) {
+      return formatAbbreviatedRupee(balance.totalDeposits, abbreviationStyle);
+    }
+    return "—";
+  }, [abbreviationStyle, balanceLoading, balance]);
+
+  const balanceDisplay = useMemo(() => {
+    if (balanceLoading && balance == null) {
+      return "…";
+    }
+    if (balance != null) {
+      return formatAbbreviatedRupee(
+        Math.abs(balance.balance),
+        abbreviationStyle
+      );
+    }
+    return "—";
+  }, [abbreviationStyle, balanceLoading, balance]);
+
+  const balanceSuffix = useMemo(() => {
+    if (balance == null) {
+      return "";
+    }
+    if (balance.balance > 0) {
+      return "(payable)";
+    }
+    if (balance.balance < 0) {
+      return "(receivable)";
+    }
+    return "";
+  }, [balance]);
+
+  const balanceValueClassName = useMemo(() => {
+    if (balance == null) {
+      return "text-[var(--color-text-primary)]";
+    }
+    return mahajanNetBalanceTextClass(balance.balance);
+  }, [balance]);
+
+  async function handleExportCsv() {
     setExportOpen(false);
-    if (filteredLedger.length === 0) {
+    const rows = await fetchLedgerRowsForExport();
+    if (rows.length === 0) {
       toast.error("No data to export.");
       return;
     }
-    exportMahajanLedgerToCsv(filteredLedger, mahajanLabel, appliedFilters);
+    exportMahajanLedgerToCsv(rows, mahajanLabel, appliedFilters);
     toast.success("Exported as CSV.");
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     setExportOpen(false);
-    if (filteredLedger.length === 0) {
+    const rows = await fetchLedgerRowsForExport();
+    if (rows.length === 0) {
       toast.error("No data to export.");
       return;
     }
     exportMahajanLedgerToPdf(
-      filteredLedger,
+      rows,
       mahajanLabel,
       balance ?? null,
       appliedFilters,
@@ -362,14 +462,15 @@ export default function MahajanLedger() {
     toast.success("Exported as PDF.");
   }
 
-  function handleExportPrint() {
+  async function handleExportPrint() {
     setExportOpen(false);
-    if (filteredLedger.length === 0) {
+    const rows = await fetchLedgerRowsForExport();
+    if (rows.length === 0) {
       toast.error("No data to export.");
       return;
     }
     setPrintData({
-      ...getPrintTableBody(filteredLedger, appliedFilters),
+      ...getPrintTableBody(rows, appliedFilters),
       mahajanName: mahajanLabel,
       balance: balance ?? null,
     });
@@ -396,337 +497,220 @@ export default function MahajanLedger() {
     };
   }, [printData]);
 
-  if (!id) return <div className="text-[var(--color-text-tertiary)]">Invalid Lender</div>;
+  if (!Number.isFinite(id) || id <= 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-[var(--color-text-tertiary)]">
+        Invalid lender
+      </div>
+    );
+  }
+
+  const lenderNotInDirectory =
+    mahajansLoaded &&
+    !(mahajans as { id: number }[]).some((m) => m.id === id);
+
+  const countBadge = (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+        {totalLedger}
+      </span>
+    </span>
+  );
+
+  const heroToolbar = (
+    <>
+      <div ref={exportRefs.setReference} {...getExportRefProps()}>
+        <Button variant="secondary" type="button" className="shrink-0 whitespace-nowrap">
+          <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+          Export
+        </Button>
+      </div>
+      <FloatingPortal>
+        {exportOpen && (
+          <div
+            ref={exportRefs.setFloating}
+            style={exportFloatingStyles}
+            {...getExportFloatingProps()}
+            className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={() => {
+                void handleExportCsv();
+              }}
+            >
+              <FileDown size={16} className="shrink-0" />
+              Export as CSV
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={() => {
+                void handleExportPdf();
+              }}
+            >
+              <FileDown size={16} className="shrink-0" />
+              Export as PDF
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={() => {
+                void handleExportPrint();
+              }}
+            >
+              <Printer size={16} className="shrink-0" />
+              Print
+            </button>
+          </div>
+        )}
+      </FloatingPortal>
+    </>
+  );
 
   return (
-    <div>
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
-          >
-            <ArrowLeft size={20} aria-hidden="true" />
-            Back
-          </button>
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-            Ledger: {mahajan?.name ?? `ID ${id}`}
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <div ref={exportRefs.setReference} {...getExportRefProps()}>
-            <Button variant="secondary" type="button">
-              <Download size={20} className="mr-1.5" aria-hidden="true" />
-              Export
-            </Button>
-          </div>
-          <FloatingPortal>
-            {exportOpen && (
-              <div
-                ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
-                style={exportFloatingStyles}
-                {...getExportFloatingProps()}
-                className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
-              >
-                <button
-                  type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                  onClick={handleExportCsv}
-                >
-                  <FileDown size={16} className="shrink-0" />
-                  Export as CSV
-                </button>
-                <button
-                  type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                  onClick={handleExportPdf}
-                >
-                  <FileDown size={16} className="shrink-0" />
-                  Export as PDF
-                </button>
-                <button
-                  type="button"
-                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                  onClick={handleExportPrint}
-                >
-                  <Printer size={16} className="shrink-0" />
-                  Print
-                </button>
-              </div>
-            )}
-          </FloatingPortal>
-          <Button variant="amber" onClick={() => setLendModalOpen(true)}>
-            <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add Credit Purchase
-          </Button>
-          <Button variant="green" onClick={() => setDepositModalOpen(true)}>
-            <Plus size={20} className="mr-1.5" aria-hidden="true" />
-            Add Settlement
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden mb-4">
-        <select
-          className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
-          value={filterType}
-          onChange={(e) =>
-            handleFilterChange({
-              type: e.target.value as "all" | "credit_purchase" | "settlement",
-            })
-          }
-        >
-          <option value="all">All (Credit Purchase + Settlement)</option>
-          <option value="credit_purchase">Credit Purchase only</option>
-          <option value="settlement">Settlement only</option>
-        </select>
-        <button
-          type="button"
-          onClick={() => setMoreFiltersOpen(true)}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
-        >
-          <Filter size={16} aria-hidden="true" />
-          More filters
-          {(filterDateFrom || filterDateTo) && (
-            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
-              1
-            </span>
-          )}
-        </button>
-      </div>
-
-      {moreFiltersOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMoreFiltersOpen(false)}
-            aria-hidden
-          />
-          <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">More filters</h2>
-              <button
-                type="button"
-                onClick={() => setMoreFiltersOpen(false)}
-                className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4">
-              <label
-                htmlFor="mahajan-ledger-date-from"
-                className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
-              >
-                From date
-                <DateInput
-                  id="mahajan-ledger-date-from"
-                  value={filterDateFrom}
-                  onChange={(v) => handleFilterChange({ dateFrom: v })}
-                  className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
-                />
-              </label>
-              <label
-                htmlFor="mahajan-ledger-date-to"
-                className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
-              >
-                To date
-                <DateInput
-                  id="mahajan-ledger-date-to"
-                  value={filterDateTo}
-                  onChange={(v) => handleFilterChange({ dateTo: v })}
-                  className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
-                />
-              </label>
-              {(filterType !== "all" || filterDateFrom || filterDateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleFilterChange({
-                      type: "all",
-                      dateFrom: "",
-                      dateTo: "",
-                    });
-                    setMoreFiltersOpen(false);
-                  }}
-                  className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] self-start"
-                >
-                  <X size={16} aria-hidden="true" />
-                  Clear filters
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <MahajanBalanceCard
-        balance={balance}
-        loading={balanceLoading}
-        variant="row"
+    <div className="home-dashboard space-y-4 pb-3">
+      <MahajanLedgerHero
+        lenderTitle={mahajanLabel}
+        totalCreditDisplay={totalCreditDisplay}
+        totalSettlementDisplay={totalSettlementDisplay}
+        balanceDisplay={balanceDisplay}
+        balanceSuffix={balanceSuffix}
+        balanceValueClassName={balanceValueClassName}
+        toolbar={heroToolbar}
+        onBack={() => {
+          navigate("/mahajans");
+        }}
+        onAddCreditPurchase={() => {
+          setLendModalOpen(true);
+        }}
+        onAddSettlement={() => {
+          setDepositModalOpen(true);
+        }}
       />
-      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-        <div className="table-scroll-wrap overflow-x-auto">
-          {isLoading ? (
-            <TableLoader />
-          ) : filteredLedger.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <table className="min-w-full divide-y divide-[var(--color-border-default)]">
-              <thead className="bg-[var(--color-bg-surface-raised)]">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                    Date
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                    Type
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                    Description
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                    Amount
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-default)]">
-                {filteredLedger.map((row) => {
-                  const amountColorClass =
-                    row.type === "credit_purchase" ? "text-[var(--color-warning-text)]" : "text-[var(--color-success)]";
-                  return (
-                    <tr
-                      key={`${row.type}-${row.id}`}
-                      className="hover:bg-[var(--color-bg-surface-raised)]"
-                    >
-                      <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
-                        <Tooltip
-                          content={formatDateForForm(row.transaction_date)}
-                        >
-                          <span>{formatDateForView(row.transaction_date)}</span>
-                        </Tooltip>
-                      </td>
-                      <td className="px-4 py-2 text-sm">
-                        <TransactionTypeBadge type={row.type} />
-                      </td>
-                      <td className="px-4 py-2 text-sm text-[var(--color-text-primary)]">
-                        <span className="block">{row.description}</span>
-                        {row.type === "credit_purchase" && (() => {
-                          const rec = getLendRecord(row) as
-                            | (MahajanLend & {
-                                lender_invoice_number?: string | null;
-                                invoice_file_path?: string | null;
-                              })
-                            | undefined;
-                          if (!rec) return null;
-                          const invNum = rec.lender_invoice_number;
-                          const invPath = rec.invoice_file_path;
-                          return (
-                            (invNum || invPath) && (
-                              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                {invNum && (
-                                  <span title="Lender invoice">
-                                    #{invNum}
-                                  </span>
-                                )}
-                                {invPath && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      api.openCreditPurchaseInvoice(invPath)
-                                    }
-                                    className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline"
-                                  >
-                                    View invoice
-                                  </button>
-                                )}
-                              </span>
-                            )
-                          );
-                        })()}
-                        {row.type === "settlement" && (() => {
-                          const rec = getDepositRecord(row) as
-                            | (MahajanDeposit & {
-                                payment_method?: string | null;
-                                reference_number?: string | null;
-                              })
-                            | undefined;
-                          if (!rec) return null;
-                          const pm = rec.payment_method;
-                          const ref = rec.reference_number;
-                          return (
-                            (pm || ref) && (
-                              <span className="block mt-1 text-xs text-[var(--color-text-tertiary)]">
-                                {pm && (
-                                  <span className="capitalize">{pm}</span>
-                                )}
-                                {pm && ref && " · "}
-                                {ref && (
-                                  <span title={ref}>
-                                    {ref.length > 16
-                                      ? `${ref.slice(0, 14)}…`
-                                      : ref}
-                                  </span>
-                                )}
-                              </span>
-                            )
-                          );
-                        })()}
-                      </td>
-                      <td
-                        className={`px-4 py-2 text-sm text-right font-medium ${amountColorClass}`}
-                      >
-                        {formatDecimal(row.amount)}
-                      </td>
-                      <LedgerRowActions
-                        type={row.type}
-                        onEdit={() => {
-                          if (row.type === "credit_purchase") {
-                            const rec = getLendRecord(row);
-                            if (rec) setEditingLend(rec);
-                            else toast.error("Credit purchase record not found");
-                          } else {
-                            const rec = getDepositRecord(row);
-                            if (rec) setEditingDeposit(rec);
-                            else toast.error("Settlement record not found");
-                          }
-                        }}
-                        onDelete={() => {
-                          if (row.type === "credit_purchase") {
-                            const rec = getLendRecord(row);
-                            if (rec) {
-                              setDeleteConfirmPayload({
-                                type: "credit_purchase",
-                                row,
-                                record: rec,
-                              });
-                              setDeleteConfirmOpen(true);
-                            } else toast.error("Credit purchase record not found");
-                          } else {
-                            const rec = getDepositRecord(row);
-                            if (rec) {
-                              setDeleteConfirmPayload({
-                                type: "settlement",
-                                row,
-                                record: rec,
-                              });
-                              setDeleteConfirmOpen(true);
-                            } else toast.error("Settlement record not found");
-                          }
-                        }}
-                      />
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+
+      {lenderNotInDirectory ? (
+        <p
+          className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"
+          role="status"
+        >
+          This lender is not in your directory (they may have been removed). You
+          can still view entries that remain in the database for this id.
+        </p>
+      ) : null}
+
+      <DashboardSectionBoundary
+        sectionTitle="Lender ledger"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          id,
+          filterType,
+          filterDateFrom,
+          filterDateTo,
+          page,
+          ledgerLoading,
+          ledgerError,
+          unifiedRows.length,
+        ]}
+      >
+        <MahajansSectionPanel
+          title="Ledger entries"
+          description="Filter by type or date, add credit purchases or settlements, and export when you need a file or printout."
+          badge={countBadge}
+        >
+          <MahajanLedgerFiltersBar
+            filterType={filterType}
+            filterDateFrom={filterDateFrom}
+            filterDateTo={filterDateTo}
+            moreFiltersOpen={moreFiltersOpen}
+            onMoreFiltersOpenChange={setMoreFiltersOpen}
+            onFilterChange={handleFilterChange}
+          />
+
+          <div className="mt-4">
+            <MahajanLedgerAsyncPanel
+              isLoading={ledgerLoading}
+              isError={ledgerError}
+              onRetry={() => {
+                void refetchLedger();
+              }}
+              isEmpty={isLedgerEmpty}
+              emptyTitle={
+                ledgerHasActiveFilters
+                  ? "No matching entries"
+                  : "No ledger entries yet"
+              }
+              emptyDescription={
+                ledgerHasActiveFilters
+                  ? "Try clearing filters or widening the date range."
+                  : "Add a credit purchase or settlement using the buttons above."
+              }
+              emptyActionLabel={
+                ledgerHasActiveFilters ? "Clear filters" : "Credit purchase"
+              }
+              onEmptyAction={
+                ledgerHasActiveFilters
+                  ? clearLedgerFilters
+                  : () => {
+                      setLendModalOpen(true);
+                    }
+              }
+              emptySecondaryLabel={
+                ledgerHasActiveFilters ? "Credit purchase" : "Settlement"
+              }
+              onEmptySecondary={
+                ledgerHasActiveFilters
+                  ? () => {
+                      setLendModalOpen(true);
+                    }
+                  : () => {
+                      setDepositModalOpen(true);
+                    }
+              }
+            >
+              <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+                <MahajanLedgerTable
+                  rows={unifiedRows}
+                  onOpenInvoice={(path) => {
+                    void api.openCreditPurchaseInvoice(path);
+                  }}
+                  onEditRow={(row) => {
+                    if (row.type === "credit_purchase") {
+                      setEditingLend(toLendRecord(row));
+                    } else {
+                      setEditingDeposit(toDepositRecord(row));
+                    }
+                  }}
+                  onDeleteRow={(row) => {
+                    if (row.type === "credit_purchase") {
+                      setDeleteConfirmPayload({
+                        type: "credit_purchase",
+                        row,
+                        record: toLendRecord(row),
+                      });
+                      setDeleteConfirmOpen(true);
+                    } else {
+                      setDeleteConfirmPayload({
+                        type: "settlement",
+                        row,
+                        record: toDepositRecord(row),
+                      });
+                      setDeleteConfirmOpen(true);
+                    }
+                  }}
+                />
+                <Pagination
+                  page={page}
+                  total={totalLedger}
+                  limit={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </MahajanLedgerAsyncPanel>
+          </div>
+        </MahajansSectionPanel>
+      </DashboardSectionBoundary>
 
       <FormModal
         title="Edit Lend"
@@ -1092,7 +1076,7 @@ export default function MahajanLedger() {
         open={lendModalOpen}
         onClose={() => setLendModalOpen(false)}
         fixedMahajanId={id}
-        fixedMahajanName={mahajan?.name}
+        fixedMahajanName={mahajanLabel}
       />
       <AddDepositModal
         open={depositModalOpen}

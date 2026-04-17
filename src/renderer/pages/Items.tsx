@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useFloating,
@@ -13,14 +13,20 @@ import {
 } from "@floating-ui/react";
 import { Link } from "react-router-dom";
 import { getElectron } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/DataTable";
 import FormModal from "../components/FormModal";
 import ConfirmModal from "../components/ConfirmModal";
 import FormField from "../components/FormField";
 import Button from "../components/Button";
-import EmptyState from "../components/EmptyState";
 import SearchFilterBar from "../components/SearchFilterBar";
-import TableLoader from "../components/TableLoader";
+import { DashboardSectionBoundary } from "../components/home-dashboard";
+import {
+  ItemsAsyncPanel,
+  ItemsHero,
+  ItemsSectionPanel,
+} from "../components/items-page";
+import type { LowStockItem } from "../components/home-dashboard/types";
 import Pagination, { PAGE_SIZE } from "../components/Pagination";
 import toast from "react-hot-toast";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
@@ -48,7 +54,11 @@ import type {
   Unit,
   UnitConversion,
 } from "../../shared/types";
-import { formatDecimal } from "../../shared/numbers";
+import {
+  formatDecimal,
+  NUMBER_ABBREVIATION_STYLE_KEY,
+  parseNumberAbbreviationStyle,
+} from "../../shared/numbers";
 
 
 type ItemWithUnits = Item & {
@@ -63,6 +73,8 @@ type ConversionRow = { to_unit: string; factor: number };
 export default function Items() {
   const queryClient = useQueryClient();
   const api = getElectron();
+  const { authState } = useAuth();
+  const currentUser = authState.status === "unlocked" ? authState.user : null;
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [reduceStockOpen, setReduceStockOpen] = useState(false);
@@ -99,6 +111,7 @@ export default function Items() {
   const { data: settings = {} } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -153,14 +166,22 @@ export default function Items() {
   const gstEnabled = settings.gst_enabled === "true";
   const hsnEnabled = settings.hsn_enabled !== "false";
 
+  const abbreviationStyle = useMemo(
+    () =>
+      parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
+    [settings]
+  );
+
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
     queryFn: () => api.getUnits() as Promise<Unit[]>,
+    staleTime: 30_000,
   });
 
   const { data: unitConversions = [] } = useQuery({
     queryKey: ["unitConversions"],
     queryFn: () => api.getUnitConversions() as Promise<UnitConversion[]>,
+    staleTime: 30_000,
   });
 
   const findUnitMeta = (unitName: string) =>
@@ -177,12 +198,21 @@ export default function Items() {
   };
 
 
-  const { data: items = [] } = useQuery({
+  const itemsListQuery = useQuery({
     queryKey: ["items"],
     queryFn: () => api.getItems() as Promise<Item[]>,
+    staleTime: 30_000,
   });
+  const items = itemsListQuery.data ?? [];
 
-  const { data: pageResult, isLoading } = useQuery({
+  const lowStockQuery = useQuery({
+    queryKey: ["lowStockItems"],
+    queryFn: async () => (await api.getLowStockItems()) as LowStockItem[],
+    staleTime: 2 * 60_000,
+  });
+  const lowStockItems = lowStockQuery.data ?? [];
+
+  const itemsPageQuery = useQuery({
     queryKey: ["itemsPage", search, page],
     queryFn: () =>
       api.getItemsPage({
@@ -193,9 +223,13 @@ export default function Items() {
         data: Item[];
         total: number;
       }>,
+    staleTime: 15_000,
   });
+  const pageResult = itemsPageQuery.data;
   const itemsPage = pageResult?.data ?? [];
   const totalItems = pageResult?.total ?? 0;
+  const itemsPageLoading = itemsPageQuery.isLoading;
+  const itemsPageError = itemsPageQuery.isError;
 
   const addAllowedStockUnits = computeProductUnits({
     primaryUnit: addUnitSelect || null,
@@ -252,6 +286,7 @@ export default function Items() {
         selling_price_unit: payload.selling_price_unit ?? null,
         gst_rate: payload.gst_rate ?? 0,
         hsn_code: payload.hsn_code ?? null,
+        _userId: currentUser?.id ?? null,
       });
     },
     onSuccess: () => {
@@ -272,6 +307,7 @@ export default function Items() {
       return api.updateItem(payload.id, {
         ...payload.item,
         other_units: payload.other_units,
+        _userId: currentUser?.id ?? null,
       });
     },
     onSuccess: () => {
@@ -387,193 +423,304 @@ export default function Items() {
     };
   }, [printData]);
 
-  return (
-    <div>
-      <div className="sticky top-0 z-20 bg-[var(--color-bg-app)] pt-6 pb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-            Products & Stock
-          </h1>
-          <div className="flex items-center gap-2">
-            <div ref={exportRefs.setReference} {...getExportRefProps()}>
-              <Button variant="secondary" type="button">
-                <Download size={20} className="mr-1.5" aria-hidden="true" />
-                Export
-              </Button>
-            </div>
-            <FloatingPortal>
-              {exportOpen && (
-                <div
-                  ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
-                  style={exportFloatingStyles}
-                  {...getExportFloatingProps()}
-                  className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
-                >
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportCsv}
-                  >
-                    <FileDown size={16} className="shrink-0" />
-                    Export as CSV
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportPdf}
-                  >
-                    <FileDown size={16} className="shrink-0" />
-                    Export as PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
-                    onClick={handleExportPrint}
-                  >
-                    <Printer size={16} className="shrink-0" />
-                    Print
-                  </button>
-                </div>
-              )}
-            </FloatingPortal>
-            <Button variant="secondary" onClick={() => setAddStockOpen(true)}>
-              <ArrowUp size={20} className="mr-1.5" aria-hidden="true" />
-              Add Stock
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setReduceStockOpen(true)}
-            >
-              <ArrowDown size={20} className="mr-1.5" aria-hidden="true" />
-              Reduce Stock
-            </Button>
-            <Button variant="primary" onClick={() => setAddProductOpen(true)}>
-              <Plus size={20} className="mr-1.5" aria-hidden="true" />
-              Add Product
-            </Button>
-          </div>
-        </div>
-      </div>
-      <div className="mb-4">
-        <SearchFilterBar
-          searchValue={search}
-          onSearchChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          onClearFilters={
-            search
-              ? () => {
-                  setSearch("");
-                  setPage(1);
-                }
-              : undefined
-          }
-          placeholder="Search by name or code…"
-        />
-      </div>
+  const loaderColumns = useMemo(() => {
+    let n = 5;
+    if (gstEnabled) {
+      n += 2;
+      if (hsnEnabled) {
+        n += 1;
+      }
+    }
+    return n;
+  }, [gstEnabled, hsnEnabled]);
 
-      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-        {isLoading ? (
-          <TableLoader />
-        ) : itemsPage.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            <DataTable<Item>
-              columns={[
-                { key: "name", label: "Name" },
-                { key: "code", label: "Code" },
-                {
-                  key: "current_stock",
-                  label: "Current Stock",
-                  render: (r) => formatDecimal(r.current_stock),
-                },
-                {
-                  key: "unit",
-                  label: "Unit",
-                  render: (r) => unitDisplay(r.unit),
-                },
-                ...(gstEnabled
-                  ? [
-                      {
-                        key: "selling_price" as const,
-                        label: "Selling Price",
-                        render: (r: Item) =>
-                          r.selling_price != null && r.selling_price > 0
-                            ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
-                            : "",
-                      },
-                      {
-                        key: "gst_rate" as const,
-                        label: "GST",
-                        render: (r: Item) =>
-                          (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
-                      },
-                      ...(hsnEnabled
+  const clearSearchAndPage = useCallback(() => {
+    setSearch("");
+    setPage(1);
+  }, []);
+
+  const noMatchesMeta = useMemo(
+    () => ({
+      title: "No matches",
+      description:
+        "Nothing in the catalog matches this search. Try another keyword or clear the filter to see all products.",
+      actionLabel: "Clear search",
+    }),
+    []
+  );
+
+  const emptyCatalogMeta = useMemo(
+    () => ({
+      title: "No products yet",
+      description:
+        "Add your first product with its base unit and reorder level. You can attach alternate units and conversions after units are set up.",
+      actionLabel: "Add product",
+    }),
+    []
+  );
+
+  const awaitingCatalogForEmptyState =
+    itemsPageQuery.isSuccess &&
+    itemsPage.length === 0 &&
+    !search.trim() &&
+    itemsListQuery.isLoading;
+
+  const showTableSkeleton = itemsPageLoading || awaitingCatalogForEmptyState;
+
+  const isListEmpty =
+    itemsPageQuery.isSuccess &&
+    itemsListQuery.isSuccess &&
+    itemsPage.length === 0;
+
+  const emptyIsNoMatches =
+    isListEmpty && search.trim().length > 0 && items.length > 0;
+
+  const emptyTitle = emptyIsNoMatches ? noMatchesMeta.title : emptyCatalogMeta.title;
+  const emptyDescription = emptyIsNoMatches
+    ? noMatchesMeta.description
+    : emptyCatalogMeta.description;
+  const emptyActionLabel = emptyIsNoMatches
+    ? noMatchesMeta.actionLabel
+    : emptyCatalogMeta.actionLabel;
+  const onEmptyAction = emptyIsNoMatches
+    ? clearSearchAndPage
+    : () => setAddProductOpen(true);
+
+  const filterPill =
+    search.trim().length > 0
+      ? `Filtered: "${search.trim()}" · ${totalItems} result${totalItems === 1 ? "" : "s"}`
+      : undefined;
+
+  const countBadge = (
+    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] tabular-nums">
+      {totalItems}
+    </span>
+  );
+
+  const heroToolbar = (
+    <>
+      <div ref={exportRefs.setReference} {...getExportRefProps()}>
+        <Button variant="secondary" type="button" className="w-full sm:w-auto">
+          <Download size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+          Export
+        </Button>
+      </div>
+      <FloatingPortal>
+        {exportOpen && (
+          <div
+            ref={exportRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
+            style={exportFloatingStyles}
+            {...getExportFloatingProps()}
+            className="z-50 min-w-[160px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportCsv}
+            >
+              <FileDown size={16} className="shrink-0" />
+              Export as CSV
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportPdf}
+            >
+              <FileDown size={16} className="shrink-0" />
+              Export as PDF
+            </button>
+            <button
+              type="button"
+              className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)]"
+              onClick={handleExportPrint}
+            >
+              <Printer size={16} className="shrink-0" />
+              Print
+            </button>
+          </div>
+        )}
+      </FloatingPortal>
+      <Button
+        variant="secondary"
+        type="button"
+        className="w-full sm:w-auto"
+        onClick={() => setAddStockOpen(true)}
+      >
+        <ArrowUp size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+        Add stock
+      </Button>
+      <Button
+        variant="secondary"
+        type="button"
+        className="w-full sm:w-auto"
+        onClick={() => setReduceStockOpen(true)}
+      >
+        <ArrowDown size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+        Reduce stock
+      </Button>
+    </>
+  );
+
+  return (
+    <div className="space-y-4 home-dashboard pb-3">
+      <ItemsHero
+        abbreviationStyle={abbreviationStyle}
+        catalogCount={items.length}
+        lowStockCount={lowStockItems.length}
+        unitsCount={units.length}
+        filterPill={filterPill}
+        primaryLabel="Add product"
+        onPrimary={() => setAddProductOpen(true)}
+        toolbar={heroToolbar}
+      />
+
+      <DashboardSectionBoundary
+        sectionTitle="Product catalog"
+        containerClassName="dashboard-panel"
+        resetKeys={[
+          search,
+          page,
+          itemsPageLoading,
+          itemsPageError,
+          itemsPage.length,
+          gstEnabled,
+          hsnEnabled,
+        ]}
+      >
+        <ItemsSectionPanel
+          title="Product catalog"
+          description="Search, edit, and export products. Stock changes sync across invoices and the dashboard."
+          badge={countBadge}
+        >
+          <div className="mb-4">
+            <SearchFilterBar
+              searchValue={search}
+              onSearchChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              onClearFilters={
+                search
+                  ? () => {
+                      setSearch("");
+                      setPage(1);
+                    }
+                  : undefined
+              }
+              placeholder="Search by name or code…"
+            />
+          </div>
+
+          <ItemsAsyncPanel
+            isLoading={showTableSkeleton}
+            isError={itemsPageError}
+            onRetry={() => {
+              void itemsListQuery.refetch();
+              void itemsPageQuery.refetch();
+            }}
+            isEmpty={isListEmpty}
+            emptyTitle={emptyTitle}
+            emptyDescription={emptyDescription}
+            emptyActionLabel={emptyActionLabel}
+            onEmptyAction={onEmptyAction}
+            loaderColumns={loaderColumns}
+          >
+            <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)]">
+              <DataTable<Item>
+                columns={[
+                  { key: "name", label: "Name" },
+                  { key: "code", label: "Code" },
+                  {
+                    key: "current_stock",
+                    label: "Current Stock",
+                    render: (r) => formatDecimal(r.current_stock),
+                  },
+                  {
+                    key: "unit",
+                    label: "Unit",
+                    render: (r) => unitDisplay(r.unit),
+                  },
+                  ...(gstEnabled
+                    ? [
+                        {
+                          key: "selling_price" as const,
+                          label: "Selling Price",
+                          render: (r: Item) =>
+                            r.selling_price != null && r.selling_price > 0
+                              ? `₹${formatDecimal(r.selling_price)}/${r.selling_price_unit ?? r.unit}`
+                              : "",
+                        },
+                        {
+                          key: "gst_rate" as const,
+                          label: "GST",
+                          render: (r: Item) =>
+                            (r.gst_rate ?? 0) > 0 ? `${r.gst_rate}%` : "",
+                        },
+                        ...(hsnEnabled
+                          ? [
+                              {
+                                key: "hsn_code" as const,
+                                label: "HSN",
+                                render: (r: Item) => r.hsn_code ?? "",
+                              },
+                            ]
+                          : []),
+                      ]
+                    : []),
+                  {
+                    key: "reorder_level",
+                    label: "Reorder Level",
+                    render: (r) =>
+                      r.reorder_level != null
+                        ? formatDecimal(r.reorder_level)
+                        : "",
+                  },
+                ]}
+                data={itemsPage}
+                onEdit={async (row) => {
+                  const full = (await api.getItemById(row.id)) as ItemWithUnits;
+                  setEditing(full);
+                  setEditUnitSelect(full.unit);
+                  setEditRetailPrimary(full.retail_primary_unit ?? "");
+                  setEditSellingPrice(
+                    full.selling_price != null ? String(full.selling_price) : ""
+                  );
+                  setEditSellingPriceUnit(full.selling_price_unit ?? "");
+                  setEditGstRate(full.gst_rate ?? 0);
+                  setEditHsnCode(full.hsn_code ?? "");
+                  setEditStockUnit(full.unit);
+                  setEditConversions(
+                    (full as ItemWithUnits).item_unit_conversions?.length
+                      ? (full as ItemWithUnits).item_unit_conversions!
+                      : full.reference_unit
                         ? [
                             {
-                              key: "hsn_code" as const,
-                              label: "HSN",
-                              render: (r: Item) => r.hsn_code ?? "",
+                              to_unit: full.reference_unit,
+                              factor: full.quantity_per_primary ?? 0,
                             },
                           ]
-                        : []),
-                    ]
-                  : []),
-                {
-                  key: "reorder_level",
-                  label: "Reorder Level",
-                  render: (r) =>
-                    r.reorder_level != null
-                      ? formatDecimal(r.reorder_level)
-                      : "",
-                },
-              ]}
-              data={itemsPage}
-              onEdit={async (row) => {
-                const full = (await api.getItemById(row.id)) as ItemWithUnits;
-                setEditing(full);
-                setEditUnitSelect(full.unit);
-                setEditRetailPrimary(full.retail_primary_unit ?? "");
-                setEditSellingPrice(
-                  full.selling_price != null ? String(full.selling_price) : ""
-                );
-                setEditSellingPriceUnit(full.selling_price_unit ?? "");
-                setEditGstRate(full.gst_rate ?? 0);
-                setEditHsnCode(full.hsn_code ?? "");
-                setEditStockUnit(full.unit);
-                setEditConversions(
-                  (full as ItemWithUnits).item_unit_conversions?.length
-                    ? (full as ItemWithUnits).item_unit_conversions!
-                    : full.reference_unit
-                      ? [
-                          {
-                            to_unit: full.reference_unit,
-                            factor: full.quantity_per_primary ?? 0,
-                          },
-                        ]
-                      : [{ to_unit: "", factor: 0 }]
-                );
-                setEditOtherUnits(
-                  full.other_units?.map((o) => ({
-                    unit: o.unit,
-                    sort_order: o.sort_order ?? 0,
-                  })) ?? []
-                );
-              }}
-              onDelete={(row) => setDeleteConfirmItem(row)}
-              emptyMessage="No products yet. Click Add Product."
-            />
+                        : [{ to_unit: "", factor: 0 }]
+                  );
+                  setEditOtherUnits(
+                    full.other_units?.map((o) => ({
+                      unit: o.unit,
+                      sort_order: o.sort_order ?? 0,
+                    })) ?? []
+                  );
+                }}
+                onDelete={(row) => setDeleteConfirmItem(row)}
+                emptyMessage="No products yet. Click Add Product."
+              />
+            </div>
             <Pagination
               page={page}
               total={totalItems}
               limit={PAGE_SIZE}
               onPageChange={setPage}
             />
-          </>
-        )}
-      </div>
+          </ItemsAsyncPanel>
+        </ItemsSectionPanel>
+      </DashboardSectionBoundary>
 
       <ConfirmModal
         open={deleteConfirmItem != null}
