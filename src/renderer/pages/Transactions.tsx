@@ -61,6 +61,8 @@ import {
   Printer,
   Trash2,
   X,
+  Receipt,
+  ExternalLink,
 } from "lucide-react";
 import Button from "../components/Button";
 import type {
@@ -206,6 +208,7 @@ function withLocalizedTransactionExportRows(
 
 export default function Transactions() {
   const { t } = useTranslation("transactions");
+  const { t: tPurchases } = useTranslation("purchases");
   const queryClient = useQueryClient();
   const api = getElectron();
   const { data: settings = {} } = useQuery({
@@ -321,6 +324,46 @@ export default function Transactions() {
     getReferenceProps: getExportRefProps,
     getFloatingProps: getExportFloatingProps,
   } = useInteractions([exportClick, exportDismiss]);
+
+  const [purchaseQvOpen, setPurchaseQvOpen] = useState(false);
+  const [purchaseQvPurchaseId, setPurchaseQvPurchaseId] = useState<number | null>(
+    null
+  );
+  const [purchaseQvSourceRowType, setPurchaseQvSourceRowType] = useState("");
+  const {
+    refs: purchaseQvRefs,
+    floatingStyles: purchaseQvFloatingStyles,
+    context: purchaseQvContext,
+  } = useFloating({
+    open: purchaseQvOpen,
+    onOpenChange: (next) => {
+      setPurchaseQvOpen(next);
+      if (!next) {
+        setPurchaseQvPurchaseId(null);
+        setPurchaseQvSourceRowType("");
+      }
+    },
+    placement: "bottom-start",
+    middleware: [offset(6), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const purchaseQvDismiss = useDismiss(purchaseQvContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const { getFloatingProps: getPurchaseQvFloatingProps } = useInteractions([
+    purchaseQvDismiss,
+  ]);
+
+  const {
+    data: purchaseQvDetail,
+    isFetching: purchaseQvFetching,
+    isError: purchaseQvError,
+  } = useQuery({
+    queryKey: ["supplierPurchaseDetail", purchaseQvPurchaseId],
+    queryFn: () => api.getSupplierPurchaseById(purchaseQvPurchaseId!),
+    enabled: purchaseQvOpen && purchaseQvPurchaseId != null,
+  });
 
   const [editLendDate, setEditLendDate] = useState("");
   const [editDepositDate, setEditDepositDate] = useState("");
@@ -1052,8 +1095,37 @@ export default function Transactions() {
           </div>
         ),
       },
+      {
+        key: "purchase_quickview",
+        label: t("columns.purchase"),
+        render: (row: LenderLedgerPageRow) => {
+          const pid = row.purchase_id;
+          if (pid == null || !Number.isFinite(pid) || pid <= 0) {
+            return (
+              <span className="text-[var(--color-text-tertiary)]">—</span>
+            );
+          }
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                purchaseQvRefs.setReference(e.currentTarget);
+                setPurchaseQvPurchaseId(pid);
+                setPurchaseQvSourceRowType(row.type);
+                setPurchaseQvOpen(true);
+              }}
+              className="inline-flex items-center justify-center rounded-lg p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] transition-colors min-w-[32px] min-h-[32px]"
+              title={t("purchase_quickview.button_title")}
+              aria-label={t("purchase_quickview.button_aria")}
+            >
+              <Receipt size={18} aria-hidden="true" />
+            </button>
+          );
+        },
+      },
     ],
-    [items, api, t]
+    [items, api, t, purchaseQvRefs]
   );
 
   return (
@@ -1139,6 +1211,121 @@ export default function Transactions() {
           </>
         }
       />
+      <FloatingPortal>
+        {purchaseQvOpen && (
+          <div
+            ref={purchaseQvRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
+            style={purchaseQvFloatingStyles}
+            {...getPurchaseQvFloatingProps()}
+            className="z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 shadow-lg"
+          >
+            <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border-default)] pb-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
+                  {t("purchase_quickview.title")}
+                </p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  {purchaseQvPurchaseId != null
+                    ? t("purchase_quickview.bill_id", {
+                        id: purchaseQvPurchaseId,
+                      })
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            {purchaseQvFetching && (
+              <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+                {t("purchase_quickview.loading")}
+              </p>
+            )}
+            {!purchaseQvFetching && purchaseQvError && (
+              <p className="mt-3 text-sm text-[var(--color-danger)]">
+                {t("purchase_quickview.error")}
+              </p>
+            )}
+            {!purchaseQvFetching &&
+              !purchaseQvError &&
+              purchaseQvDetail && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--color-text-secondary)]">
+                    <span className="rounded-md bg-[var(--color-bg-surface-raised)] px-2 py-0.5 font-medium">
+                      {tPurchases(
+                        `kind_labels.${purchaseQvDetail.header.kind}`
+                      )}
+                    </span>
+                    <span>
+                      {formatDateForView(
+                        purchaseQvDetail.header.document_date
+                      )}
+                    </span>
+                  </div>
+                  {purchaseQvDetail.header.kind === "credit" &&
+                    purchaseQvDetail.header.lender_id != null && (
+                      <p className="text-sm text-[var(--color-text-primary)]">
+                        {mahajanList.find(
+                          (m) => m.id === purchaseQvDetail.header.lender_id
+                        )?.name ?? t("columns.mahajan")}
+                      </p>
+                    )}
+                  {purchaseQvDetail.header.lender_invoice_number && (
+                    <p className="text-xs text-[var(--color-text-tertiary)]">
+                      {t("purchase_quickview.invoice")}: #
+                      {purchaseQvDetail.header.lender_invoice_number}
+                    </p>
+                  )}
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+                    {t("purchase_quickview.lines_heading")}
+                  </p>
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {purchaseQvDetail.lines.map((ln) => {
+                      const item = (items as Item[]).find(
+                        (i) => i.id === ln.product_id
+                      );
+                      return (
+                        <div
+                          key={ln.id}
+                          className="flex items-baseline justify-between gap-2 border-b border-[var(--color-border-subtle)] py-1 text-xs last:border-b-0"
+                        >
+                          <span className="min-w-0 flex-1 truncate text-[var(--color-text-primary)]">
+                            {item?.name ?? `#${ln.product_id}`}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-[var(--color-text-secondary)]">
+                            {formatDecimal(ln.quantity)} {ln.unit}
+                          </span>
+                          <span className="shrink-0 tabular-nums font-medium text-[var(--color-text-primary)]">
+                            ₹{formatDecimal(ln.amount)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-right text-sm font-semibold text-[var(--color-text-primary)]">
+                    {t("purchase_quickview.total")}{" "}
+                    <span className="tabular-nums">
+                      ₹
+                      {formatDecimal(purchaseQvDetail.header.total_amount)}
+                    </span>
+                  </p>
+                  {(purchaseQvSourceRowType === "settlement" ||
+                    purchaseQvSourceRowType === "deposit" ||
+                    purchaseQvSourceRowType === "lender_refund") && (
+                    <p className="text-xs text-[var(--color-text-tertiary)]">
+                      {t("purchase_quickview.settlement_hint")}
+                    </p>
+                  )}
+                  <Link
+                    to={`/purchases?purchaseId=${purchaseQvDetail.header.id}`}
+                    onClick={() => setPurchaseQvOpen(false)}
+                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-3 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)]"
+                  >
+                    <ExternalLink size={16} aria-hidden="true" />
+                    {t("purchase_quickview.open_in_purchases")}
+                  </Link>
+                </div>
+              )}
+          </div>
+        )}
+      </FloatingPortal>
       <DashboardSectionBoundary
         sectionTitle={t("ledger.section_title")}
         containerClassName="dashboard-panel"
@@ -1326,7 +1513,7 @@ export default function Transactions() {
                   ? () => setPurchaseAddOpen(true)
                   : () => setLendOpen(true)
               }
-              loaderColumns={9}
+              loaderColumns={10}
             >
               <DataTable<LenderLedgerPageRow>
                 scrollMaxHeight={`calc(100vh - 20.5rem)`}

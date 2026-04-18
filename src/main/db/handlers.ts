@@ -3734,6 +3734,7 @@ export function registerIpcHandlers(): void {
         spl.quantity,
         spl.amount AS amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
         CAST(NULL AS TEXT) AS payment_method, CAST(NULL AS TEXT) AS reference_number,
+        spl.purchase_id AS purchase_id,
         COALESCE(
           NULLIF(trim(spl.created_at), ''),
           NULLIF(trim(sp.created_at), ''),
@@ -3750,6 +3751,7 @@ export function registerIpcHandlers(): void {
         spl.quantity,
         spl.amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
         CAST(NULL AS TEXT), CAST(NULL AS TEXT),
+        spl.purchase_id AS purchase_id,
         COALESCE(
           NULLIF(trim(spl.created_at), ''),
           NULLIF(trim(sp.created_at), ''),
@@ -3763,6 +3765,8 @@ export function registerIpcHandlers(): void {
         lm.id, lm.lender_id, m2.name, CAST(NULL AS INTEGER), lm.movement_date,
         CAST(NULL AS TEXT), CAST(NULL AS REAL), lm.amount, lm.notes,
         CAST(NULL AS TEXT), CAST(NULL AS TEXT), lm.payment_method, lm.reference_number,
+        (SELECT lma.purchase_id FROM lender_movement_allocations lma
+         WHERE lma.movement_id = lm.id ORDER BY lma.id ASC LIMIT 1) AS purchase_id,
         COALESCE(
           NULLIF(trim(lm.created_at), ''),
           datetime(trim(lm.movement_date))
@@ -3810,7 +3814,7 @@ export function registerIpcHandlers(): void {
             .get(...params)
         : db().prepare(countSql).get()
     ) as { total: number };
-    const dataSql = `SELECT u.type, u.id, u.lender_id, u.lender_name, u.product_id, u.transaction_date, u.product_name, u.quantity, u.amount, u.notes, u.lender_invoice_number, u.invoice_file_path, u.payment_method, u.reference_number ${fromWrapped} ${whereClause} ORDER BY COALESCE(julianday(replace(replace(trim(u.row_created_at), 'T', ' '), 'Z', '')), julianday(trim(u.transaction_date)), 0) DESC, u.id DESC LIMIT ? OFFSET ?`;
+    const dataSql = `SELECT u.type, u.id, u.lender_id, u.lender_name, u.product_id, u.transaction_date, u.product_name, u.quantity, u.amount, u.notes, u.lender_invoice_number, u.invoice_file_path, u.payment_method, u.reference_number, u.purchase_id ${fromWrapped} ${whereClause} ORDER BY COALESCE(julianday(replace(replace(trim(u.row_created_at), 'T', ' '), 'Z', '')), julianday(trim(u.transaction_date)), 0) DESC, u.id DESC LIMIT ? OFFSET ?`;
     const dataRows = (
       params.length
         ? db()
@@ -3832,6 +3836,7 @@ export function registerIpcHandlers(): void {
       invoice_file_path?: string | null;
       payment_method?: string | null;
       reference_number?: string | null;
+      purchase_id: number | null;
     }[];
     return { data: dataRows, total: countRow.total };
   });

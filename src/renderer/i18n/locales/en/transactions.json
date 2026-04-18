@@ -31,7 +31,21 @@
     "amount": "Amount",
     "amount_inr": "Amount (₹)",
     "notes": "Notes",
-    "payment": "Payment"
+    "payment": "Payment",
+    "purchase": "Purchase"
+  },
+  "purchase_quickview": {
+    "button_title": "Linked purchase details",
+    "button_aria": "Open purchase quick view",
+    "title": "Purchase bill",
+    "bill_id": "Bill #{{id}}",
+    "loading": "Loading…",
+    "error": "Could not load this purchase.",
+    "invoice": "Invoice",
+    "lines_heading": "Lines on this bill",
+    "total": "Bill total",
+    "settlement_hint": "This payment may be split across several bills; the first linked bill is shown.",
+    "open_in_purchases": "Open in Purchases"
   },
   "preview": {
     "old_stock": "Old stock",

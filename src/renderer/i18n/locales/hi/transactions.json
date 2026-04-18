@@ -31,7 +31,21 @@
     "amount": "राशि",
     "amount_inr": "राशि (₹)",
     "notes": "नोट्स",
-    "payment": "भुगतान"
+    "payment": "भुगतान",
+    "purchase": "खरीद"
+  },
+  "purchase_quickview": {
+    "button_title": "जुड़ी हुई खरीद का विवरण",
+    "button_aria": "खरीद का त्वरित दृश्य खोलें",
+    "title": "खरीद बिल",
+    "bill_id": "बिल #{{id}}",
+    "loading": "लोड हो रहा है…",
+    "error": "यह खरीद लोड नहीं हो सकी।",
+    "invoice": "इनवॉइस",
+    "lines_heading": "इस बिल की पंक्तियाँ",
+    "total": "बिल कुल",
+    "settlement_hint": "यह भुगतान कई बिलों में बँट सकता है; पहला जुड़ा बिल दिखाया गया है।",
+    "open_in_purchases": "खरीद पेज पर खोलें"
   },
   "preview": {
     "old_stock": "पुराना स्टॉक",

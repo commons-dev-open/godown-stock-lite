@@ -23,6 +23,8 @@ export interface LenderLedgerPageRow {
   invoice_file_path?: string | null;
   payment_method?: string | null;
   reference_number?: string | null;
+  /** Supplier purchase header id when row is a purchase line or has a linked allocation. */
+  purchase_id?: number | null;
 }
 
 export type PurchaseTableRow = Purchase & { product_name?: string };

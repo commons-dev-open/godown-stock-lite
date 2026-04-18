@@ -31,7 +31,21 @@
     "amount": "টাকা (₹)",
     "amount_inr": "টাকা (₹)",
     "notes": "নোট",
-    "payment": "পেমেন্ট"
+    "payment": "পেমেন্ট",
+    "purchase": "ক্রয়"
+  },
+  "purchase_quickview": {
+    "button_title": "লিংক করা ক্রয়ের বিবরণ",
+    "button_aria": "ক্রয় দ্রুত দেখুন",
+    "title": "ক্রয়ের বিল",
+    "bill_id": "বিল #{{id}}",
+    "loading": "লোড হচ্ছে…",
+    "error": "এই ক্রয় লোড করা যায়নি।",
+    "invoice": "ইনভয়েস",
+    "lines_heading": "এই বিলের লাইন",
+    "total": "বিলের মোট",
+    "settlement_hint": "এই পরিশোধ একাধিক বিলে ভাগ হতে পারে; প্রথম লিংক করা বিল দেখানো হয়েছে।",
+    "open_in_purchases": "ক্রয় পেজে খুলুন"
   },
   "preview": {
     "old_stock": "আগের স্টক",
