@@ -1,6 +1,6 @@
 {
   "name": "godown-stock-lite",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Godown Stock Management Desktop App",
   "main": "dist/main/index.js",
   "packageManager": "npm@10.9.4",
