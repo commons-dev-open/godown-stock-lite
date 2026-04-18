@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
@@ -16,10 +17,15 @@ const THEME_OPTIONS: ThemeOption[] = [
   { value: "system", labelKey: "system", short: "S", icon: Monitor },
 ];
 
+type TooltipPlacement = NonNullable<ComponentProps<typeof Tooltip>["placement"]>;
+
 export default function ThemeSwitcher({
   variant = "full",
+  tooltipPlacement = "left",
 }: Readonly<{
   variant?: "full" | "compact";
+  /** Tooltip placement when `variant` is `"compact"`. */
+  tooltipPlacement?: TooltipPlacement;
 }>) {
   const { mode, setMode } = useTheme();
   const { t } = useTranslation("navigation");
@@ -32,7 +38,10 @@ export default function ThemeSwitcher({
     const modeLabel = t(`themes.${current.labelKey}`);
 
     return (
-      <Tooltip content={`${t("sidebar.theme")}: ${modeLabel}`} placement="left">
+      <Tooltip
+        content={`${t("sidebar.theme")}: ${modeLabel}`}
+        placement={tooltipPlacement}
+      >
         <button
           type="button"
           onClick={() => setMode(nextOption.value)}

@@ -16,9 +16,6 @@ import {
   HelpCircle,
   PanelLeftClose,
   PanelLeft,
-  Sun,
-  Moon,
-  Monitor,
   Lock,
   UserCog,
   type LucideIcon,
@@ -26,12 +23,11 @@ import {
 import { getElectron } from "../api/client";
 import { getAppDisplayName } from "../lib/displayName";
 import { TRIAL_MODE } from "shared/buildConfig";
-import type { ThemeMode } from "../context/ThemeContext";
-import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import TrialTimer from "./TrialTimer";
 import Tooltip from "./Tooltip";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 type NavItem = {
   to: string;
@@ -59,17 +55,6 @@ const systemNavItems: NavItem[] = [
 ];
 
 const SIDEBAR_KEY = "sidebar-collapsed";
-
-const sidebarThemeModes: {
-  value: ThemeMode;
-  /** Translation key within theme labels. */
-  labelKey: "light" | "dark" | "system";
-  icon: typeof Sun;
-}[] = [
-  { value: "light", labelKey: "light", icon: Sun },
-  { value: "dark", labelKey: "dark", icon: Moon },
-  { value: "system", labelKey: "system", icon: Monitor },
-];
 
 function SidebarNavLink({
   to,
@@ -120,7 +105,6 @@ function getInitials(name: string) {
 }
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { mode, setMode } = useTheme();
   const { authState, lock } = useAuth();
   const { t } = useTranslation("navigation");
   const currentUser = authState.status === "unlocked" ? authState.user : null;
@@ -255,51 +239,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             {t("sidebar.theme")}
           </legend>
           <div
-            className={`flex ${collapsed ? "flex-col items-center gap-1" : "gap-1"}`}
+            className={`flex ${collapsed ? "justify-center" : "justify-stretch"}`}
           >
-            {sidebarThemeModes.map(({ value, labelKey, icon: Icon }) => {
-              const active = mode === value;
-              const label = t(`themes.${labelKey}`);
-              const withModeLabel = t("themes.themeWithMode", { mode: label });
-              const btn = (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setMode(value)}
-                  aria-pressed={active}
-                  title={collapsed ? withModeLabel : undefined}
-                  className={`rounded-md transition-colors ${
-                    collapsed
-                      ? "flex size-9 items-center justify-center"
-                      : "flex flex-1 flex-col items-center gap-0.5 py-2"
-                  } ${
-                    active
-                      ? "bg-[var(--color-accent-muted)] text-[var(--color-accent)]"
-                      : "text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-text-sidebar-active)]"
-                  }`}
-                >
-                  <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
-                  {!collapsed && (
-                    <span className="text-[10px] font-medium leading-none">
-                      {label}
-                    </span>
-                  )}
-                </button>
-              );
-              if (collapsed) {
-                return (
-                  <Tooltip
-                    key={value}
-                    content={withModeLabel}
-                    placement="right"
-                    delay={100}
-                  >
-                    {btn}
-                  </Tooltip>
-                );
-              }
-              return btn;
-            })}
+            <ThemeSwitcher variant="compact" tooltipPlacement="right" />
           </div>
         </fieldset>
 
@@ -317,6 +259,20 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div
             className={`border-t border-[var(--color-bg-sidebar-hover)] flex ${collapsed ? "flex-col items-center gap-1 p-2" : "items-center gap-2 p-3"}`}
           >
+             <Tooltip
+              content={t("sidebar.lockApp")}
+              placement="right"
+              delay={100}
+            >
+              <button
+                type="button"
+                onClick={lock}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-danger)] transition-colors shrink-0"
+                aria-label={t("sidebar.lockApp")}
+              >
+                <Lock size={16} strokeWidth={1.75} />
+              </button>
+            </Tooltip>
             {(() => {
               const roleLabel =
                 currentUser.role === "superadmin"
@@ -348,20 +304,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </>
               );
             })()}
-            <Tooltip
-              content={t("sidebar.lockApp")}
-              placement="right"
-              delay={100}
-            >
-              <button
-                type="button"
-                onClick={lock}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-danger)] transition-colors shrink-0"
-                aria-label={t("sidebar.lockApp")}
-              >
-                <Lock size={16} strokeWidth={1.75} />
-              </button>
-            </Tooltip>
+           
           </div>
         )}
       </aside>
