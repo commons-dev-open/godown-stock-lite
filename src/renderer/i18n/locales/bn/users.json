@@ -79,7 +79,9 @@
     "memberCreated": "মেম্বার তৈরি হয়েছে।",
     "nameEmpty": "নাম খালি রাখা যাবে না।",
     "nameUpdated": "নাম পরিবর্তন হয়েছে।",
+    "memberUpdated": "মেম্বার আপডেট হয়েছে।",
     "updateNameFailed": "নাম পরিবর্তন করা যায়নি।",
+    "updateMemberFailed": "মেম্বার আপডেট করা যায়নি।",
     "pinReset": "PIN রিসেট হয়েছে।",
     "resetPinFailed": "PIN রিসেট করা যায়নি।",
     "genericFailed": "করা যায়নি।"

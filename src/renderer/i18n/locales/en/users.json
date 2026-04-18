@@ -79,7 +79,9 @@
     "memberCreated": "Member created.",
     "nameEmpty": "Name cannot be empty.",
     "nameUpdated": "Name updated.",
+    "memberUpdated": "Member updated.",
     "updateNameFailed": "Failed to update name.",
+    "updateMemberFailed": "Failed to update member.",
     "pinReset": "PIN reset.",
     "resetPinFailed": "Failed to reset PIN.",
     "genericFailed": "Failed."

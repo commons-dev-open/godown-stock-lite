@@ -79,7 +79,9 @@
     "memberCreated": "सदस्य बन गया।",
     "nameEmpty": "नाम खाली नहीं हो सकता।",
     "nameUpdated": "नाम अपडेट हो गया।",
+    "memberUpdated": "सदस्य अपडेट हो गया।",
     "updateNameFailed": "नाम अपडेट नहीं हो सका।",
+    "updateMemberFailed": "सदस्य अपडेट नहीं हो सका।",
     "pinReset": "PIN रीसेट हो गया।",
     "resetPinFailed": "PIN रीसेट नहीं हो सका।",
     "genericFailed": "नहीं हो सका।"

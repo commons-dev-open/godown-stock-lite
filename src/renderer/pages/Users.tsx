@@ -73,6 +73,7 @@ export default function Users() {
 
   const [renameUser, setRenameUser] = useState<UserRow | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renameRole, setRenameRole] = useState<"admin" | "user">("user");
   const [renamePending, setRenamePending] = useState(false);
 
   const [resetConfirmUser, setResetConfirmUser] = useState<UserRow | null>(
@@ -90,6 +91,21 @@ export default function Users() {
   const invalidateUsers = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["users"] });
   }, [queryClient]);
+
+  const renameModalShowsRole = useMemo(() => {
+    if (!renameUser || !currentUser || !canManage) {
+      return false;
+    }
+    if (renameUser.id === currentUser.id) {
+      return false;
+    }
+    if (renameUser.role === "superadmin") {
+      return false;
+    }
+    return (
+      currentUser.role === "superadmin" || renameUser.role === "admin"
+    );
+  }, [renameUser, currentUser, canManage]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -133,7 +149,12 @@ export default function Users() {
       toast.error(t("toasts.nameEmpty"));
       return;
     }
-    if (trimmed === renameUser.name) {
+    const nameChanged = trimmed !== renameUser.name;
+    const roleChanged =
+      renameModalShowsRole &&
+      (renameUser.role === "admin" || renameUser.role === "user") &&
+      renameRole !== renameUser.role;
+    if (!nameChanged && !roleChanged) {
       setRenameUser(null);
       return;
     }
@@ -141,18 +162,29 @@ export default function Users() {
     try {
       await getElectron().users.update({
         id: renameUser.id,
-        name: trimmed,
         updatedBy: currentUser.id,
+        ...(nameChanged ? { name: trimmed } : {}),
+        ...(roleChanged ? { role: renameRole } : {}),
       });
-      if (renameUser.id === currentUser.id) {
+      if (renameUser.id === currentUser.id && nameChanged) {
         updateCurrentUser({ name: trimmed });
       }
-      toast.success(t("toasts.nameUpdated"));
+      if (roleChanged) {
+        toast.success(t("toasts.memberUpdated"));
+      } else {
+        toast.success(t("toasts.nameUpdated"));
+      }
       setRenameUser(null);
       invalidateUsers();
     } catch (err: unknown) {
       toast.error(
-        err instanceof Error ? err.message : t("toasts.updateNameFailed")
+        err instanceof Error
+          ? err.message
+          : t(
+              renameModalShowsRole
+                ? "toasts.updateMemberFailed"
+                : "toasts.updateNameFailed"
+            )
       );
     } finally {
       setRenamePending(false);
@@ -346,6 +378,12 @@ export default function Users() {
                     canManage &&
                     row.id !== currentUser.id &&
                     row.role !== "superadmin";
+                  const opensMemberRoleEditor =
+                    canManage &&
+                    row.id !== currentUser.id &&
+                    row.role !== "superadmin" &&
+                    (currentUser.role === "superadmin" ||
+                      row.role === "admin");
                   if (!canEditName && !showAdminActions) {
                     return null;
                   }
@@ -360,9 +398,14 @@ export default function Users() {
                           onClick={() => {
                             setRenameUser(row);
                             setRenameValue(row.name);
+                            setRenameRole(
+                              row.role === "admin" ? "admin" : "user"
+                            );
                           }}
                         >
-                          {t("rowActions.editName")}
+                          {opensMemberRoleEditor
+                            ? t("actions.editUser")
+                            : t("rowActions.editName")}
                         </Button>
                       ) : null}
                       {showAdminActions ? (
@@ -466,7 +509,11 @@ export default function Users() {
       </FormModal>
 
       <FormModal
-        title={t("renameModal.title")}
+        title={
+          renameModalShowsRole
+            ? t("actions.editUser")
+            : t("renameModal.title")
+        }
         open={renameUser !== null}
         onClose={() => setRenameUser(null)}
         footer={
@@ -490,19 +537,41 @@ export default function Users() {
           </div>
         }
       >
-        <FormField label={t("renameModal.nameLabel")}>
-          <input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            className="input-base w-full"
-            disabled={renamePending}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                void saveRename();
-              }
-            }}
-          />
-        </FormField>
+        <div className="space-y-3">
+          <FormField label={t("renameModal.nameLabel")}>
+            <input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              className="input-base w-full"
+              disabled={renamePending}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  void saveRename();
+                }
+              }}
+            />
+          </FormField>
+          {renameModalShowsRole ? (
+            <FormField label={t("addModal.roleLabel")}>
+              <select
+                value={renameRole}
+                onChange={(e) =>
+                  setRenameRole(
+                    e.target.value === "admin" ? "admin" : "user"
+                  )
+                }
+                className="input-base w-full"
+                disabled={renamePending}
+              >
+                <option value="user">{t("roleOptions.member")}</option>
+                {currentUser?.role === "superadmin" ||
+                renameUser?.role === "admin" ? (
+                  <option value="admin">{t("roleOptions.admin")}</option>
+                ) : null}
+              </select>
+            </FormField>
+          ) : null}
+        </div>
       </FormModal>
 
       <ConfirmModal
