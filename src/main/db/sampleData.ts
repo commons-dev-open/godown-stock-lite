@@ -7,7 +7,6 @@ import { seedIfEmpty } from "./seed";
 type SampleSnapshot = {
   items: unknown[];
   lenders: unknown[];
-  transactions: unknown[];
   daily_sales: unknown[];
   opening_balance: unknown[];
   invoices: unknown[];
@@ -30,7 +29,6 @@ function writeSnapshot(db: Database.Database): void {
   const snapshot: SampleSnapshot = {
     items: db.prepare("SELECT * FROM items LIMIT 50").all(),
     lenders: db.prepare("SELECT * FROM lenders LIMIT 50").all(),
-    transactions: db.prepare("SELECT * FROM transactions LIMIT 100").all(),
     daily_sales: db.prepare("SELECT * FROM daily_sales LIMIT 50").all(),
     opening_balance: db.prepare("SELECT * FROM opening_balance LIMIT 50").all(),
     invoices: db.prepare("SELECT * FROM invoices LIMIT 50").all(),
@@ -59,7 +57,7 @@ export function populateSampleData(db: Database.Database): void {
     const hasExistingData =
       getCount(db, "items") > 0 ||
       getCount(db, "lenders") > 0 ||
-      getCount(db, "transactions") > 0 ||
+      getCount(db, "supplier_purchases") > 0 ||
       getCount(db, "daily_sales") > 0 ||
       getCount(db, "invoices") > 0;
 
@@ -76,9 +74,6 @@ export function populateSampleData(db: Database.Database): void {
       const insertLender = db.prepare(
         "INSERT INTO lenders (id, name, address, phone, gstin, created_at, updated_at) VALUES (@id, @name, @address, @phone, @gstin, @created_at, @updated_at)"
       );
-      const insertTransaction = db.prepare(
-        "INSERT INTO transactions (id, type, batch_uuid, lender_id, product_id, product_name, quantity, amount, transaction_date, notes, created_at, updated_at) VALUES (@id, @type, @batch_uuid, @lender_id, @product_id, @product_name, @quantity, @amount, @transaction_date, @notes, @created_at, @updated_at)"
-      );
       const insertDailySale = db.prepare(
         "INSERT INTO daily_sales (id, sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes, created_at, updated_at) VALUES (@id, @sale_date, @sale_amount, @cash_in_hand, @expenditure_amount, COALESCE(@invoice_sales, 0), COALESCE(@misc_sales, @sale_amount, 0), @notes, @created_at, @updated_at)"
       );
@@ -94,7 +89,6 @@ export function populateSampleData(db: Database.Database): void {
 
       for (const row of snapshot.items) insertItem.run(row);
       for (const row of snapshot.lenders) insertLender.run(row);
-      for (const row of snapshot.transactions) insertTransaction.run(row);
       for (const row of snapshot.daily_sales) insertDailySale.run(row);
       for (const row of snapshot.opening_balance)
         insertOpeningBalance.run(row);
@@ -263,88 +257,80 @@ export function populateSampleData(db: Database.Database): void {
       itemByCode.set(item.code, id);
     }
 
-    const insertTransaction = db.prepare(
-      "INSERT INTO transactions (type, batch_uuid, lender_id, product_id, product_name, quantity, amount, transaction_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    const insertPurchase = db.prepare(
+      `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, total_amount)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    const insertPurchaseLine = db.prepare(
+      `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+       VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 0)`
+    );
+    const insertMovement = db.prepare(
+      `INSERT INTO lender_movements (lender_id, direction, amount, movement_date, notes, payment_method, reference_number)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
-    const transactions = [
-      {
-        type: "credit_purchase",
-        lenderIndex: 0,
-        productCode: "RICE25",
-        productName: "Basmati Rice 25kg Bag",
-        quantity: 10,
-        amount: 35000,
-        date: "2025-04-01",
-        notes: "Opening credit purchase for rice stock",
-      },
-      {
-        type: "credit_purchase",
-        lenderIndex: 1,
-        productCode: "OIL15",
-        productName: "Refined Oil 15L Jar",
-        quantity: 8,
-        amount: 28000,
-        date: "2025-04-03",
-        notes: "Oil stock received",
-      },
-      {
-        type: "settlement",
-        lenderIndex: 0,
-        productCode: null,
-        productName: null,
-        quantity: null,
-        amount: 15000,
-        date: "2025-04-10",
-        notes: "Part settlement received",
-      },
-      {
-        type: "cash_purchase",
-        lenderIndex: null,
-        productCode: "SUGAR50",
-        productName: "Sugar 50kg Bag",
-        quantity: 5,
-        amount: 12000,
-        date: "2025-04-05",
-        notes: "Cash purchase of sugar",
-      },
-      {
-        type: "cash_purchase",
-        lenderIndex: null,
-        productCode: "TEA250",
-        productName: "Tea 250g Packet",
-        quantity: 50,
-        amount: 9000,
-        date: "2025-04-06",
-        notes: "Cash purchase of tea",
-      },
-    ] as const;
+    const riceId = itemByCode.get("RICE25")!;
+    const oilId = itemByCode.get("OIL15")!;
+    const sugarId = itemByCode.get("SUGAR50")!;
+    const teaId = itemByCode.get("TEA250")!;
 
-    for (const t of transactions) {
-      const hasLenderIndex =
-        typeof t.lenderIndex === "number" &&
-        Number.isInteger(t.lenderIndex) &&
-        t.lenderIndex >= 0 &&
-        t.lenderIndex < lenderIds.length;
-      const lenderId = hasLenderIndex
-        ? lenderIds[t.lenderIndex as number]
-        : null;
-      const hasProductCode = typeof t.productCode === "string";
-      const productId = hasProductCode
-        ? itemByCode.get(t.productCode as string) ?? null
-        : null;
-      insertTransaction.run(
-        t.type,
-        null,
-        lenderId,
-        productId,
-        t.productName,
-        t.quantity,
-        t.amount,
-        t.date,
-        t.notes
-      );
-    }
+    const p1 = insertPurchase.run(
+      "credit",
+      lenderIds[0],
+      "2025-04-01",
+      "Opening credit purchase for rice stock",
+      35000
+    ) as Database.RunResult;
+    const p1id = Number(p1.lastInsertRowid);
+    insertPurchaseLine.run(
+      p1id,
+      riceId,
+      10,
+      "bags",
+      35000,
+      35000
+    );
+
+    const p2 = insertPurchase.run(
+      "credit",
+      lenderIds[1],
+      "2025-04-03",
+      "Oil stock received",
+      28000
+    ) as Database.RunResult;
+    const p2id = Number(p2.lastInsertRowid);
+    insertPurchaseLine.run(p2id, oilId, 8, "jars", 28000, 28000);
+
+    insertMovement.run(
+      lenderIds[0],
+      "out",
+      15000,
+      "2025-04-10",
+      "Part settlement received",
+      "bank",
+      "NEFT-REF-001"
+    );
+
+    const c1 = insertPurchase.run(
+      "cash",
+      null,
+      "2025-04-05",
+      "Cash purchase of sugar",
+      12000
+    ) as Database.RunResult;
+    const c1id = Number(c1.lastInsertRowid);
+    insertPurchaseLine.run(c1id, sugarId, 5, "bags", 12000, 12000);
+
+    const c2 = insertPurchase.run(
+      "cash",
+      null,
+      "2025-04-06",
+      "Cash purchase of tea",
+      9000
+    ) as Database.RunResult;
+    const c2id = Number(c2.lastInsertRowid);
+    insertPurchaseLine.run(c2id, teaId, 50, "packets", 9000, 9000);
 
     const insertDailySale = db.prepare(
       "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, expenditure_amount, invoice_sales, misc_sales, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"

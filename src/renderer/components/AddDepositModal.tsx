@@ -41,12 +41,15 @@ export interface AddDepositModalProps {
   onClose: () => void;
   /** When set, mahajan selector is hidden and this mahajan is used. */
   fixedMahajanId?: number;
+  /** `refund` records supplier money in (direction in); default is payment out. */
+  mode?: "payment" | "refund";
 }
 
 export default function AddDepositModal({
   open,
   onClose,
   fixedMahajanId,
+  mode = "payment",
 }: AddDepositModalProps) {
   const { t } = useTranslation("transactions");
   const queryClient = useQueryClient();
@@ -89,6 +92,18 @@ export default function AddDepositModal({
     enabled: open && fixedMahajanId == null,
   });
 
+  const suggestFifo = useMutation({
+    mutationFn: () =>
+      api.suggestFifoAllocations(lenderIdForAlloc!, settlementAmount),
+    onSuccess: (rows) => {
+      setAllocations(rows);
+    },
+    onError: (err: Error) =>
+      toast.error(
+        err.message ?? t("modals.add_settlement.toasts.fifo_failed")
+      ),
+  });
+
   const createDeposit = useMutation({
     mutationFn: (d: {
       mahajan_id: number;
@@ -97,6 +112,7 @@ export default function AddDepositModal({
       notes?: string;
       payment_method?: string;
       reference_number?: string;
+      direction?: "out" | "in";
       allocations?: { credit_purchase_id: number; amount: number }[];
     }) => api.createMahajanDeposit(d),
     onSuccess: () => {
@@ -105,12 +121,24 @@ export default function AddDepositModal({
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setLedgerUpdatesAvailable(true);
       onClose();
-      toast.success(t("modals.add_settlement.toasts.saved"));
+      toast.success(
+        mode === "refund"
+          ? t("modals.add_refund.toasts.saved")
+          : t("modals.add_settlement.toasts.saved")
+      );
     },
     onError: (err: Error) =>
-      toast.error(err.message ?? t("modals.add_settlement.toasts.save_failed")),
+      toast.error(
+        err.message ??
+          (mode === "refund"
+            ? t("modals.add_refund.toasts.save_failed")
+            : t("modals.add_settlement.toasts.save_failed"))
+      ),
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
@@ -137,13 +165,18 @@ export default function AddDepositModal({
           ? paymentMethod
           : undefined,
       reference_number: referenceNumber.trim() || undefined,
+      direction: mode === "refund" ? "in" : "out",
       allocations: allocs,
     });
   };
 
   return (
     <FormModal
-      title={t("modals.add_settlement.title")}
+      title={
+        mode === "refund"
+          ? t("modals.add_refund.title")
+          : t("modals.add_settlement.title")
+      }
       open={open}
       onClose={onClose}
       footer={
@@ -251,15 +284,23 @@ export default function AddDepositModal({
                 type="text"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder={
-                  PAYMENT_METHODS.find((p) => p.value === paymentMethod)
-                    ?.placeholderKey
-                    ? t(
-                        PAYMENT_METHODS.find((p) => p.value === paymentMethod)!
-                          .placeholderKey!
-                      )
-                    : undefined
-                }
+                placeholder={(() => {
+                  const pm = PAYMENT_METHODS.find(
+                    (p) => p.value === paymentMethod
+                  );
+                  if (
+                    pm &&
+                    "placeholderKey" in pm &&
+                    typeof (pm as { placeholderKey?: string }).placeholderKey ===
+                      "string"
+                  ) {
+                    return t(
+                      (pm as { placeholderKey: string })
+                        .placeholderKey as never
+                    );
+                  }
+                  return undefined;
+                })()}
                 className="input-base w-full"
               />
             </div>
@@ -293,6 +334,21 @@ export default function AddDepositModal({
                   <p className="text-xs text-[var(--color-text-tertiary)]">
                     {t("modals.add_settlement.messages.link_for_tracking")}
                   </p>
+                  {mode === "payment" &&
+                    settlementAmount > 0 &&
+                    lenderIdForAlloc != null && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="text-sm"
+                        disabled={suggestFifo.isPending}
+                        onClick={() => suggestFifo.mutate()}
+                      >
+                        {suggestFifo.isPending
+                          ? t("modals.add_settlement.actions.suggesting_fifo")
+                          : t("modals.add_settlement.actions.suggest_fifo")}
+                      </Button>
+                    )}
                   <div className="max-h-48 overflow-auto space-y-2">
                     {(
                       creditPurchases as {

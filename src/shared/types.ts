@@ -133,9 +133,63 @@ export interface Purchase {
   updated_at: string;
 }
 
+export interface SupplierPurchasePageRow {
+  id: number;
+  kind: "credit" | "cash";
+  lender_id: number | null;
+  lender_name: string | null;
+  document_date: string;
+  total_amount: number;
+  /** Sum of settlement amounts linked to this purchase (credit only; cash is always 0). */
+  allocated_total: number;
+  notes: string | null;
+  lender_invoice_number: string | null;
+  invoice_file_path: string | null;
+  line_count: number;
+  product_summary: string | null;
+}
+
+export interface SupplierPurchaseLineDetail {
+  id: number;
+  product_id: number;
+  quantity: number;
+  unit: string;
+  amount: number;
+  gst_rate: number;
+  gst_inclusive: boolean;
+  taxable_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+}
+
+export interface SupplierPurchaseAllocationSummary {
+  movement_id: number;
+  direction: string;
+  movement_amount: number;
+  movement_date: string;
+  payment_method: string | null;
+  reference_number: string | null;
+  allocated_amount: number;
+}
+
+export interface SupplierPurchaseDetail {
+  header: {
+    id: number;
+    kind: "credit" | "cash";
+    lender_id: number | null;
+    document_date: string;
+    notes: string | null;
+    lender_invoice_number: string | null;
+    invoice_file_path: string | null;
+    total_amount: number;
+  };
+  lines: SupplierPurchaseLineDetail[];
+  allocations: SupplierPurchaseAllocationSummary[];
+}
+
 export interface LedgerRow {
   transaction_date: string;
-  type: "credit_purchase" | "settlement" | "cash_purchase";
+  type: "credit_purchase" | "settlement" | "cash_purchase" | "lender_refund";
   description: string;
   amount: number;
   id: number;

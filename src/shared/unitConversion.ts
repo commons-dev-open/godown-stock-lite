@@ -1,15 +1,15 @@
-import { roundDecimal } from "../../shared/numbers";
+import { roundDecimal } from "./numbers";
 
-export type ConversionRow = {
+export interface ConversionRow {
   from_unit: string;
   to_unit: string;
   factor: number;
-};
+}
 
-export type ItemConversionRow = {
+export interface ItemConversionRow {
   to_unit: string;
   factor: number;
-};
+}
 
 /** Build adjacency map: unit -> [{ neighbor, factor }] for 1 unit = factor × neighbor. */
 function buildConversionGraph(
@@ -80,13 +80,13 @@ function convertBetweenUnits(
   return null;
 }
 
-export type ItemForConversion = {
+export interface ItemForConversion {
   unit: string;
   reference_unit: string | null;
   quantity_per_primary: number | null;
   /** Multiple conversions per product: 1 [unit] = factor × to_unit. Takes precedence over legacy when non-empty. */
   item_conversions?: ItemConversionRow[];
-};
+}
 
 /**
  * Convert quantity (in fromUnit) to the item's primary stock unit.

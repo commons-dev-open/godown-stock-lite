@@ -9,8 +9,8 @@
   },
   "actions": {
     "addUser": "মেম্বার যোগ করুন",
-    "editUser": "মেম্বার এডিট",
-    "deleteUser": "রিমুভ"
+    "editUser": "মেম্বার পরিবর্তন",
+    "deleteUser": "মুছুন"
   },
   "section": {
     "title": "টিম মেম্বার",
@@ -37,7 +37,7 @@
     "emptyMessage": "এই পেজে কোনো মেম্বার নেই।"
   },
   "rowActions": {
-    "editName": "নাম সম্পাদনা",
+    "editName": "নাম পরিবর্তন",
     "resetPin": "PIN রিসেট",
     "deactivate": "নিষ্ক্রিয়",
     "activate": "সক্রিয়"
@@ -48,13 +48,13 @@
     "nameLabel": "নাম",
     "namePlaceholder": "পূর্ণ নাম",
     "roleLabel": "রোল",
-    "pinLabel": "টেম্পোরারি PIN (৪ সংখ্যা)",
+    "pinLabel": "টেম্পোরারি PIN (4 অংকের)",
     "pinPlaceholder": "••••"
   },
   "renameModal": {
     "title": "নাম পরিবর্তন",
     "cancel": "বাতিল",
-    "save": "সেভ",
+    "save": "সংরক্ষণ",
     "nameLabel": "নাম"
   },
   "resetPin": {
@@ -64,7 +64,7 @@
     "formTitle": "PIN রিসেট",
     "formTitleWithName": "{{name}}-এর জন্য নতুন টেম্পোরারি PIN",
     "submit": "PIN রিসেট",
-    "pinLabel": "টেম্পোরারি PIN (৪ সংখ্যা)",
+    "pinLabel": "টেম্পোরারি PIN (4 অংকের)",
     "pinPlaceholder": "••••"
   },
   "roleOptions": {
@@ -73,16 +73,16 @@
   },
   "validation": {
     "nameRequired": "নাম লাগবে।",
-    "pinDigits": "PIN ঠিক ৪ সংখ্যার হতে হবে।"
+    "pinDigits": "PIN ঠিক 4 অংকের হতে হবে।"
   },
   "toasts": {
     "memberCreated": "মেম্বার তৈরি হয়েছে।",
     "nameEmpty": "নাম খালি রাখা যাবে না।",
-    "nameUpdated": "নাম আপডেট হয়েছে।",
-    "updateNameFailed": "নাম আপডেট করা যায়নি।",
+    "nameUpdated": "নাম পরিবর্তন হয়েছে।",
+    "updateNameFailed": "নাম পরিবর্তন করা যায়নি।",
     "pinReset": "PIN রিসেট হয়েছে।",
-    "resetPinFailed": "PIN রিসেট করা যায়নি।",
-    "genericFailed": "ব্যর্থ।"
+    "resetPinFailed": "PIN রিসেট করা যায়নি।",
+    "genericFailed": "করা যায়নি।"
   },
   "empty": {
     "title": "এখনও কোনো টিম মেম্বার নেই",

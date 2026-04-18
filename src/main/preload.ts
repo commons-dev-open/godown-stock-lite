@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 
 const electronAPI = {
   // Items
-  getItems: () => ipcRenderer.invoke("items:getAll"),
+  /** Includes `other_units` and `item_unit_conversions` (same as getItemsWithUnits). */
+  getItems: () => ipcRenderer.invoke("items:getAllWithUnits"),
   getItemsWithUnits: () => ipcRenderer.invoke("items:getAllWithUnits"),
   getItemsPage: (opts: { search?: string; page?: number; limit?: number }) =>
     ipcRenderer.invoke("items:getPage", opts),
@@ -243,7 +244,8 @@ const electronAPI = {
     sgst_amount?: number;
   }) => ipcRenderer.invoke("creditPurchases:create", l),
   saveCreditPurchaseInvoice: (opts: {
-    batchUuid: string;
+    batchUuid?: string;
+    purchaseId?: number;
     buffer: ArrayBuffer;
     extension: string;
   }) => ipcRenderer.invoke("creditPurchase:saveInvoice", opts),
@@ -267,6 +269,12 @@ const electronAPI = {
       cgst_amount?: number;
       sgst_amount?: number;
     }[];
+    pay_now?: {
+      amount: number;
+      payment_method?: string;
+      reference_number?: string;
+      notes?: string;
+    };
   }) => ipcRenderer.invoke("creditPurchases:createBatch", payload),
   updateCreditPurchase: (
     id: number,
@@ -300,7 +308,12 @@ const electronAPI = {
   getLenderLedgerPage: (opts: {
     lenderId?: number | null;
     mahajanId?: number | null;
-    transactionType?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
+    transactionType?:
+      | "all"
+      | "credit_purchase"
+      | "settlement"
+      | "cash_purchase"
+      | "lender_refund";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -313,8 +326,55 @@ const electronAPI = {
     notes?: string;
     payment_method?: string;
     reference_number?: string;
+    direction?: "out" | "in";
     allocations?: { credit_purchase_id: number; amount: number }[];
   }) => ipcRenderer.invoke("settlements:create", d),
+  suggestFifoAllocations: (lenderId: number, amount: number) =>
+    ipcRenderer.invoke("lenderMovements:suggestFifoAllocations", lenderId, amount),
+  setSettlementAllocations: (
+    movementId: number,
+    allocations: { credit_purchase_id: number; amount: number }[]
+  ) => ipcRenderer.invoke("settlements:setAllocations", movementId, allocations),
+  getSupplierPurchasesPage: (opts: {
+    kind?: "credit" | "cash" | null;
+    lenderId?: number | null;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }) => ipcRenderer.invoke("supplierPurchases:getPage", opts),
+  getSupplierPurchaseById: (purchaseId: number) =>
+    ipcRenderer.invoke("supplierPurchases:getById", purchaseId),
+  updateSupplierPurchaseWithLines: (
+    purchaseId: number,
+    payload: {
+      lender_id?: number;
+      transaction_date?: string;
+      notes?: string | null;
+      lender_invoice_number?: string | null;
+      invoice_file_path?: string | null;
+      lines: {
+        product_id: number;
+        quantity: number;
+        amount: number;
+        gst_rate?: number;
+        gst_inclusive?: boolean;
+        taxable_amount?: number;
+        cgst_amount?: number;
+        sgst_amount?: number;
+      }[];
+    }
+  ) => ipcRenderer.invoke("supplierPurchases:updateWithLines", purchaseId, payload),
+  getLenderMovementById: (movementId: number) =>
+    ipcRenderer.invoke("lenderMovements:getById", movementId),
+  getStockHistoryPage: (opts: {
+    itemId?: number;
+    fromDate?: string;
+    toDate?: string;
+    reason?: string;
+    page?: number;
+    limit?: number;
+  }) => ipcRenderer.invoke("stockHistory:getPage", opts),
   updateSettlement: (
     id: number,
     d: {
@@ -358,6 +418,12 @@ const electronAPI = {
       cgst_amount?: number;
       sgst_amount?: number;
     }[];
+    pay_now?: {
+      amount: number;
+      payment_method?: string;
+      reference_number?: string;
+      notes?: string;
+    };
   }) =>
     ipcRenderer.invoke("creditPurchases:createBatch", {
       ...p,

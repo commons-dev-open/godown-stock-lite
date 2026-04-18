@@ -1,3 +1,8 @@
+import type {
+  SupplierPurchaseDetail,
+  SupplierPurchasePageRow,
+} from "../shared/types";
+
 export interface ElectronAPI {
   getItems: () => Promise<unknown[]>;
   getItemsWithUnits: () => Promise<unknown[]>;
@@ -239,6 +244,7 @@ export interface ElectronAPI {
     }
   ) => Promise<number>;
   deleteInvoice: (id: number) => Promise<number>;
+  getLenders: () => Promise<unknown[]>;
   getMahajans: () => Promise<unknown[]>;
   getMahajansPage: (opts: {
     search?: string;
@@ -268,7 +274,8 @@ export interface ElectronAPI {
     notes?: string;
   }) => Promise<number>;
   saveCreditPurchaseInvoice: (opts: {
-    batchUuid: string;
+    batchUuid?: string;
+    purchaseId?: number;
     buffer: ArrayBuffer;
     extension: string;
   }) => Promise<string>;
@@ -291,6 +298,12 @@ export interface ElectronAPI {
       cgst_amount?: number;
       sgst_amount?: number;
     }[];
+    pay_now?: {
+      amount: number;
+      payment_method?: string;
+      reference_number?: string;
+      notes?: string;
+    };
   }) => Promise<number[]>;
   createMahajanLendBatch: (payload: {
     mahajan_id: number;
@@ -310,6 +323,12 @@ export interface ElectronAPI {
       cgst_amount?: number;
       sgst_amount?: number;
     }[];
+    pay_now?: {
+      amount: number;
+      payment_method?: string;
+      reference_number?: string;
+      notes?: string;
+    };
   }) => Promise<number[]>;
   updateMahajanLend: (
     id: number,
@@ -333,7 +352,8 @@ export interface ElectronAPI {
       | "deposit"
       | "cash_purchase"
       | "credit_purchase"
-      | "settlement";
+      | "settlement"
+      | "lender_refund";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -346,6 +366,7 @@ export interface ElectronAPI {
     notes?: string;
     payment_method?: string;
     reference_number?: string;
+    direction?: "out" | "in";
     allocations?: { credit_purchase_id: number; amount: number }[];
   }) => Promise<number>;
   getCreditPurchasesWithAllocated: (
@@ -430,6 +451,54 @@ export interface ElectronAPI {
     }
   ) => Promise<number>;
   deletePurchase: (id: number) => Promise<number>;
+  getSupplierPurchasesPage: (opts: {
+    kind?: "credit" | "cash" | null;
+    lenderId?: number | null;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }) => Promise<{ data: SupplierPurchasePageRow[]; total: number }>;
+  getSupplierPurchaseById: (
+    purchaseId: number
+  ) => Promise<SupplierPurchaseDetail>;
+  updateSupplierPurchaseWithLines: (
+    purchaseId: number,
+    payload: {
+      lender_id?: number;
+      transaction_date?: string;
+      notes?: string | null;
+      lender_invoice_number?: string | null;
+      invoice_file_path?: string | null;
+      lines: {
+        product_id: number;
+        quantity: number;
+        amount: number;
+        gst_rate?: number;
+        gst_inclusive?: boolean;
+        taxable_amount?: number;
+        cgst_amount?: number;
+        sgst_amount?: number;
+      }[];
+    }
+  ) => Promise<number>;
+  getLenderMovementById: (movementId: number) => Promise<unknown>;
+  getStockHistoryPage: (opts: {
+    itemId?: number;
+    fromDate?: string;
+    toDate?: string;
+    reason?: string;
+    page?: number;
+    limit?: number;
+  }) => Promise<{ data: unknown[]; total: number }>;
+  suggestFifoAllocations: (
+    lenderId: number,
+    amount: number
+  ) => Promise<{ credit_purchase_id: number; amount: number }[]>;
+  setSettlementAllocations: (
+    movementId: number,
+    allocations: { credit_purchase_id: number; amount: number }[]
+  ) => Promise<number>;
   getReportSummary: () => Promise<{
     todaySale: number;
     weekSale: number;

@@ -68,12 +68,14 @@
     "descriptions": {
       "settlement": "Settlement",
       "cashPurchase": "Cash purchase",
-      "creditPurchase": "Credit purchase"
+      "creditPurchase": "Credit purchase",
+      "lenderRefund": "Refund from supplier"
     },
     "filters": {
       "type": "Type",
       "dateFrom": "Date From",
-      "dateTo": "Date To"
+      "dateTo": "Date To",
+      "moreFilters": "More filters"
     },
     "empty": {
       "matchingEntriesTitle": "No matching entries",

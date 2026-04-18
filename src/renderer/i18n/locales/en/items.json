@@ -152,5 +152,42 @@
       "selectProduct": "Select product",
       "quantityToDeduct": "Quantity to deduct"
     }
+  },
+  "stockHistory": {
+    "hero": {
+      "title": "Stock history",
+      "subtitle": "When quantities changed and why"
+    },
+    "filters": {
+      "item": "Product",
+      "allItems": "All products",
+      "reason": "Reason",
+      "allReasons": "All reasons",
+      "purchase": "Purchase",
+      "invoice_sale": "Invoice sale",
+      "adjustment": "Adjustment"
+    },
+    "columns": {
+      "date": "Date",
+      "product": "Product",
+      "delta": "Change",
+      "balance": "Balance after",
+      "reason": "Reason",
+      "ref": "Reference",
+      "note": "Note",
+      "source": "Source"
+    },
+    "links": {
+      "invoices": "Open invoices",
+      "transactions": "Open transactions",
+      "purchases": "Open purchases"
+    },
+    "rowAction": {
+      "openHistory": "History"
+    },
+    "empty": {
+      "title": "No stock movements yet",
+      "message": "Movements appear when you record purchases, sales on invoices, or manual stock changes."
+    }
   }
 }

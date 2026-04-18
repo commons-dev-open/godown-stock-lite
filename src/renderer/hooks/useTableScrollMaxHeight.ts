@@ -51,8 +51,10 @@ export function useTableScrollMaxHeight(
       return;
     }
 
+    const fixedPreset = preset;
+
     function update() {
-      setValue(heightForPreset(preset, readBreakpointIndex()));
+      setValue(heightForPreset(fixedPreset, readBreakpointIndex()));
     }
 
     update();

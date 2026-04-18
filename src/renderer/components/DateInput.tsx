@@ -142,7 +142,7 @@ export default function DateInput({
   const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="relative inline-flex min-w-0 max-w-full rounded-lg shadow-sm">
+    <div className="relative inline-flex min-w-0 max-w-full rounded-lg shadow-sm h-9">
       <input
         type="text"
         id={id}

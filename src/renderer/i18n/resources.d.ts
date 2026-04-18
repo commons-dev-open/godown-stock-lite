@@ -14,6 +14,7 @@ import units from "./locales/en/units.json";
 import help from "./locales/en/help.json";
 import onboarding from "./locales/en/onboarding.json";
 import trial from "./locales/en/trial.json";
+import purchases from "./locales/en/purchases.json";
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -33,6 +34,7 @@ declare module "i18next" {
       help: typeof help;
       onboarding: typeof onboarding;
       trial: typeof trial;
+      purchases: typeof purchases;
     };
   }
 }

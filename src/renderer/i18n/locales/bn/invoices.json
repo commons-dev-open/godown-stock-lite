@@ -5,15 +5,15 @@
   },
   "actions": {
     "newInvoice": "নতুন ইনভয়েস",
-    "edit": "এডিট",
-    "delete": "ডিলিট",
+    "edit": "পরিবর্তন",
+    "delete": "মুছুন",
     "download": "PDF ডাউনলোড",
     "print": "প্রিন্ট"
   },
   "columns": {
-    "number": "ইনভয়েস #",
+    "number": "ইনভয়েস নম্বর #",
     "date": "তারিখ",
-    "customer": "কাস্টমার",
+    "customer": "গ্রাহক", 
     "amount": "টাকা (₹)",
     "total": "মোট",
     "status": "স্ট্যাটাস",
@@ -22,7 +22,7 @@
   "form": {
     "customerPlaceholder": "কাস্টমারের নাম",
     "addressPlaceholder": "ঠিকানা",
-    "gstinPlaceholder": "GSTIN (অপশনাল)",
+    "gstinPlaceholder": "GSTIN (ঐচ্ছিক)",
     "notesPlaceholder": "নোট"
   },
   "empty": {
@@ -35,8 +35,8 @@
     "createInvoice": "ইনভয়েস তৈরি করুন",
     "sectionListTitle": "ইনভয়েস তালিকা",
     "registerTitle": "ইনভয়েস রেজিস্টার",
-    "registerDescription": "নম্বর বা কাস্টমার দিয়ে খুঁজুন, ইস্যুর তারিখ দিয়ে সরু করুন, তারপর সম্পূর্ণ লাইন দেখুন বা এডিট করুন।",
-    "searchPlaceholder": "ইনভয়েস # বা কাস্টমার দিয়ে খুঁজুন...",
+    "registerDescription": "নম্বর বা কাস্টমার দিয়ে খুঁজুন, ইস্যুর তারিখ দিয়ে ফিল্টার করুন, তারপর সম্পূর্ণ লাইন দেখুন বা পরিবর্তন করুন।",
+    "searchPlaceholder": "ইনভয়েস নম্বর বা গ্রাহক দিয়ে খুঁজুন...",
     "dateFrom": "থেকে",
     "dateTo": "পর্যন্ত",
     "metricMatching": "মিলে যাওয়া ইনভয়েস",
@@ -44,21 +44,21 @@
     "metricPageTotal": "পৃষ্ঠার মোট",
     "emptyFilteredTitle": "কোনো ইনভয়েস মেলে নি",
     "emptyDefaultTitle": "এখনও কোনো ইনভয়েস নেই",
-    "emptyFilteredDescription": "খোঁজা সাফ করুন বা তারিখের ব্যাপ্তি বাড়ান।",
+    "emptyFilteredDescription": "ফিল্টার সাফ করুন বা তারিখের ব্যাপ্তি বাড়ান।",
     "emptyDefaultDescription": "প্রথম ইনভয়েস তৈরি করুন—বিল প্রিন্ট ও দৈনিক বিক্রয় স্বয়ংক্রিয়ভাবে পূরণ হবে।",
     "clearFilters": "ফিল্টার সাফ করুন",
     "createInvoiceCta": "ইনভয়েস তৈরি করুন",
     "tableEmptyMessage": "কোনো ইনভয়েস নেই।"
   },
   "confirmDelete": {
-    "title": "ইনভয়েস ডিলিট",
+    "title": "ইনভয়েস মুছুন",
     "message": "এই ইনভয়েস ডিলিট করবেন?"
   },
   "viewModal": {
     "title": "ইনভয়েস {{id}}",
     "total": "মোট: ₹{{amount}}",
     "linkDailySale": "এই তারিখের দৈনিক বিক্রয় দেখুন",
-    "exportPdf": "PDF এক্সপোর্ট",
+    "exportPdf": "PDF এক্সপোর্ট করুন",
     "print": "প্রিন্ট",
     "printLanguage": "প্রিন্ট / PDF ভাষা"
   },
@@ -72,17 +72,17 @@
     "gstin": "GST নং:"
   },
   "toasts": {
-    "exportedPdf": "PDF সংরক্ষিত।",
-    "exportPdfFailed": "PDF এক্সপোর্ট ব্যর্থ।",
+    "exportedPdf": "PDF এক্সপোর্ট হয়েছে।",
+    "exportPdfFailed": "PDF এক্সপোর্ট করা যায়নি।",
     "invalidCoupon": "কুপন অবৈধ বা মেয়াদ শেষ",
-    "couponValidationFailed": "কুপন যাচাই ব্যর্থ"
+    "couponValidationFailed": "কুপন যাচাই করা যায়নি"
   },
   "view": {
     "invoiceNumber": "ইনভয়েস #:",
     "placeOfSupply": "সরবরাহের স্থান:",
     "date": "তারিখ:",
     "phone": "ফোন:",
-    "customer": "কাস্টমার:",
+    "customer": "গ্রাহক:",
     "address": "ঠিকানা:",
     "table": {
       "hsn": "HSN",
@@ -95,21 +95,21 @@
       "sgst": "SGST",
       "total": "মোট"
     },
-    "subtotalLines": "উপমোট (লাইন): ₹{{amount}}",
+    "subtotalLines": "মোট (লাইনের): ₹{{amount}}",
     "taxableAmount": "করযোগ্য পরিমাণ: ₹{{amount}}",
     "cgstAmount": "CGST: ₹{{amount}}",
     "sgstAmount": "SGST: ₹{{amount}}",
-    "subtotal": "উপমোট: ₹{{amount}}",
+    "subtotal": "মোট: ₹{{amount}}",
     "orderDiscount": "অর্ডার ছাড়: -₹{{amount}}",
     "couponApplied": "কুপন {{code}}: প্রয়োগ হয়েছে",
-    "roundedWhole": "নিকটতম পূর্ণ সংখ্যায় রাউন্ড",
+    "roundedWhole": "নিকটতম পূর্ণ সংখ্যা",
     "grandTotal": "সর্বমোট: ₹{{amount}}",
     "total": "মোট: ₹{{amount}}"
   },
   "formModal": {
     "printLanguage": "প্রিন্ট / PDF ভাষা",
     "createTitle": "ইনভয়েস তৈরি করুন",
-    "editTitle": "ইনভয়েস এডিট",
+    "editTitle": "ইনভয়েস পরিবর্তন",
     "autoNumberHint": "ইনভয়েস # স্বয়ংক্রিয়ভাবে INV-YYYY-NNNN (যেমন INV-2025-0001) হবে।",
     "fields": {
       "invoiceNumber": "ইনভয়েস #",
@@ -140,8 +140,8 @@
     },
     "line": {
       "selectProduct": "পণ্য বেছে নিন",
-      "gstModeExclusive": "বাদে",
-      "gstModeInclusive": "সহ",
+      "gstModeExclusive": "এক্সক্লুসিভ",
+      "gstModeInclusive": "ইনক্লুসিভ",
       "perUnit": "প্রতি {{unit}}",
       "perUnitFallback": "প্রতি একক",
       "unitFallbackWord": "একক",
@@ -149,25 +149,25 @@
       "priceTypeTitle": "প্রতি একক বা লাইনের মোট দাম লিখুন",
       "lineTotalTitle": "এই লাইনের মোট (পরিমাণ আগে বা পরে দিতে পারেন)",
       "taxParenthetical": "(কর ₹{{amount}})",
-      "removeLineAria": "লাইন সরান"
+      "removeLineAria": "লাইন মুছুন"
     },
     "discounts": {
       "percentOff": "% ছাড়:",
-      "rsOff": "টাকা ছাড়:",
+      "rsOff": "টাকা (₹) ছাড়:",
       "bogoBuy": "BOGO কিনুন:",
       "bogoGet": "পান:"
     },
-    "addItem": "আইটেম যোগ করুন",
+    "addItem": "পণ্য যোগ করুন",
     "orderDiscountsTitle": "অর্ডার-স্তরের ছাড়",
     "orderPercentOff": "অর্ডার % ছাড়",
-    "orderFlatOff": "অর্ডার ফ্ল্যাট (টাকা) ছাড়",
+    "orderFlatOff": "অর্ডার ফ্ল্যাট (টাকা (₹)) ছাড়",
     "couponCode": "কুপন কোড",
     "couponAppliedExtra": "প্রয়োগ: {{code}} ({{discountText}})",
     "couponDiscountPercent": "{{value}}% ছাড়",
     "couponDiscountFlat": "₹{{value}} ছাড়",
-    "tieredDiscountHint": "স্তরভিত্তিক ছাড় প্রয়োগ (অর্ডার >= ন্যূনতম)",
+    "tieredDiscountHint": "ছাড় প্রয়োগ (অর্ডার >= ন্যূনতম)",
     "footer": {
-      "subtotalCgstSgst": "উপমোট: ₹{{taxable}} | CGST: ₹{{cgst}} | SGST: ₹{{sgst}}",
+      "subtotalCgstSgst": "মোট: ₹{{taxable}} | CGST: ₹{{cgst}} | SGST: ₹{{sgst}}",
       "orderDiscountBeforeRound": "অর্ডার ছাড়: -₹{{discount}} | রাউন্ডের আগে: ₹{{before}}",
       "orderDiscountOnly": "অর্ডার ছাড়: -₹{{discount}}",
       "roundedWhole": "নিকটতম পূর্ণ সংখ্যায় রাউন্ড",
@@ -176,23 +176,23 @@
       "save": "সংরক্ষণ",
       "saveAndPrint": "সংরক্ষণ ও প্রিন্ট",
       "remove": "সরান",
-      "apply": "প্রয়োগ"
+      "apply": "প্রয়োগ করুন"
     }
   },
   "tableActions": {
     "viewTitle": "দেখুন",
-    "editTitle": "এডিট",
-    "deleteTitle": "ডিলিট",
+    "editTitle": "পরিবর্তন",
+    "deleteTitle": "মুছুন",
     "viewInvoiceAria": "ইনভয়েস দেখুন",
-    "editInvoiceAria": "ইনভয়েস এডিট",
-    "deleteInvoiceAria": "ইনভয়েস ডিলিট",
+    "editInvoiceAria": "ইনভয়েস পরিবর্তন",
+    "deleteInvoiceAria": "ইনভয়েস মুছুন",
     "emptyCell": "—"
   },
   "lineNotes": {
     "percentOff": "{{pct}}% ছাড়",
     "flatOff": "ফ্ল্যাট ₹{{amount}}",
     "bogo": "BOGO {{buy}}+{{get}} @ {{pct}}%",
-    "defaultItemName": "আইটেম",
+    "defaultItemName": "পণ্য",
     "listJoin": ", "
   }
 }

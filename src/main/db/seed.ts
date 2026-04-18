@@ -29,7 +29,7 @@ const UNITS: { name: string; symbol: string | null; unit_type: string }[] = [
   { name: "quintal", symbol: "q", unit_type: "Mass" },
 ];
 
-// One row per pair; unitConversion.ts derives the reverse (quantity / factor).
+// One row per pair; shared/unitConversion.ts derives the reverse (quantity / factor).
 // 1 from_unit = factor × to_unit (e.g. 1 kg = 1000 g).
 const CONVERSIONS: { from_unit: string; to_unit: string; factor: number }[] = [
   { from_unit: "kilogram", to_unit: "gram", factor: 1000 },

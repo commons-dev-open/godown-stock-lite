@@ -15,6 +15,8 @@ import PinEntry from "./pages/PinEntry";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import Transactions from "./pages/Transactions";
+import Purchases from "./pages/Purchases";
+import StockHistory from "./pages/StockHistory";
 import Units from "./pages/Units";
 import UserSelector from "./pages/UserSelector";
 
@@ -42,12 +44,14 @@ function AuthGate() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/stock" element={<Items />} />
+          <Route path="/stock-history" element={<StockHistory />} />
           <Route path="/mahajans" element={<Mahajans />} />
           <Route
             path="/mahajans/ledger/:mahajanId"
             element={<MahajanLedger />}
           />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/purchases" element={<Purchases />} />
           <Route path="/sales" element={<DailySales />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/units" element={<Units />} />

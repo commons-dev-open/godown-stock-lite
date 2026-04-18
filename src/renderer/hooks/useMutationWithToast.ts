@@ -11,9 +11,9 @@ export function useMutationWithToast<TData, TError = Error, TVariables = void>(
   const { onError, ...rest } = options;
   return useMutation({
     ...rest,
-    onError: (err, variables, context) => {
+    onError: (err, variables, context, mutation) => {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
-      onError?.(err, variables, context);
+      onError?.(err, variables, context, mutation);
     },
   });
 }

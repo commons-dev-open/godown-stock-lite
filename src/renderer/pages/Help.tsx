@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import { AsyncDataPanel } from "../components/async-data-panel";
 import {
@@ -8,18 +9,24 @@ import {
   HelpHero,
   HelpSectionPanel,
   HelpSegmentedTabs,
-  HELP_SECTION_META,
   HELP_TAB_ORDER,
+  helpLocaleString,
+  helpPanelMetaKey,
   type HelpTabId,
   loadHelpGuide,
 } from "../components/help-page";
-
 export default function Help() {
+  const { t, i18n } = useTranslation("help");
   const [activeTab, setActiveTab] = useState<HelpTabId>("overview");
-  const sectionMeta = HELP_SECTION_META[activeTab];
+  const panelKey = helpPanelMetaKey(activeTab);
+  const sectionTitle = helpLocaleString(i18n, `panelMeta.${panelKey}.title`);
+  const sectionDescription = helpLocaleString(
+    i18n,
+    `panelMeta.${panelKey}.description`,
+  );
 
   const guideQuery = useQuery({
-    queryKey: ["help", "guide"],
+    queryKey: ["help", "guide", i18n.language],
     queryFn: loadHelpGuide,
     staleTime: Infinity,
   });
@@ -35,14 +42,11 @@ export default function Help() {
       <HelpSegmentedTabs active={activeTab} onChange={setActiveTab} />
 
       <DashboardSectionBoundary
-        sectionTitle={sectionMeta.title}
+        sectionTitle={sectionTitle}
         containerClassName="dashboard-panel"
-        resetKeys={[activeTab, guideQuery.status, guideQuery.dataUpdatedAt]}
+        resetKeys={[activeTab, guideQuery.status, guideQuery.dataUpdatedAt, i18n.language]}
       >
-        <HelpSectionPanel
-          title={sectionMeta.title}
-          description={sectionMeta.description}
-        >
+        <HelpSectionPanel title={sectionTitle} description={sectionDescription}>
           <div
             role="tabpanel"
             id={`help-panel-${activeTab}`}
@@ -66,8 +70,9 @@ export default function Help() {
               }
               loaderColumns={1}
               loaderRows={8}
-              errorTitle="Could not load help"
-              errorDescription="The guide module failed to load. Check the installation and try again."
+              errorTitle={t("loadError.title")}
+              errorDescription={t("loadError.description")}
+              retryLabel={t("loadError.retry")}
             >
               {activeGuideBody}
             </AsyncDataPanel>

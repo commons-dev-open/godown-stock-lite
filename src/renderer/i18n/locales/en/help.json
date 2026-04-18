@@ -1,13 +1,82 @@
 {
   "hero": {
     "title": "Help",
-    "subtitle": "Guides and support"
+    "subtitle": "Guides and support",
+    "topicsLabel": "Topics",
+    "guideLabel": "Guide",
+    "guideValue": "Built-in"
   },
   "tabs": {
     "gettingStarted": "Getting Started",
     "features": "Features",
     "faq": "FAQ",
     "contact": "Contact"
+  },
+  "segmentedTabs": {
+    "ariaTablist": "Help topics",
+    "scrollLeft": "Scroll topics left",
+    "scrollRight": "Scroll topics right",
+    "scrollLeftTitle": "More topics on the left",
+    "scrollRightTitle": "More topics on the right"
+  },
+  "tabLabels": {
+    "overview": "Overview",
+    "gettingStarted": "Getting started",
+    "units": "Units",
+    "products": "Products & stock",
+    "lenders": "Lenders",
+    "transactions": "Transactions",
+    "dailySales": "Daily sales",
+    "invoices": "Invoices",
+    "team": "Team",
+    "homeInsights": "Home & insights",
+    "settingsData": "Settings & data"
+  },
+  "panelMeta": {
+    "overview": {
+      "title": "Overview",
+      "description": "What this app does, where data lives, and how the main areas fit together."
+    },
+    "gettingStarted": {
+      "title": "Getting started",
+      "description": "Sign-in, setup order (including tax and discounts), and trial behaviour."
+    },
+    "units": {
+      "title": "Units",
+      "description": "Stock units, unit types, standard conversions, and how invoices pick units."
+    },
+    "products": {
+      "title": "Products & stock",
+      "description": "Catalogue, stock moves, selling defaults, GST/HSN, conversions, export, print."
+    },
+    "lenders": {
+      "title": "Lenders",
+      "description": "Credit from lenders, settlements, balances, ledgers, and exports."
+    },
+    "transactions": {
+      "title": "Transactions",
+      "description": "Credit purchase, settlement, cash purchase, filters, and printing."
+    },
+    "dailySales": {
+      "title": "Daily sales",
+      "description": "Invoice sales, misc sales, cash in hand, expenditure, and one row per date."
+    },
+    "invoices": {
+      "title": "Invoices",
+      "description": "Line items, settings-driven GST and discounts, PDFs, and how totals feed daily sales."
+    },
+    "team": {
+      "title": "Team",
+      "description": "Team members, roles (Owner, Admin, User), PINs, activation, and how this differs from Settings."
+    },
+    "homeInsights": {
+      "title": "Home & insights",
+      "description": "What appears on the Home dashboard: KPIs, charts, quick actions, weekly detail, lenders, and low stock."
+    },
+    "settingsData": {
+      "title": "Settings & data",
+      "description": "Business, tax, discounts, appearance, security, activity log, backups, and database path."
+    }
   },
   "contact": {
     "developer": "Developer",
@@ -17,6 +86,23 @@
   },
   "empty": {
     "title": "No guide selected",
-    "message": "Pick a topic from the left to view help."
+    "message": "Pick a topic from the tabs above to view help."
+  },
+  "emptyGuide": {
+    "title": "No guide content",
+    "message": "The help topics could not be loaded. Check that the app files are complete, then try again.",
+    "retry": "Retry"
+  },
+  "loadError": {
+    "title": "Could not load help",
+    "description": "The guide module failed to load. Check the installation and try again.",
+    "retry": "Retry"
+  },
+  "developer": {
+    "panelTitle": "Founder and developer",
+    "panelDescription": "For product issues, purchase, renewal, or licensing, use the contact options below. WhatsApp is preferred for the quickest replies.",
+    "founderLabel": "Founder and developer",
+    "whatsappHint": "Prefer WhatsApp for issues, purchase, and renewal — replies are usually faster than phone calls.",
+    "linkedinProfile": "LinkedIn profile"
   }
 }

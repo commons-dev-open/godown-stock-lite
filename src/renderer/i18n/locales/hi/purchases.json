@@ -1,0 +1,108 @@
+{
+  "title": "खरीदारी",
+  "subtitle": "क्रेडिट और नकद स्टॉक खरीद एक जगह।",
+  "filters": {
+    "kind": "प्रकार",
+    "kind_all": "सभी प्रकार",
+    "kind_credit": "उधार (महाजन)",
+    "kind_cash": "नकद",
+    "lender": "महाजन",
+    "lender_all": "सभी महाजन",
+    "date_from": "तारीख से",
+    "date_to": "तारीख तक",
+    "clear": "फ़िल्टर हटाएँ"
+  },
+  "columns": {
+    "date": "तारीख",
+    "type": "प्रकार",
+    "counterparty": "महाजन",
+    "products": "उत्पाद",
+    "lines": "लाइनें",
+    "total": "कुल",
+    "settlement": "सेटल",
+    "notes": "नोट्स",
+    "actions": "क्रियाएँ"
+  },
+  "kind_labels": {
+    "credit": "उधार",
+    "cash": "नकद"
+  },
+  "actions": {
+    "edit": "संपादन",
+    "settle": "भुगतान और सेटलमेंट",
+    "view_invoice": "इनवॉइस देखें"
+  },
+  "empty": {
+    "title": "कोई खरीद नहीं",
+    "description": "फ़िल्टर बदलें या लेनदेन से खरीद दर्ज करें।"
+  },
+  "modal": {
+    "title_edit": "खरीद संपादित करें",
+    "allocations_hint": "₹{{settled}} पहले से एक या ज़्यादा सेटलमेंट से जुड़ा है। आप बिल बदल सकते हैं, लेकिन नया कुल इससे कम नहीं हो सकता, और जब तक वे लिंक हटें/बदलें नहीं, महाजन नहीं बदल सकते।",
+    "allocations_heading": "इस खरीद से जुड़े भुगतान / सेटलमेंट",
+    "allocations_empty": "अभी इस खरीद पर कोई सेटलमेंट राशि लिंक नहीं है।",
+    "allocation_columns": {
+      "date": "तारीख",
+      "direction": "प्रकार",
+      "applied": "यहाँ लागू",
+      "payment": "भुगतान विवरण"
+    },
+    "allocation_direction_out": "भुगतान (बाहर)",
+    "allocation_direction_in": "रिफंड (अंदर)",
+    "allocation_movement_total": "पूरी प्रविष्टि: ₹{{amount}}",
+    "fields": {
+      "lender": "महाजन",
+      "date": "तारीख",
+      "notes": "नोट्स",
+      "invoice_number": "इनवॉइस नंबर"
+    },
+    "lines_heading": "उत्पाद लाइनें",
+    "add_line": "लाइन जोड़ें",
+    "remove_line": "हटाएँ",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "manage_settlements_title": "इस बिल पर भुगतान",
+    "manage_settlements_hint": "₹{{total}} में से ₹{{settled}} पहले से लग चुका है। इतिहास देखें या नया भुगतान दर्ज करें।",
+    "manage_settlements": "सेटलमेंट खोलें",
+    "add_settlement_heading": "इस बिल के लिए भुगतान दर्ज करें",
+    "add_settlement_remaining": "इस बिल पर अभी तक ₹{{amount}} तक लगाया जा सकता है।",
+    "add_settlement_none_remaining": "यह बिल पूरी तरह सेटल है।",
+    "add_settlement_date": "भुगतान की तारीख",
+    "add_settlement_amount": "राशि (₹)",
+    "add_settlement_payment_method": "भुगतान का तरीका (वैकल्पिक)",
+    "add_settlement_reference": "संदर्भ (वैकल्पिक)",
+    "add_settlement_notes": "नोट्स (वैकल्पिक)",
+    "add_settlement_submit": "सेटलमेंट दर्ज करें"
+  },
+  "settlement_modal": {
+    "title": "भुगतान और सेटलमेंट",
+    "not_credit": "सेटलमेंट सिर्फ उधार खरीद पर लागू होते हैं।",
+    "summary_heading": "यह खरीद",
+    "subtitle": "{{date}} · {{lender}}",
+    "stat_bill": "बिल कुल",
+    "stat_applied": "अब तक लगा",
+    "stat_remaining": "बाकी",
+    "fill_remaining": "बाकी भरें"
+  },
+  "settlement": {
+    "dash": "—",
+    "partial_title": "₹{{settled}} सेटल",
+    "full": "पूरी तरह सेटल",
+    "partial_short": "₹{{settled}}",
+    "settled": "सेटल",
+    "full_tooltip": "सेटल · ₹{{settled}} / ₹{{total}}",
+    "of_total": "/ ₹{{total}} बिल"
+  },
+  "toasts": {
+    "saved": "खरीद अपडेट हो गई।",
+    "save_failed": "खरीद सहेजी नहीं जा सकी।",
+    "load_failed": "खरीद लोड नहीं हो सकी।",
+    "total_below_settled": "बिल का कुल पहले से सेटल राशि से कम नहीं हो सकता (₹{{min}})।",
+    "settlement_added": "सेटलमेंट दर्ज हो गया।",
+    "settlement_failed": "सेटलमेंट दर्ज नहीं हो सका।",
+    "settlement_amount_invalid": "मान्य सेटलमेंट राशि दर्ज करें।",
+    "settlement_exceeds_remaining": "अभी इस बिल पर अधिकतम ₹{{max}} लगाया जा सकता है।",
+    "settlement_date_required": "भुगतान की तारीख चुनें।"
+  },
+  "counterparty_cash": "—"
+}

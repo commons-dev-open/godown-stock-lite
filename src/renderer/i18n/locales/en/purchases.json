@@ -1,0 +1,108 @@
+{
+  "title": "Purchases",
+  "subtitle": "Credit and cash stock purchases in one place.",
+  "filters": {
+    "kind": "Type",
+    "kind_all": "All types",
+    "kind_credit": "Credit (lender)",
+    "kind_cash": "Cash",
+    "lender": "Lender",
+    "lender_all": "All lenders",
+    "date_from": "From date",
+    "date_to": "To date",
+    "clear": "Clear filters"
+  },
+  "columns": {
+    "date": "Date",
+    "type": "Type",
+    "counterparty": "Lender",
+    "products": "Products",
+    "lines": "Lines",
+    "total": "Total",
+    "settlement": "Settled",
+    "notes": "Notes",
+    "actions": "Actions"
+  },
+  "kind_labels": {
+    "credit": "Credit",
+    "cash": "Cash"
+  },
+  "actions": {
+    "edit": "Edit",
+    "settle": "Payments & settlements",
+    "view_invoice": "View invoice"
+  },
+  "empty": {
+    "title": "No purchases",
+    "description": "Try changing filters or record a purchase from Transactions."
+  },
+  "modal": {
+    "title_edit": "Edit purchase",
+    "allocations_hint": "₹{{settled}} is already applied from one or more settlements. You can edit this bill, but the new total cannot go below that amount, and you cannot change the lender until those links are removed or reallocated.",
+    "allocations_heading": "Payments / settlements linked to this purchase",
+    "allocations_empty": "No settlement amounts are linked to this purchase yet.",
+    "allocation_columns": {
+      "date": "Date",
+      "direction": "Type",
+      "applied": "Applied here",
+      "payment": "Payment details"
+    },
+    "allocation_direction_out": "Payment out",
+    "allocation_direction_in": "Refund in",
+    "allocation_movement_total": "Full entry: ₹{{amount}}",
+    "fields": {
+      "lender": "Lender",
+      "date": "Date",
+      "notes": "Notes",
+      "invoice_number": "Invoice number"
+    },
+    "lines_heading": "Product lines",
+    "add_line": "Add line",
+    "remove_line": "Remove",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "manage_settlements_title": "Payments on this bill",
+    "manage_settlements_hint": "₹{{settled}} of ₹{{total}} is already applied. View history or record a new payment.",
+    "manage_settlements": "Open settlements",
+    "add_settlement_heading": "Record a payment toward this bill",
+    "add_settlement_remaining": "Up to ₹{{amount}} can still be applied to this bill.",
+    "add_settlement_none_remaining": "This bill is fully settled.",
+    "add_settlement_date": "Payment date",
+    "add_settlement_amount": "Amount (₹)",
+    "add_settlement_payment_method": "Payment method (optional)",
+    "add_settlement_reference": "Reference (optional)",
+    "add_settlement_notes": "Notes (optional)",
+    "add_settlement_submit": "Record settlement"
+  },
+  "settlement_modal": {
+    "title": "Payments & settlements",
+    "not_credit": "Settlements apply only to credit purchases.",
+    "summary_heading": "This purchase",
+    "subtitle": "{{date}} · {{lender}}",
+    "stat_bill": "Bill total",
+    "stat_applied": "Applied so far",
+    "stat_remaining": "Remaining",
+    "fill_remaining": "Fill remaining"
+  },
+  "settlement": {
+    "dash": "—",
+    "partial_title": "₹{{settled}} settled",
+    "full": "Fully settled",
+    "partial_short": "₹{{settled}}",
+    "settled": "Settled",
+    "full_tooltip": "Settled · ₹{{settled}} of ₹{{total}}",
+    "of_total": "/ ₹{{total}} bill"
+  },
+  "toasts": {
+    "saved": "Purchase updated.",
+    "save_failed": "Could not save purchase.",
+    "load_failed": "Could not load purchase.",
+    "total_below_settled": "The bill total cannot be less than what is already settled (₹{{min}}). Raise line amounts or change settlements in the ledger.",
+    "settlement_added": "Settlement recorded.",
+    "settlement_failed": "Could not record settlement.",
+    "settlement_amount_invalid": "Enter a valid settlement amount.",
+    "settlement_exceeds_remaining": "That amount is more than you can apply to this bill right now (max ₹{{max}}).",
+    "settlement_date_required": "Choose a payment date."
+  },
+  "counterparty_cash": "—"
+}

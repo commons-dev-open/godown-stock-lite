@@ -52,10 +52,10 @@ import Button from "../components/Button";
 import type { MahajanLend, MahajanDeposit, Item } from "../../shared/types";
 import {
   formatDecimal,
-  formatAbbreviatedRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import {
   pageRowToLedgerRow,
   toLendRecord,
@@ -70,7 +70,7 @@ import {
 } from "../lib/modalTableColumns";
 
 function buildMahajanLedgerDeleteRows(p: {
-  type: "credit_purchase" | "settlement";
+  type: "credit_purchase" | "settlement" | "lender_refund";
   row: LenderLedgerPageRow;
   record: MahajanLend | MahajanDeposit;
 }): ModalKVRow[] {
@@ -78,7 +78,15 @@ function buildMahajanLedgerDeleteRows(p: {
     {
       id: 1,
       fieldLabel: "Type",
-      value: <TransactionTypeBadge type={p.type as TransactionType} />,
+      value: (
+        <TransactionTypeBadge
+          type={
+            p.type === "lender_refund"
+              ? "lender_refund"
+              : (p.type as TransactionType)
+          }
+        />
+      ),
     },
     {
       id: 2,
@@ -134,12 +142,14 @@ export default function MahajanLedger() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedRupee } = useFormatters();
 
   const ledgerDescriptionLabels = useMemo(
     () => ({
       settlement: t("ledger.descriptions.settlement"),
       cashPurchase: t("ledger.descriptions.cashPurchase"),
       creditPurchase: t("ledger.descriptions.creditPurchase"),
+      lenderRefund: t("ledger.descriptions.lenderRefund"),
     }),
     [t]
   );
@@ -166,13 +176,16 @@ export default function MahajanLedger() {
     null
   );
   const [filterType, setFilterType] = useState<
-    "all" | "credit_purchase" | "settlement"
+    "all" | "credit_purchase" | "settlement" | "lender_refund"
   >("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [lendModalOpen, setLendModalOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [depositModalMode, setDepositModalMode] = useState<
+    "payment" | "refund"
+  >("payment");
   const [editLendDate, setEditLendDate] = useState("");
   const [editDepositDate, setEditDepositDate] = useState("");
   const [confirmEditLendOpen, setConfirmEditLendOpen] = useState(false);
@@ -198,7 +211,7 @@ export default function MahajanLedger() {
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
-    type: "credit_purchase" | "settlement";
+    type: "credit_purchase" | "settlement" | "lender_refund";
     row: LenderLedgerPageRow;
     record: MahajanLend | MahajanDeposit;
   } | null>(null);
@@ -373,6 +386,8 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
       setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
       toast.success(t("ledger.toasts.settlementUpdated"));
@@ -404,6 +419,9 @@ export default function MahajanLedger() {
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance", id] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setLedgerUpdatesAvailable(true);
       toast.success(t("ledger.toasts.settlementDeleted"));
     },
@@ -412,7 +430,7 @@ export default function MahajanLedger() {
   });
 
   const handleFilterChange = (updates: {
-    type?: "all" | "credit_purchase" | "settlement";
+    type?: "all" | "credit_purchase" | "settlement" | "lender_refund";
     dateFrom?: string;
     dateTo?: string;
   }) => {
@@ -439,7 +457,9 @@ export default function MahajanLedger() {
       ? t("hero.creditPurchase")
       : filterType === "settlement"
         ? t("hero.settlements")
-        : filterType;
+        : filterType === "lender_refund"
+          ? tTx("types.lender_refund")
+          : filterType;
 
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
@@ -492,7 +512,12 @@ export default function MahajanLedger() {
       return formatAbbreviatedRupee(balance.totalLends, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const totalSettlementDisplay = useMemo(() => {
     if (balanceLoading && balance == null) {
@@ -502,7 +527,12 @@ export default function MahajanLedger() {
       return formatAbbreviatedRupee(balance.totalDeposits, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const balanceDisplay = useMemo(() => {
     if (balanceLoading && balance == null) {
@@ -515,7 +545,12 @@ export default function MahajanLedger() {
       );
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const balanceSuffix = useMemo(() => {
     if (balance == null) {
@@ -714,6 +749,11 @@ export default function MahajanLedger() {
           setLendModalOpen(true);
         }}
         onAddSettlement={() => {
+          setDepositModalMode("payment");
+          setDepositModalOpen(true);
+        }}
+        onAddRefund={() => {
+          setDepositModalMode("refund");
           setDepositModalOpen(true);
         }}
       />
@@ -803,6 +843,7 @@ export default function MahajanLedger() {
             >
               <MahajanLedgerTable
                 rows={unifiedRows}
+                descriptionLabels={ledgerDescriptionLabels}
                 onOpenInvoice={(path) => {
                   void api.openCreditPurchaseInvoice(path);
                 }}
@@ -819,6 +860,13 @@ export default function MahajanLedger() {
                       type: "credit_purchase",
                       row,
                       record: toLendRecord(row),
+                    });
+                    setDeleteConfirmOpen(true);
+                  } else if (row.type === "lender_refund") {
+                    setDeleteConfirmPayload({
+                      type: "lender_refund",
+                      row,
+                      record: toDepositRecord(row),
                     });
                     setDeleteConfirmOpen(true);
                   } else {
@@ -1192,8 +1240,12 @@ export default function MahajanLedger() {
       />
       <AddDepositModal
         open={depositModalOpen}
-        onClose={() => setDepositModalOpen(false)}
+        onClose={() => {
+          setDepositModalOpen(false);
+          setDepositModalMode("payment");
+        }}
         fixedMahajanId={id}
+        mode={depositModalMode === "refund" ? "refund" : "payment"}
       />
 
       <FormModal
@@ -1470,7 +1522,11 @@ export default function MahajanLedger() {
                   if (!deleteConfirmPayload) return;
                   if (deleteConfirmPayload.type === "credit_purchase")
                     deleteLend.mutate(deleteConfirmPayload.row.id);
-                  else deleteDeposit.mutate(deleteConfirmPayload.row.id);
+                  else if (
+                    deleteConfirmPayload.type === "settlement" ||
+                    deleteConfirmPayload.type === "lender_refund"
+                  )
+                    deleteDeposit.mutate(deleteConfirmPayload.row.id);
                   setDeleteConfirmOpen(false);
                   setDeleteConfirmPayload(null);
                 }}
@@ -1505,14 +1561,18 @@ export default function MahajanLedger() {
               className={`rounded border p-3 space-y-2 text-sm ${
                 deleteConfirmPayload.type === "credit_purchase"
                   ? "border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)]"
-                  : "border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)]"
+                  : deleteConfirmPayload.type === "lender_refund"
+                    ? "border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)]"
+                    : "border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)]"
               }`}
             >
               <p
                 className={`font-medium ${
                   deleteConfirmPayload.type === "credit_purchase"
                     ? "text-[var(--color-warning-text)]"
-                    : "text-[var(--color-success)]"
+                    : deleteConfirmPayload.type === "lender_refund"
+                      ? "text-[var(--color-accent)]"
+                      : "text-[var(--color-success)]"
                 }`}
               >
                 Impact after delete
@@ -1586,7 +1646,9 @@ export default function MahajanLedger() {
                         After this delete:{" "}
                         {deleteConfirmPayload.type === "credit_purchase"
                           ? "Total Lends"
-                          : "Total Deposits"}{" "}
+                          : deleteConfirmPayload.type === "lender_refund"
+                            ? "Total recorded refunds"
+                            : "Total Deposits"}{" "}
                         will decrease by ₹
                         {formatDecimal(deleteConfirmPayload.record.amount)} →
                         Balance will be ₹{formatDecimal(Math.abs(balanceAfter))}

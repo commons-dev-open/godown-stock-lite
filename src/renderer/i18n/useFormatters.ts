@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocale } from "./LocaleContext";
 import { applyNumerals } from "./digits";
 import { DECIMAL_PLACES } from "shared/constants";
@@ -33,8 +34,13 @@ export type LocaleFormatters = {
 
 export function useFormatters(): LocaleFormatters {
   const { intlLocale, numeralSystem, locale } = useLocale();
+  const { t, i18n } = useTranslation("common");
 
   return useMemo(() => {
+    const indianAbbrevUnits = {
+      lac: t("units.lac"),
+      crore: t("units.crore"),
+    };
     const numberOpts = { numberingSystem: numeralSystem } as Intl.NumberFormatOptions;
 
     const intFormatter = new Intl.NumberFormat(intlLocale, {
@@ -81,13 +87,20 @@ export function useFormatters(): LocaleFormatters {
     const formatAbbreviatedRupee = (
       value: number,
       style: NumberAbbreviationStyle,
-    ) => applyNumerals(sharedFormatAbbreviatedRupee(value, style), numeralSystem);
+    ) =>
+      applyNumerals(
+        sharedFormatAbbreviatedRupee(value, style, indianAbbrevUnits),
+        numeralSystem,
+      );
 
     const formatAbbreviatedInteger = (
       value: number,
       style: NumberAbbreviationStyle,
     ) =>
-      applyNumerals(sharedFormatAbbreviatedInteger(value, style), numeralSystem);
+      applyNumerals(
+        sharedFormatAbbreviatedInteger(value, style, indianAbbrevUnits),
+        numeralSystem,
+      );
 
     const formatDateForView = (iso: string) => {
       if (!iso) return "";
@@ -119,5 +132,5 @@ export function useFormatters(): LocaleFormatters {
       formatDateForView,
       formatDateForForm,
     };
-  }, [intlLocale, numeralSystem, locale]);
+  }, [intlLocale, numeralSystem, locale, i18n.language, t]);
 }

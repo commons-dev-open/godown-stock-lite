@@ -78,11 +78,11 @@
   },
   "modals": {
     "addUnitType": { "title": "এককের ধরন যোগ করুন" },
-    "editUnitType": { "title": "এককের ধরন সম্পাদনা" },
+    "editUnitType": { "title": "এককের ধরন পরিবর্তন" },
     "addUnit": { "title": "একক যোগ করুন" },
-    "editUnit": { "title": "একক সম্পাদনা" },
+    "editUnit": { "title": "একক পরিবর্তন" },
     "addConversion": { "title": "রূপান্তর যোগ করুন" },
-    "editConversion": { "title": "রূপান্তর সম্পাদনা" }
+    "editConversion": { "title": "রূপান্তর পরিবর্তন" }
   },
   "form": {
     "unitTypeNamePlaceholder": "যেমন ভর, আয়তন, গণনা",
