@@ -152,5 +152,42 @@
       "selectProduct": "পণ্য বাছুন",
       "quantityToDeduct": "যতটা কমাবেন"
     }
+  },
+  "stockHistory": {
+    "hero": {
+      "title": "স্টকের ইতিহাস",
+      "subtitle": "পরিমাণ কখন ও কেন বদলেছে"
+    },
+    "filters": {
+      "item": "পণ্য",
+      "allItems": "সব পণ্য",
+      "reason": "কারণ",
+      "allReasons": "সব কারণ",
+      "purchase": "ক্রয়",
+      "invoice_sale": "ইনভয়েস বিক্রি",
+      "adjustment": "সমন্বয়"
+    },
+    "columns": {
+      "date": "তারিখ",
+      "product": "পণ্য",
+      "delta": "পরিবর্তন",
+      "balance": "পরের ব্যালান্স",
+      "reason": "কারণ",
+      "ref": "রেফারেন্স",
+      "note": "নোট",
+      "source": "উৎস"
+    },
+    "links": {
+      "invoices": "ইনভয়েস খুলুন",
+      "transactions": "ট্রানজ্যাকশন খুলুন",
+      "purchases": "ক্রয় খুলুন"
+    },
+    "rowAction": {
+      "openHistory": "ইতিহাস"
+    },
+    "empty": {
+      "title": "এখনও কোনো স্টক চলাচল নেই",
+      "message": "ক্রয়, ইনভয়েস বিক্রি বা হাতে স্টক বদলালে এখানে এন্ট্রি হবে।"
+    }
   }
 }

@@ -152,5 +152,42 @@
       "selectProduct": "प्रोडक्ट चुनें",
       "quantityToDeduct": "घटाने की मात्रा"
     }
+  },
+  "stockHistory": {
+    "hero": {
+      "title": "स्टॉक इतिहास",
+      "subtitle": "मात्रा कब और क्यों बदली"
+    },
+    "filters": {
+      "item": "प्रोडक्ट",
+      "allItems": "सभी प्रोडक्ट",
+      "reason": "कारण",
+      "allReasons": "सभी कारण",
+      "purchase": "खरीद",
+      "invoice_sale": "बिल बिक्री",
+      "adjustment": "समायोजन"
+    },
+    "columns": {
+      "date": "तारीख़",
+      "product": "प्रोडक्ट",
+      "delta": "बदलाव",
+      "balance": "बाद में बैलेंस",
+      "reason": "कारण",
+      "ref": "संदर्भ",
+      "note": "नोट",
+      "source": "स्रोत"
+    },
+    "links": {
+      "invoices": "बिल खोलें",
+      "transactions": "लेन-देन खोलें",
+      "purchases": "खरीदारी खोलें"
+    },
+    "rowAction": {
+      "openHistory": "इतिहास"
+    },
+    "empty": {
+      "title": "अभी कोई स्टॉक गति नहीं",
+      "message": "खरीद, बिल पर बिक्री या मैन्युअल बदलाव से यहाँ प्रविष्टियाँ बनेंगी।"
+    }
   }
 }

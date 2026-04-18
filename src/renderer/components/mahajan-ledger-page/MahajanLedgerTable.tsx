@@ -15,11 +15,13 @@ import {
   ledgerDescriptionFromPageRow,
   toDepositRecord,
   toLendRecord,
+  type LedgerDescriptionLabels,
   type LenderLedgerPageRow,
 } from "../../lib/lenderLedgerRow";
 
 interface MahajanLedgerTableProps {
   rows: LenderLedgerPageRow[];
+  descriptionLabels?: LedgerDescriptionLabels;
   onOpenInvoice: (path: string) => void;
   onEditRow: (row: LenderLedgerPageRow) => void;
   onDeleteRow: (row: LenderLedgerPageRow) => void;
@@ -29,6 +31,7 @@ interface MahajanLedgerTableProps {
 
 export function MahajanLedgerTable({
   rows,
+  descriptionLabels,
   onOpenInvoice,
   onEditRow,
   onDeleteRow,
@@ -60,7 +63,10 @@ export function MahajanLedgerTable({
         key: "description",
         label: t("ledger.columns.description"),
         render: (row: LenderLedgerPageRow) => {
-          const description = ledgerDescriptionFromPageRow(row);
+          const description = ledgerDescriptionFromPageRow(
+            row,
+            descriptionLabels
+          );
           return (
             <>
               <span className="block">{description}</span>
@@ -91,7 +97,7 @@ export function MahajanLedgerTable({
                     )
                   );
                 })()}
-              {row.type === "settlement" &&
+              {(row.type === "settlement" || row.type === "lender_refund") &&
                 (() => {
                   const rec = toDepositRecord(row) as MahajanDeposit & {
                     payment_method?: string | null;
@@ -127,7 +133,9 @@ export function MahajanLedgerTable({
           const amountColorClass =
             row.type === "credit_purchase"
               ? "text-[var(--color-warning-text)]"
-              : "text-[var(--color-success)]";
+              : row.type === "lender_refund" || row.type === "cash_purchase"
+                ? "text-[var(--color-accent)]"
+                : "text-[var(--color-success)]";
           return (
             <span className={`text-sm font-medium ${amountColorClass}`}>
               {formatDecimal(row.amount)}
@@ -136,7 +144,7 @@ export function MahajanLedgerTable({
         },
       },
     ],
-    [onOpenInvoice, t]
+    [descriptionLabels, onOpenInvoice, t]
   );
 
   return (

@@ -303,6 +303,7 @@ export default function AddLendModal({
         return { ...l, quantity: conv.primaryQuantity };
       });
       const linesWithGst = buildLinesWithGst(linesPrimaryQty);
+      const payNow = payload.pay_now_amount ?? 0;
       await api.createMahajanLendBatch({
         mahajan_id: payload.mahajan_id,
         transaction_date: payload.transaction_date,
@@ -311,31 +312,34 @@ export default function AddLendModal({
         invoice_file_path: invoicePath,
         batch_uuid: batchUuid,
         lines: linesWithGst,
+        pay_now:
+          payNow > 0
+            ? {
+                amount: payNow,
+                payment_method: payload.pay_now_payment_method || undefined,
+                reference_number:
+                  payload.pay_now_reference_number?.trim() || undefined,
+                notes: t("modals.add_credit_purchase.defaults.pay_now_note"),
+              }
+            : undefined,
       });
-
-      const payNow = payload.pay_now_amount ?? 0;
-      if (payNow > 0) {
-        await api.createMahajanDeposit({
-          mahajan_id: payload.mahajan_id,
-          transaction_date: payload.transaction_date,
-          amount: payNow,
-          notes: t("modals.add_credit_purchase.defaults.pay_now_note"),
-          payment_method: payload.pay_now_payment_method || undefined,
-          reference_number:
-            payload.pay_now_reference_number?.trim() || undefined,
-        });
-      }
       return { hadPayNow: payNow > 0 };
     },
     onSuccess: (data: { hadPayNow: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanLends"] });
+      queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanBalance"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
+      queryClient.invalidateQueries({
+        queryKey: ["creditPurchasesWithAllocated"],
+      });
       setConfirmLendOpen(false);
       setConfirmPayload(null);
       setLendLines([emptyLine()]);

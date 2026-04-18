@@ -68,12 +68,14 @@
     "descriptions": {
       "settlement": "भुगतान",
       "cashPurchase": "नकद खरीद",
-      "creditPurchase": "उधार खरीद"
+      "creditPurchase": "उधार खरीद",
+      "lenderRefund": "आपूर्तिकर्ता से वापसी"
     },
     "filters": {
       "type": "टाइप",
       "dateFrom": "तारीख से",
-      "dateTo": "तारीख तक"
+      "dateTo": "तारीख तक",
+      "moreFilters": "और फ़िल्टर"
     },
     "empty": {
       "matchingEntriesTitle": "कोई मिलती-जुलती एंट्री नहीं",

@@ -13,6 +13,7 @@ interface MahajanLedgerHeroProps {
   onBack: () => void;
   onAddCreditPurchase: () => void;
   onAddSettlement: () => void;
+  onAddRefund: () => void;
 }
 
 function MahajanLedgerHeroComponent({
@@ -26,6 +27,7 @@ function MahajanLedgerHeroComponent({
   onBack,
   onAddCreditPurchase,
   onAddSettlement,
+  onAddRefund,
 }: Readonly<MahajanLedgerHeroProps>) {
   return (
     <div className="dashboard-hero-sticky dashboard-hero-sticky--compact">
@@ -99,6 +101,15 @@ function MahajanLedgerHeroComponent({
               >
                 <Plus size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
                 Add settlement
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onAddRefund}
+                className="shrink-0 whitespace-nowrap"
+              >
+                <Plus size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
+                Add refund
               </Button>
             </div>
           </div>

@@ -67,12 +67,14 @@
     "descriptions": {
       "settlement": "পরিশোধ",
       "cashPurchase": "নগদ ক্রয়",
-      "creditPurchase": "বাকিতে ক্রয়"
+      "creditPurchase": "বাকিতে ক্রয়",
+      "lenderRefund": "সরবরাহকারীর ফেরত"
     },
     "filters": {
       "type": "ধরন",
       "dateFrom": "তারিখ থেকে",
-      "dateTo": "তারিখ পর্যন্ত"
+      "dateTo": "তারিখ পর্যন্ত",
+      "moreFilters": "আরও ফিল্টার"
     },
     "empty": {
       "matchingEntriesTitle": "মিল পাওয়া যায়নি",

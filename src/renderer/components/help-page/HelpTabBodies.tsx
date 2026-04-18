@@ -18,9 +18,9 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
           items={[
             "Home: Rolling KPIs (today, week, month, lender net), 7-Day Sale Momentum, Range Composition with date presets, Quick Actions (Create Invoice, Credit Purchase) plus a weekly cash vs expenditure strip, low-stock alerts, Weekly Sale Detail, and a lender summary with navigation into the underlying pages when you need detail.",
             "Units: Master list of stock units with optional types, plus standard conversions so quantities stay consistent when you bill or move stock in different measures.",
-            "Products & Stock: Catalogue, on-hand quantity, reorder hints, per-product selling defaults and GST/HSN, product-level unit conversions, manual add/reduce stock, search, export, and print.",
+            "Products & Stock: Catalogue, on-hand quantity, reorder hints, per-product selling defaults and GST/HSN, product-level unit conversions, manual add/reduce stock, search, export, print, and row shortcuts into Stock history.",
             "Lenders: Parties you buy from on credit and pay back; balances, ledgers, and exports. The screen label is Lenders; older data paths may still say “mahajan” internally.",
-            "Transactions: One place for credit purchase, settlement, and cash purchase, with filters and export/print.",
+            "Transactions: Credit purchase, settlement, supplier refunds (money in), and cash purchase, with filters and export/print. Stock history is its own sidebar page for per-product movement audit.",
             "Daily Sales: One row per calendar day—invoice-backed totals, misc cash sales, cash in hand, and expenditure.",
             "Invoices: Customer bills with line items, GST-aware totals when enabled, discounts from Settings, and PDF/print using your business profile.",
             "Team: Named sign-ins, roles, PINs, and activation for people who share this machine (see the Team topic).",
@@ -291,7 +291,18 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
             "Click “Add Settlement”.",
             "Choose lender, date, amount, payment method, and reference details.",
             "Optionally expand allocations to tie the payment to specific credit purchases.",
+            "Optional: use “Suggest oldest credit purchases first” to pre-fill allocations (you can still edit them).",
             "Save. The lender’s balance decreases by the settlement amount.",
+          ]}
+        />
+      </HelpSubSection>
+      <HelpSubSection title="Supplier refund (money in)">
+        <HelpStepList
+          steps={[
+            "Click “Record refund” (or Add refund on a lender ledger).",
+            "Choose lender, date, amount, and optional payment details—same movement row type as settlement but direction in.",
+            "Optionally allocate to open credit purchases if you want the books tied line-by-line.",
+            "Save. Recorded refunds reduce what you owe that lender.",
           ]}
         />
       </HelpSubSection>
@@ -307,9 +318,21 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
       <HelpSubSection title="Filters, edits, exports">
         <p>
           Narrow by lender and by type (all, credit purchase only, settlement
-          only, cash purchase). Row actions support edit/delete where business
-          rules allow. Export and print honour the active filters so you can
-          produce statements for a single lender or a single transaction class.
+          only, supplier refund only, cash purchase). Row actions support
+          edit/delete where business rules allow. Aggregated multi-line credit
+          rows block the single-line edit form from the row pencil (the app
+          shows a clear toast). Export and print honour the active filters so
+          you can produce statements for a single lender or a single
+          transaction class.
+        </p>
+      </HelpSubSection>
+      <HelpSubSection title="Stock history">
+        <p>
+          Open Stock history from the sidebar (or Home quick action, or the
+          history icon on a product row). Filter by product, date range, and
+          reason; each row shows the signed quantity change and a running
+          balance window for the filtered list. Source links jump to invoices
+          or the transactions register depending on the movement type.
         </p>
       </HelpSubSection>
     </div>

@@ -119,12 +119,13 @@ function amountColorClass(type: string): string {
     return "text-[var(--color-warning-text)]";
   if (type === "settlement" || type === "deposit")
     return "text-[var(--color-success)]";
+  if (type === "lender_refund") return "text-[var(--color-accent)]";
   if (type === "cash_purchase") return "text-[var(--color-accent)]";
   return "text-[var(--color-text-primary)]";
 }
 
 function buildDeleteConfirmModalRows(p: {
-  type: "credit_purchase" | "settlement" | "cash_purchase";
+  type: "credit_purchase" | "settlement" | "cash_purchase" | "lender_refund";
   row: LenderLedgerPageRow;
   t: (key: string) => string;
 }): ModalKVRow[] {
@@ -219,13 +220,21 @@ export default function Transactions() {
   const { formatAbbreviatedInteger } = useFormatters();
   const [lendOpen, setLendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [depositModalMode, setDepositModalMode] = useState<
+    "payment" | "refund"
+  >("payment");
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<MahajanDeposit | null>(
     null
   );
+  const [editingDepositIsRefund, setEditingDepositIsRefund] = useState(false);
   const [filterMahajanId, setFilterMahajanId] = useState<number | "">("");
   const [filterType, setFilterType] = useState<
-    "all" | "credit_purchase" | "settlement" | "cash_purchase"
+    | "all"
+    | "credit_purchase"
+    | "settlement"
+    | "cash_purchase"
+    | "lender_refund"
   >("all");
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
@@ -278,7 +287,7 @@ export default function Transactions() {
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmPayload, setDeleteConfirmPayload] = useState<{
-    type: "credit_purchase" | "settlement" | "cash_purchase";
+    type: "credit_purchase" | "settlement" | "cash_purchase" | "lender_refund";
     row: LenderLedgerPageRow;
   } | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
@@ -462,7 +471,8 @@ export default function Transactions() {
     deleteConfirmOpen &&
     deleteConfirmPayload &&
     (deleteConfirmPayload.type === "credit_purchase" ||
-      deleteConfirmPayload.type === "settlement")
+      deleteConfirmPayload.type === "settlement" ||
+      deleteConfirmPayload.type === "lender_refund")
       ? (deleteConfirmPayload.row.lender_id ??
         deleteConfirmPayload.row.mahajan_id)
       : null;
@@ -500,6 +510,7 @@ export default function Transactions() {
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setEditingLend(null);
       toast.success(t("toasts.credit_purchase_updated"));
     },
@@ -520,6 +531,9 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setLedgerUpdatesAvailable(true);
       setEditingDeposit(null);
       toast.success(t("toasts.settlement_updated"));
@@ -538,6 +552,7 @@ export default function Transactions() {
       setLedgerUpdatesAvailable(true);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       toast.success(t("toasts.credit_purchase_deleted"));
     },
     onError: (err: Error) =>
@@ -551,6 +566,9 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanDeposits"] });
       queryClient.invalidateQueries({ queryKey: ["mahajanSummary"] });
       queryClient.invalidateQueries({ queryKey: ["allMahajanBalances"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setLedgerUpdatesAvailable(true);
       toast.success(t("toasts.settlement_deleted"));
     },
@@ -609,6 +627,9 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["purchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setPurchaseAddOpen(false);
       setConfirmPurchaseOpen(false);
       setConfirmPurchasePayload(null);
@@ -636,6 +657,9 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["purchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
       setEditingPurchase(null);
     },
   });
@@ -646,6 +670,9 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["purchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
+      queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
     },
   });
 
@@ -803,7 +830,12 @@ export default function Transactions() {
 
   const handleFilterChange = (updates: {
     mahajanId?: number | "";
-    type?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
+    type?:
+      | "all"
+      | "credit_purchase"
+      | "settlement"
+      | "cash_purchase"
+      | "lender_refund";
     dateFrom?: string;
     dateTo?: string;
   }) => {
@@ -911,7 +943,9 @@ export default function Transactions() {
         label: t("columns.product"),
         render: (row: LenderLedgerPageRow) => (
           <span className="text-[var(--color-text-secondary)]">
-            {row.type === "settlement" || row.type === "deposit"
+            {row.type === "settlement" ||
+            row.type === "deposit" ||
+            row.type === "lender_refund"
               ? "—"
               : (row.product_name ?? "—")}
           </span>
@@ -923,7 +957,9 @@ export default function Transactions() {
         align: "right" as const,
         render: (row: LenderLedgerPageRow) => (
           <span className="block text-right text-[var(--color-text-primary)]">
-            {row.type === "settlement" || row.type === "deposit"
+            {row.type === "settlement" ||
+            row.type === "deposit" ||
+            row.type === "lender_refund"
               ? "—"
               : row.quantity != null
                 ? String(row.quantity)
@@ -935,7 +971,11 @@ export default function Transactions() {
         key: "unit",
         label: t("columns.unit"),
         render: (row: LenderLedgerPageRow) => {
-          if (row.type === "settlement" || row.type === "deposit") {
+          if (
+            row.type === "settlement" ||
+            row.type === "deposit" ||
+            row.type === "lender_refund"
+          ) {
             return (
               <span className="text-[var(--color-text-secondary)]">—</span>
             );
@@ -991,7 +1031,9 @@ export default function Transactions() {
                   )}
                 </span>
               )}
-            {(row.type === "settlement" || row.type === "deposit") &&
+            {(row.type === "settlement" ||
+              row.type === "deposit" ||
+              row.type === "lender_refund") &&
               (row.payment_method || row.reference_number) && (
                 <span className="mt-1 block text-xs text-[var(--color-text-tertiary)]">
                   {row.payment_method && (
@@ -1074,9 +1116,25 @@ export default function Transactions() {
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
               {t("actions.add_credit_purchase")}
             </Button>
-            <Button variant="green" onClick={() => setDepositOpen(true)}>
+            <Button
+              variant="green"
+              onClick={() => {
+                setDepositModalMode("payment");
+                setDepositOpen(true);
+              }}
+            >
               <Plus size={20} className="mr-1.5" aria-hidden="true" />
               {t("actions.add_settlement")}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDepositModalMode("refund");
+                setDepositOpen(true);
+              }}
+            >
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
+              {t("actions.add_refund")}
             </Button>
           </>
         }
@@ -1110,7 +1168,8 @@ export default function Transactions() {
                     | "all"
                     | "credit_purchase"
                     | "settlement"
-                    | "cash_purchase",
+                    | "cash_purchase"
+                    | "lender_refund",
                 })
               }
             >
@@ -1119,6 +1178,9 @@ export default function Transactions() {
                 {t("filters.credit_purchase_only")}
               </option>
               <option value="settlement">{t("filters.settlement_only")}</option>
+              <option value="lender_refund">
+                {t("filters.lender_refund_only")}
+              </option>
               <option value="cash_purchase">
                 {t("filters.cash_purchase_only")}
               </option>
@@ -1286,10 +1348,14 @@ export default function Transactions() {
                           setEditingLend(toLendRecord(row));
                         } else if (
                           row.type === "settlement" ||
-                          row.type === "deposit"
+                          row.type === "deposit" ||
+                          row.type === "lender_refund"
                         ) {
+                          setEditingDepositIsRefund(
+                            row.type === "lender_refund"
+                          );
                           setEditingDeposit(toDepositRecord(row));
-                        } else {
+                        } else if (row.type === "cash_purchase") {
                           setEditingPurchase(toPurchaseRecord(row));
                         }
                       }}
@@ -1302,11 +1368,21 @@ export default function Transactions() {
                     <button
                       type="button"
                       onClick={() => {
+                        const rt = row.type;
+                        const delType:
+                          | "credit_purchase"
+                          | "settlement"
+                          | "cash_purchase"
+                          | "lender_refund" =
+                          rt === "lender_refund"
+                            ? "lender_refund"
+                            : rt === "settlement" || rt === "deposit"
+                              ? "settlement"
+                              : rt === "credit_purchase" || rt === "lend"
+                                ? "credit_purchase"
+                                : "cash_purchase";
                         setDeleteConfirmPayload({
-                          type: row.type as
-                            | "credit_purchase"
-                            | "settlement"
-                            | "cash_purchase",
+                          type: delType,
                           row,
                         });
                         setDeleteConfirmOpen(true);
@@ -1336,7 +1412,11 @@ export default function Transactions() {
 
       <AddDepositModal
         open={depositOpen}
-        onClose={() => setDepositOpen(false)}
+        onClose={() => {
+          setDepositOpen(false);
+          setDepositModalMode("payment");
+        }}
+        mode={depositModalMode === "refund" ? "refund" : "payment"}
       />
 
       <FormModal
@@ -1743,10 +1823,15 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title={t("modals.edit_settlement.title")}
+        title={
+          editingDepositIsRefund
+            ? t("modals.edit_refund.title")
+            : t("modals.edit_settlement.title")
+        }
         open={!!editingDeposit && !confirmEditDepositOpen}
         onClose={() => {
           setEditingDeposit(null);
+          setEditingDepositIsRefund(false);
           setConfirmEditDepositOpen(false);
           setConfirmEditDepositPayload(null);
         }}
@@ -1826,7 +1911,11 @@ export default function Transactions() {
       </FormModal>
 
       <FormModal
-        title={t("modals.edit_settlement.review_title")}
+        title={
+          editingDepositIsRefund
+            ? t("modals.edit_refund.review_title")
+            : t("modals.edit_settlement.review_title")
+        }
         open={confirmEditDepositOpen}
         onClose={() => {
           setConfirmEditDepositOpen(false);
@@ -1861,6 +1950,7 @@ export default function Transactions() {
                 setConfirmEditDepositOpen(false);
                 setConfirmEditDepositPayload(null);
                 setEditingDeposit(null);
+                setEditingDepositIsRefund(false);
               }}
               disabled={updateDeposit.isPending}
             >
@@ -1968,9 +2058,15 @@ export default function Transactions() {
                           }
                         >
                           {t(
-                            "modals.edit_settlement.messages.after_update_prefix"
+                            editingDepositIsRefund
+                              ? "modals.edit_refund.messages.after_update_prefix"
+                              : "modals.edit_settlement.messages.after_update_prefix"
                           )}{" "}
-                          {t("modals.shared.messages.total_settlements")}{" "}
+                          {editingDepositIsRefund
+                            ? t(
+                                "modals.shared.messages.total_refunds_recorded"
+                              )
+                            : t("modals.shared.messages.total_settlements")}{" "}
                           {t("modals.shared.messages.will_change_by")} ₹
                           {formatDecimal(
                             confirmEditDepositPayload.newValues.amount -
@@ -2128,13 +2224,13 @@ export default function Transactions() {
                           required={idx === 0}
                           value={line.product_id || ""}
                           onChange={(e) => {
-                            const id = Number(e.target.value);
-                            const item = itemList.find((i) => i.id === id);
+                            const pid = Number(e.target.value);
+                            const item = itemList.find((i) => i.id === pid);
                             setPurchaseLines((prev) => {
                               const next = [...prev];
                               next[idx] = {
                                 ...next[idx],
-                                product_id: id,
+                                product_id: pid,
                                 product_name: item?.name ?? "",
                                 quantity_unit: item?.unit ?? "",
                               };
@@ -2672,7 +2768,10 @@ export default function Transactions() {
                   if (!deleteConfirmPayload) return;
                   if (deleteConfirmPayload.type === "credit_purchase")
                     deleteLend.mutate(deleteConfirmPayload.row.id);
-                  else if (deleteConfirmPayload.type === "settlement")
+                  else if (
+                    deleteConfirmPayload.type === "settlement" ||
+                    deleteConfirmPayload.type === "lender_refund"
+                  )
                     deleteDeposit.mutate(deleteConfirmPayload.row.id);
                   else deletePurchase.mutate(deleteConfirmPayload.row.id);
                   setDeleteConfirmOpen(false);
@@ -2719,7 +2818,9 @@ export default function Transactions() {
                   ? "border-[var(--color-warning-subtle)] bg-[var(--color-warning-subtle)]"
                   : deleteConfirmPayload.type === "settlement"
                     ? "border-[var(--color-success-subtle)] bg-[var(--color-success-subtle)]"
-                    : "border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)]"
+                    : deleteConfirmPayload.type === "lender_refund"
+                      ? "border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)]"
+                      : "border-[var(--color-accent-subtle)] bg-[var(--color-accent-subtle)]"
               }`}
             >
               <p
@@ -2728,7 +2829,9 @@ export default function Transactions() {
                     ? "text-[var(--color-warning-text)]"
                     : deleteConfirmPayload.type === "settlement"
                       ? "text-[var(--color-success)]"
-                      : "text-[var(--color-accent)]"
+                      : deleteConfirmPayload.type === "lender_refund"
+                        ? "text-[var(--color-accent)]"
+                        : "text-[var(--color-accent)]"
                 }`}
               >
                 {t("modals.shared.messages.impact_after_delete")}
@@ -2760,7 +2863,8 @@ export default function Transactions() {
                   </p>
                 )}
               {(deleteConfirmPayload.type === "credit_purchase" ||
-                deleteConfirmPayload.type === "settlement") && (
+                deleteConfirmPayload.type === "settlement" ||
+                deleteConfirmPayload.type === "lender_refund") && (
                 <>
                   {deleteReviewBalanceLoading ? (
                     <p className="text-[var(--color-text-tertiary)]">
@@ -2820,9 +2924,13 @@ export default function Transactions() {
                               ? t(
                                   "modals.shared.messages.total_credit_purchase"
                                 )
-                              : t(
-                                  "modals.shared.messages.total_settlements"
-                                )}{" "}
+                              : deleteConfirmPayload.type === "lender_refund"
+                                ? t(
+                                    "modals.shared.messages.total_refunds_recorded"
+                                  )
+                                : t(
+                                    "modals.shared.messages.total_settlements"
+                                  )}{" "}
                             {t("modals.shared.messages.will_decrease_by")} ₹
                             {formatDecimal(deleteConfirmPayload.row.amount)} →
                             {t("modals.shared.messages.balance_will_be")} ₹

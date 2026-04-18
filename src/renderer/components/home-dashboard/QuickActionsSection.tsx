@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Banknote, FilePlus } from "lucide-react";
+import { Banknote, FilePlus, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface QuickActionsSectionProps {
@@ -53,6 +53,21 @@ function QuickActionsSectionComponent({
             </p>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
               {t("quickActions.creditPurchase.subtitle")}
+            </p>
+          </div>
+        </Link>
+        <Link to="/stock-history" className="dashboard-action-card">
+          <History
+            size={22}
+            className="text-[var(--color-text-secondary)] shrink-0"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+              {t("quickActions.stockHistory.title")}
+            </p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              {t("quickActions.stockHistory.subtitle")}
             </p>
           </div>
         </Link>

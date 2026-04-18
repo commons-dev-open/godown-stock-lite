@@ -1,0 +1,108 @@
+{
+  "title": "ক্রয়",
+  "subtitle": "বাকি ও নগদ স্টক ক্রয় এক জায়গায়।",
+  "filters": {
+    "kind": "ধরন",
+    "kind_all": "সব ধরন",
+    "kind_credit": "বাকি (মহাজন)",
+    "kind_cash": "নগদ",
+    "lender": "মহাজন",
+    "lender_all": "সব মহাজন",
+    "date_from": "তারিখ থেকে",
+    "date_to": "তারিখ পর্যন্ত",
+    "clear": "ফিল্টার মুছুন"
+  },
+  "columns": {
+    "date": "তারিখ",
+    "type": "ধরন",
+    "counterparty": "মহাজন",
+    "products": "পণ্য",
+    "lines": "লাইন",
+    "total": "মোট",
+    "settlement": "পরিশোধ",
+    "notes": "নোট",
+    "actions": "কাজ"
+  },
+  "kind_labels": {
+    "credit": "বাকি",
+    "cash": "নগদ"
+  },
+  "actions": {
+    "edit": "সম্পাদনা",
+    "settle": "পরিশোধ ও সেটলমেন্ট",
+    "view_invoice": "ইনভয়েস"
+  },
+  "empty": {
+    "title": "এই পেজে কোনো ক্রয় নেই",
+    "description": "ফিল্টার বদলান বা লেনদেন থেকে ক্রয় লিখুন।"
+  },
+  "modal": {
+    "title_edit": "ক্রয় সম্পাদনা",
+    "allocations_hint": "₹{{settled}} ইতিমধ্যে এক বা একাধিক পরিশোধ দেয়া হয়েছে। আপনি বিল সম্পাদনা করতে পারবেন, কিন্তু নতুন মোট সেই টাকার নিচে নামানো যাবে না, আর সেই লিঙ্ক সরানো না হলে মহাজন বদলানো যাবে না।",
+    "allocations_heading": "এই ক্রয়ের সঙ্গে যুক্ত পরিশোধ / সেটলমেন্ট",
+    "allocations_empty": "এই ক্রয়ে এখনো কোনো সেটলমেন্ট যুক্ত নেই।",
+    "allocation_columns": {
+      "date": "তারিখ",
+      "direction": "ধরন",
+      "applied": "এখানে পরিশোধ করা হয়েছে",
+      "payment": "পরিশোধের বিবরণ"
+    },
+    "allocation_direction_out": "পরিশোধ (বের)",
+    "allocation_direction_in": "ফেরত (ভিতর)",
+    "allocation_movement_total": "পুরো এন্ট্রি: ₹{{amount}}",
+    "fields": {
+      "lender": "মহাজন",
+      "date": "তারিখ",
+      "notes": "নোট",
+      "invoice_number": "ইনভয়েস নম্বর"
+    },
+    "lines_heading": "পণ্যের লাইন",
+    "add_line": "লাইন যোগ",
+    "remove_line": "মুছুন",
+    "save": "সংরক্ষণ করুন",
+    "cancel": "বাতিল করুন",
+    "manage_settlements_title": "এই বিলের পরিশোধ",
+    "manage_settlements_hint": "₹{{total}}-এর মধ্যে ₹{{settled}} ইতিমধ্যে পরিশোধ করা হয়েছে। ইতিহাস দেখুন বা নতুন পরিশোধ লিখুন।",
+    "manage_settlements": "সেটলমেন্ট খুলুন",
+    "add_settlement_heading": "এই বিলের দিকে পরিশোধ লিখুন",
+    "add_settlement_remaining": "এই বিলে এখনও সর্বোচ্চ ₹{{amount}} পরিশোধ করা যাবে।",
+    "add_settlement_none_remaining": "এই বিল পুরো সেটল।",
+    "add_settlement_date": "পরিশোধের তারিখ",
+    "add_settlement_amount": "টাকা (₹)",
+    "add_settlement_payment_method": "পরিশোধের মাধ্যম (ঐচ্ছিক)",
+    "add_settlement_reference": "রেফারেন্স (ঐচ্ছিক)",
+    "add_settlement_notes": "নোট (ঐচ্ছিক)",
+    "add_settlement_submit": "সেটলমেন্ট লিখুন"
+  },
+  "settlement_modal": {
+    "title": "পরিশোধ ও সেটলমেন্ট",
+    "not_credit": "সেটলমেন্ট শুধু বাকি ক্রয়ে লাগে।",
+    "summary_heading": "এই ক্রয়",
+    "subtitle": "{{date}} · {{lender}}",
+    "stat_bill": "বিল মোট",
+    "stat_applied": "এখন পর্যন্ত পরিশোধিত",
+    "stat_remaining": "বাকি",
+    "fill_remaining": "পুরো পরিশোধ করুন"
+  },
+  "settlement": {
+    "dash": "—",
+    "partial_title": "₹{{settled}} পরিশোধিত",
+    "full": "পুরো পরিশোধিত",
+    "partial_short": "₹{{settled}}",
+    "settled": "পরিশোধিত",
+    "full_tooltip": "পরিশোধিত · ₹{{settled}} / ₹{{total}}",
+    "of_total": "/ ₹{{total}} বিল"
+  },
+  "toasts": {
+    "saved": "ক্রয় আপডেট হয়েছে।",
+    "save_failed": "ক্রয় সংরক্ষণ করা যায়নি।",
+    "load_failed": "ক্রয় লোড করা যায়নি।",
+    "total_below_settled": "বিলের মোট ইতিমধ্যে পরিশোধিত টাকার চেয়ে কম হতে পারে না (₹{{min}})।",
+    "settlement_added": "সেটলমেন্ট লেখা হয়েছে।",
+    "settlement_failed": "সেটলমেন্ট লেখা যায়নি।",
+    "settlement_amount_invalid": "সঠিক সেটলমেন্টের টাকা লিখুন।",
+    "settlement_exceeds_remaining": "এই বিলে এখন সর্বোচ্চ ₹{{max}} লাগানো যাবে।",
+    "settlement_date_required": "পরিশোধের তারিখ বেছে নিন।"
+  },
+  "counterparty_cash": "—"
+}

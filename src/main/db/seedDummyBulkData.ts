@@ -285,6 +285,11 @@ export function seedDummyBulkData(
   }
 
   const tableNames = [
+    "lender_movement_allocations",
+    "lender_movements",
+    "supplier_purchase_lines",
+    "supplier_purchases",
+    "item_stock_movements",
     "settlement_allocations",
     "invoice_lines",
     "invoices",
@@ -314,6 +319,11 @@ export function seedDummyBulkData(
     "unit_conversions",
     "item_unit_conversions",
     "lenders",
+    "supplier_purchases",
+    "supplier_purchase_lines",
+    "lender_movements",
+    "lender_movement_allocations",
+    "item_stock_movements",
     "transactions",
     "settlement_allocations",
     "daily_sales",
@@ -518,53 +528,75 @@ export function seedDummyBulkData(
       );
     }
 
-    const insertTransaction = db.prepare(
-      `INSERT INTO transactions (
-        type, batch_uuid, lender_id, product_id, product_name, quantity, amount,
-        transaction_date, notes, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    const insertPurchase = db.prepare(
+      `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertPurchaseLine = db.prepare(
+      `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertLenderMovement = db.prepare(
+      `INSERT INTO lender_movements (lender_id, direction, amount, movement_date, notes, payment_method, reference_number)
+       VALUES (?, 'out', ?, ?, ?, ?, ?)`
+    );
+    const insertMovementAlloc = db.prepare(
+      `INSERT INTO lender_movement_allocations (movement_id, purchase_id, amount) VALUES (?, ?, ?)`
     );
 
-    const creditIds: number[] = [];
+    const creditPurchaseIds: number[] = [];
     for (let i = 0; i < n; i++) {
       const lenderId = lenderIds[i % lenderIds.length];
       const productId = itemIds[i % itemIds.length];
       const bp = pick(ITEM_BLUEPRINTS, i);
       const taxable = 8000 + i * 173;
       const half = (taxable * (bp.gstRate / 100)) / 2;
-      const res = insertTransaction.run(
-        "credit_purchase",
-        null,
+      const lineAmt = Math.round(taxable * (1 + bp.gstRate / 100));
+      const res = insertPurchase.run(
+        "credit",
         lenderId ?? null,
-        productId ?? null,
-        `${bp.name} — credit lot`,
-        8 + (i % 40),
-        Math.round(taxable * (1 + bp.gstRate / 100)),
         `2025-${padNum((i % 12) + 1, 2)}-${padNum((i % 27) + 1, 2)}`,
         pick(CREDIT_NOTES, i),
+        `BULK-CP-${i}`,
+        null,
+        lineAmt
+      );
+      const purchaseId = Number(res.lastInsertRowid);
+      creditPurchaseIds.push(purchaseId);
+      insertPurchaseLine.run(
+        purchaseId,
+        productId as number,
+        8 + (i % 40),
+        bp.unit,
+        lineAmt,
         bp.gstRate,
         0,
         taxable,
         half,
         half
       );
-      creditIds.push(Number(res.lastInsertRowid));
     }
 
     for (let i = 0; i < n; i++) {
       const productId = itemIds[(i + 5) % itemIds.length];
       const bp = pick(ITEM_BLUEPRINTS, i + 4);
       const amt = 2200 + i * 89;
-      insertTransaction.run(
-        "cash_purchase",
+      const res = insertPurchase.run(
+        "cash",
         null,
-        null,
-        productId ?? null,
-        `${bp.name} — cash buy`,
-        3 + (i % 22),
-        amt,
         `2025-${padNum(((i + 3) % 12) + 1, 2)}-${padNum((i % 26) + 1, 2)}`,
         "Paid at counter — cash memo filed",
+        null,
+        null,
+        amt
+      );
+      const purchaseId = Number(res.lastInsertRowid);
+      insertPurchaseLine.run(
+        purchaseId,
+        productId as number,
+        3 + (i % 22),
+        bp.unit,
+        amt,
         0,
         0,
         amt,
@@ -576,36 +608,24 @@ export function seedDummyBulkData(
     const settlementIds: number[] = [];
     for (let i = 0; i < n; i++) {
       const lenderId = lenderIds[(i + 2) % lenderIds.length];
-      const res = insertTransaction.run(
-        "settlement",
-        null,
+      const res = insertLenderMovement.run(
         lenderId ?? null,
-        null,
-        null,
-        null,
         5000 + i * 137,
         `2025-${padNum(((i + 5) % 12) + 1, 2)}-${padNum((i % 25) + 1, 2)}`,
         pick(SETTLEMENT_NOTES, i),
-        0,
-        0,
-        0,
-        0,
-        0
+        i % 3 === 0 ? "cash" : "bank",
+        `REF-${padNum(i, 5)}`
       );
       settlementIds.push(Number(res.lastInsertRowid));
     }
 
-    const insertAllocation = db.prepare(
-      `INSERT INTO settlement_allocations (settlement_id, credit_purchase_id, amount)
-       VALUES (?, ?, ?)`
-    );
     for (let i = 0; i < n; i++) {
       const sid = settlementIds[i];
-      const cid = creditIds[i];
+      const cid = creditPurchaseIds[i];
       if (sid === undefined || cid === undefined) {
         continue;
       }
-      insertAllocation.run(sid, cid, Math.min(3500 + i * 12, 12000));
+      insertMovementAlloc.run(sid, cid, Math.min(3500 + i * 12, 12000));
     }
 
     const insertDailySale = db.prepare(

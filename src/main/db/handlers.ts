@@ -5,13 +5,17 @@ import path from "path";
 import type { OpenDialogOptions, WebContents } from "electron";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
-import { roundDecimal } from "../../shared/numbers";
+import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
   convertToPrimaryQuantity,
   type ConversionRow,
   type ItemConversionRow,
 } from "../../shared/unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
+import {
+  insertItemStockMovement,
+  deleteItemStockMovementsForInvoice,
+} from "./itemStockMovements";
 import {
   SEED_CONVERSION_KEYS,
   SEED_UNIT_NAMES,
@@ -438,6 +442,17 @@ export function registerIpcHandlers(): void {
           item._userId ?? null
         );
       const itemId = result.lastInsertRowid as number;
+      if (stockPrimary !== 0) {
+        insertItemStockMovement(db(), {
+          item_id: itemId,
+          delta_qty: stockPrimary,
+          reason: "adjustment",
+          ref_kind: "item_create",
+          ref_id: itemId,
+          occurred_at: new Date().toISOString().slice(0, 10),
+          note: null,
+        });
+      }
       const otherUnits = item.other_units ?? [];
       if (otherUnits.length > 0) {
         const insertOther = db().prepare(
@@ -601,6 +616,10 @@ export function registerIpcHandlers(): void {
         item.gst_rate !== undefined ? item.gst_rate : (rowWithGst.gst_rate ?? 0);
       const hsnCode =
         item.hsn_code !== undefined ? item.hsn_code : (rowWithGst.hsn_code ?? null);
+      const stockDelta = roundDecimal(
+        stockPrimary - roundDecimal(row.current_stock, 6),
+        6
+      );
       db()
         .prepare(
           "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, selling_price = ?, selling_price_unit = ?, selling_price_unit_id = ?, gst_rate = ?, hsn_code = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?"
@@ -629,6 +648,17 @@ export function registerIpcHandlers(): void {
           item._userId ?? null,
           id
         );
+      if (stockDelta !== 0) {
+        insertItemStockMovement(db(), {
+          item_id: id,
+          delta_qty: stockDelta,
+          reason: "adjustment",
+          ref_kind: "item_update",
+          ref_id: id,
+          occurred_at: new Date().toISOString().slice(0, 10),
+          note: null,
+        });
+      }
       if (item._userId != null) {
         logActivity(db(), {
           userId: item._userId,
@@ -690,6 +720,16 @@ export function registerIpcHandlers(): void {
     if (invoiceRef.cnt > 0) {
       throw new Error("Cannot delete this product — it appears in existing invoices. Archive it instead.");
     }
+    const purchaseRef = db()
+      .prepare(
+        "SELECT COUNT(*) as cnt FROM supplier_purchase_lines WHERE product_id = ?"
+      )
+      .get(id) as { cnt: number };
+    if (purchaseRef.cnt > 0) {
+      throw new Error(
+        "Cannot delete this product — it appears in supplier purchases. Archive it instead."
+      );
+    }
     db().prepare("DELETE FROM items WHERE id = ?").run(id);
     return id;
   });
@@ -745,11 +785,21 @@ export function registerIpcHandlers(): void {
           "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(primaryQty, id);
-      db()
+      const adj = db()
         .prepare(
           "INSERT INTO stock_adjustments (item_id, adjustment_type, quantity, unit, primary_quantity, reason) VALUES (?, 'add', ?, ?, ?, ?)"
         )
         .run(id, quantity, fromUnit ?? row.unit, primaryQty, null);
+      const adjId = Number(adj.lastInsertRowid);
+      insertItemStockMovement(db(), {
+        item_id: id,
+        delta_qty: primaryQty,
+        reason: "adjustment",
+        ref_kind: "stock_adjustment",
+        ref_id: adjId,
+        occurred_at: new Date().toISOString().slice(0, 10),
+        note: null,
+      });
       return id;
     }
   );
@@ -808,11 +858,21 @@ export function registerIpcHandlers(): void {
           "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(primaryQty, id);
-      db()
+      const adj = db()
         .prepare(
           "INSERT INTO stock_adjustments (item_id, adjustment_type, quantity, unit, primary_quantity, reason) VALUES (?, 'reduce', ?, ?, ?, ?)"
         )
         .run(id, quantity, fromUnit ?? row.unit, primaryQty, null);
+      const adjId = Number(adj.lastInsertRowid);
+      insertItemStockMovement(db(), {
+        item_id: id,
+        delta_qty: -primaryQty,
+        reason: "adjustment",
+        ref_kind: "stock_adjustment",
+        ref_id: adjId,
+        occurred_at: new Date().toISOString().slice(0, 10),
+        note: null,
+      });
       return id;
     }
   );
@@ -1617,7 +1677,7 @@ export function registerIpcHandlers(): void {
           const bogoBuy = line.bogo_buy_qty ?? null;
           const bogoGet = line.bogo_get_qty ?? null;
           const bogoPct = line.bogo_discount_percent ?? 100;
-          stmt.run(
+          const lineRun = stmt.run(
             invoiceId,
             line.product_id,
             line.product_name ?? null,
@@ -1640,6 +1700,7 @@ export function registerIpcHandlers(): void {
             bogoGet,
             bogoPct
           );
+          const invoiceLineId = Number(lineRun.lastInsertRowid);
 
           if (line.product_id > 0) {
             const itemRow = itemInfoStmt.get(line.product_id) as
@@ -1676,6 +1737,15 @@ export function registerIpcHandlers(): void {
             stockDeltaByItem.set(itemRow.id, {
               name: itemRow.name,
               delta: prev - conv.primaryQuantity,
+            });
+            insertItemStockMovement(db(), {
+              item_id: line.product_id,
+              delta_qty: -conv.primaryQuantity,
+              reason: "invoice_sale",
+              ref_kind: "invoice_line",
+              ref_id: invoiceLineId,
+              occurred_at: payload.invoice_date,
+              note: null,
             });
           }
         }
@@ -1793,6 +1863,8 @@ export function registerIpcHandlers(): void {
             }
           | undefined;
         if (!existing) throw new Error("Invoice not found");
+
+        deleteItemStockMovementsForInvoice(db(), id);
 
         const invoiceDate = new Date(existing.invoice_date);
         const daysSince = (Date.now() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -1996,7 +2068,7 @@ export function registerIpcHandlers(): void {
           const bogoBuy = line.bogo_buy_qty ?? null;
           const bogoGet = line.bogo_get_qty ?? null;
           const bogoPct = line.bogo_discount_percent ?? 100;
-          stmt.run(
+          const lineRun = stmt.run(
             id,
             line.product_id,
             line.product_name ?? null,
@@ -2019,6 +2091,49 @@ export function registerIpcHandlers(): void {
             bogoGet,
             bogoPct
           );
+          const invoiceLineId = Number(lineRun.lastInsertRowid);
+          if (line.product_id > 0) {
+            const itemRow = itemInfoStmt.get(line.product_id) as
+              | {
+                  id: number;
+                  name: string;
+                  unit: string;
+                  reference_unit: string | null;
+                  quantity_per_primary: number | null;
+                  current_stock: number;
+                }
+              | undefined;
+            if (!itemRow) {
+              throw new Error("Product not found for invoice line.");
+            }
+            const itemConvsNew = getItemUnitConversions(db(), line.product_id);
+            const conv = convertToPrimaryQuantity(
+              conversions,
+              {
+                unit: itemRow.unit,
+                reference_unit: itemRow.reference_unit,
+                quantity_per_primary: itemRow.quantity_per_primary,
+                item_conversions:
+                  itemConvsNew.length > 0 ? itemConvsNew : undefined,
+              },
+              line.quantity,
+              line.unit
+            );
+            if ("error" in conv) {
+              throw new Error(
+                `Cannot deduct stock for ${itemRow.name}: ${conv.error}`
+              );
+            }
+            insertItemStockMovement(db(), {
+              item_id: line.product_id,
+              delta_qty: -conv.primaryQuantity,
+              reason: "invoice_sale",
+              ref_kind: "invoice_line",
+              ref_id: invoiceLineId,
+              occurred_at: payload.invoice_date ?? existing.invoice_date,
+              note: null,
+            });
+          }
         }
 
         // Apply stock changes (already validated above)
@@ -2087,6 +2202,7 @@ export function registerIpcHandlers(): void {
     }[];
 
     db().transaction(() => {
+      deleteItemStockMovementsForInvoice(db(), id);
       const conversions = getUnitConversionsRows();
       const itemInfoStmt = db().prepare(
         "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
@@ -2320,20 +2436,33 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("lenders:delete", (_, id: number) => {
     const creditPurchases = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?"
+        "SELECT COALESCE(SUM(total_amount), 0) AS total FROM supplier_purchases WHERE kind = 'credit' AND lender_id = ?"
       )
       .get(id) as { total: number };
-    const settlements = db()
+    const paymentsOut = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement' AND lender_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE lender_id = ? AND direction = 'out'"
       )
       .get(id) as { total: number };
-    const balance = (creditPurchases?.total ?? 0) - (settlements?.total ?? 0);
+    const refundsIn = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE lender_id = ? AND direction = 'in'"
+      )
+      .get(id) as { total: number };
+    const balance =
+      (creditPurchases?.total ?? 0) -
+      (paymentsOut?.total ?? 0) +
+      (refundsIn?.total ?? 0);
     if (balance !== 0)
       throw new Error(
         "Lender balance must be 0 to delete. Clear credit purchases and settlements first."
       );
-    db().prepare("DELETE FROM transactions WHERE lender_id = ?").run(id);
+    db().prepare("DELETE FROM lender_movements WHERE lender_id = ?").run(id);
+    db()
+      .prepare(
+        "DELETE FROM supplier_purchases WHERE kind = 'credit' AND lender_id = ?"
+      )
+      .run(id);
     db().prepare("DELETE FROM lenders WHERE id = ?").run(id);
     return id;
   });
@@ -2343,7 +2472,12 @@ export function registerIpcHandlers(): void {
     "creditPurchase:saveInvoice",
     (
       _,
-      opts: { batchUuid: string; buffer: ArrayBuffer; extension: string }
+      opts: {
+        batchUuid?: string;
+        purchaseId?: number;
+        buffer: ArrayBuffer;
+        extension: string;
+      }
     ) => {
       const userData = app.getPath("userData");
       const dir = path.join(userData, "credit-purchase-invoices");
@@ -2351,7 +2485,11 @@ export function registerIpcHandlers(): void {
       const ext = opts.extension.startsWith(".")
         ? opts.extension
         : `.${opts.extension}`;
-      const fileName = `${opts.batchUuid}${ext}`;
+      const key =
+        opts.purchaseId != null
+          ? `purchase-${opts.purchaseId}`
+          : (opts.batchUuid ?? randomUUID());
+      const fileName = `${key}${ext}`;
       const fullPath = path.join(dir, fileName);
       const buf = Buffer.from(opts.buffer);
       fs.writeFileSync(fullPath, buf);
@@ -2374,20 +2512,28 @@ export function registerIpcHandlers(): void {
     await shell.openPath(fullPath);
   });
 
-  // ---- Credit Purchases (transactions type='credit_purchase') ----
+  // ---- Credit purchases (supplier_purchases + lines) ----
   ipcMain.handle("creditPurchases:getAll", (_, lenderId?: number) => {
-    const base =
-      "SELECT u.id, u.lender_id, u.product_id, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.transaction_date, u.notes, u.created_at, u.updated_at, u.lender_invoice_number, u.invoice_file_path, u.gst_rate, u.gst_inclusive, u.taxable_amount, u.cgst_amount, u.sgst_amount FROM transactions u LEFT JOIN items i ON u.product_id = i.id WHERE u.type = 'credit_purchase'";
+    const base = `SELECT spl.id, sp.lender_id, spl.product_id,
+        COALESCE(i.name, '') AS product_name, spl.quantity, spl.amount,
+        sp.document_date AS transaction_date, sp.notes,
+        spl.created_at, spl.updated_at, sp.lender_invoice_number, sp.invoice_file_path,
+        spl.gst_rate, spl.gst_inclusive, spl.taxable_amount, spl.cgst_amount, spl.sgst_amount,
+        sp.id AS purchase_id
+      FROM supplier_purchase_lines spl
+      JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'credit'
+      LEFT JOIN items i ON i.id = spl.product_id
+      WHERE 1=1`;
     if (lenderId != null) {
       return db()
         .prepare(
           base +
-            " AND u.lender_id = ? ORDER BY u.transaction_date DESC, u.id DESC"
+            " AND sp.lender_id = ? ORDER BY sp.document_date DESC, spl.id DESC"
         )
         .all(lenderId);
     }
     return db()
-      .prepare(base + " ORDER BY u.transaction_date DESC, u.id DESC")
+      .prepare(base + " ORDER BY sp.document_date DESC, spl.id DESC")
       .all();
   });
 
@@ -2396,10 +2542,20 @@ export function registerIpcHandlers(): void {
     (_, lenderId: number) => {
       const rows = db()
         .prepare(
-          `SELECT u.id, u.lender_id, u.product_id, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.transaction_date, u.notes, u.lender_invoice_number
-           FROM transactions u LEFT JOIN items i ON u.product_id = i.id
-           WHERE u.type = 'credit_purchase' AND u.lender_id = ?
-           ORDER BY u.transaction_date DESC, u.id DESC`
+          `SELECT sp.id, sp.lender_id,
+            CAST(NULL AS INTEGER) AS product_id,
+            (SELECT COALESCE(group_concat(i.name, ' | '), '')
+             FROM supplier_purchase_lines spl
+             JOIN items i ON i.id = spl.product_id
+             WHERE spl.purchase_id = sp.id) AS product_name,
+            CAST(NULL AS REAL) AS quantity,
+            sp.total_amount AS amount,
+            sp.document_date AS transaction_date,
+            sp.notes,
+            sp.lender_invoice_number
+           FROM supplier_purchases sp
+           WHERE sp.kind = 'credit' AND sp.lender_id = ?
+           ORDER BY sp.document_date DESC, sp.id DESC`
         )
         .all(lenderId) as {
         id: number;
@@ -2411,11 +2567,11 @@ export function registerIpcHandlers(): void {
       const allocMap = new Map<number, number>();
       const allocRows = db()
         .prepare(
-          "SELECT credit_purchase_id, SUM(amount) AS total FROM settlement_allocations GROUP BY credit_purchase_id"
+          "SELECT purchase_id, SUM(amount) AS total FROM lender_movement_allocations GROUP BY purchase_id"
         )
-        .all() as { credit_purchase_id: number; total: number }[];
+        .all() as { purchase_id: number; total: number }[];
       for (const r of allocRows) {
-        allocMap.set(r.credit_purchase_id, r.total);
+        allocMap.set(r.purchase_id, r.total);
       }
       return rows.map((r) => ({
         ...r,
@@ -2424,6 +2580,37 @@ export function registerIpcHandlers(): void {
       }));
     }
   );
+
+  function resolveCreditPurchaseId(rawId: number): number {
+    const asPurchase = db()
+      .prepare(
+        "SELECT id FROM supplier_purchases WHERE id = ? AND kind = 'credit'"
+      )
+      .get(rawId) as { id: number } | undefined;
+    if (asPurchase) {
+      return asPurchase.id;
+    }
+    const lineRow = db()
+      .prepare("SELECT purchase_id FROM supplier_purchase_lines WHERE id = ?")
+      .get(rawId) as { purchase_id: number } | undefined;
+    if (lineRow) {
+      return lineRow.purchase_id;
+    }
+    throw new Error("Credit purchase not found");
+  }
+
+  function recalcSupplierPurchaseTotal(purchaseId: number): void {
+    const sumRow = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS s FROM supplier_purchase_lines WHERE purchase_id = ?"
+      )
+      .get(purchaseId) as { s: number };
+    db()
+      .prepare(
+        "UPDATE supplier_purchases SET total_amount = ?, updated_at = datetime('now') WHERE id = ?"
+      )
+      .run(roundDecimal(sumRow.s), purchaseId);
+  }
 
   ipcMain.handle(
     "creditPurchases:create",
@@ -2446,40 +2633,73 @@ export function registerIpcHandlers(): void {
         sgst_amount?: number;
       }
     ) => {
-      if (!l.amount || l.amount <= 0) throw new Error("Credit purchase amount must be positive.");
+      if (!l.amount || l.amount <= 0) {
+        throw new Error("Credit purchase amount must be positive.");
+      }
+      if (l.product_id == null || l.product_id <= 0) {
+        throw new Error("Product is required.");
+      }
+      const productId = l.product_id;
       const quantity = roundDecimal(l.quantity ?? 0);
       const amount = roundDecimal(l.amount);
-      const result = db()
-        .prepare(
-          "INSERT INTO transactions (type, lender_id, product_id, quantity, amount, transaction_date, notes, lender_invoice_number, invoice_file_path, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount) VALUES ('credit_purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        )
-        .run(
-          l.lender_id,
-          l.product_id ?? null,
-          quantity,
-          amount,
-          l.transaction_date,
-          l.notes ?? null,
-          l.lender_invoice_number ?? null,
-          l.invoice_file_path ?? null,
-          l.gst_rate ?? 0,
-          l.gst_inclusive ? 1 : 0,
-          l.taxable_amount ?? amount,
-          l.cgst_amount ?? 0,
-          l.sgst_amount ?? 0
-        );
-      if (l.product_id != null && quantity > 0) {
-        const row = db()
-          .prepare("SELECT current_stock FROM items WHERE id = ?")
-          .get(l.product_id) as { current_stock: number } | undefined;
-        if (!row) throw new Error("Item not found");
-        db()
-          .prepare(
-            "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
-          )
-          .run(quantity, l.product_id);
+      const itemUnit = db()
+        .prepare("SELECT unit FROM items WHERE id = ?")
+        .get(productId) as { unit: string } | undefined;
+      if (!itemUnit) {
+        throw new Error("Item not found");
       }
-      return result.lastInsertRowid;
+      const run = db().transaction(() => {
+        const pur = db()
+          .prepare(
+            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount)
+             VALUES ('credit', ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            l.lender_id,
+            l.transaction_date,
+            l.notes ?? null,
+            l.lender_invoice_number ?? null,
+            l.invoice_file_path ?? null,
+            amount
+          );
+        const purchaseId = Number(pur.lastInsertRowid);
+        const lineIns = db()
+          .prepare(
+            `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            purchaseId,
+            productId,
+            quantity,
+            itemUnit.unit,
+            amount,
+            l.gst_rate ?? 0,
+            l.gst_inclusive ? 1 : 0,
+            l.taxable_amount ?? amount,
+            l.cgst_amount ?? 0,
+            l.sgst_amount ?? 0
+          );
+        const lineId = Number(lineIns.lastInsertRowid);
+        if (quantity > 0) {
+          db()
+            .prepare(
+              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+            )
+            .run(quantity, productId);
+          insertItemStockMovement(db(), {
+            item_id: productId,
+            delta_qty: quantity,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: lineId,
+            occurred_at: l.transaction_date,
+            note: null,
+          });
+        }
+        return purchaseId;
+      });
+      return run();
     }
   );
 
@@ -2494,7 +2714,6 @@ export function registerIpcHandlers(): void {
     cgst_amount?: number;
     sgst_amount?: number;
   };
-  // Credit purchase = we receive stock from lender → ADD to current_stock
   ipcMain.handle(
     "creditPurchases:createBatch",
     (
@@ -2507,49 +2726,111 @@ export function registerIpcHandlers(): void {
         invoice_file_path?: string;
         batch_uuid?: string;
         lines: CreditPurchaseLine[];
+        /** Optional payment on the same date, stored as a settlement linked to this purchase. */
+        pay_now?: {
+          amount: number;
+          payment_method?: string;
+          reference_number?: string;
+          notes?: string;
+        };
       }
     ) => {
-      if (!payload.lines?.length)
+      if (!payload.lines?.length) {
         throw new Error("At least one product line is required.");
-      const batchUuid = payload.batch_uuid ?? randomUUID();
+      }
+      const totalAmount = roundDecimal(
+        payload.lines.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+      );
+      const payNowRaw =
+        payload.pay_now != null
+          ? roundDecimal(Number(payload.pay_now.amount) || 0)
+          : 0;
+      if (payNowRaw > totalAmount) {
+        throw new Error("Pay now amount cannot exceed the credit purchase total.");
+      }
+      const payNowAmount = payNowRaw > 0 ? payNowRaw : 0;
       const run = db().transaction(() => {
-        const ids: number[] = [];
+        const pur = db()
+          .prepare(
+            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount)
+             VALUES ('credit', ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            payload.lender_id,
+            payload.transaction_date,
+            payload.notes ?? null,
+            payload.lender_invoice_number ?? null,
+            payload.invoice_file_path ?? null,
+            totalAmount
+          );
+        const purchaseId = Number(pur.lastInsertRowid);
+        const lineStmt = db().prepare(
+          `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        const unitStmt = db().prepare("SELECT unit FROM items WHERE id = ?");
         for (const line of payload.lines) {
           const qty = roundDecimal(line.quantity);
-          if (qty <= 0) throw new Error("Quantity must be positive.");
-          const row = db()
-            .prepare("SELECT current_stock FROM items WHERE id = ?")
-            .get(line.product_id) as { current_stock: number } | undefined;
-          if (!row) throw new Error(`Item not found: ${line.product_id}`);
+          if (qty <= 0) {
+            throw new Error("Quantity must be positive.");
+          }
+          const itemRow = unitStmt.get(line.product_id) as
+            | { unit: string }
+            | undefined;
+          if (!itemRow) {
+            throw new Error(`Item not found: ${line.product_id}`);
+          }
           const amount = roundDecimal(line.amount);
-          const result = db()
-            .prepare(
-              "INSERT INTO transactions (type, batch_uuid, lender_id, product_id, quantity, amount, transaction_date, notes, lender_invoice_number, invoice_file_path, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount) VALUES ('credit_purchase', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-            )
-            .run(
-              batchUuid,
-              payload.lender_id,
-              line.product_id,
-              qty,
-              amount,
-              payload.transaction_date,
-              payload.notes ?? null,
-              payload.lender_invoice_number ?? null,
-              payload.invoice_file_path ?? null,
-              line.gst_rate ?? 0,
-              line.gst_inclusive ? 1 : 0,
-              line.taxable_amount ?? amount,
-              line.cgst_amount ?? 0,
-              line.sgst_amount ?? 0
-            );
-          ids.push(Number(result.lastInsertRowid));
+          const lr = lineStmt.run(
+            purchaseId,
+            line.product_id,
+            qty,
+            itemRow.unit,
+            amount,
+            line.gst_rate ?? 0,
+            line.gst_inclusive ? 1 : 0,
+            line.taxable_amount ?? amount,
+            line.cgst_amount ?? 0,
+            line.sgst_amount ?? 0
+          );
+          const lineId = Number(lr.lastInsertRowid);
           db()
             .prepare(
               "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
             )
             .run(qty, line.product_id);
+          insertItemStockMovement(db(), {
+            item_id: line.product_id,
+            delta_qty: qty,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: lineId,
+            occurred_at: payload.transaction_date,
+            note: null,
+          });
         }
-        return ids;
+        if (payNowAmount > 0) {
+          const movementRes = db()
+            .prepare(
+              `INSERT INTO lender_movements (lender_id, direction, amount, movement_date, notes, payment_method, reference_number)
+               VALUES (?, 'out', ?, ?, ?, ?, ?)`
+            )
+            .run(
+              payload.lender_id,
+              payNowAmount,
+              payload.transaction_date,
+              payload.pay_now?.notes ?? null,
+              payload.pay_now?.payment_method ?? null,
+              payload.pay_now?.reference_number ?? null
+            );
+          const movementId = Number(movementRes.lastInsertRowid);
+          db()
+            .prepare(
+              "INSERT INTO lender_movement_allocations (movement_id, purchase_id, amount) VALUES (?, ?, ?)"
+            )
+            .run(movementId, purchaseId, payNowAmount);
+        }
+        return [purchaseId];
       });
       return run();
     }
@@ -2577,12 +2858,50 @@ export function registerIpcHandlers(): void {
         sgst_amount?: number;
       }
     ) => {
-      const row = db()
-        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'credit_purchase'")
-        .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Credit purchase not found");
-      const oldProductId = row.product_id as number | null;
-      const oldQuantity = (row.quantity as number) ?? 0;
+      const purchaseId = resolveCreditPurchaseId(id);
+      const allocatedTotalRow = db()
+        .prepare(
+          "SELECT COALESCE(SUM(amount), 0) AS s FROM lender_movement_allocations WHERE purchase_id = ?"
+        )
+        .get(purchaseId) as { s: number };
+      const allocatedTotal = roundDecimal(Number(allocatedTotalRow.s) || 0);
+      const matchLine = db()
+        .prepare(
+          "SELECT spl.id FROM supplier_purchase_lines spl WHERE spl.id = ? AND spl.purchase_id = ?"
+        )
+        .get(id, purchaseId) as { id: number } | undefined;
+      let onlyLineId: number;
+      if (matchLine) {
+        onlyLineId = matchLine.id;
+      } else {
+        const lineIds = db()
+          .prepare(
+            "SELECT id FROM supplier_purchase_lines WHERE purchase_id = ? ORDER BY id ASC"
+          )
+          .all(purchaseId) as { id: number }[];
+        if (lineIds.length !== 1) {
+          throw new Error(
+            "Multi-line credit purchases must be edited from the Purchases page when passing purchase id."
+          );
+        }
+        const one = lineIds[0];
+        if (one === undefined) {
+          throw new Error("Credit purchase not found");
+        }
+        onlyLineId = one.id;
+      }
+      const only = db()
+        .prepare(
+          "SELECT id, product_id, quantity FROM supplier_purchase_lines WHERE id = ?"
+        )
+        .get(onlyLineId) as
+        | { id: number; product_id: number; quantity: number }
+        | undefined;
+      if (!only) {
+        throw new Error("Credit purchase not found");
+      }
+      const oldProductId = only.product_id;
+      const oldQuantity = roundDecimal(only.quantity);
       const newProductId =
         l.product_id !== undefined ? l.product_id : oldProductId;
       const newQuantity =
@@ -2590,43 +2909,58 @@ export function registerIpcHandlers(): void {
       const newAmount =
         l.amount !== undefined
           ? roundDecimal(l.amount)
-          : (row.amount as number);
+          : roundDecimal(
+              (
+                db()
+                  .prepare("SELECT amount FROM supplier_purchase_lines WHERE id = ?")
+                  .get(only.id) as { amount: number }
+              ).amount
+            );
+      const purchaseLenderRow = db()
+        .prepare("SELECT lender_id FROM supplier_purchases WHERE id = ?")
+        .get(purchaseId) as { lender_id: number } | undefined;
+      if (!purchaseLenderRow) {
+        throw new Error("Credit purchase not found");
+      }
+      const existingLenderId = purchaseLenderRow.lender_id;
       const newLenderId =
-        l.lender_id !== undefined ? l.lender_id : (row.lender_id as number);
+        l.lender_id !== undefined ? l.lender_id : existingLenderId;
+      const row = db()
+        .prepare("SELECT document_date, notes, lender_invoice_number, invoice_file_path FROM supplier_purchases WHERE id = ?")
+        .get(purchaseId) as {
+        document_date: string;
+        notes: string | null;
+        lender_invoice_number: string | null;
+        invoice_file_path: string | null;
+      };
+      if (!row) {
+        throw new Error("Credit purchase not found");
+      }
+      if (allocatedTotal > 0 && newLenderId !== existingLenderId) {
+        throw new Error(
+          "Cannot change lender while this bill has settlement payments linked."
+        );
+      }
+      if (allocatedTotal > 0 && newAmount + 1e-9 < allocatedTotal) {
+        throw new Error(
+          `Bill total cannot be less than the amount already settled against this bill (₹${formatDecimal(allocatedTotal)}).`
+        );
+      }
+      const itemUnit = db()
+        .prepare("SELECT unit FROM items WHERE id = ?")
+        .get(newProductId) as { unit: string } | undefined;
+      if (!itemUnit) {
+        throw new Error("Item not found");
+      }
 
       db().transaction(() => {
-        const allocCount = db().prepare(
-          "SELECT COUNT(*) as cnt FROM settlement_allocations WHERE credit_purchase_id = ?"
-        ).get(id) as { cnt: number };
-        if (allocCount.cnt > 0) {
-          throw new Error("Cannot edit a credit purchase that has settlements allocated against it. Remove the settlements first.");
-        }
-
-        db()
-          .prepare(
-            "UPDATE transactions SET lender_id = ?, product_id = ?, quantity = ?, transaction_date = ?, amount = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, gst_rate = ?, gst_inclusive = ?, taxable_amount = ?, cgst_amount = ?, sgst_amount = ?, updated_at = datetime('now') WHERE id = ?"
-          )
-          .run(
-            newLenderId,
-            newProductId,
-            newQuantity,
-            l.transaction_date ?? row.transaction_date,
-            newAmount,
-            l.notes !== undefined ? l.notes : row.notes,
-            l.lender_invoice_number !== undefined ? l.lender_invoice_number : row.lender_invoice_number,
-            l.invoice_file_path !== undefined ? l.invoice_file_path : row.invoice_file_path,
-            l.gst_rate !== undefined ? l.gst_rate : (row.gst_rate ?? 0),
-            l.gst_inclusive !== undefined ? (l.gst_inclusive ? 1 : 0) : (row.gst_inclusive ?? 0),
-            l.taxable_amount !== undefined ? l.taxable_amount : (row.taxable_amount ?? newAmount),
-            l.cgst_amount !== undefined ? l.cgst_amount : (row.cgst_amount ?? 0),
-            l.sgst_amount !== undefined ? l.sgst_amount : (row.sgst_amount ?? 0),
-            id
-          );
         if (oldProductId != null && oldQuantity > 0) {
           const oldStock = db()
             .prepare("SELECT current_stock FROM items WHERE id = ?")
             .get(oldProductId) as { current_stock: number } | undefined;
-          if (!oldStock) throw new Error("Item not found");
+          if (!oldStock) {
+            throw new Error("Item not found");
+          }
           if (oldStock.current_stock < oldQuantity) {
             throw new Error(
               `Cannot update: would result in negative stock (current ${oldStock.current_stock}, credit purchase quantity ${oldQuantity}).`
@@ -2638,67 +2972,589 @@ export function registerIpcHandlers(): void {
             )
             .run(oldQuantity, oldProductId);
         }
+        db()
+          .prepare(
+            "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+          )
+          .run(only.id);
+        db()
+          .prepare("DELETE FROM supplier_purchase_lines WHERE id = ?")
+          .run(only.id);
+        const lineIns = db()
+          .prepare(
+            `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            purchaseId,
+            newProductId,
+            newQuantity,
+            itemUnit.unit,
+            newAmount,
+            l.gst_rate ?? 0,
+            l.gst_inclusive ? 1 : 0,
+            l.taxable_amount ?? newAmount,
+            l.cgst_amount ?? 0,
+            l.sgst_amount ?? 0
+          );
+        const newLineId = Number(lineIns.lastInsertRowid);
         if (newProductId != null && newQuantity > 0) {
           const item = db()
             .prepare("SELECT current_stock FROM items WHERE id = ?")
             .get(newProductId) as { current_stock: number } | undefined;
-          if (!item) throw new Error("Item not found");
+          if (!item) {
+            throw new Error("Item not found");
+          }
           db()
             .prepare(
               "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
             )
             .run(newQuantity, newProductId);
+          insertItemStockMovement(db(), {
+            item_id: newProductId,
+            delta_qty: newQuantity,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: newLineId,
+            occurred_at: l.transaction_date ?? row.document_date,
+            note: null,
+          });
         }
+        db()
+          .prepare(
+            `UPDATE supplier_purchases SET lender_id = ?, document_date = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, updated_at = datetime('now') WHERE id = ?`
+          )
+          .run(
+            newLenderId,
+            l.transaction_date ?? row.document_date,
+            l.notes !== undefined ? l.notes : row.notes,
+            l.lender_invoice_number !== undefined
+              ? l.lender_invoice_number
+              : row.lender_invoice_number,
+            l.invoice_file_path !== undefined
+              ? l.invoice_file_path
+              : row.invoice_file_path,
+            purchaseId
+          );
+        recalcSupplierPurchaseTotal(purchaseId);
       })();
-      return id;
+      return purchaseId;
     }
   );
 
   ipcMain.handle("creditPurchases:delete", (_, id: number) => {
-    const allocCount = db().prepare(
-      "SELECT COUNT(*) as cnt FROM settlement_allocations WHERE credit_purchase_id = ?"
-    ).get(id) as { cnt: number };
-    if (allocCount.cnt > 0) {
-      throw new Error("Cannot delete a credit purchase that has settlements allocated against it. Remove the settlements first.");
+    const asPurchase = db()
+      .prepare(
+        "SELECT id FROM supplier_purchases WHERE id = ? AND kind = 'credit'"
+      )
+      .get(id) as { id: number } | undefined;
+    if (asPurchase) {
+      const purchaseId = asPurchase.id;
+      const allocCount = db()
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM lender_movement_allocations WHERE purchase_id = ?"
+        )
+        .get(purchaseId) as { cnt: number };
+      if (allocCount.cnt > 0) {
+        throw new Error(
+          "Cannot delete this bill while payments are linked to it. Remove or reallocate those settlement links first."
+        );
+      }
+      const lines = db()
+        .prepare(
+          "SELECT id, product_id, quantity FROM supplier_purchase_lines WHERE purchase_id = ?"
+        )
+        .all(purchaseId) as {
+        id: number;
+        product_id: number;
+        quantity: number;
+      }[];
+      db().transaction(() => {
+        for (const ln of lines) {
+          if (ln.quantity > 0) {
+            const row = db()
+              .prepare("SELECT current_stock FROM items WHERE id = ?")
+              .get(ln.product_id) as { current_stock: number } | undefined;
+            if (row && row.current_stock < ln.quantity) {
+              throw new Error(
+                `Cannot delete credit purchase: would result in negative stock (current ${row.current_stock}, credit purchase quantity ${ln.quantity}).`
+              );
+            }
+            db()
+              .prepare(
+                "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+              )
+              .run(ln.quantity, ln.product_id);
+          }
+          db()
+            .prepare(
+              "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+            )
+            .run(ln.id);
+        }
+        db().prepare("DELETE FROM supplier_purchases WHERE id = ?").run(purchaseId);
+      })();
+      return purchaseId;
     }
 
-    const cp = db()
+    const lineInfo = db()
       .prepare(
-        "SELECT product_id, quantity FROM transactions WHERE id = ? AND type = 'credit_purchase'"
+        `SELECT spl.id, spl.purchase_id, spl.product_id, spl.quantity
+         FROM supplier_purchase_lines spl
+         JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'credit'
+         WHERE spl.id = ?`
       )
-      .get(id) as { product_id: number | null; quantity: number } | undefined;
-    if (cp?.product_id != null && (cp.quantity ?? 0) > 0) {
-      const row = db()
-        .prepare("SELECT current_stock FROM items WHERE id = ?")
-        .get(cp.product_id) as { current_stock: number } | undefined;
-      if (row && row.current_stock < cp.quantity) {
-        throw new Error(
-          `Cannot delete credit purchase: would result in negative stock (current ${row.current_stock}, credit purchase quantity ${cp.quantity}).`
-        );
+      .get(id) as
+      | {
+          id: number;
+          purchase_id: number;
+          product_id: number;
+          quantity: number;
+        }
+      | undefined;
+    if (!lineInfo) {
+      throw new Error("Credit purchase not found");
+    }
+    const purchaseId = lineInfo.purchase_id;
+    const allocCount = db()
+      .prepare(
+        "SELECT COUNT(*) as cnt FROM lender_movement_allocations WHERE purchase_id = ?"
+      )
+      .get(purchaseId) as { cnt: number };
+    if (allocCount.cnt > 0) {
+      throw new Error(
+        "Cannot delete this bill while payments are linked to it. Remove or reallocate those settlement links first."
+      );
+    }
+    db().transaction(() => {
+      const ln = lineInfo;
+      if (ln.quantity > 0) {
+        const row = db()
+          .prepare("SELECT current_stock FROM items WHERE id = ?")
+          .get(ln.product_id) as { current_stock: number } | undefined;
+        if (row && row.current_stock < ln.quantity) {
+          throw new Error(
+            `Cannot delete credit purchase: would result in negative stock (current ${row.current_stock}, credit purchase quantity ${ln.quantity}).`
+          );
+        }
+        db()
+          .prepare(
+            "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+          )
+          .run(ln.quantity, ln.product_id);
       }
       db()
         .prepare(
-          "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+          "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
         )
-        .run(cp.quantity, cp.product_id);
-    }
-    db().prepare("DELETE FROM transactions WHERE id = ?").run(id);
-    return id;
+        .run(ln.id);
+      db().prepare("DELETE FROM supplier_purchase_lines WHERE id = ?").run(ln.id);
+      const remaining = db()
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM supplier_purchase_lines WHERE purchase_id = ?"
+        )
+        .get(purchaseId) as { cnt: number };
+      if (remaining.cnt === 0) {
+        db().prepare("DELETE FROM supplier_purchases WHERE id = ?").run(purchaseId);
+      } else {
+        recalcSupplierPurchaseTotal(purchaseId);
+      }
+    })();
+    return purchaseId;
   });
 
-  // ---- Settlements (transactions type='settlement') ----
+  type SupplierPurchaseLineInput = {
+    product_id: number;
+    quantity: number;
+    amount: number;
+    gst_rate?: number;
+    gst_inclusive?: boolean;
+    taxable_amount?: number;
+    cgst_amount?: number;
+    sgst_amount?: number;
+  };
+
+  ipcMain.handle(
+    "supplierPurchases:getPage",
+    (
+      _,
+      opts: {
+        kind?: "credit" | "cash" | null;
+        lenderId?: number | null;
+        dateFrom?: string;
+        dateTo?: string;
+        page?: number;
+        limit?: number;
+      }
+    ) => {
+      const kind =
+        opts?.kind === "credit" || opts?.kind === "cash" ? opts.kind : null;
+      const lenderId =
+        typeof opts?.lenderId === "number" && opts.lenderId > 0
+          ? opts.lenderId
+          : null;
+      const dateFrom =
+        typeof opts?.dateFrom === "string" ? opts.dateFrom.trim() : "";
+      const dateTo =
+        typeof opts?.dateTo === "string" ? opts.dateTo.trim() : "";
+      const page = Math.max(1, opts?.page ?? 1);
+      const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
+      const offset = (page - 1) * limit;
+
+      const whereParts: string[] = ["sp.kind IN ('credit','cash')"];
+      const params: (number | string)[] = [];
+      if (kind != null) {
+        whereParts.push("sp.kind = ?");
+        params.push(kind);
+      }
+      if (lenderId != null) {
+        whereParts.push("sp.lender_id = ?");
+        params.push(lenderId);
+      }
+      if (dateFrom) {
+        whereParts.push("sp.document_date >= ?");
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        whereParts.push("sp.document_date <= ?");
+        params.push(dateTo);
+      }
+      const whereSql = `WHERE ${whereParts.join(" AND ")}`;
+
+      const baseFrom = `
+        FROM supplier_purchases sp
+        LEFT JOIN lenders m ON m.id = sp.lender_id
+        ${whereSql}`;
+      const countRow = db()
+        .prepare(`SELECT COUNT(*) AS total ${baseFrom}`)
+        .get(...params) as { total: number };
+      const rows = db()
+        .prepare(
+          `SELECT sp.id, sp.kind, sp.lender_id, m.name AS lender_name, sp.document_date,
+            sp.total_amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
+            COALESCE((SELECT SUM(lma.amount) FROM lender_movement_allocations lma WHERE lma.purchase_id = sp.id), 0) AS allocated_total,
+            (SELECT COUNT(*) FROM supplier_purchase_lines spl WHERE spl.purchase_id = sp.id) AS line_count,
+            (SELECT COALESCE(group_concat(i.name, ' | '), '')
+             FROM supplier_purchase_lines spl2
+             JOIN items i ON i.id = spl2.product_id
+             WHERE spl2.purchase_id = sp.id) AS product_summary
+          ${baseFrom}
+          ORDER BY sp.document_date DESC, sp.id DESC
+          LIMIT ? OFFSET ?`
+        )
+        .all(...params, limit, offset) as {
+        id: number;
+        kind: string;
+        lender_id: number | null;
+        lender_name: string | null;
+        document_date: string;
+        total_amount: number;
+        notes: string | null;
+        lender_invoice_number: string | null;
+        invoice_file_path: string | null;
+        allocated_total: number;
+        line_count: number;
+        product_summary: string | null;
+      }[];
+      return {
+        data: rows.map((r) => ({
+          ...r,
+          kind: r.kind === "cash" ? "cash" : "credit",
+          allocated_total: roundDecimal(Number(r.allocated_total) || 0),
+        })),
+        total: countRow.total,
+      };
+    }
+  );
+
+  ipcMain.handle("supplierPurchases:getById", (_, id: number) => {
+    const purchaseId = Number(id);
+    if (!Number.isFinite(purchaseId) || purchaseId <= 0) {
+      throw new Error("Invalid purchase id");
+    }
+    const header = db()
+      .prepare(
+        `SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount
+         FROM supplier_purchases WHERE id = ? AND kind IN ('credit','cash')`
+      )
+      .get(purchaseId) as
+      | {
+          id: number;
+          kind: string;
+          lender_id: number | null;
+          document_date: string;
+          notes: string | null;
+          lender_invoice_number: string | null;
+          invoice_file_path: string | null;
+          total_amount: number;
+        }
+      | undefined;
+    if (!header) {
+      throw new Error("Purchase not found");
+    }
+    const lines = db()
+      .prepare(
+        `SELECT id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount
+         FROM supplier_purchase_lines WHERE purchase_id = ? ORDER BY id ASC`
+      )
+      .all(purchaseId) as {
+      id: number;
+      product_id: number;
+      quantity: number;
+      unit: string;
+      amount: number;
+      gst_rate: number;
+      gst_inclusive: number;
+      taxable_amount: number;
+      cgst_amount: number;
+      sgst_amount: number;
+    }[];
+    return {
+      header: {
+        ...header,
+        kind: header.kind === "cash" ? "cash" : "credit",
+      },
+      lines: lines.map((ln) => ({
+        id: ln.id,
+        product_id: ln.product_id,
+        quantity: ln.quantity,
+        unit: ln.unit,
+        amount: ln.amount,
+        gst_rate: ln.gst_rate,
+        gst_inclusive: ln.gst_inclusive === 1,
+        taxable_amount: ln.taxable_amount,
+        cgst_amount: ln.cgst_amount,
+        sgst_amount: ln.sgst_amount,
+      })),
+      allocations:
+        header.kind === "credit"
+          ? (db()
+              .prepare(
+                `SELECT lm.id AS movement_id, lm.direction, lm.amount AS movement_amount,
+                  lm.movement_date, lm.payment_method, lm.reference_number,
+                  lma.amount AS allocated_amount
+                 FROM lender_movement_allocations lma
+                 JOIN lender_movements lm ON lm.id = lma.movement_id
+                 WHERE lma.purchase_id = ?
+                 ORDER BY lm.movement_date DESC, lm.id DESC`
+              )
+              .all(purchaseId) as {
+              movement_id: number;
+              direction: string;
+              movement_amount: number;
+              movement_date: string;
+              payment_method: string | null;
+              reference_number: string | null;
+              allocated_amount: number;
+            }[])
+          : [],
+    };
+  });
+
+  ipcMain.handle(
+    "supplierPurchases:updateWithLines",
+    (
+      _,
+      purchaseIdArg: number,
+      payload: {
+        lender_id?: number;
+        transaction_date?: string;
+        notes?: string | null;
+        lender_invoice_number?: string | null;
+        invoice_file_path?: string | null;
+        lines: SupplierPurchaseLineInput[];
+      }
+    ) => {
+      const purchaseId = Number(purchaseIdArg);
+      if (!Number.isFinite(purchaseId) || purchaseId <= 0) {
+        throw new Error("Invalid purchase id");
+      }
+      const linesIn = payload.lines;
+      if (!linesIn?.length) {
+        throw new Error("At least one product line is required.");
+      }
+
+      const header = db()
+        .prepare(
+          "SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount FROM supplier_purchases WHERE id = ? AND kind IN ('credit','cash')"
+        )
+        .get(purchaseId) as
+        | {
+            id: number;
+            kind: string;
+            lender_id: number | null;
+            document_date: string;
+            notes: string | null;
+            lender_invoice_number: string | null;
+            invoice_file_path: string | null;
+            total_amount: number;
+          }
+        | undefined;
+      if (!header) {
+        throw new Error("Purchase not found");
+      }
+      const isCredit = header.kind === "credit";
+
+      const allocatedTotalRow = isCredit
+        ? (db()
+            .prepare(
+              "SELECT COALESCE(SUM(amount), 0) AS s FROM lender_movement_allocations WHERE purchase_id = ?"
+            )
+            .get(purchaseId) as { s: number })
+        : { s: 0 };
+      const allocatedTotal = roundDecimal(Number(allocatedTotalRow.s) || 0);
+
+      const totalAmount = roundDecimal(
+        linesIn.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+      );
+
+      const docDate =
+        typeof payload.transaction_date === "string" &&
+        payload.transaction_date.trim()
+          ? payload.transaction_date.trim()
+          : header.document_date;
+
+      const newLenderId = isCredit
+        ? payload.lender_id !== undefined
+          ? payload.lender_id
+          : header.lender_id
+        : null;
+      if (isCredit && (newLenderId == null || newLenderId <= 0)) {
+        throw new Error("Lender is required for a credit purchase.");
+      }
+      if (
+        isCredit &&
+        allocatedTotal > 0 &&
+        newLenderId !== header.lender_id
+      ) {
+        throw new Error(
+          "Cannot change lender while this bill has settlement payments linked. Remove or reallocate those links first, or keep the same lender."
+        );
+      }
+      if (isCredit && totalAmount + 1e-9 < allocatedTotal) {
+        throw new Error(
+          `Bill total cannot be less than the amount already settled against this bill (₹${formatDecimal(allocatedTotal)}). Raise the total or reduce settlements in the ledger.`
+        );
+      }
+
+      const oldLines = db()
+        .prepare(
+          "SELECT id, product_id, quantity FROM supplier_purchase_lines WHERE purchase_id = ?"
+        )
+        .all(purchaseId) as {
+        id: number;
+        product_id: number;
+        quantity: number;
+      }[];
+
+      const lineStmt = db().prepare(
+        `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      const unitStmt = db().prepare("SELECT unit FROM items WHERE id = ?");
+
+      db().transaction(() => {
+        for (const ln of oldLines) {
+          if (ln.quantity > 0) {
+            const row = db()
+              .prepare("SELECT current_stock FROM items WHERE id = ?")
+              .get(ln.product_id) as { current_stock: number } | undefined;
+            if (row && row.current_stock < ln.quantity) {
+              throw new Error(
+                `Cannot update purchase: would result in negative stock (current ${row.current_stock}, line quantity ${ln.quantity}).`
+              );
+            }
+            db()
+              .prepare(
+                "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+              )
+              .run(ln.quantity, ln.product_id);
+          }
+          db()
+            .prepare(
+              "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+            )
+            .run(ln.id);
+          db().prepare("DELETE FROM supplier_purchase_lines WHERE id = ?").run(ln.id);
+        }
+
+        for (const line of linesIn) {
+          const qty = roundDecimal(line.quantity);
+          if (qty <= 0) {
+            throw new Error("Quantity must be positive.");
+          }
+          const itemRow = unitStmt.get(line.product_id) as
+            | { unit: string }
+            | undefined;
+          if (!itemRow) {
+            throw new Error(`Item not found: ${line.product_id}`);
+          }
+          const amount = roundDecimal(line.amount);
+          const lr = lineStmt.run(
+            purchaseId,
+            line.product_id,
+            qty,
+            itemRow.unit,
+            amount,
+            line.gst_rate ?? 0,
+            line.gst_inclusive ? 1 : 0,
+            line.taxable_amount ?? amount,
+            line.cgst_amount ?? 0,
+            line.sgst_amount ?? 0
+          );
+          const lineId = Number(lr.lastInsertRowid);
+          db()
+            .prepare(
+              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+            )
+            .run(qty, line.product_id);
+          insertItemStockMovement(db(), {
+            item_id: line.product_id,
+            delta_qty: qty,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: lineId,
+            occurred_at: docDate,
+            note: null,
+          });
+        }
+
+        db()
+          .prepare(
+            `UPDATE supplier_purchases SET lender_id = ?, document_date = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, total_amount = ?, updated_at = datetime('now') WHERE id = ?`
+          )
+          .run(
+            isCredit ? newLenderId : null,
+            docDate,
+            payload.notes !== undefined ? payload.notes : header.notes,
+            payload.lender_invoice_number !== undefined
+              ? payload.lender_invoice_number
+              : header.lender_invoice_number,
+            payload.invoice_file_path !== undefined
+              ? payload.invoice_file_path
+              : header.invoice_file_path,
+            totalAmount,
+            purchaseId
+          );
+      })();
+
+      return purchaseId;
+    }
+  );
+
+  // ---- Lender movements (payment out / refund in) ----
   ipcMain.handle("settlements:getAll", (_, lenderId?: number) => {
-    const sql =
-      "SELECT id, lender_id, amount, transaction_date, notes, created_at, updated_at, payment_method, reference_number FROM transactions WHERE type = 'settlement'";
+    const sql = `SELECT id, lender_id, amount, movement_date AS transaction_date, notes, created_at, updated_at, payment_method, reference_number, direction
+      FROM lender_movements WHERE direction = 'out'`;
     if (lenderId != null) {
       return db()
         .prepare(
-          sql + " AND lender_id = ? ORDER BY transaction_date DESC, id DESC"
+          sql + " AND lender_id = ? ORDER BY movement_date DESC, id DESC"
         )
         .all(lenderId);
     }
     return db()
-      .prepare(sql + " ORDER BY transaction_date DESC, id DESC")
+      .prepare(sql + " ORDER BY movement_date DESC, id DESC")
       .all();
   });
 
@@ -2713,51 +3569,54 @@ export function registerIpcHandlers(): void {
         notes?: string;
         payment_method?: string;
         reference_number?: string;
+        direction?: "out" | "in";
         allocations?: { credit_purchase_id: number; amount: number }[];
       }
     ) => {
-      if (!d.amount || d.amount <= 0) throw new Error("Settlement amount must be positive.");
-      if (d.allocations?.length) {
-        const totalAlloc = d.allocations.reduce((s, a) => s + (a.amount ?? 0), 0);
-        if (roundDecimal(totalAlloc) > roundDecimal(d.amount)) {
-          throw new Error("Total allocation amount cannot exceed settlement amount.");
-        }
+      if (!d.amount || d.amount <= 0) {
+        throw new Error("Settlement amount must be positive.");
       }
-      const balanceRow = db().prepare(`
-        SELECT
-          COALESCE((SELECT SUM(amount) FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?), 0) -
-          COALESCE((SELECT SUM(amount) FROM transactions WHERE type = 'settlement' AND lender_id = ?), 0) AS outstanding
-      `).get(d.lender_id, d.lender_id) as { outstanding: number };
-      if (roundDecimal(d.amount) > roundDecimal(balanceRow.outstanding)) {
-        throw new Error("Settlement amount cannot exceed outstanding balance.");
+      const direction = d.direction === "in" ? "in" : "out";
+      if (d.allocations?.length) {
+        const totalAlloc = d.allocations.reduce(
+          (s, a) => s + (a.amount ?? 0),
+          0
+        );
+        if (roundDecimal(totalAlloc) > roundDecimal(d.amount)) {
+          throw new Error(
+            "Total allocation amount cannot exceed settlement amount."
+          );
+        }
       }
       const run = db().transaction(() => {
         const result = db()
           .prepare(
-            "INSERT INTO transactions (type, lender_id, amount, transaction_date, notes, payment_method, reference_number) VALUES ('settlement', ?, ?, ?, ?, ?, ?)"
+            `INSERT INTO lender_movements (lender_id, direction, amount, movement_date, notes, payment_method, reference_number)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             d.lender_id,
+            direction,
             roundDecimal(d.amount),
             d.transaction_date,
             d.notes ?? null,
             d.payment_method ?? null,
             d.reference_number ?? null
           );
-        const settlementId = Number(result.lastInsertRowid);
+        const movementId = Number(result.lastInsertRowid);
         if (d.allocations?.length) {
           const insertAlloc = db().prepare(
-            "INSERT INTO settlement_allocations (settlement_id, credit_purchase_id, amount) VALUES (?, ?, ?)"
+            "INSERT INTO lender_movement_allocations (movement_id, purchase_id, amount) VALUES (?, ?, ?)"
           );
           for (const a of d.allocations) {
             insertAlloc.run(
-              settlementId,
+              movementId,
               a.credit_purchase_id,
               roundDecimal(a.amount)
             );
           }
         }
-        return settlementId;
+        return movementId;
       });
       return run();
     }
@@ -2777,27 +3636,37 @@ export function registerIpcHandlers(): void {
       }
     ) => {
       const row = db()
-        .prepare("SELECT * FROM transactions WHERE id = ? AND type = 'settlement'")
+        .prepare("SELECT * FROM lender_movements WHERE id = ?")
         .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Settlement not found");
+      if (!row) {
+        throw new Error("Settlement not found");
+      }
       if (d.amount !== undefined) {
-        const allocTotal = db().prepare(
-          "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_allocations WHERE settlement_id = ?"
-        ).get(id) as { total: number };
+        const allocTotal = db()
+          .prepare(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM lender_movement_allocations WHERE movement_id = ?"
+          )
+          .get(id) as { total: number };
         if (roundDecimal(allocTotal.total) > roundDecimal(d.amount)) {
-          throw new Error("Cannot reduce settlement amount below allocated total.");
+          throw new Error(
+            "Cannot reduce settlement amount below allocated total."
+          );
         }
       }
       db()
         .prepare(
-          "UPDATE transactions SET transaction_date = ?, amount = ?, notes = ?, payment_method = ?, reference_number = ?, updated_at = datetime('now') WHERE id = ?"
+          `UPDATE lender_movements SET movement_date = ?, amount = ?, notes = ?, payment_method = ?, reference_number = ?, updated_at = datetime('now') WHERE id = ?`
         )
         .run(
-          d.transaction_date ?? row.transaction_date,
+          d.transaction_date ?? row.movement_date,
           roundDecimal(d.amount ?? (row.amount as number)),
           d.notes !== undefined ? d.notes : row.notes,
-          d.payment_method !== undefined ? d.payment_method : row.payment_method,
-          d.reference_number !== undefined ? d.reference_number : row.reference_number,
+          d.payment_method !== undefined
+            ? d.payment_method
+            : row.payment_method,
+          d.reference_number !== undefined
+            ? d.reference_number
+            : row.reference_number,
           id
         );
       return id;
@@ -2805,7 +3674,7 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle("settlements:delete", (_, id: number) => {
-    db().prepare("DELETE FROM transactions WHERE id = ?").run(id);
+    db().prepare("DELETE FROM lender_movements WHERE id = ?").run(id);
     return id;
   });
 
@@ -2813,8 +3682,18 @@ export function registerIpcHandlers(): void {
   type LedgerFilters = {
     lenderId?: number | null;
     mahajanId?: number | null; // deprecated, use lenderId
-    type?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
-    transactionType?: "all" | "credit_purchase" | "settlement" | "cash_purchase";
+    type?:
+      | "all"
+      | "credit_purchase"
+      | "settlement"
+      | "cash_purchase"
+      | "lender_refund";
+    transactionType?:
+      | "all"
+      | "credit_purchase"
+      | "settlement"
+      | "cash_purchase"
+      | "lender_refund";
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -2822,14 +3701,21 @@ export function registerIpcHandlers(): void {
   };
   ipcMain.handle("lenderLedger:getPage", (_, opts: LedgerFilters) => {
     const rawType = opts?.transactionType ?? opts?.type;
-    const typeFilter: "all" | "credit_purchase" | "settlement" | "cash_purchase" =
+    const typeFilter:
+      | "all"
+      | "credit_purchase"
+      | "settlement"
+      | "cash_purchase"
+      | "lender_refund" =
       rawType === "cash_purchase"
         ? "cash_purchase"
         : rawType === "credit_purchase"
           ? "credit_purchase"
           : rawType === "settlement"
             ? "settlement"
-            : "all";
+            : rawType === "lender_refund"
+              ? "lender_refund"
+              : "all";
     const lenderId =
       typeFilter === "cash_purchase"
         ? null
@@ -2841,6 +3727,49 @@ export function registerIpcHandlers(): void {
     const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
     const offset = (page - 1) * limit;
 
+    const unionSql = `
+      SELECT 'credit_purchase' AS type, spl.id, sp.lender_id, m.name AS lender_name,
+        spl.product_id, sp.document_date AS transaction_date,
+        COALESCE(i.name, '') AS product_name,
+        spl.quantity,
+        spl.amount AS amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
+        CAST(NULL AS TEXT) AS payment_method, CAST(NULL AS TEXT) AS reference_number,
+        COALESCE(
+          NULLIF(trim(spl.created_at), ''),
+          NULLIF(trim(sp.created_at), ''),
+          datetime(trim(sp.document_date))
+        ) AS row_created_at
+      FROM supplier_purchase_lines spl
+      JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'credit'
+      LEFT JOIN lenders m ON m.id = sp.lender_id
+      LEFT JOIN items i ON i.id = spl.product_id
+      UNION ALL
+      SELECT 'cash_purchase', spl.id, CAST(NULL AS INTEGER), CAST(NULL AS TEXT),
+        spl.product_id, sp.document_date,
+        COALESCE(i.name, ''),
+        spl.quantity,
+        spl.amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
+        CAST(NULL AS TEXT), CAST(NULL AS TEXT),
+        COALESCE(
+          NULLIF(trim(spl.created_at), ''),
+          NULLIF(trim(sp.created_at), ''),
+          datetime(trim(sp.document_date))
+        ) AS row_created_at
+      FROM supplier_purchase_lines spl
+      JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'cash'
+      LEFT JOIN items i ON i.id = spl.product_id
+      UNION ALL
+      SELECT CASE WHEN lm.direction = 'out' THEN 'settlement' ELSE 'lender_refund' END,
+        lm.id, lm.lender_id, m2.name, CAST(NULL AS INTEGER), lm.movement_date,
+        CAST(NULL AS TEXT), CAST(NULL AS REAL), lm.amount, lm.notes,
+        CAST(NULL AS TEXT), CAST(NULL AS TEXT), lm.payment_method, lm.reference_number,
+        COALESCE(
+          NULLIF(trim(lm.created_at), ''),
+          datetime(trim(lm.movement_date))
+        ) AS row_created_at
+      FROM lender_movements lm
+      LEFT JOIN lenders m2 ON m2.id = lm.lender_id`;
+
     const whereParts: string[] = [];
     const params: (number | string)[] = [];
     if (lenderId != null) {
@@ -2849,10 +3778,14 @@ export function registerIpcHandlers(): void {
     }
     if (typeFilter === "all") {
       if (lenderId != null) {
-        whereParts.push("u.type IN ('credit_purchase','settlement')");
-      } else {
-        whereParts.push("u.type IN ('credit_purchase','settlement','cash_purchase')");
+        whereParts.push(
+          "u.type IN ('credit_purchase','settlement','lender_refund')"
+        );
       }
+    } else if (typeFilter === "settlement") {
+      whereParts.push("u.type = 'settlement'");
+    } else if (typeFilter === "lender_refund") {
+      whereParts.push("u.type = 'lender_refund'");
     } else {
       whereParts.push("u.type = ?");
       params.push(typeFilter);
@@ -2868,7 +3801,8 @@ export function registerIpcHandlers(): void {
     const whereClause = whereParts.length
       ? `WHERE ${whereParts.join(" AND ")}`
       : "";
-    const countSql = `SELECT COUNT(*) AS total FROM transactions u LEFT JOIN lenders m ON u.lender_id = m.id ${whereClause}`;
+    const fromWrapped = `FROM (${unionSql}) u`;
+    const countSql = `SELECT COUNT(*) AS total ${fromWrapped} ${whereClause}`;
     const countRow = (
       params.length
         ? db()
@@ -2876,7 +3810,7 @@ export function registerIpcHandlers(): void {
             .get(...params)
         : db().prepare(countSql).get()
     ) as { total: number };
-    const dataSql = `SELECT u.type, u.id, u.lender_id, m.name AS lender_name, u.product_id, u.transaction_date, COALESCE(i.name, u.product_name) AS product_name, u.quantity, u.amount, u.notes, u.lender_invoice_number, u.invoice_file_path, u.payment_method, u.reference_number FROM transactions u LEFT JOIN lenders m ON u.lender_id = m.id LEFT JOIN items i ON u.product_id = i.id ${whereClause} ORDER BY u.transaction_date DESC, u.id DESC LIMIT ? OFFSET ?`;
+    const dataSql = `SELECT u.type, u.id, u.lender_id, u.lender_name, u.product_id, u.transaction_date, u.product_name, u.quantity, u.amount, u.notes, u.lender_invoice_number, u.invoice_file_path, u.payment_method, u.reference_number ${fromWrapped} ${whereClause} ORDER BY COALESCE(julianday(replace(replace(trim(u.row_created_at), 'T', ' '), 'Z', '')), julianday(trim(u.transaction_date)), 0) DESC, u.id DESC LIMIT ? OFFSET ?`;
     const dataRows = (
       params.length
         ? db()
@@ -3112,22 +4046,39 @@ export function registerIpcHandlers(): void {
     return id;
   });
 
-  // ---- Purchases (transactions type='cash_purchase') ----
+  // ---- Cash purchases (supplier_purchases kind=cash) ----
+  const cashPurchaseListSelect = `
+    SELECT sp.id,
+      CAST(NULL AS INTEGER) AS product_id,
+      (SELECT COALESCE(group_concat(i.name, ' | '), '')
+       FROM supplier_purchase_lines spl
+       JOIN items i ON i.id = spl.product_id
+       WHERE spl.purchase_id = sp.id) AS product_name,
+      (SELECT COALESCE(SUM(spl2.quantity), 0) FROM supplier_purchase_lines spl2 WHERE spl2.purchase_id = sp.id) AS quantity,
+      sp.total_amount AS amount,
+      sp.document_date AS transaction_date,
+      sp.notes,
+      sp.created_at,
+      sp.updated_at
+    FROM supplier_purchases sp
+    WHERE sp.kind = 'cash'`;
+
   ipcMain.handle(
     "purchases:getAll",
     (_, fromDate?: string, toDate?: string) => {
-      const sql =
-        "SELECT id, product_id, quantity, amount, transaction_date, notes, created_at, updated_at FROM transactions WHERE type = 'cash_purchase'";
       if (fromDate && toDate) {
         return db()
           .prepare(
-            sql +
-              " AND transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC, id DESC"
+            cashPurchaseListSelect +
+              " AND sp.document_date BETWEEN ? AND ? ORDER BY sp.document_date DESC, sp.id DESC"
           )
           .all(fromDate, toDate);
       }
       return db()
-        .prepare(sql + " ORDER BY transaction_date DESC, id DESC")
+        .prepare(
+          cashPurchaseListSelect +
+            " ORDER BY sp.document_date DESC, sp.id DESC"
+        )
         .all();
     }
   );
@@ -3148,30 +4099,29 @@ export function registerIpcHandlers(): void {
       const page = Math.max(1, opts?.page ?? 1);
       const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
       const offset = (page - 1) * limit;
-      const base =
-        "SELECT p.id, p.product_id, p.quantity, p.amount, p.transaction_date, p.notes, p.created_at, p.updated_at, i.name AS product_name FROM transactions p LEFT JOIN items i ON p.product_id = i.id WHERE p.type = 'cash_purchase'";
       if (fromDate && toDate) {
         const countRow = db()
           .prepare(
-            "SELECT COUNT(*) AS total FROM transactions WHERE type = 'cash_purchase' AND transaction_date BETWEEN ? AND ?"
+            "SELECT COUNT(*) AS total FROM supplier_purchases WHERE kind = 'cash' AND document_date BETWEEN ? AND ?"
           )
           .get(fromDate, toDate) as { total: number };
         const rows = db()
           .prepare(
-            base +
-              " AND p.transaction_date BETWEEN ? AND ? ORDER BY p.transaction_date DESC, p.id DESC LIMIT ? OFFSET ?"
+            cashPurchaseListSelect +
+              " AND sp.document_date BETWEEN ? AND ? ORDER BY sp.document_date DESC, sp.id DESC LIMIT ? OFFSET ?"
           )
           .all(fromDate, toDate, limit, offset);
         return { data: rows, total: countRow.total };
       }
       const countRow = db()
         .prepare(
-          "SELECT COUNT(*) AS total FROM transactions WHERE type = 'cash_purchase'"
+          "SELECT COUNT(*) AS total FROM supplier_purchases WHERE kind = 'cash'"
         )
         .get() as { total: number };
       const rows = db()
         .prepare(
-          base + " ORDER BY p.transaction_date DESC, p.id DESC LIMIT ? OFFSET ?"
+          cashPurchaseListSelect +
+            " ORDER BY sp.document_date DESC, sp.id DESC LIMIT ? OFFSET ?"
         )
         .all(limit, offset);
       return { data: rows, total: countRow.total };
@@ -3191,20 +4141,50 @@ export function registerIpcHandlers(): void {
       }
     ) => {
       const qty = roundDecimal(p.quantity);
-      if (qty < 0)
+      if (qty < 0) {
         throw new Error("Quantity is required and must be non-negative.");
-      const result = db()
-        .prepare(
-          "INSERT INTO transactions (type, product_id, quantity, amount, transaction_date, notes) VALUES ('cash_purchase', ?, ?, ?, ?, ?)"
-        )
-        .run(
-          p.product_id,
-          qty,
-          roundDecimal(p.amount),
-          p.transaction_date,
-          p.notes ?? null
-        );
-      return result.lastInsertRowid;
+      }
+      const itemUnit = db()
+        .prepare("SELECT unit FROM items WHERE id = ?")
+        .get(p.product_id) as { unit: string } | undefined;
+      if (!itemUnit) {
+        throw new Error("Item not found");
+      }
+      const amt = roundDecimal(p.amount);
+      const run = db().transaction(() => {
+        const pur = db()
+          .prepare(
+            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, total_amount)
+             VALUES ('cash', NULL, ?, ?, ?)`
+          )
+          .run(p.transaction_date, p.notes ?? null, amt);
+        const purchaseId = Number(pur.lastInsertRowid);
+        const lineIns = db()
+          .prepare(
+            `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+             VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 0)`
+          )
+          .run(purchaseId, p.product_id, qty, itemUnit.unit, amt, amt);
+        const lineId = Number(lineIns.lastInsertRowid);
+        if (qty > 0) {
+          db()
+            .prepare(
+              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+            )
+            .run(qty, p.product_id);
+          insertItemStockMovement(db(), {
+            item_id: p.product_id,
+            delta_qty: qty,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: lineId,
+            occurred_at: p.transaction_date,
+            note: null,
+          });
+        }
+        return purchaseId;
+      });
+      return run();
     }
   );
 
@@ -3219,29 +4199,65 @@ export function registerIpcHandlers(): void {
         lines: PurchaseLine[];
       }
     ) => {
-      if (!payload.lines?.length)
+      if (!payload.lines?.length) {
         throw new Error("At least one product line is required.");
+      }
+      const totalAmount = roundDecimal(
+        payload.lines.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+      );
       const run = db().transaction(() => {
-        const ids: number[] = [];
+        const pur = db()
+          .prepare(
+            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, total_amount)
+             VALUES ('cash', NULL, ?, ?, ?)`
+          )
+          .run(payload.transaction_date, payload.notes ?? null, totalAmount);
+        const purchaseId = Number(pur.lastInsertRowid);
+        const lineStmt = db().prepare(
+          `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+           VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 0)`
+        );
+        const unitStmt = db().prepare("SELECT unit FROM items WHERE id = ?");
         for (const line of payload.lines) {
           const qty = roundDecimal(line.quantity);
-          if (qty < 0)
+          if (qty < 0) {
             throw new Error("Quantity is required and must be non-negative.");
-          if (line.amount < 0) throw new Error("Amount must be non-negative.");
-          const result = db()
+          }
+          if (line.amount < 0) {
+            throw new Error("Amount must be non-negative.");
+          }
+          const itemRow = unitStmt.get(line.product_id) as
+            | { unit: string }
+            | undefined;
+          if (!itemRow) {
+            throw new Error(`Item not found: ${line.product_id}`);
+          }
+          const lamt = roundDecimal(line.amount);
+          const lr = lineStmt.run(
+            purchaseId,
+            line.product_id,
+            qty,
+            itemRow.unit,
+            lamt,
+            lamt
+          );
+          const lineId = Number(lr.lastInsertRowid);
+          db()
             .prepare(
-              "INSERT INTO transactions (type, product_id, quantity, amount, transaction_date, notes) VALUES ('cash_purchase', ?, ?, ?, ?, ?)"
+              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
             )
-            .run(
-              line.product_id,
-              qty,
-              roundDecimal(line.amount),
-              payload.transaction_date,
-              payload.notes ?? null
-            );
-          ids.push(Number(result.lastInsertRowid));
+            .run(qty, line.product_id);
+          insertItemStockMovement(db(), {
+            item_id: line.product_id,
+            delta_qty: qty,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: lineId,
+            occurred_at: payload.transaction_date,
+            note: null,
+          });
         }
-        return ids;
+        return [purchaseId];
       });
       return run();
     }
@@ -3259,37 +4275,398 @@ export function registerIpcHandlers(): void {
         notes?: string;
       }
     ) => {
-      const row = db()
+      const matchCashLine = db()
         .prepare(
-          "SELECT * FROM transactions WHERE id = ? AND type = 'cash_purchase'"
+          `SELECT spl.id, spl.purchase_id
+           FROM supplier_purchase_lines spl
+           JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'cash'
+           WHERE spl.id = ?`
         )
-        .get(id) as Record<string, unknown> | undefined;
-      if (!row) throw new Error("Cash purchase not found");
-      const quantity =
-        p.quantity !== undefined
-          ? roundDecimal(p.quantity)
-          : (row.quantity as number);
-      if (quantity < 0)
+        .get(id) as { id: number; purchase_id: number } | undefined;
+      let purchaseId: number;
+      let onlyLineId: number;
+      if (matchCashLine) {
+        purchaseId = matchCashLine.purchase_id;
+        onlyLineId = matchCashLine.id;
+      } else {
+        const headerProbe = db()
+          .prepare(
+            "SELECT id FROM supplier_purchases WHERE id = ? AND kind = 'cash'"
+          )
+          .get(id);
+        if (!headerProbe) {
+          throw new Error("Cash purchase not found");
+        }
+        purchaseId = id;
+        const lineIds = db()
+          .prepare(
+            "SELECT id FROM supplier_purchase_lines WHERE purchase_id = ? ORDER BY id ASC"
+          )
+          .all(purchaseId) as { id: number }[];
+        if (lineIds.length !== 1) {
+          throw new Error(
+            "Multi-line cash purchases must be edited from the Purchases page when passing purchase id."
+          );
+        }
+        const one = lineIds[0];
+        if (one === undefined) {
+          throw new Error("Cash purchase not found");
+        }
+        onlyLineId = one.id;
+      }
+      const header = db()
+        .prepare(
+          "SELECT * FROM supplier_purchases WHERE id = ? AND kind = 'cash'"
+        )
+        .get(purchaseId) as Record<string, unknown> | undefined;
+      if (!header) {
+        throw new Error("Cash purchase not found");
+      }
+      const only = db()
+        .prepare(
+          "SELECT id, product_id, quantity, amount FROM supplier_purchase_lines WHERE id = ?"
+        )
+        .get(onlyLineId) as
+        | { id: number; product_id: number; quantity: number; amount: number }
+        | undefined;
+      if (!only) {
+        throw new Error("Cash purchase not found");
+      }
+      const newQty =
+        p.quantity !== undefined ? roundDecimal(p.quantity) : only.quantity;
+      const newAmt =
+        p.amount !== undefined ? roundDecimal(p.amount) : only.amount;
+      if (newQty < 0) {
         throw new Error("Quantity is required and must be non-negative.");
-      db()
-        .prepare(
-          "UPDATE transactions SET transaction_date = ?, quantity = ?, amount = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
-        )
-        .run(
-          p.transaction_date ?? row.transaction_date,
-          quantity,
-          roundDecimal(p.amount ?? (row.amount as number)),
-          p.notes !== undefined ? p.notes : row.notes,
-          id
-        );
-      return id;
+      }
+      db().transaction(() => {
+        if (only.quantity > 0) {
+          const st = db()
+            .prepare("SELECT current_stock FROM items WHERE id = ?")
+            .get(only.product_id) as { current_stock: number } | undefined;
+          if (st && st.current_stock < only.quantity) {
+            throw new Error("Cannot update: insufficient stock to reverse.");
+          }
+          db()
+            .prepare(
+              "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+            )
+            .run(only.quantity, only.product_id);
+        }
+        db()
+          .prepare(
+            "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+          )
+          .run(only.id);
+        db().prepare("DELETE FROM supplier_purchase_lines WHERE id = ?").run(only.id);
+        const itemUnit = db()
+          .prepare("SELECT unit FROM items WHERE id = ?")
+          .get(only.product_id) as { unit: string } | undefined;
+        if (!itemUnit) {
+          throw new Error("Item not found");
+        }
+        const lineIns = db()
+          .prepare(
+            `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
+             VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 0)`
+          )
+          .run(purchaseId, only.product_id, newQty, itemUnit.unit, newAmt, newAmt);
+        const newLineId = Number(lineIns.lastInsertRowid);
+        if (newQty > 0) {
+          db()
+            .prepare(
+              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
+            )
+            .run(newQty, only.product_id);
+          insertItemStockMovement(db(), {
+            item_id: only.product_id,
+            delta_qty: newQty,
+            reason: "purchase",
+            ref_kind: "supplier_purchase_line",
+            ref_id: newLineId,
+            occurred_at:
+              (p.transaction_date as string) ??
+              (header.document_date as string),
+            note: null,
+          });
+        }
+        db()
+          .prepare(
+            `UPDATE supplier_purchases SET document_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?`
+          )
+          .run(
+            p.transaction_date ?? header.document_date,
+            p.notes !== undefined ? p.notes : header.notes,
+            purchaseId
+          );
+        recalcSupplierPurchaseTotal(purchaseId);
+      })();
+      return purchaseId;
     }
   );
 
   ipcMain.handle("purchases:delete", (_, id: number) => {
-    db().prepare("DELETE FROM transactions WHERE id = ?").run(id);
-    return id;
+    const asPurchase = db()
+      .prepare(
+        "SELECT id FROM supplier_purchases WHERE id = ? AND kind = 'cash'"
+      )
+      .get(id) as { id: number } | undefined;
+    if (asPurchase) {
+      const purchaseId = asPurchase.id;
+      const lines = db()
+        .prepare(
+          "SELECT id, product_id, quantity FROM supplier_purchase_lines WHERE purchase_id = ?"
+        )
+        .all(purchaseId) as { id: number; product_id: number; quantity: number }[];
+      db().transaction(() => {
+        for (const ln of lines) {
+          if (ln.quantity > 0) {
+            const row = db()
+              .prepare("SELECT current_stock FROM items WHERE id = ?")
+              .get(ln.product_id) as { current_stock: number } | undefined;
+            if (row && row.current_stock < ln.quantity) {
+              throw new Error(
+                "Cannot delete cash purchase: would result in negative stock."
+              );
+            }
+            db()
+              .prepare(
+                "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+              )
+              .run(ln.quantity, ln.product_id);
+          }
+          db()
+            .prepare(
+              "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+            )
+            .run(ln.id);
+        }
+        db().prepare("DELETE FROM supplier_purchases WHERE id = ?").run(purchaseId);
+      })();
+      return purchaseId;
+    }
+
+    const lineInfo = db()
+      .prepare(
+        `SELECT spl.id, spl.purchase_id, spl.product_id, spl.quantity
+         FROM supplier_purchase_lines spl
+         JOIN supplier_purchases sp ON sp.id = spl.purchase_id AND sp.kind = 'cash'
+         WHERE spl.id = ?`
+      )
+      .get(id) as
+      | {
+          id: number;
+          purchase_id: number;
+          product_id: number;
+          quantity: number;
+        }
+      | undefined;
+    if (!lineInfo) {
+      throw new Error("Cash purchase not found");
+    }
+    const purchaseId = lineInfo.purchase_id;
+    db().transaction(() => {
+      const ln = lineInfo;
+      if (ln.quantity > 0) {
+        const row = db()
+          .prepare("SELECT current_stock FROM items WHERE id = ?")
+          .get(ln.product_id) as { current_stock: number } | undefined;
+        if (row && row.current_stock < ln.quantity) {
+          throw new Error(
+            "Cannot delete cash purchase: would result in negative stock."
+          );
+        }
+        db()
+          .prepare(
+            "UPDATE items SET current_stock = current_stock - ?, updated_at = datetime('now') WHERE id = ?"
+          )
+          .run(ln.quantity, ln.product_id);
+      }
+      db()
+        .prepare(
+          "DELETE FROM item_stock_movements WHERE ref_kind = 'supplier_purchase_line' AND ref_id = ?"
+        )
+        .run(ln.id);
+      db().prepare("DELETE FROM supplier_purchase_lines WHERE id = ?").run(ln.id);
+      const remaining = db()
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM supplier_purchase_lines WHERE purchase_id = ?"
+        )
+        .get(purchaseId) as { cnt: number };
+      if (remaining.cnt === 0) {
+        db().prepare("DELETE FROM supplier_purchases WHERE id = ?").run(purchaseId);
+      } else {
+        recalcSupplierPurchaseTotal(purchaseId);
+      }
+    })();
+    return purchaseId;
   });
+
+  ipcMain.handle(
+    "stockHistory:getPage",
+    (
+      _,
+      opts: {
+        itemId?: number;
+        fromDate?: string;
+        toDate?: string;
+        reason?: string;
+        page?: number;
+        limit?: number;
+      }
+    ) => {
+      const itemId = opts?.itemId;
+      const fromDate = opts?.fromDate?.trim() ?? "";
+      const toDate = opts?.toDate?.trim() ?? "";
+      const reason =
+        typeof opts?.reason === "string" ? opts.reason.trim() : "";
+      const page = Math.max(1, opts?.page ?? 1);
+      const limit = Math.min(200, Math.max(1, opts?.limit ?? PAGE_SIZE));
+      const offset = (page - 1) * limit;
+      const whereParts: string[] = ["1=1"];
+      const params: (number | string)[] = [];
+      if (itemId != null && itemId > 0) {
+        whereParts.push("m.item_id = ?");
+        params.push(itemId);
+      }
+      if (fromDate) {
+        whereParts.push("m.occurred_at >= ?");
+        params.push(fromDate);
+      }
+      if (toDate) {
+        whereParts.push("m.occurred_at <= ?");
+        params.push(toDate);
+      }
+      if (reason) {
+        whereParts.push("m.reason = ?");
+        params.push(reason);
+      }
+      const whereSql = `WHERE ${whereParts.join(" AND ")}`;
+      const countSql = `SELECT COUNT(*) AS total FROM item_stock_movements m ${whereSql}`;
+      const countRow = (
+        params.length
+          ? db().prepare(countSql).get(...params)
+          : db().prepare(countSql).get()
+      ) as { total: number };
+      const dataSql = `
+        WITH base AS (
+          SELECT m.*, i.name AS item_name,
+            SUM(m.delta_qty) OVER (
+              PARTITION BY m.item_id
+              ORDER BY m.occurred_at ASC, m.id ASC
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS balance_after
+          FROM item_stock_movements m
+          JOIN items i ON i.id = m.item_id
+          ${whereSql}
+        )
+        SELECT * FROM base
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT ? OFFSET ?`;
+      const dataRows = (
+        params.length
+          ? db().prepare(dataSql).all(...params, limit, offset)
+          : db().prepare(dataSql).all(limit, offset)
+      ) as Record<string, unknown>[];
+      return { data: dataRows, total: countRow.total };
+    }
+  );
+
+  ipcMain.handle("lenderMovements:getById", (_, movementId: number) => {
+    const movement = db()
+      .prepare("SELECT * FROM lender_movements WHERE id = ?")
+      .get(movementId) as Record<string, unknown> | undefined;
+    if (!movement) {
+      throw new Error("Movement not found");
+    }
+    const allocations = db()
+      .prepare(
+        `SELECT lma.*, sp.document_date, sp.total_amount, sp.kind, sp.lender_invoice_number,
+          (SELECT COALESCE(group_concat(i.name, ' | '), '') FROM supplier_purchase_lines spl JOIN items i ON i.id = spl.product_id WHERE spl.purchase_id = sp.id) AS product_summary
+         FROM lender_movement_allocations lma
+         JOIN supplier_purchases sp ON sp.id = lma.purchase_id
+         WHERE lma.movement_id = ?`
+      )
+      .all(movementId);
+    return { movement, allocations };
+  });
+
+  ipcMain.handle(
+    "lenderMovements:suggestFifoAllocations",
+    (_, lenderId: number, amount: number) => {
+      const cap = roundDecimal(amount);
+      if (cap <= 0) {
+        return [] as { credit_purchase_id: number; amount: number }[];
+      }
+      const rows = db()
+        .prepare(
+          `SELECT sp.id, sp.total_amount,
+            COALESCE((SELECT SUM(amount) FROM lender_movement_allocations WHERE purchase_id = sp.id), 0) AS allocated
+           FROM supplier_purchases sp
+           WHERE sp.kind = 'credit' AND sp.lender_id = ?
+           ORDER BY sp.document_date ASC, sp.id ASC`
+        )
+        .all(lenderId) as {
+        id: number;
+        total_amount: number;
+        allocated: number;
+      }[];
+      const out: { credit_purchase_id: number; amount: number }[] = [];
+      let remaining = cap;
+      for (const r of rows) {
+        if (remaining <= 0) {
+          break;
+        }
+        const outstanding = roundDecimal(
+          r.total_amount - roundDecimal(r.allocated)
+        );
+        if (outstanding <= 0) {
+          continue;
+        }
+        const take = Math.min(remaining, outstanding);
+        out.push({ credit_purchase_id: r.id, amount: take });
+        remaining = roundDecimal(remaining - take);
+      }
+      return out;
+    }
+  );
+
+  ipcMain.handle(
+    "settlements:setAllocations",
+    (
+      _,
+      movementId: number,
+      allocations: { credit_purchase_id: number; amount: number }[]
+    ) => {
+      const m = db()
+        .prepare("SELECT amount FROM lender_movements WHERE id = ?")
+        .get(movementId) as { amount: number } | undefined;
+      if (!m) {
+        throw new Error("Movement not found");
+      }
+      const totalAlloc = allocations.reduce(
+        (s, a) => s + roundDecimal(a.amount ?? 0),
+        0
+      );
+      if (roundDecimal(totalAlloc) > roundDecimal(m.amount)) {
+        throw new Error("Total allocation amount cannot exceed movement amount.");
+      }
+      db().transaction(() => {
+        db()
+          .prepare("DELETE FROM lender_movement_allocations WHERE movement_id = ?")
+          .run(movementId);
+        const ins = db().prepare(
+          "INSERT INTO lender_movement_allocations (movement_id, purchase_id, amount) VALUES (?, ?, ?)"
+        );
+        for (const a of allocations) {
+          if (roundDecimal(a.amount) > 0) {
+            ins.run(movementId, a.credit_purchase_id, roundDecimal(a.amount));
+          }
+        }
+      })();
+      return movementId;
+    }
+  );
 
   // ---- Reports ----
   ipcMain.handle("reports:getReportSummary", () => {
@@ -3377,7 +4754,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("reports:getTotalCreditPurchase", () => {
     const row = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase'"
+        "SELECT COALESCE(SUM(total_amount), 0) AS total FROM supplier_purchases WHERE kind = 'credit'"
       )
       .get() as { total: number };
     return { totalCreditPurchase: row?.total ?? 0 };
@@ -3386,25 +4763,34 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("reports:getLenderSummary", () => {
     const totalCreditPurchaseRow = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase'"
+        "SELECT COALESCE(SUM(total_amount), 0) AS total FROM supplier_purchases WHERE kind = 'credit'"
       )
       .get() as { total: number };
-    const totalSettlementRow = db()
+    const totalPaymentsOut = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement'"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE direction = 'out'"
+      )
+      .get() as { total: number };
+    const totalRefundsIn = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE direction = 'in'"
       )
       .get() as { total: number };
     const balanceRows = db()
       .prepare(
-        `SELECT lender_id,
-          COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) -
-          COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS balance
-         FROM transactions WHERE type IN ('credit_purchase','settlement') GROUP BY lender_id`
+        `SELECT id AS lender_id,
+          COALESCE((SELECT SUM(total_amount) FROM supplier_purchases sp WHERE sp.kind = 'credit' AND sp.lender_id = lenders.id), 0)
+          - COALESCE((SELECT SUM(amount) FROM lender_movements lm WHERE lm.lender_id = lenders.id AND lm.direction = 'out'), 0)
+          - COALESCE((SELECT SUM(amount) FROM lender_movements lm2 WHERE lm2.lender_id = lenders.id AND lm2.direction = 'in'), 0) AS balance
+         FROM lenders`
       )
       .all() as { lender_id: number; balance: number }[];
     const totalCreditPurchase = Number(totalCreditPurchaseRow?.total ?? 0);
-    const totalSettlement = Number(totalSettlementRow?.total ?? 0);
-    const balance = totalCreditPurchase - totalSettlement;
+    const totalSettlement = Number(totalPaymentsOut?.total ?? 0);
+    const balance =
+      totalCreditPurchase -
+      totalSettlement -
+      Number(totalRefundsIn?.total ?? 0);
     let countOweMe = 0;
     let countIOwe = 0;
     for (const r of balanceRows) {
@@ -3426,62 +4812,78 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("reports:getAllLenderBalances", () => {
     const rows = db()
       .prepare(
-        `SELECT lender_id,
-          COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) -
-          COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS balance
-         FROM transactions WHERE type IN ('credit_purchase','settlement') GROUP BY lender_id`
+        `SELECT id AS lender_id,
+          COALESCE((SELECT SUM(total_amount) FROM supplier_purchases sp WHERE sp.kind = 'credit' AND sp.lender_id = lenders.id), 0)
+          - COALESCE((SELECT SUM(amount) FROM lender_movements lm WHERE lm.lender_id = lenders.id AND lm.direction = 'out'), 0)
+          - COALESCE((SELECT SUM(amount) FROM lender_movements lm2 WHERE lm2.lender_id = lenders.id AND lm2.direction = 'in'), 0) AS balance
+         FROM lenders`
       )
       .all() as { lender_id: number; balance: number }[];
     const balances: Record<number, number> = {};
-    for (const r of rows) balances[r.lender_id] = r.balance;
+    for (const r of rows) {
+      balances[r.lender_id] = r.balance;
+    }
     return { balances };
   });
 
   ipcMain.handle("reports:getLenderBalance", (_, lenderId: number) => {
     const creditPurchases = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'credit_purchase' AND lender_id = ?"
+        "SELECT COALESCE(SUM(total_amount), 0) AS total FROM supplier_purchases WHERE kind = 'credit' AND lender_id = ?"
       )
       .get(lenderId) as { total: number };
-    const settlements = db()
+    const paymentsOut = db()
       .prepare(
-        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'settlement' AND lender_id = ?"
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE lender_id = ? AND direction = 'out'"
+      )
+      .get(lenderId) as { total: number };
+    const refundsIn = db()
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM lender_movements WHERE lender_id = ? AND direction = 'in'"
       )
       .get(lenderId) as { total: number };
     const totalCreditPurchases = creditPurchases?.total ?? 0;
-    const totalSettlements = settlements?.total ?? 0;
+    const totalSettlements = paymentsOut?.total ?? 0;
+    const totalRefunds = refundsIn?.total ?? 0;
     return {
       totalCreditPurchases,
       totalSettlements,
       totalLends: totalCreditPurchases,
       totalDeposits: totalSettlements,
-      balance: totalCreditPurchases - totalSettlements,
+      balance: totalCreditPurchases - totalSettlements - totalRefunds,
     };
   });
 
   ipcMain.handle("reports:getLenderLedger", (_, lenderId: number) => {
     const rows = db()
       .prepare(
-        "SELECT id, transaction_date, type, COALESCE(product_name, (SELECT name FROM items WHERE items.id = transactions.product_id)) AS description, amount FROM transactions WHERE type IN ('credit_purchase','settlement') AND lender_id = ?"
+        `SELECT sp.document_date AS transaction_date, 'credit_purchase' AS type, sp.id AS id,
+          COALESCE((SELECT group_concat(i.name, ' | ') FROM supplier_purchase_lines spl JOIN items i ON i.id = spl.product_id WHERE spl.purchase_id = sp.id), 'Purchase') AS description,
+          sp.total_amount AS amount
+        FROM supplier_purchases sp
+        WHERE sp.kind = 'credit' AND sp.lender_id = ?
+        UNION ALL
+        SELECT lm.movement_date,
+          CASE WHEN lm.direction = 'out' THEN 'settlement' ELSE 'lender_refund' END,
+          lm.id,
+          CASE WHEN lm.direction = 'out' THEN 'Settlement' ELSE 'Refund from supplier' END,
+          lm.amount
+        FROM lender_movements lm
+        WHERE lm.lender_id = ?`
       )
-      .all(lenderId) as {
-      id: number;
+      .all(lenderId, lenderId) as {
       transaction_date: string;
       type: string;
+      id: number;
       description: string | null;
       amount: number;
     }[];
-    const combined: {
-      transaction_date: string;
-      type: "credit_purchase" | "settlement";
-      description: string;
-      amount: number;
-      id: number;
-    }[] = rows.map((r) => ({
-      ...r,
-      type: r.type as "credit_purchase" | "settlement",
-      description:
-        r.type === "settlement" ? "Settlement" : r.description || "Credit Purchase",
+    const combined = rows.map((r) => ({
+      transaction_date: r.transaction_date,
+      type: r.type as "credit_purchase" | "settlement" | "lender_refund",
+      description: r.description || "—",
+      amount: r.amount,
+      id: r.id,
     }));
     combined.sort((a, b) =>
       b.transaction_date === a.transaction_date
@@ -3556,14 +4958,15 @@ export function registerIpcHandlers(): void {
       const totalSale = sales?.total ?? 0;
       const totalExpenditure = sales?.expenditure ?? 0;
 
+      const y = String(year);
       const cpSettlement = db()
         .prepare(
           `SELECT
-            COALESCE(SUM(CASE WHEN type = 'credit_purchase' THEN amount ELSE 0 END), 0) AS totalCreditPurchase,
-            COALESCE(SUM(CASE WHEN type = 'settlement' THEN amount ELSE 0 END), 0) AS totalSettlement
-           FROM transactions WHERE type IN ('credit_purchase','settlement') AND strftime('%Y', transaction_date) = ?`
+            (SELECT COALESCE(SUM(total_amount), 0) FROM supplier_purchases WHERE kind = 'credit' AND strftime('%Y', document_date) = ?) AS totalCreditPurchase,
+            (SELECT COALESCE(SUM(amount), 0) FROM lender_movements WHERE direction = 'out' AND strftime('%Y', movement_date) = ?)
+            - (SELECT COALESCE(SUM(amount), 0) FROM lender_movements WHERE direction = 'in' AND strftime('%Y', movement_date) = ?) AS totalSettlement`
         )
-        .get(String(year)) as { totalCreditPurchase: number; totalSettlement: number };
+        .get(y, y, y) as { totalCreditPurchase: number; totalSettlement: number };
       const totalLend = cpSettlement?.totalCreditPurchase ?? 0;
       const totalDeposit = cpSettlement?.totalSettlement ?? 0;
 
@@ -3600,6 +5003,11 @@ export function registerIpcHandlers(): void {
       "invoices",
       "coupons",
       "tiered_discount_rules",
+      "lender_movement_allocations",
+      "lender_movements",
+      "supplier_purchase_lines",
+      "supplier_purchases",
+      "item_stock_movements",
       "settlement_allocations",
       "transactions",
       "daily_sales",

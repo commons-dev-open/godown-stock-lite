@@ -16,6 +16,7 @@ import enUnits from "./locales/en/units.json";
 import enHelp from "./locales/en/help.json";
 import enOnboarding from "./locales/en/onboarding.json";
 import enTrial from "./locales/en/trial.json";
+import enPurchases from "./locales/en/purchases.json";
 
 import hiCommon from "./locales/hi/common.json";
 import hiNavigation from "./locales/hi/navigation.json";
@@ -31,6 +32,7 @@ import hiUnits from "./locales/hi/units.json";
 import hiHelp from "./locales/hi/help.json";
 import hiOnboarding from "./locales/hi/onboarding.json";
 import hiTrial from "./locales/hi/trial.json";
+import hiPurchases from "./locales/hi/purchases.json";
 
 import bnCommon from "./locales/bn/common.json";
 import bnNavigation from "./locales/bn/navigation.json";
@@ -46,6 +48,7 @@ import bnUnits from "./locales/bn/units.json";
 import bnHelp from "./locales/bn/help.json";
 import bnOnboarding from "./locales/bn/onboarding.json";
 import bnTrial from "./locales/bn/trial.json";
+import bnPurchases from "./locales/bn/purchases.json";
 
 export const LOCALE_STORAGE_KEY = "locale";
 /** Persisted choice for invoice browser print / PDF copy (does not change app UI language). */
@@ -69,6 +72,7 @@ export const NAMESPACES = [
   "help",
   "onboarding",
   "trial",
+  "purchases",
 ] as const;
 
 function readStoredLocale(): SupportedLocale {
@@ -118,6 +122,7 @@ void i18n.use(initReactI18next).init({
       help: enHelp,
       onboarding: enOnboarding,
       trial: enTrial,
+      purchases: enPurchases,
     },
     hi: {
       common: hiCommon,
@@ -134,6 +139,7 @@ void i18n.use(initReactI18next).init({
       help: hiHelp,
       onboarding: hiOnboarding,
       trial: hiTrial,
+      purchases: hiPurchases,
     },
     bn: {
       common: bnCommon,
@@ -150,6 +156,7 @@ void i18n.use(initReactI18next).init({
       help: bnHelp,
       onboarding: bnOnboarding,
       trial: bnTrial,
+      purchases: bnPurchases,
     },
   },
 });

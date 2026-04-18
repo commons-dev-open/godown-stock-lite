@@ -43,6 +43,7 @@ import {
   Plus,
   Printer,
   Trash2,
+  History,
 } from "lucide-react";
 import { computeProductUnits } from "../../shared/computeProductUnits";
 import type {
@@ -766,6 +767,16 @@ export default function Items() {
                 );
               }}
               onDelete={(row) => setDeleteConfirmItem(row)}
+              extraActions={(row) => (
+                <Link
+                  to={`/stock-history?itemId=${row.id}`}
+                  className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
+                  title={t("stockHistory.rowAction.openHistory")}
+                  aria-label={t("stockHistory.rowAction.openHistory")}
+                >
+                  <History size={20} aria-hidden="true" />
+                </Link>
+              )}
               emptyMessage={t("empty.tableMessage")}
               pagination={{
                 type: "controlled",

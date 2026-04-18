@@ -34,6 +34,10 @@
       "title": "Credit Purchase",
       "subtitle": "Record lender transactions fast."
     },
+    "stockHistory": {
+      "title": "Stock history",
+      "subtitle": "Audit quantity changes by product."
+    },
     "cashVsExpenditure": "Cash vs Expenditure (weekly)",
     "cashTrendEmptyTitle": "No weekly cash trend",
     "cashTrendEmptyDescription": "Cash in hand and expenditure chart appears when weekly sales records are available."

@@ -12,6 +12,7 @@
     "credit_purchase": "বাকিতে ক্রয়",
     "add_credit_purchase": "বাকিতে ক্রয় যোগ করুন",
     "add_settlement": "পরিশোধ যোগ করুন",
+    "add_refund": "ফেরত লিখুন",
     "view_invoice": "ইনভয়েস দেখুন",
     "edit": "পরিবর্তন",
     "delete": "ডিলিট",
@@ -41,21 +42,23 @@
     "deposit": "জমা",
     "credit_purchase": "বাকিতে ক্রয়",
     "settlement": "পরিশোধ",
-    "cash_purchase": "নগদ ক্রয়"
+    "cash_purchase": "নগদ ক্রয়",
+    "lender_refund": "সরবরাহকারীর ফেরত"
   },
   "ledger": {
     "section_title": "ট্রানজ্যাকশন লেজার",
     "title": "লেজার",
-    "description": "আপনার ফিল্টার অনুযায়ী বাকিতে ক্রয়, পরিশোধ ও নগদ ক্রয় এখানে নতুন থেকে পুরোনো ক্রমে দেখানো হয়।"
+    "description": "আপনার ফিল্টার অনুযায়ী বাকিতে ক্রয়, পরিশোধ, সরবরাহকারীর ফেরত ও নগদ ক্রয় এখানে নতুন থেকে পুরোনো ক্রমে দেখানো হয়।"
   },
   "filters": {
     "lender": "মহাজন",
     "type": "ধরণ",
     "date_from": "শুরুর তারিখ",
     "date_to": "শেষ তারিখ",
-    "type_all": "সব (বাকিতে ক্রয় + পরিশোধ + নগদ ক্রয়)",
+    "type_all": "সব (বাকিতে ক্রয় + পরিশোধ + ফেরত + নগদ ক্রয়)",
     "credit_purchase_only": "শুধু বাকিতে ক্রয়",
     "settlement_only": "শুধু পরিশোধ",
+    "lender_refund_only": "শুধু সরবরাহকারীর ফেরত",
     "cash_purchase_only": "শুধু নগদ ক্রয়",
     "all_lenders": "সব মহাজন",
     "more_filters": "আরও ফিল্টার",
@@ -130,6 +133,7 @@
         "lender_balance": "মহাজন ব্যালান্স:",
         "total_credit_purchase": "মোট বাকিতে ক্রয়",
         "total_settlements": "মোট পরিশোধ",
+        "total_refunds_recorded": "মোট লিখিত ফেরত",
         "total_deposits": "মোট জমা",
         "total": "মোট",
         "will_change_by": "পরিবর্তন হবে",
@@ -157,9 +161,21 @@
         "total_allocated": "মোট বরাদ্দ",
         "differs_from_amount": "(পরিশোধের টাকার সাথে মিলছে না)"
       },
+      "actions": {
+        "suggest_fifo": "পুরনো বাকিতে ক্রয় আগে বরাদ্দের পরামর্শ",
+        "suggesting_fifo": "পরামর্শ হচ্ছে…"
+      },
       "toasts": {
         "saved": "পরিশোধ সংরক্ষণ হয়েছে",
-        "save_failed": "পরিশোধ সংরক্ষণ করা যায়নি"
+        "save_failed": "পরিশোধ সংরক্ষণ করা যায়নি",
+        "fifo_failed": "বরাদ্দের পরামর্শ পাওয়া যায়নি"
+      }
+    },
+    "add_refund": {
+      "title": "সরবরাহকারীর ফেরত লিখুন",
+      "toasts": {
+        "saved": "ফেরত সংরক্ষণ হয়েছে",
+        "save_failed": "ফেরত সংরক্ষণ করা যায়নি"
       }
     },
     "add_credit_purchase": {
@@ -215,6 +231,13 @@
         "after_update_prefix": "এই পরিবর্তনের পরে:"
       }
     },
+    "edit_refund": {
+      "title": "সরবরাহকারীর ফেরত পরিবর্তন করুন",
+      "review_title": "ফেরত রিভিউ ও আপডেট",
+      "messages": {
+        "after_update_prefix": "এই পরিবর্তনের পরে:"
+      }
+    },
     "edit_settlement": {
       "title": "পরিশোধ পরিবর্তন করুন",
       "review_title": "পরিশোধ রিভিউ ও আপডেট",
@@ -259,7 +282,9 @@
     "no_data_to_export": "এক্সপোর্ট করার মতো কোনো ডাটা নেই।",
     "exported_csv": "CSV এক্সপোর্ট হয়েছে।",
     "exported_pdf": "PDF এক্সপোর্ট হয়েছে।",
-    "export_pdf_failed": "PDF সংরক্ষণ করা যায়নি।"
+    "export_pdf_failed": "PDF সংরক্ষণ করা যায়নি।",
+    "edit_multi_line_credit_purchase": "এই বাকিতে ক্রয়ে একাধিক পণ্যের লাইন আছে; এখান থেকে সম্পাদনা করা যাবে না।",
+    "opening_purchases_for_multi_line_edit": "ক্রয় পেজ খুলছি—সেখানে দেখে সম্পাদনা করুন।"
   },
   "empty": {
     "title": "এখনও কোনো ট্রানজ্যাকশন নেই",

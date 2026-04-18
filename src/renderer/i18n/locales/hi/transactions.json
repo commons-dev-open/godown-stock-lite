@@ -12,6 +12,7 @@
     "credit_purchase": "उधार खरीद",
     "add_credit_purchase": "उधार खरीद जोड़ें",
     "add_settlement": "भुगतान जोड़ें",
+    "add_refund": "वापसी दर्ज करें",
     "view_invoice": "बिल देखें",
     "edit": "एडिट",
     "delete": "डिलीट",
@@ -41,21 +42,23 @@
     "deposit": "जमा",
     "credit_purchase": "उधार खरीद",
     "settlement": "भुगतान",
-    "cash_purchase": "नकद खरीद"
+    "cash_purchase": "नकद खरीद",
+    "lender_refund": "आपूर्तिकर्ता वापसी"
   },
   "ledger": {
     "section_title": "लेन-देन बही",
     "title": "बही",
-    "description": "आपके फिल्टर के अनुसार उधार खरीद, भुगतान और नकद खरीद यहाँ सबसे नई एंट्री पहले दिखाई देती हैं।"
+    "description": "आपके फिल्टर के अनुसार उधार खरीद, भुगतान, आपूर्तिकर्ता वापसी और नकद खरीद यहाँ सबसे नई एंट्री पहले दिखाई देती हैं।"
   },
   "filters": {
     "lender": "महाजन",
     "type": "प्रकार",
     "date_from": "शुरुआती तारीख",
     "date_to": "अंतिम तारीख",
-    "type_all": "सभी (उधार खरीद + भुगतान + नकद खरीद)",
+    "type_all": "सभी (उधार खरीद + भुगतान + वापसी + नकद खरीद)",
     "credit_purchase_only": "केवल उधार खरीद",
     "settlement_only": "केवल भुगतान",
+    "lender_refund_only": "केवल आपूर्तिकर्ता वापसी",
     "cash_purchase_only": "केवल नकद खरीद",
     "all_lenders": "सभी महाजन",
     "more_filters": "और फिल्टर",
@@ -130,6 +133,7 @@
         "lender_balance": "महाजन बैलेंस:",
         "total_credit_purchase": "कुल उधार खरीद",
         "total_settlements": "कुल भुगतान",
+        "total_refunds_recorded": "कुल दर्ज वापसियाँ",
         "total_deposits": "कुल जमा",
         "total": "कुल",
         "will_change_by": "से बदलेगा",
@@ -157,9 +161,21 @@
         "total_allocated": "कुल आवंटित",
         "differs_from_amount": "(भुगतान राशि से अलग है)"
       },
+      "actions": {
+        "suggest_fifo": "सबसे पुरानी उधार खरीद पहले सुझाएँ",
+        "suggesting_fifo": "सुझाव…"
+      },
       "toasts": {
         "saved": "भुगतान सेव हो गया",
-        "save_failed": "भुगतान सेव नहीं हो सका"
+        "save_failed": "भुगतान सेव नहीं हो सका",
+        "fifo_failed": "आवंटन सुझाव नहीं मिला"
+      }
+    },
+    "add_refund": {
+      "title": "आपूर्तिकर्ता वापसी दर्ज करें",
+      "toasts": {
+        "saved": "वापसी सेव हो गई",
+        "save_failed": "वापसी सेव नहीं हो सकी"
       }
     },
     "add_credit_purchase": {
@@ -215,6 +231,13 @@
         "after_update_prefix": "इस अपडेट के बाद:"
       }
     },
+    "edit_refund": {
+      "title": "आपूर्तिकर्ता वापसी एडिट करें",
+      "review_title": "वापसी रिव्यू और अपडेट",
+      "messages": {
+        "after_update_prefix": "इस अपडेट के बाद:"
+      }
+    },
     "edit_settlement": {
       "title": "भुगतान एडिट करें",
       "review_title": "भुगतान रिव्यू और अपडेट",
@@ -259,7 +282,9 @@
     "no_data_to_export": "एक्सपोर्ट के लिए कोई डेटा नहीं है।",
     "exported_csv": "CSV एक्सपोर्ट हो गया।",
     "exported_pdf": "PDF एक्सपोर्ट हो गया।",
-    "export_pdf_failed": "PDF सहेजा नहीं जा सका।"
+    "export_pdf_failed": "PDF सहेजा नहीं जा सका।",
+    "edit_multi_line_credit_purchase": "इस उधार खरीद में कई लाइनें हैं; यहाँ से एडिट नहीं हो सकती।",
+    "opening_purchases_for_multi_line_edit": "खरीदारी पेज खुल रहा है—वहाँ देखकर एडिट करें।"
   },
   "empty": {
     "title": "अभी कोई लेन-देन नहीं",

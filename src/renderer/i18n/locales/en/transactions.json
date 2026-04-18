@@ -12,6 +12,7 @@
     "credit_purchase": "Credit Purchase",
     "add_credit_purchase": "Add Credit Purchase",
     "add_settlement": "Add Settlement",
+    "add_refund": "Record refund",
     "view_invoice": "View invoice",
     "edit": "Edit",
     "delete": "Delete",
@@ -41,21 +42,23 @@
     "deposit": "Deposit",
     "credit_purchase": "Credit Purchase",
     "settlement": "Settlement",
-    "cash_purchase": "Cash Purchase"
+    "cash_purchase": "Cash Purchase",
+    "lender_refund": "Supplier refund"
   },
   "ledger": {
     "section_title": "Transaction ledger",
     "title": "Ledger",
-    "description": "Credit purchases, settlements, and cash purchases appear here with the latest first within your filters."
+    "description": "Credit purchases, settlements, supplier refunds, and cash purchases appear here with the latest first within your filters."
   },
   "filters": {
     "lender": "Lender",
     "type": "Type",
     "date_from": "Date From",
     "date_to": "Date To",
-    "type_all": "All (Credit Purchase + Settlement + Cash purchase)",
+    "type_all": "All (credit purchase + settlement + refund + cash purchase)",
     "credit_purchase_only": "Credit Purchase only",
     "settlement_only": "Settlement only",
+    "lender_refund_only": "Supplier refund only",
     "cash_purchase_only": "Cash purchase only",
     "all_lenders": "All Lenders",
     "more_filters": "More filters",
@@ -130,6 +133,7 @@
         "lender_balance": "Lender balance:",
         "total_credit_purchase": "Total Credit Purchase",
         "total_settlements": "Total Settlements",
+        "total_refunds_recorded": "Total recorded refunds",
         "total_deposits": "Total Deposits",
         "total": "Total",
         "will_change_by": "will change by",
@@ -157,9 +161,21 @@
         "total_allocated": "Total allocated",
         "differs_from_amount": "(differs from settlement amount)"
       },
+      "actions": {
+        "suggest_fifo": "Suggest oldest credit purchases first",
+        "suggesting_fifo": "Suggesting…"
+      },
       "toasts": {
         "saved": "Settlement saved",
-        "save_failed": "Failed to save settlement"
+        "save_failed": "Failed to save settlement",
+        "fifo_failed": "Could not suggest allocations"
+      }
+    },
+    "add_refund": {
+      "title": "Record supplier refund",
+      "toasts": {
+        "saved": "Refund saved",
+        "save_failed": "Failed to save refund"
       }
     },
     "add_credit_purchase": {
@@ -215,6 +231,13 @@
         "after_update_prefix": "After this update:"
       }
     },
+    "edit_refund": {
+      "title": "Edit supplier refund",
+      "review_title": "Review & update refund",
+      "messages": {
+        "after_update_prefix": "After this update:"
+      }
+    },
     "edit_settlement": {
       "title": "Edit Settlement",
       "review_title": "Review & Update Deposit",
@@ -259,7 +282,9 @@
     "no_data_to_export": "No data to export.",
     "exported_csv": "Exported as CSV.",
     "exported_pdf": "Exported as PDF.",
-    "export_pdf_failed": "Could not save PDF."
+    "export_pdf_failed": "Could not save PDF.",
+    "edit_multi_line_credit_purchase": "This credit purchase has multiple product lines and cannot be edited from this screen.",
+    "opening_purchases_for_multi_line_edit": "Opening Purchases so you can view and edit this entry."
   },
   "empty": {
     "title": "No transactions yet",
