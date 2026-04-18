@@ -1,4 +1,5 @@
 import { ExternalLink, Mail, MapPin, MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { HelpSectionPanel } from "./HelpSectionPanel";
 
 const DEVELOPER_PHOTO_SRC = new URL(
@@ -7,7 +8,6 @@ const DEVELOPER_PHOTO_SRC = new URL(
 ).href;
 
 const DEVELOPER_NAME = "Arindam Hazra";
-const FOUNDER_DEVELOPER_LABEL = "Founder and developer";
 const DEVELOPER_LOCATION = "West Bengal, India";
 const DEVELOPER_LINKEDIN = "https://www.linkedin.com/in/iamarindamhazra/";
 const DEVELOPER_EMAIL = "hi@arindamhazra.in";
@@ -24,10 +24,11 @@ async function openExternalUrl(url: string): Promise<void> {
 }
 
 export function HelpDeveloperContact() {
+  const { t } = useTranslation("help");
   return (
     <HelpSectionPanel
-      title="Founder and developer"
-      description="For product issues, purchase, renewal, or licensing, use the contact options below. WhatsApp is preferred for the quickest replies."
+      title={t("developer.panelTitle")}
+      description={t("developer.panelDescription")}
     >
       <div className="px-4 pb-4 pt-1">
         <div className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_1fr] sm:items-start sm:gap-8">
@@ -50,7 +51,7 @@ export function HelpDeveloperContact() {
                 {DEVELOPER_NAME}
               </p>
               <p className="mt-0.5 text-sm font-medium text-[var(--color-accent)]">
-                {FOUNDER_DEVELOPER_LABEL}
+                {t("developer.founderLabel")}
               </p>
               <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
                 <MapPin
@@ -74,8 +75,7 @@ export function HelpDeveloperContact() {
                 <span className="truncate">WhatsApp {WHATSAPP_DISPLAY}</span>
               </button>
               <p className="text-xs text-[var(--color-text-tertiary)] max-w-xl">
-                Prefer WhatsApp for issues, purchase, and renewal — replies are
-                usually faster than phone calls.
+                {t("developer.whatsappHint")}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -97,7 +97,7 @@ export function HelpDeveloperContact() {
                 }}
               >
                 <ExternalLink size={16} strokeWidth={1.75} aria-hidden="true" />
-                <span>LinkedIn profile</span>
+                <span>{t("developer.linkedinProfile")}</span>
               </button>
             </div>
           </div>

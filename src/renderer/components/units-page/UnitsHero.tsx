@@ -2,10 +2,8 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import Button from "../Button";
-import {
-  formatAbbreviatedInteger,
-  type NumberAbbreviationStyle,
-} from "../../../shared/numbers";
+import { useFormatters } from "../../i18n/useFormatters";
+import type { NumberAbbreviationStyle } from "../../../shared/numbers";
 interface UnitsHeroProps {
   abbreviationStyle: NumberAbbreviationStyle;
   unitsCount: number;
@@ -24,6 +22,7 @@ function UnitsHeroComponent({
   onPrimary,
 }: Readonly<UnitsHeroProps>) {
   const { t } = useTranslation("units");
+  const { formatAbbreviatedInteger } = useFormatters();
   return (
     <div className="dashboard-hero-sticky dashboard-hero-sticky--compact">
       <div className="dashboard-hero rounded-2xl border border-[var(--color-border-default)]">

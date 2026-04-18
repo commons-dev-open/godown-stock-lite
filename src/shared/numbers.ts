@@ -22,6 +22,7 @@ export {
   formatAbbreviatedInteger,
   formatAbbreviatedRupee,
   type NumberAbbreviationStyle,
+  type IndianAbbreviationUnitLabels,
 } from "./numberAbbreviation";
 
 /**

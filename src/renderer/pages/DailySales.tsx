@@ -41,10 +41,10 @@ import {
 import type { DailySale } from "../../shared/types";
 import {
   formatDecimal,
-  formatAbbreviatedInteger,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import { useAuth } from "../context/AuthContext";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import {
@@ -73,6 +73,7 @@ export default function DailySales() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedInteger } = useFormatters();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<DailySale | null>(null);
   const [page, setPage] = useState(1);

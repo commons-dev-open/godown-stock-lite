@@ -51,10 +51,10 @@ import {
 import {
   formatDecimal,
   roundDecimal,
-  formatAbbreviatedInteger,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import {
   SalesListHero,
@@ -552,6 +552,7 @@ export default function Invoices() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedInteger } = useFormatters();
   const createInvoice = useMutationWithToast({
     mutationFn: (payload: {
       invoice_number?: string | null;

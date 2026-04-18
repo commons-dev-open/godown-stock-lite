@@ -1,7 +1,7 @@
 {
   "hero": {
     "title": "ট্রানজ্যাকশন",
-    "subtitle": "টাকা আসা-যাওয়ার হিসাব"
+    "subtitle": "টাকা (₹) লেন-দেনের হিসাব"
   },
   "actions": {
     "export": "এক্সপোর্ট",
@@ -13,7 +13,7 @@
     "add_credit_purchase": "বাকিতে ক্রয় যোগ করুন",
     "add_settlement": "পরিশোধ যোগ করুন",
     "view_invoice": "ইনভয়েস দেখুন",
-    "edit": "এডিট",
+    "edit": "পরিবর্তন",
     "delete": "ডিলিট",
     "close": "বন্ধ করুন"
   },
@@ -23,11 +23,11 @@
   "columns": {
     "date": "তারিখ",
     "mahajan": "মহাজন",
-    "type": "টাইপ",
+    "type": "ধরণ",
     "product": "পণ্য",
     "qty": "পরিমাণ",
     "unit": "একক",
-    "amount": "টাকা",
+    "amount": "টাকা (₹)",
     "amount_inr": "টাকা (₹)",
     "notes": "নোট",
     "payment": "পেমেন্ট"
@@ -50,7 +50,7 @@
   },
   "filters": {
     "lender": "মহাজন",
-    "type": "টাইপ",
+    "type": "ধরণ",
     "date_from": "শুরুর তারিখ",
     "date_to": "শেষ তারিখ",
     "type_all": "সব (বাকিতে ক্রয় + পরিশোধ + নগদ ক্রয়)",
@@ -67,27 +67,27 @@
   "modals": {
     "shared": {
       "actions": {
-        "save": "সেভ করুন",
-        "saving": "সেভ হচ্ছে...",
+        "save": "সংরক্ষণ করুন",
+        "saving": "সংরক্ষিত হচ্ছে...",
         "confirm": "নিশ্চিত করুন",
         "back": "ফিরে যান",
         "review_confirm": "রিভিউ ও নিশ্চিত করুন",
         "review_update": "রিভিউ ও আপডেট",
         "confirm_update": "আপডেট নিশ্চিত করুন",
         "confirm_delete": "ডিলিট নিশ্চিত করুন",
-        "updating": "আপডেট হচ্ছে…",
+        "updating": "পরিবর্তন করা হচ্ছে…",
         "deleting": "ডিলিট হচ্ছে…",
-        "add_item": "আইটেম যোগ করুন",
-        "remove_line": "লাইন সরান"
+        "add_item": "পণ্য যোগ করুন",
+        "remove_line": "লাইন মুছুন"
       },
       "fields": {
         "lender_required": "মহাজন *",
         "date_required": "তারিখ * (dd/mm/yyyy)",
-        "amount_required": "টাকা *",
+        "amount_required": "টাকা (₹) *",
         "quantity": "পরিমাণ",
         "quantity_required": "পরিমাণ *",
-        "payment_method": "পেমেন্ট মেথড",
-        "reference": "রেফারেন্স",
+        "payment_method": "পেমেন্ট পদ্ধতি",
+        "reference": "রেফারেন্স নম্বর",
         "notes": "নোট"
       },
       "sections": {
@@ -102,30 +102,30 @@
       },
       "payment_methods": {
         "cash": {
-          "label": "ক্যাশ",
+          "label": "নগদ",
           "reference_label": "রসিদ নং / ভাউচার নং"
         },
         "bank": {
           "label": "ব্যাংক (NEFT/RTGS/IMPS)",
-          "reference_label": "UTR নং",
-          "placeholder": "যেমন 123456789012"
+          "reference_label": "UTR নম্বর",
+          "placeholder": "যেমন: 123456789012"
         },
         "upi": {
           "label": "UPI",
-          "reference_label": "UPI রেফারেন্স আইডি"
+          "reference_label": "UPI রেফারেন্স ID"
         },
         "cheque": {
           "label": "চেক",
-          "reference_label": "চেক নং"
+          "reference_label": "চেক নম্বর"
         }
       },
       "messages": {
         "summary_of_changes": "পরিবর্তনের সারাংশ",
-        "impact_after_update": "আপডেটের পর প্রভাব",
+        "impact_after_update": "পরিবর্তনের পর প্রভাব",
         "impact_after_delete": "ডিলিটের পর প্রভাব",
         "loading_balance": "ব্যালান্স লোড হচ্ছে…",
         "current_stock": "বর্তমান স্টক {{stock}}",
-        "after_update": "আপডেটের পরে",
+        "after_update": "পরিবর্তনের পরে",
         "after_delete": "ডিলিটের পরে",
         "lender_balance": "মহাজন ব্যালান্স:",
         "total_credit_purchase": "মোট বাকিতে ক্রয়",
@@ -158,8 +158,8 @@
         "differs_from_amount": "(পরিশোধের টাকার সাথে মিলছে না)"
       },
       "toasts": {
-        "saved": "পরিশোধ সেভ হয়েছে",
-        "save_failed": "পরিশোধ সেভ করা যায়নি"
+        "saved": "পরিশোধ সংরক্ষণ হয়েছে",
+        "save_failed": "পরিশোধ সংরক্ষণ করা যায়নি"
       }
     },
     "add_credit_purchase": {
@@ -171,18 +171,18 @@
       "fields": {
         "lender_invoice_number": "মহাজনের ইনভয়েস নম্বর",
         "upload_invoice": "ইনভয়েস আপলোড করুন",
-        "amount_to_pay_now": "এখনই দেওয়ার টাকা"
+        "amount_to_pay_now": "এখনই পরিশোধ করার টাকা (₹)"
       },
       "placeholders": {
         "invoice_number": "যেমন INV-2024-001",
-        "choose_file": "ফাইল বাছুন (PDF, images)"
+        "choose_file": "ফাইল বাছুন (PDF, ছবি)"
       },
       "actions": {
-        "remove_file": "ফাইল সরান"
+        "remove_file": "ফাইল মুছুন"
       },
       "messages": {
         "max_file_size": "সর্বোচ্চ 10 MB. অ্যাপ ডাটায় সংরক্ষিত হবে।",
-        "pay_now_help": "এই বাকিতে ক্রয়ের একটি অংশ এখনই পরিশোধ করুন। বাকি টাকা দেনা হিসেবে থাকবে।"
+        "pay_now_help": "এই বাকিতে ক্রয়ের একটি অংশ এখনই পরিশোধ করুন। বাকি টাকা (₹) দেনা হিসেবে থাকবে।"
       },
       "gst": {
         "exclusive": "এক্সক্লুসিভ",
@@ -192,11 +192,11 @@
         "pay_now_note": "বাকিতে ক্রয়ের সময় পরিশোধ (আংশিক)"
       },
       "toasts": {
-        "saved": "বাকিতে ক্রয় সেভ হয়েছে",
-        "saved_with_partial": "বাকিতে ক্রয় ও আংশিক পরিশোধ সেভ হয়েছে",
-        "save_failed": "বাকিতে ক্রয় সেভ করা যায়নি",
-        "add_one_item": "পরিমাণ ও টাকার সাথে অন্তত একটি পণ্য যোগ করুন।",
-        "pay_now_exceeds_total": "এখন পরিশোধের টাকা মোট বাকিতে ক্রয়ের টাকার বেশি হতে পারবে না।"
+        "saved": "বাকিতে ক্রয় সংরক্ষণ হয়েছে",
+        "saved_with_partial": "বাকিতে ক্রয় ও আংশিক পরিশোধ সংরক্ষণ হয়েছে",
+        "save_failed": "বাকিতে ক্রয় সংরক্ষণ করা যায়নি",
+        "add_one_item": "পরিমাণ ও টাকার সাথে অন্তত একটি পণ্য যোগ করুন",
+        "pay_now_exceeds_total": "এখন পরিশোধের টাকা (₹) মোট বাকিতে ক্রয়ের টাকার বেশি হতে পারবে না"
       },
       "confirm": {
         "title": "বাকিতে ক্রয় নিশ্চিত করুন",
@@ -208,18 +208,18 @@
       }
     },
     "edit_credit_purchase": {
-      "title": "বাকিতে ক্রয় এডিট করুন",
+      "title": "বাকিতে ক্রয় পরিবর্তন করুন",
       "review_title": "বাকিতে ক্রয় রিভিউ ও আপডেট",
       "messages": {
         "product_changed": "পণ্য বদলেছে; স্টকের প্রভাব নতুন পণ্যে প্রযোজ্য হবে।",
-        "after_update_prefix": "এই আপডেটের পরে:"
+        "after_update_prefix": "এই পরিবর্তনের পরে:"
       }
     },
     "edit_settlement": {
-      "title": "পরিশোধ এডিট করুন",
+      "title": "পরিশোধ পরিবর্তন করুন",
       "review_title": "পরিশোধ রিভিউ ও আপডেট",
       "messages": {
-        "after_update_prefix": "এই আপডেটের পরে:"
+        "after_update_prefix": "এই পরিবর্তনের পরে:"
       }
     },
     "cash_purchase": {
@@ -227,18 +227,18 @@
       "confirm_title": "নগদ ক্রয় নিশ্চিত করুন",
       "messages": {
         "on_date": "নগদ ক্রয় তারিখ",
-        "total_amount": "মোট টাকা"
+        "total_amount": "মোট টাকা (₹)"
       },
       "toasts": {
-        "add_one_item": "Qty ও টাকা (পূর্ণসংখ্যা) সহ অন্তত একটি পণ্য যোগ করুন।"
+        "add_one_item": "পরিমাণ ও টাকা (পূর্ণসংখ্যা) সহ অন্তত একটি পণ্য যোগ করুন"
       }
     },
     "edit_cash_purchase": {
-      "title": "নগদ ক্রয় এডিট করুন",
+      "title": "নগদ ক্রয় পরিবর্তন করুন",
       "review_title": "নগদ ক্রয় রিভিউ ও আপডেট"
     },
     "delete_transaction": {
-      "title": "রিভিউ ও ডিলিট",
+      "title": "রিভিউ ও মুছুন",
       "messages": {
         "summary": "আপনি এই ট্রানজ্যাকশন ডিলিট করতে যাচ্ছেন। সারাংশ:",
         "after_delete_prefix": "এই ডিলিটের পরে:"
@@ -246,16 +246,16 @@
     }
   },
   "toasts": {
-    "credit_purchase_updated": "বাকিতে ক্রয় আপডেট হয়েছে",
-    "credit_purchase_update_failed": "বাকিতে ক্রয় আপডেট করা যায়নি",
-    "settlement_updated": "পরিশোধ আপডেট হয়েছে",
-    "settlement_update_failed": "পরিশোধ আপডেট করা যায়নি",
+    "credit_purchase_updated": "বাকিতে ক্রয় পরিবর্তন হয়েছে",
+    "credit_purchase_update_failed": "বাকিতে ক্রয় পরিবর্তন করা যায়নি",
+    "settlement_updated": "পরিশোধ পরিবর্তন হয়েছে",
+    "settlement_update_failed": "পরিশোধ পরিবর্তন করা যায়নি",
     "credit_purchase_deleted": "বাকিতে ক্রয় ডিলিট হয়েছে",
     "credit_purchase_delete_failed": "বাকিতে ক্রয় ডিলিট করা যায়নি",
     "settlement_deleted": "পরিশোধ ডিলিট হয়েছে",
     "settlement_delete_failed": "পরিশোধ ডিলিট করা যায়নি",
-    "cash_purchases_saved": "নগদ ক্রয় সেভ হয়েছে",
-    "cash_purchases_save_failed": "নগদ ক্রয় সেভ করা যায়নি",
+    "cash_purchases_saved": "নগদ ক্রয় সংরক্ষণ হয়েছে",
+    "cash_purchases_save_failed": "নগদ ক্রয় সংরক্ষণ করা যায়নি",
     "no_data_to_export": "এক্সপোর্ট করার মতো কোনো ডাটা নেই।",
     "exported_csv": "CSV এক্সপোর্ট হয়েছে।",
     "exported_pdf": "PDF এক্সপোর্ট হয়েছে।",

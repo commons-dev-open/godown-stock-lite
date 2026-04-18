@@ -15,12 +15,11 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import {
-  formatAbbreviatedInteger,
-  formatAbbreviatedRupee,
   formatDecimal,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import type { Lender, Mahajan } from "../../shared/types";
 import { getElectron } from "../api/client";
 import Button from "../components/Button";
@@ -73,6 +72,7 @@ export default function Mahajans() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedInteger, formatAbbreviatedRupee } = useFormatters();
 
   const mahajansExportTexts = useMemo(
     (): MahajansExportText => ({
@@ -382,7 +382,12 @@ export default function Mahajans() {
       return formatAbbreviatedRupee(summary.totalLend, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, isLoadingSummary, summary]);
+  }, [
+    abbreviationStyle,
+    formatAbbreviatedRupee,
+    isLoadingSummary,
+    summary,
+  ]);
 
   const totalDepositDisplay = useMemo(() => {
     if (isLoadingSummary && summary == null) {
@@ -392,7 +397,12 @@ export default function Mahajans() {
       return formatAbbreviatedRupee(summary.totalDeposit, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, isLoadingSummary, summary]);
+  }, [
+    abbreviationStyle,
+    formatAbbreviatedRupee,
+    isLoadingSummary,
+    summary,
+  ]);
 
   const balanceDisplay = useMemo(() => {
     if (isLoadingSummary && summary == null) {
@@ -405,7 +415,12 @@ export default function Mahajans() {
       );
     }
     return "—";
-  }, [abbreviationStyle, isLoadingSummary, summary]);
+  }, [
+    abbreviationStyle,
+    formatAbbreviatedRupee,
+    isLoadingSummary,
+    summary,
+  ]);
 
   const balanceSuffix = useMemo(() => {
     if (summary == null) {

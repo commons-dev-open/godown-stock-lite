@@ -8,6 +8,17 @@ const BILLION = 1_000_000_000;
 
 export type NumberAbbreviationStyle = "indian" | "us" | "si";
 
+/** Suffix labels for Indian-style lac / crore abbreviations (i18n). */
+export interface IndianAbbreviationUnitLabels {
+  lac: string;
+  crore: string;
+}
+
+const DEFAULT_INDIAN_ABBREV_UNITS: IndianAbbreviationUnitLabels = {
+  lac: "Lac",
+  crore: "Cr",
+};
+
 export function parseNumberAbbreviationStyle(
   raw: string | undefined | null
 ): NumberAbbreviationStyle {
@@ -36,7 +47,8 @@ function formatIntegerFull(abs: number, locale: string): string {
 
 export function formatAbbreviatedInteger(
   value: number,
-  style: NumberAbbreviationStyle
+  style: NumberAbbreviationStyle,
+  indianUnits: IndianAbbreviationUnitLabels = DEFAULT_INDIAN_ABBREV_UNITS
 ): string {
   const sign = value < 0 ? "-" : "";
   const abs = Math.abs(value);
@@ -44,13 +56,14 @@ export function formatAbbreviatedInteger(
     return "—";
   }
   if (style === "indian") {
+    const { lac, crore } = indianUnits;
     if (abs < LAC) {
       return sign + formatIntegerFull(abs, "en-IN");
     }
     if (abs < CRORE) {
-      return sign + ratioString(abs / LAC, 2) + " Lac";
+      return `${sign}${ratioString(abs / LAC, 2)} ${lac}`;
     }
-    return sign + ratioString(abs / CRORE, 2) + " Cr";
+    return `${sign}${ratioString(abs / CRORE, 2)} ${crore}`;
   }
   if (style === "us") {
     if (abs < MILLION) {
@@ -82,7 +95,8 @@ function formatMoneyFull(abs: number, locale: string): string {
 
 export function formatAbbreviatedRupee(
   value: number,
-  style: NumberAbbreviationStyle
+  style: NumberAbbreviationStyle,
+  indianUnits: IndianAbbreviationUnitLabels = DEFAULT_INDIAN_ABBREV_UNITS
 ): string {
   const sign = value < 0 ? "-" : "";
   const abs = Math.abs(value);
@@ -91,13 +105,14 @@ export function formatAbbreviatedRupee(
   }
   const prefix = `${sign}₹`;
   if (style === "indian") {
+    const { lac, crore } = indianUnits;
     if (abs < LAC) {
       return prefix + formatMoneyFull(abs, "en-IN");
     }
     if (abs < CRORE) {
-      return prefix + ratioString(abs / LAC, 2) + " Lac";
+      return `${prefix}${ratioString(abs / LAC, 2)} ${lac}`;
     }
-    return prefix + ratioString(abs / CRORE, 2) + " Cr";
+    return `${prefix}${ratioString(abs / CRORE, 2)} ${crore}`;
   }
   if (style === "us") {
     if (abs < MILLION) {

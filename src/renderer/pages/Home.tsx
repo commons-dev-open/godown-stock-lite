@@ -35,11 +35,11 @@ import {
 } from "../components/home-dashboard/types";
 import {
   formatDecimal,
-  formatAbbreviatedRupee,
   formatRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 
 interface ReportSummary {
   todaySale: number;
@@ -84,6 +84,7 @@ export default function Home() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedRupee } = useFormatters();
   const defaultTotalFrom = useMemo(() => getMonthStart(), []);
   const defaultTotalTo = useMemo(() => todayISO(), []);
   const [weeklyDate, setWeeklyDate] = useState(todayISO());

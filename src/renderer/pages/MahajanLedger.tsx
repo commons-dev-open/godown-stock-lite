@@ -52,10 +52,10 @@ import Button from "../components/Button";
 import type { MahajanLend, MahajanDeposit, Item } from "../../shared/types";
 import {
   formatDecimal,
-  formatAbbreviatedRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import {
   pageRowToLedgerRow,
   toLendRecord,
@@ -134,6 +134,7 @@ export default function MahajanLedger() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedRupee } = useFormatters();
 
   const ledgerDescriptionLabels = useMemo(
     () => ({
@@ -492,7 +493,12 @@ export default function MahajanLedger() {
       return formatAbbreviatedRupee(balance.totalLends, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const totalSettlementDisplay = useMemo(() => {
     if (balanceLoading && balance == null) {
@@ -502,7 +508,12 @@ export default function MahajanLedger() {
       return formatAbbreviatedRupee(balance.totalDeposits, abbreviationStyle);
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const balanceDisplay = useMemo(() => {
     if (balanceLoading && balance == null) {
@@ -515,7 +526,12 @@ export default function MahajanLedger() {
       );
     }
     return "—";
-  }, [abbreviationStyle, balanceLoading, balance]);
+  }, [
+    abbreviationStyle,
+    balance,
+    balanceLoading,
+    formatAbbreviatedRupee,
+  ]);
 
   const balanceSuffix = useMemo(() => {
     if (balance == null) {

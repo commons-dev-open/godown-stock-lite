@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeftRight,
   CalendarDays,
@@ -21,26 +22,27 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { helpLocaleString } from "./helpLocaleString";
 import type { HelpTabId } from "./types";
 
 interface TabItem {
   id: HelpTabId;
-  label: string;
+  labelKey: string;
   Icon: LucideIcon;
 }
 
 const TAB_ITEMS: readonly TabItem[] = [
-  { id: "overview", label: "Overview", Icon: Home },
-  { id: "getting-started", label: "Getting started", Icon: Sparkles },
-  { id: "units", label: "Units", Icon: Scale },
-  { id: "products", label: "Products & stock", Icon: Package },
-  { id: "lenders", label: "Lenders", Icon: Users },
-  { id: "transactions", label: "Transactions", Icon: ArrowLeftRight },
-  { id: "daily-sales", label: "Daily sales", Icon: CalendarDays },
-  { id: "invoices", label: "Invoices", Icon: FileText },
-  { id: "team", label: "Team", Icon: UserCog },
-  { id: "reports", label: "Home & insights", Icon: PieChart },
-  { id: "settings-data", label: "Settings & data", Icon: Settings },
+  { id: "overview", labelKey: "overview", Icon: Home },
+  { id: "getting-started", labelKey: "gettingStarted", Icon: Sparkles },
+  { id: "units", labelKey: "units", Icon: Scale },
+  { id: "products", labelKey: "products", Icon: Package },
+  { id: "lenders", labelKey: "lenders", Icon: Users },
+  { id: "transactions", labelKey: "transactions", Icon: ArrowLeftRight },
+  { id: "daily-sales", labelKey: "dailySales", Icon: CalendarDays },
+  { id: "invoices", labelKey: "invoices", Icon: FileText },
+  { id: "team", labelKey: "team", Icon: UserCog },
+  { id: "reports", labelKey: "homeInsights", Icon: PieChart },
+  { id: "settings-data", labelKey: "settingsData", Icon: Settings },
 ];
 
 interface HelpSegmentedTabsProps {
@@ -61,6 +63,7 @@ export function HelpSegmentedTabs({
   active,
   onChange,
 }: Readonly<HelpSegmentedTabsProps>) {
+  const { t, i18n } = useTranslation("help");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -114,8 +117,8 @@ export function HelpSegmentedTabs({
         <button
           type="button"
           className={arrowBtnClass}
-          aria-label="Scroll topics left"
-          title="More topics on the left"
+          aria-label={t("segmentedTabs.scrollLeft")}
+          title={t("segmentedTabs.scrollLeftTitle")}
           disabled={!canScrollLeft}
           onClick={() => scrollTabs(-1)}
         >
@@ -127,10 +130,11 @@ export function HelpSegmentedTabs({
         ref={scrollerRef}
         className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
         role="tablist"
-        aria-label="Help topics"
+        aria-label={t("segmentedTabs.ariaTablist")}
       >
         <div className="flex w-max min-w-full flex-nowrap gap-1">
-          {TAB_ITEMS.map(({ id, label, Icon }) => {
+          {TAB_ITEMS.map(({ id, labelKey, Icon }) => {
+            const label = helpLocaleString(i18n, `tabLabels.${labelKey}`);
             const isActive = active === id;
             return (
               <button
@@ -163,8 +167,8 @@ export function HelpSegmentedTabs({
         <button
           type="button"
           className={arrowBtnClass}
-          aria-label="Scroll topics right"
-          title="More topics on the right"
+          aria-label={t("segmentedTabs.scrollRight")}
+          title={t("segmentedTabs.scrollRightTitle")}
           disabled={!canScrollRight}
           onClick={() => scrollTabs(1)}
         >

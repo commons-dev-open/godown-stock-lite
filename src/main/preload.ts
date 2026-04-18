@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 
 const electronAPI = {
   // Items
-  getItems: () => ipcRenderer.invoke("items:getAll"),
+  /** Includes `other_units` and `item_unit_conversions` (same as getItemsWithUnits). */
+  getItems: () => ipcRenderer.invoke("items:getAllWithUnits"),
   getItemsWithUnits: () => ipcRenderer.invoke("items:getAllWithUnits"),
   getItemsPage: (opts: { search?: string; page?: number; limit?: number }) =>
     ipcRenderer.invoke("items:getPage", opts),

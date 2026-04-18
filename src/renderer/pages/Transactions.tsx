@@ -70,13 +70,17 @@ import type {
   CreditPurchase,
   Settlement,
   Purchase,
+  Unit,
+  UnitConversion,
 } from "../../shared/types";
+import { convertToPrimaryQuantity } from "../../shared/unitConversion";
+import { getItemCatalogUnitsAsc } from "../../shared/itemCatalogUnits";
 import {
   formatDecimal,
-  formatAbbreviatedInteger,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { useFormatters } from "../i18n/useFormatters";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import {
   SalesListHero,
@@ -89,13 +93,24 @@ type PurchaseLine = {
   product_id: number;
   product_name: string;
   quantity: number;
+  quantity_unit: string;
   amount: number;
 };
+
+type ItemWithUnitGraph = Item & {
+  other_units?: { unit: string; sort_order: number }[];
+  item_unit_conversions?: { to_unit: string; factor: number }[];
+};
+
+function unitOptionLabel(u: Unit): string {
+  return (u.symbol && u.symbol.trim()) || u.name;
+}
 
 const emptyPurchaseLine = (): PurchaseLine => ({
   product_id: 0,
   product_name: "",
   quantity: 0,
+  quantity_unit: "",
   amount: 0,
 });
 
@@ -201,6 +216,7 @@ export default function Transactions() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const { formatAbbreviatedInteger } = useFormatters();
   const [lendOpen, setLendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [editingLend, setEditingLend] = useState<MahajanLend | null>(null);
@@ -373,6 +389,28 @@ export default function Transactions() {
     queryFn: () => api.getItems(),
   });
 
+  const { data: units = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => api.getUnits(),
+    enabled: purchaseAddOpen || confirmPurchaseOpen,
+  });
+
+  const { data: unitConversions = [] } = useQuery({
+    queryKey: ["unitConversions"],
+    queryFn: () => api.getUnitConversions(),
+    enabled: purchaseAddOpen || confirmPurchaseOpen,
+  });
+
+  const globalConversionRows = useMemo(
+    () =>
+      (unitConversions as UnitConversion[]).map((c) => ({
+        from_unit: c.from_unit,
+        to_unit: c.to_unit,
+        factor: c.factor,
+      })),
+    [unitConversions]
+  );
+
   const {
     data: ledgerPage,
     isLoading: ledgerLoading,
@@ -524,8 +562,49 @@ export default function Transactions() {
     mutationFn: (payload: {
       transaction_date: string;
       notes?: string;
-      lines: { product_id: number; quantity: number; amount: number }[];
-    }) => api.createPurchaseBatch(payload),
+      lines: PurchaseLine[];
+      globalConversionRows: {
+        from_unit: string;
+        to_unit: string;
+        factor: number;
+      }[];
+    }) => {
+      const linesApi = payload.lines.map((l) => {
+        const item = itemList.find((i) => i.id === l.product_id);
+        if (!item) {
+          return {
+            product_id: l.product_id,
+            quantity: l.quantity,
+            amount: l.amount,
+          };
+        }
+        const fromUnit = (l.quantity_unit || item.unit).trim();
+        const conv = convertToPrimaryQuantity(
+          payload.globalConversionRows,
+          {
+            unit: item.unit,
+            reference_unit: item.reference_unit,
+            quantity_per_primary: item.quantity_per_primary,
+            item_conversions: item.item_unit_conversions,
+          },
+          l.quantity,
+          fromUnit
+        );
+        if ("error" in conv) {
+          throw new Error(conv.error);
+        }
+        return {
+          product_id: l.product_id,
+          quantity: conv.primaryQuantity,
+          amount: l.amount,
+        };
+      });
+      return api.createPurchaseBatch({
+        transaction_date: payload.transaction_date,
+        notes: payload.notes,
+        lines: linesApi,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mahajanLedger"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
@@ -571,7 +650,7 @@ export default function Transactions() {
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
-  const itemList = items as Item[];
+  const itemList = items as ItemWithUnitGraph[];
 
   const appliedFilters = useMemo(() => {
     const list: { label: string; value: string }[] = [];
@@ -1948,7 +2027,7 @@ export default function Transactions() {
             if (!purchaseFormDate) return;
             const notes = (form.notes as HTMLInputElement).value?.trim() || "";
             const lines: PurchaseLine[] = purchaseLines
-              .map((_, idx) => {
+              .map((line, idx) => {
                 const productId = Number(
                   (form[`product_id_${idx}`] as HTMLSelectElement)?.value
                 );
@@ -1962,6 +2041,8 @@ export default function Transactions() {
                     ? Math.floor(Number(amountRaw))
                     : Number.NaN;
                 const item = itemList.find((i) => i.id === productId);
+                const quantityUnit =
+                  line.quantity_unit || item?.unit || "";
                 return productId &&
                   quantity > 0 &&
                   Number.isFinite(amount) &&
@@ -1970,6 +2051,7 @@ export default function Transactions() {
                       product_id: productId,
                       product_name: item?.name ?? "",
                       quantity,
+                      quantity_unit: quantityUnit,
                       amount,
                     }
                   : null;
@@ -1978,6 +2060,28 @@ export default function Transactions() {
             if (!lines.length) {
               toast.error(t("modals.cash_purchase.toasts.add_one_item"));
               return;
+            }
+            for (const line of lines) {
+              const item = itemList.find((i) => i.id === line.product_id);
+              if (!item) {
+                continue;
+              }
+              const fromUnit = (line.quantity_unit || item.unit).trim();
+              const conv = convertToPrimaryQuantity(
+                globalConversionRows,
+                {
+                  unit: item.unit,
+                  reference_unit: item.reference_unit,
+                  quantity_per_primary: item.quantity_per_primary,
+                  item_conversions: item.item_unit_conversions,
+                },
+                line.quantity,
+                fromUnit
+              );
+              if ("error" in conv) {
+                toast.error(conv.error);
+                return;
+              }
             }
             setConfirmPurchasePayload({
               transaction_date: purchaseFormDate,
@@ -2032,6 +2136,7 @@ export default function Transactions() {
                                 ...next[idx],
                                 product_id: id,
                                 product_name: item?.name ?? "",
+                                quantity_unit: item?.unit ?? "",
                               };
                               return next;
                             });
@@ -2051,9 +2156,9 @@ export default function Transactions() {
                         <input
                           name={`quantity_${idx}`}
                           type="number"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder={t("modals.shared.placeholders.zero")}
                           value={line.quantity === 0 ? "" : line.quantity}
                           onChange={(e) =>
@@ -2068,14 +2173,57 @@ export default function Transactions() {
                           }
                           className="input-base w-full text-right"
                           aria-label={
-                            selectedItem?.unit
-                              ? `Quantity (${selectedItem.unit})`
+                            line.quantity_unit || selectedItem?.unit
+                              ? `Quantity (${line.quantity_unit || selectedItem?.unit})`
                               : t("modals.shared.fields.quantity")
                           }
                         />
-                        <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
-                          {selectedItem?.unit ?? "—"}
-                        </span>
+                        <select
+                          value={
+                            line.quantity_unit ||
+                            selectedItem?.unit ||
+                            ""
+                          }
+                          onChange={(e) =>
+                            setPurchaseLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                quantity_unit: e.target.value,
+                              };
+                              return n;
+                            })
+                          }
+                          disabled={!selectedItem}
+                          className="input-base w-full min-w-0 text-sm"
+                          aria-label={t("columns.unit")}
+                        >
+                          {selectedItem
+                            ? (() => {
+                                const opts = getItemCatalogUnitsAsc(
+                                  selectedItem,
+                                  units as Unit[],
+                                  unitConversions as UnitConversion[],
+                                  selectedItem.unit
+                                );
+                                if (opts.length > 0) {
+                                  return opts.map((u) => (
+                                    <option key={u.id} value={u.name}>
+                                      {unitOptionLabel(u)}
+                                    </option>
+                                  ));
+                                }
+                                return (
+                                  <option
+                                    key={selectedItem.unit}
+                                    value={selectedItem.unit}
+                                  >
+                                    {selectedItem.unit}
+                                  </option>
+                                );
+                              })()
+                            : null}
+                        </select>
                         <input
                           name={`amount_${idx}`}
                           type="number"
@@ -2163,11 +2311,8 @@ export default function Transactions() {
                 createPurchaseBatch.mutate({
                   transaction_date: confirmPurchasePayload.transaction_date,
                   notes: confirmPurchasePayload.notes || undefined,
-                  lines: confirmPurchasePayload.lines.map((l) => ({
-                    product_id: l.product_id,
-                    quantity: l.quantity,
-                    amount: l.amount,
-                  })),
+                  lines: confirmPurchasePayload.lines,
+                  globalConversionRows,
                 });
               }}
               disabled={
@@ -2204,20 +2349,31 @@ export default function Transactions() {
               rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
               columns={cashPurchasePreviewColumns}
               data={confirmPurchasePayload.lines.map((line, idx) => {
-                const item = (
-                  items as {
-                    id: number;
-                    name: string;
-                    current_stock: number;
-                  }[]
-                ).find((i) => i.id === line.product_id);
+                const item = itemList.find((i) => i.id === line.product_id);
                 const oldStock = item?.current_stock ?? 0;
+                const fromUnit = (line.quantity_unit || item?.unit || "").trim();
+                const conv =
+                  item && fromUnit
+                    ? convertToPrimaryQuantity(
+                        globalConversionRows,
+                        {
+                          unit: item.unit,
+                          reference_unit: item.reference_unit,
+                          quantity_per_primary: item.quantity_per_primary,
+                          item_conversions: item.item_unit_conversions,
+                        },
+                        line.quantity,
+                        fromUnit
+                      )
+                    : { primaryQuantity: line.quantity };
+                const primaryQty =
+                  "error" in conv ? line.quantity : conv.primaryQuantity;
                 return {
                   id: idx + 1,
                   product: line.product_name || item?.name || "—",
                   oldStock,
-                  qty: line.quantity,
-                  totalAfter: oldStock + line.quantity,
+                  qty: primaryQty,
+                  totalAfter: oldStock + primaryQty,
                   amountDisplay: `₹${formatDecimal(line.amount)}`,
                 };
               })}

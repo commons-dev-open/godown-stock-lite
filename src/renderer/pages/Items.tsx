@@ -70,6 +70,26 @@ const GST_SLABS = [0, 5, 12, 18, 28] as const;
 
 type ConversionRow = { to_unit: string; factor: number };
 
+/** Same reachable unit set as invoice line units (catalog rows only). */
+function getStockModalUnitsForItem(
+  item: ItemWithUnits,
+  allUnits: Unit[],
+  globalConversions: UnitConversion[]
+): Unit[] {
+  const unitNames = computeProductUnits({
+    primaryUnit: item.unit,
+    retailPrimaryUnit: item.retail_primary_unit,
+    otherUnits: item.other_units,
+    itemConversions: item.item_unit_conversions ?? [],
+    globalConversions,
+    sortDirection: "asc",
+    pinUnit: item.unit,
+  });
+  return unitNames
+    .map((name) => allUnits.find((u) => u.name === name))
+    .filter((u): u is Unit => u != null);
+}
+
 export default function Items() {
   const { t } = useTranslation("items");
   const queryClient = useQueryClient();
@@ -213,6 +233,24 @@ export default function Items() {
     }
     return u.name;
   };
+
+  const addStockModalUnits = useMemo(() => {
+    if (!addStockItem) return [];
+    return getStockModalUnitsForItem(
+      addStockItem as ItemWithUnits,
+      units,
+      unitConversions
+    );
+  }, [addStockItem, units, unitConversions]);
+
+  const reduceStockModalUnits = useMemo(() => {
+    if (!reduceStockItem) return [];
+    return getStockModalUnitsForItem(
+      reduceStockItem as ItemWithUnits,
+      units,
+      unitConversions
+    );
+  }, [reduceStockItem, units, unitConversions]);
 
   const itemsListQuery = useQuery({
     queryKey: ["items"],
@@ -1826,16 +1864,17 @@ export default function Items() {
                 className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
               >
                 {addStockItem ? (
-                  <>
+                  addStockModalUnits.length === 0 ? (
                     <option value={addStockItem.unit}>
                       {unitDisplay(addStockItem.unit)}
                     </option>
-                    {units.map((u) => (
+                  ) : (
+                    addStockModalUnits.map((u) => (
                       <option key={u.id} value={u.name}>
                         {unitDisplay(u.name)}
                       </option>
-                    ))}
-                  </>
+                    ))
+                  )
                 ) : null}
               </select>
             </div>
@@ -1915,16 +1954,17 @@ export default function Items() {
                 className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
               >
                 {reduceStockItem ? (
-                  <>
+                  reduceStockModalUnits.length === 0 ? (
                     <option value={reduceStockItem.unit}>
                       {unitDisplay(reduceStockItem.unit)}
                     </option>
-                    {units.map((u) => (
+                  ) : (
+                    reduceStockModalUnits.map((u) => (
                       <option key={u.id} value={u.name}>
                         {unitDisplay(u.name)}
                       </option>
-                    ))}
-                  </>
+                    ))
+                  )
                 ) : null}
               </select>
             </div>

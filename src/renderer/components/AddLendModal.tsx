@@ -13,9 +13,11 @@ import Button from "./Button";
 import DataTable from "./DataTable";
 import { todayISO, formatDateForView, formatDateForForm } from "../lib/date";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
-import type { Item } from "../../shared/types";
+import type { Item, Unit, UnitConversion } from "../../shared/types";
 import { formatDecimal } from "../../shared/numbers";
 import { computeLineGst, GST_SLABS } from "../../shared/gst";
+import { convertToPrimaryQuantity } from "../../shared/unitConversion";
+import { getItemCatalogUnitsAsc } from "../../shared/itemCatalogUnits";
 
 const PAYMENT_METHODS = [
   {
@@ -41,10 +43,21 @@ const PAYMENT_METHODS = [
   },
 ] as const;
 
+type ItemWithUnitGraph = Item & {
+  other_units?: { unit: string; sort_order: number }[];
+  item_unit_conversions?: { to_unit: string; factor: number }[];
+};
+
+function unitOptionLabel(u: Unit): string {
+  return (u.symbol && u.symbol.trim()) || u.name;
+}
+
 export type LendLine = {
   product_id: number;
   product_name: string;
   quantity: number;
+  /** Quantity entered in this unit; defaults to item primary (stock) unit. */
+  quantity_unit: string;
   amount: number;
   gst_rate: number;
   gst_inclusive: boolean;
@@ -62,6 +75,7 @@ const emptyLine = (): LendLine => ({
   product_id: 0,
   product_name: "",
   quantity: 0,
+  quantity_unit: "",
   amount: 0,
   gst_rate: 0,
   gst_inclusive: false,
@@ -142,6 +156,28 @@ export default function AddLendModal({
     enabled: open,
   });
 
+  const { data: units = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => api.getUnits(),
+    enabled: open,
+  });
+
+  const { data: unitConversions = [] } = useQuery({
+    queryKey: ["unitConversions"],
+    queryFn: () => api.getUnitConversions(),
+    enabled: open,
+  });
+
+  const globalConversionRows = useMemo(
+    () =>
+      (unitConversions as UnitConversion[]).map((c) => ({
+        from_unit: c.from_unit,
+        to_unit: c.to_unit,
+        factor: c.factor,
+      })),
+    [unitConversions]
+  );
+
   const mahajanIdForBalance = confirmPayload?.mahajan_id ?? fixedMahajanId;
   const { data: mahajanBalance, isFetching: balanceLoading } = useQuery({
     queryKey: ["mahajanBalance", mahajanIdForBalance],
@@ -150,7 +186,7 @@ export default function AddLendModal({
   });
 
   const buildLinesWithGst = useCallback(
-    (lines: LendLine[]) =>
+    (lines: ReadonlyArray<LendLine>) =>
       lines.map((l) => {
         const gross = l.amount || 0;
         const rate = gstEnabled ? l.gst_rate : 0;
@@ -215,7 +251,12 @@ export default function AddLendModal({
       pay_now_amount?: number;
       pay_now_payment_method?: string;
       pay_now_reference_number?: string;
-      lines: ReturnType<typeof buildLinesWithGst>;
+      lines: LendLine[];
+      globalConversionRows: {
+        from_unit: string;
+        to_unit: string;
+        factor: number;
+      }[];
     }) => {
       let invoicePath = payload.invoice_file_path;
       const batchUuid = payload.batch_uuid ?? crypto.randomUUID();
@@ -238,6 +279,30 @@ export default function AddLendModal({
           extension: ext,
         });
       }
+      const convRows = payload.globalConversionRows;
+      const linesPrimaryQty = payload.lines.map((l) => {
+        const item = itemList.find((i) => i.id === l.product_id);
+        if (!item) {
+          return l;
+        }
+        const fromUnit = (l.quantity_unit || item.unit).trim();
+        const conv = convertToPrimaryQuantity(
+          convRows,
+          {
+            unit: item.unit,
+            reference_unit: item.reference_unit,
+            quantity_per_primary: item.quantity_per_primary,
+            item_conversions: item.item_unit_conversions,
+          },
+          l.quantity,
+          fromUnit
+        );
+        if ("error" in conv) {
+          throw new Error(conv.error);
+        }
+        return { ...l, quantity: conv.primaryQuantity };
+      });
+      const linesWithGst = buildLinesWithGst(linesPrimaryQty);
       await api.createMahajanLendBatch({
         mahajan_id: payload.mahajan_id,
         transaction_date: payload.transaction_date,
@@ -245,7 +310,7 @@ export default function AddLendModal({
         lender_invoice_number: payload.lender_invoice_number || undefined,
         invoice_file_path: invoicePath,
         batch_uuid: batchUuid,
-        lines: payload.lines,
+        lines: linesWithGst,
       });
 
       const payNow = payload.pay_now_amount ?? 0;
@@ -289,7 +354,7 @@ export default function AddLendModal({
   });
 
   const mahajanList = mahajans as { id: number; name: string }[];
-  const itemList = items as Item[];
+  const itemList = items as ItemWithUnitGraph[];
   const mahajanOptions = useMemo(
     () => mahajanList.map((m) => ({ value: m.id, label: m.name })),
     [mahajanList]
@@ -327,6 +392,7 @@ export default function AddLendModal({
               product_id: productId,
               product_name: item?.name ?? "",
               quantity,
+              quantity_unit: line.quantity_unit || item?.unit || "",
               amount,
               gst_rate: gstRate,
               gst_inclusive: gstInclusive,
@@ -337,6 +403,28 @@ export default function AddLendModal({
     if (!lines.length) {
       toast.error(t("modals.add_credit_purchase.toasts.add_one_item"));
       return;
+    }
+    for (const line of lines) {
+      const item = itemList.find((i) => i.id === line.product_id);
+      if (!item) {
+        continue;
+      }
+      const fromUnit = (line.quantity_unit || item.unit).trim();
+      const conv = convertToPrimaryQuantity(
+        globalConversionRows,
+        {
+          unit: item.unit,
+          reference_unit: item.reference_unit,
+          quantity_per_primary: item.quantity_per_primary,
+          item_conversions: item.item_unit_conversions,
+        },
+        line.quantity,
+        fromUnit
+      );
+      if ("error" in conv) {
+        toast.error(conv.error);
+        return;
+      }
     }
     const mahajan = mahajanList.find((m) => m.id === mahajanId);
     const totalAmount = buildLinesWithGst(lines).reduce(
@@ -453,6 +541,7 @@ export default function AddLendModal({
                                 ...n[idx],
                                 product_id: id,
                                 product_name: item?.name ?? "",
+                                quantity_unit: item?.unit ?? "",
                                 gst_rate:
                                   (item as Item & { gst_rate?: number })
                                     ?.gst_rate ?? 0,
@@ -471,9 +560,9 @@ export default function AddLendModal({
                         <input
                           name={`quantity_${idx}`}
                           type="number"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder={t("modals.shared.placeholders.zero")}
                           value={line.quantity || ""}
                           onChange={(e) =>
@@ -488,14 +577,57 @@ export default function AddLendModal({
                           }
                           className="input-base w-full text-right"
                           aria-label={
-                            selectedItem?.unit
-                              ? `Quantity (${selectedItem.unit})`
+                            line.quantity_unit || selectedItem?.unit
+                              ? `Quantity (${line.quantity_unit || selectedItem?.unit})`
                               : t("modals.shared.fields.quantity")
                           }
                         />
-                        <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
-                          {selectedItem?.unit ?? "\u2014"}
-                        </span>
+                        <select
+                          value={
+                            line.quantity_unit ||
+                            selectedItem?.unit ||
+                            ""
+                          }
+                          onChange={(e) =>
+                            setLendLines((prev) => {
+                              const n = [...prev];
+                              n[idx] = {
+                                ...n[idx],
+                                quantity_unit: e.target.value,
+                              };
+                              return n;
+                            })
+                          }
+                          disabled={!selectedItem}
+                          className="input-base w-full min-w-0 text-sm"
+                          aria-label={t("columns.unit")}
+                        >
+                          {selectedItem
+                            ? (() => {
+                                const opts = getItemCatalogUnitsAsc(
+                                  selectedItem,
+                                  units as Unit[],
+                                  unitConversions as UnitConversion[],
+                                  selectedItem.unit
+                                );
+                                if (opts.length > 0) {
+                                  return opts.map((u) => (
+                                    <option key={u.id} value={u.name}>
+                                      {unitOptionLabel(u)}
+                                    </option>
+                                  ));
+                                }
+                                return (
+                                  <option
+                                    key={selectedItem.unit}
+                                    value={selectedItem.unit}
+                                  >
+                                    {selectedItem.unit}
+                                  </option>
+                                );
+                              })()
+                            : null}
+                        </select>
                         <input
                           name={`amount_${idx}`}
                           type="number"
@@ -782,7 +914,6 @@ export default function AddLendModal({
                 variant="amber"
                 onClick={() => {
                   if (!confirmPayload) return;
-                  const linesWithGst = buildLinesWithGst(confirmPayload.lines);
                   createLendBatch.mutate({
                     mahajan_id: confirmPayload.mahajan_id,
                     transaction_date: confirmPayload.transaction_date,
@@ -791,7 +922,8 @@ export default function AddLendModal({
                       confirmPayload.lender_invoice_number || undefined,
                     invoice_file: confirmPayload.invoice_file,
                     batch_uuid: crypto.randomUUID(),
-                    lines: linesWithGst,
+                    lines: confirmPayload.lines,
+                    globalConversionRows,
                     pay_now_amount: confirmPayload.pay_now_amount,
                     pay_now_payment_method:
                       confirmPayload.pay_now_payment_method || undefined,
@@ -830,20 +962,31 @@ export default function AddLendModal({
               rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
               columns={lendConfirmColumns}
               data={confirmPayload.lines.map((line, idx) => {
-                const item = (
-                  items as {
-                    id: number;
-                    name: string;
-                    current_stock: number;
-                  }[]
-                ).find((i) => i.id === line.product_id);
+                const item = itemList.find((i) => i.id === line.product_id);
                 const oldStock = item?.current_stock ?? 0;
+                const fromUnit = (line.quantity_unit || item?.unit || "").trim();
+                const conv =
+                  item && fromUnit
+                    ? convertToPrimaryQuantity(
+                        globalConversionRows,
+                        {
+                          unit: item.unit,
+                          reference_unit: item.reference_unit,
+                          quantity_per_primary: item.quantity_per_primary,
+                          item_conversions: item.item_unit_conversions,
+                        },
+                        line.quantity,
+                        fromUnit
+                      )
+                    : { primaryQuantity: line.quantity };
+                const primaryQty =
+                  "error" in conv ? line.quantity : conv.primaryQuantity;
                 return {
                   id: idx + 1,
                   productLabel: line.product_name || item?.name || "\u2014",
                   oldStock,
-                  quantity: line.quantity,
-                  after: oldStock + line.quantity,
+                  quantity: primaryQty,
+                  after: oldStock + primaryQty,
                 };
               })}
               pagination={{ type: "client" }}

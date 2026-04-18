@@ -90,7 +90,7 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
         converted. Invoices and stock screens combine these definitions with
         each product&apos;s own alternate units and conversion rows.
       </p>
-      <HelpSubSection title="All units (stock units)">
+      <HelpSubSection title="All units">
         <p className="mb-2">
           These are the units every product references (kilogram, piece, box,
           litre, and so on). Each row has a name, an optional short symbol for

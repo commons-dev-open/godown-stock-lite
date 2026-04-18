@@ -10,16 +10,16 @@
     "fetchLatestHintDefault": "মোট রিফ্রেশ করুন"
   },
   "actions": {
-    "addMahajan": "মহাজন অ্যাড",
-    "editMahajan": "মহাজন এডিট",
+    "addMahajan": "মহাজন যোগ করুন",
+    "editMahajan": "মহাজন পরিবর্তন",
     "deleteMahajan": "মহাজন ডিলিট",
     "viewLedger": "লেজার দেখুন",
     "addLend": "ধার দিন",
     "addDeposit": "জমা",
     "export": "এক্সপোর্ট",
-    "exportAsCsv": "CSV এক্সপোর্ট",
-    "exportAsPdf": "PDF এক্সপোর্ট",
-    "print": "প্রিন্ট",
+    "exportAsCsv": "CSV হিসেবে এক্সপোর্ট",
+    "exportAsPdf": "PDF হিসেবে এক্সপোর্ট",
+    "print": "প্রিন্ট করুন",
     "showBalance": "ব্যালান্স দেখান",
     "viewBalance": "ব্যালান্স দেখুন"
   },
@@ -52,11 +52,11 @@
     "openingBalance": "ওপেনিং",
     "closing": "ক্লোজিং",
     "debit": "ডেবিট",
-    "credit": "ক্রেডিট",
+    "credit": "দেনা",
     "filtersBar": "ফিল্টার",
     "sectionTitle": "মহাজন লেজার",
     "entriesTitle": "লেজার এন্ট্রি",
-    "entriesDescription": "টাইপ/তারিখ দিয়ে ফিল্টার করুন, বাকিতে ক্রয় বা জমা যোগ করুন, এবং দরকারে এক্সপোর্ট করুন।",
+    "entriesDescription": "ধরণ/তারিখ দিয়ে ফিল্টার করুন, বাকিতে ক্রয় বা জমা যোগ করুন, এবং দরকারে এক্সপোর্ট করুন।",
     "invalidLender": "অবৈধ মহাজন",
     "columns": {
       "date": "তারিখ",
@@ -98,8 +98,8 @@
   },
   "empty": {
     "title": "এখনও কোনো মহাজন নেই",
-    "message": "ধার ও জমা ট্র্যাক করতে মহাজন অ্যাড করুন।",
-    "cta": "প্রথম মহাজন অ্যাড করুন",
+    "message": "ধার ও জমা ট্র্যাক করতে মহাজন যোগ করুন।",
+    "cta": "প্রথম মহাজন যোগ করুন",
     "matchingLendersTitle": "মিলানো মহাজন নেই",
     "noLendersTitle": "এখনও কোনো মহাজন নেই",
     "matchingLendersDescription": "অন্য সার্চ করুন বা ফিল্টার পরিষ্কার করুন।",
@@ -137,10 +137,10 @@
     }
   },
   "common": {
-    "save": "সেভ",
-    "update": "আপডেট",
+    "save": "সংরক্ষণ করুন",
+    "update": "আপডেট করুন",
     "delete": "ডিলিট",
-    "edit": "এডিট",
+    "edit": "পরিবর্তন",
     "loading": "লোড হচ্ছে..."
   },
   "export": {
@@ -149,7 +149,7 @@
     "pdfSuccess": "PDF এক্সপোর্ট সম্পন্ন।",
     "pdfFailed": "PDF সংরক্ষণ করা যায়নি।",
     "columns": {
-      "id": "আইডি",
+      "id": "ID",
       "createdAt": "তৈরির সময়",
       "updatedAt": "আপডেটের সময়"
     }

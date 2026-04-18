@@ -2,10 +2,8 @@ import { memo, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Button from "../Button";
-import {
-  formatAbbreviatedInteger,
-  type NumberAbbreviationStyle,
-} from "../../../shared/numbers";
+import { useFormatters } from "../../i18n/useFormatters";
+import type { NumberAbbreviationStyle } from "../../../shared/numbers";
 
 interface ItemsHeroProps {
   abbreviationStyle: NumberAbbreviationStyle;
@@ -27,6 +25,7 @@ function ItemsHeroComponent({
   toolbar,
 }: Readonly<ItemsHeroProps>) {
   const { t } = useTranslation("items");
+  const { formatAbbreviatedInteger } = useFormatters();
 
   return (
     <div className="dashboard-hero-sticky dashboard-hero-sticky--compact">

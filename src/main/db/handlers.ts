@@ -10,7 +10,7 @@ import {
   convertToPrimaryQuantity,
   type ConversionRow,
   type ItemConversionRow,
-} from "./unitConversion";
+} from "../../shared/unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
 import {
   SEED_CONVERSION_KEYS,
