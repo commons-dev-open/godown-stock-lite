@@ -3,7 +3,7 @@
  * Writes src/shared/buildConfig.ts with TRIAL_MODE and TRIAL_END_ISO from env.
  * Trial build: TRIAL_MODE=true npm run build
  * With end date: TRIAL_MODE=true TRIAL_END=2025-04-15T23:59:59 npm run build
- * Default (no TRIAL_END): 3 days from now, end of day (23:59:59).
+ * Default (no TRIAL_END): 14 days from now, end of day (23:59:59).
  */
 import fs from "fs";
 import path from "path";
@@ -22,7 +22,7 @@ if (trial) {
     trialEndIso = JSON.stringify(process.env.TRIAL_END);
   } else {
     const d = new Date();
-    d.setDate(d.getDate() + 3);
+    d.setDate(d.getDate() + 14);
     d.setHours(23, 59, 59, 999);
     trialEndIso = JSON.stringify(d.toISOString());
   }
@@ -33,7 +33,7 @@ const content = `/**
  * Full: npm run build
  * Trial: TRIAL_MODE=true npm run build
  * Trial with end: TRIAL_MODE=true TRIAL_END=2025-04-15T23:59:59 npm run build
- * Default trial: 3 days from build, end of day.
+ * Default trial: 14 days from build, end of day.
  */
 export const TRIAL_MODE = ${trial};
 /** ISO date-time string when trial ends (e.g. "2025-04-15T23:59:59.000Z"). Empty when not trial. */

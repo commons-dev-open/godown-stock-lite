@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       trial_expiry:
-        description: 'Trial end (ISO date-time, e.g. 2025-04-15T23:59:59 or 2025-04-15T23:59:59.000Z). Leave empty for 3 days from build (end of day).'
+        description: 'Trial end (ISO date-time, e.g. 2025-04-15T23:59:59 or 2025-04-15T23:59:59.000Z). Leave empty for 14 days from build (end of day).'
         required: false
         type: string
 

@@ -46,14 +46,14 @@ Output: `release/` (macOS dmg, Windows nsis). Icon: `resources/Icon.ico` (Window
 
 - **Trial (for client before payment):** Build and package the trial build. The app shows a “Trial” badge, a **countdown timer** (e.g. “5d 3h left”) in the sidebar, and “(Trial)” in the window title. After the trial end date/time, the app is blocked: **every click** shows a “Trial ended” dialog (no other actions are performed).
 
-  Set the trial end date when building (ISO date-time; default is 30 days from build date):
+  Set the trial end date when building (ISO date-time; default is 14 days from build date):
 
   ```bash
   TRIAL_END=2025-04-15T23:59:59 npm run build:trial
   npm run dist
   ```
 
-  Or use default end (30 days from build):
+  Or use default end (14 days from build):
 
   ```bash
   npm run build:trial
