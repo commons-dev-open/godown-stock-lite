@@ -1,6 +1,12 @@
 {
   "title": "Purchases",
-  "subtitle": "Credit and cash stock purchases in one place.",
+  "hero": {
+    "title": "Purchases"
+  },
+  "list": {
+    "title": "Bills",
+    "description": "Credit and cash stock purchases in one place."
+  },
   "filters": {
     "kind": "Type",
     "kind_all": "All types",
@@ -33,8 +39,10 @@
     "view_invoice": "View invoice"
   },
   "empty": {
-    "title": "No purchases",
-    "description": "Try changing filters or record a purchase from Transactions."
+    "title": "No purchases yet",
+    "description": "Record a cash purchase or add a credit purchase from the buttons above. New bills will appear here.",
+    "no_matching_title": "No matching purchases",
+    "no_matching_message": "Try clearing filters or widening the date range."
   },
   "modal": {
     "title_edit": "Edit purchase",

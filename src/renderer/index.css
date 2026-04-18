@@ -315,8 +315,7 @@ body {
     transition: box-shadow var(--transition-default), transform var(--transition-fast);
   }
   .dashboard-panel:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    box-shadow: var(--shadow-md); 
   }
   .dashboard-section-head {
     display: flex;

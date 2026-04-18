@@ -58,6 +58,7 @@
     "sectionTitle": "Lender ledger",
     "entriesTitle": "Ledger entries",
     "entriesDescription": "Filter by type or date, add credit purchases or settlements, and export when you need a file or printout.",
+    "backToLenders": "Back to lenders",
     "invalidLender": "Invalid lender",
     "columns": {
       "date": "Date",

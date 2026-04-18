@@ -3,13 +3,15 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { Pencil, Wallet } from "lucide-react";
+import { Banknote, Pencil, Plus, Wallet } from "lucide-react";
 import { getElectron } from "../api/client";
 import { PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
 import FormModal from "../components/FormModal";
 import DataTable from "../components/DataTable";
 import Button from "../components/Button";
+import AddLendModal from "../components/AddLendModal";
+import { CashPurchaseEntryModals } from "../components/CashPurchaseEntryModals";
 import type {
   Item,
   Lender,
@@ -63,6 +65,8 @@ export default function Purchases() {
   const api = getElectron();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [lendModalOpen, setLendModalOpen] = useState(false);
+  const [cashPurchaseModalOpen, setCashPurchaseModalOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [filterKind, setFilterKind] = useState<"" | "credit" | "cash">("");
@@ -107,6 +111,12 @@ export default function Purchases() {
   useEffect(() => {
     setPage(1);
   }, [filterKind, filterLenderId, filterDateFrom, filterDateTo]);
+
+  useEffect(() => {
+    if (filterKind === "cash") {
+      setFilterLenderId("");
+    }
+  }, [filterKind]);
 
   const { data: lenders = [] } = useQuery({
     queryKey: ["lenders"],
@@ -680,12 +690,42 @@ export default function Purchases() {
     setFilterDateTo("");
   }, []);
 
+  const hasPurchaseFilters = useMemo(() => {
+    return (
+      filterKind !== "" ||
+      filterLenderId !== "" ||
+      Boolean(filterDateFrom) ||
+      Boolean(filterDateTo)
+    );
+  }, [filterKind, filterLenderId, filterDateFrom, filterDateTo]);
+
   return (
-    <div className="min-h-0 flex flex-col gap-4 p-4 md:p-6">
-      <SalesListHero title={t("title")} metrics={[]} actions={null} />
-      <p className="text-sm text-[var(--color-text-secondary)] -mt-2 px-1">
-        {t("subtitle")}
-      </p>
+    <div className="space-y-4 home-dashboard pb-3">
+      <SalesListHero
+        title={t("hero.title")}
+        metrics={[]}
+        actions={
+          <>
+            <Button
+              variant="primary"
+              type="button"
+              onClick={() => setCashPurchaseModalOpen(true)}
+              className="!bg-[var(--color-accent)] hover:!bg-[var(--color-accent-hover)]"
+            >
+              <Banknote size={20} className="mr-1.5" aria-hidden="true" />
+              {tTx("actions.cash_purchase")}
+            </Button>
+            <Button
+              variant="amber"
+              type="button"
+              onClick={() => setLendModalOpen(true)}
+            >
+              <Plus size={20} className="mr-1.5" aria-hidden="true" />
+              {tTx("actions.add_credit_purchase")}
+            </Button>
+          </>
+        }
+      />
 
       <DashboardSectionBoundary
         sectionTitle={t("title")}
@@ -701,32 +741,36 @@ export default function Purchases() {
           rows.length,
         ]}
       >
-        <SalesListSectionPanel title={t("title")}>
-          <div className="flex flex-wrap items-end gap-3 p-3 border-b border-[var(--color-border-default)]">
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+        <SalesListSectionPanel
+          title={t("list.title")}
+          description={t("list.description")}
+        >
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)]">
+            <div className="flex min-w-0 flex-col gap-1 shrink-0">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
                 {t("filters.kind")}
-              </label>
+              </span>
               <select
                 value={filterKind}
                 onChange={(e) =>
                   setFilterKind(e.target.value as "" | "credit" | "cash")
                 }
-                className="input-base min-w-[10rem]"
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] min-w-[10rem] max-w-full"
               >
                 <option value="">{t("filters.kind_all")}</option>
                 <option value="credit">{t("filters.kind_credit")}</option>
                 <option value="cash">{t("filters.kind_cash")}</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+            <div className="flex min-w-0 flex-col gap-1 shrink-0">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
                 {t("filters.lender")}
-              </label>
+              </span>
               <select
                 value={filterLenderId}
                 onChange={(e) => setFilterLenderId(e.target.value)}
-                className="input-base min-w-[12rem]"
+                disabled={filterKind === "cash"}
+                className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] min-w-[12rem] max-w-full disabled:opacity-50"
               >
                 <option value="">{t("filters.lender_all")}</option>
                 {(lenders as Lender[]).map((m) => (
@@ -736,32 +780,38 @@ export default function Purchases() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+            <div className="flex min-w-0 flex-col gap-1 shrink-0">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
                 {t("filters.date_from")}
-              </label>
+              </span>
               <DateInput
                 value={filterDateFrom}
                 onChange={setFilterDateFrom}
-                className="w-full min-w-[10rem] border border-[var(--color-border-strong)] rounded px-3 py-2"
+                className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full min-w-[10rem]"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+            <div className="flex min-w-0 flex-col gap-1 shrink-0">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
                 {t("filters.date_to")}
-              </label>
+              </span>
               <DateInput
                 value={filterDateTo}
                 onChange={setFilterDateTo}
-                className="w-full min-w-[10rem] border border-[var(--color-border-strong)] rounded px-3 py-2"
+                className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full min-w-[10rem]"
               />
             </div>
-            <Button type="button" variant="secondary" onClick={clearFilters}>
-              {t("filters.clear")}
-            </Button>
+            {hasPurchaseFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="self-end sm:self-center shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline"
+              >
+                {t("filters.clear")}
+              </button>
+            ) : null}
           </div>
 
-          <div className="mt-2">
+          <div className="mt-4">
             <SalesListAsyncPanel
               isLoading={listLoading}
               isError={listError}
@@ -769,14 +819,40 @@ export default function Purchases() {
                 void refetchList();
               }}
               isEmpty={!listLoading && rows.length === 0}
-              emptyTitle={t("empty.title")}
-              emptyDescription={t("empty.description")}
-              emptyActionLabel={t("filters.clear")}
-              onEmptyAction={clearFilters}
+              emptyTitle={
+                hasPurchaseFilters
+                  ? t("empty.no_matching_title")
+                  : t("empty.title")
+              }
+              emptyDescription={
+                hasPurchaseFilters
+                  ? t("empty.no_matching_message")
+                  : t("empty.description")
+              }
+              emptyActionLabel={
+                hasPurchaseFilters
+                  ? t("filters.clear")
+                  : tTx("actions.cash_purchase")
+              }
+              onEmptyAction={
+                hasPurchaseFilters
+                  ? clearFilters
+                  : () => setCashPurchaseModalOpen(true)
+              }
+              emptySecondaryLabel={
+                hasPurchaseFilters
+                  ? tTx("actions.cash_purchase")
+                  : tTx("actions.add_credit_purchase")
+              }
+              onEmptySecondary={
+                hasPurchaseFilters
+                  ? () => setCashPurchaseModalOpen(true)
+                  : () => setLendModalOpen(true)
+              }
               loaderColumns={9}
             >
               <DataTable<SupplierPurchasePageRow>
-                scrollMaxHeight={`calc(100vh - 22rem)`}
+                scrollMaxHeight={`calc(100vh - 20.5rem)`}
                 columns={columns}
                 data={rows}
                 getRowKey={(r) => String(r.id)}
@@ -794,6 +870,12 @@ export default function Purchases() {
           </div>
         </SalesListSectionPanel>
       </DashboardSectionBoundary>
+
+      <AddLendModal open={lendModalOpen} onClose={() => setLendModalOpen(false)} />
+      <CashPurchaseEntryModals
+        open={cashPurchaseModalOpen}
+        onClose={() => setCashPurchaseModalOpen(false)}
+      />
 
       <FormModal
         title={t("modal.title_edit")}

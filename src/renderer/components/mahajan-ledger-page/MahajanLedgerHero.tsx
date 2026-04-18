@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, Plus } from "lucide-react";
 import Button from "../Button";
 
@@ -29,6 +30,9 @@ function MahajanLedgerHeroComponent({
   onAddSettlement,
   onAddRefund,
 }: Readonly<MahajanLedgerHeroProps>) {
+  const { t } = useTranslation("mahajans");
+  const { t: tTx } = useTranslation("transactions");
+
   return (
     <div className="dashboard-hero-sticky dashboard-hero-sticky--compact">
       <div className="dashboard-hero rounded-2xl border border-[var(--color-border-default)]">
@@ -40,7 +44,7 @@ function MahajanLedgerHeroComponent({
               className="inline-flex w-max items-center gap-1.5 text-xs font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
             >
               <ArrowLeft size={16} aria-hidden="true" />
-              Back to lenders
+              {t("ledger.backToLenders")}
             </button>
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] leading-tight">
               {lenderTitle}
@@ -51,7 +55,7 @@ function MahajanLedgerHeroComponent({
               <div className="grid w-full max-w-full grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5 lg:w-max lg:grid-cols-none lg:grid-flow-col lg:auto-cols-max">
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Credit purchase
+                    {t("hero.creditPurchase")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-danger)] tabular-nums">
                     {totalCreditDisplay}
@@ -59,7 +63,7 @@ function MahajanLedgerHeroComponent({
                 </div>
                 <div className="dashboard-metric-card">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Settlements
+                    {t("hero.settlements")}
                   </p>
                   <p className="dashboard-hero-kpi-value text-[var(--color-success)] tabular-nums">
                     {totalSettlementDisplay}
@@ -67,7 +71,7 @@ function MahajanLedgerHeroComponent({
                 </div>
                 <div className="dashboard-metric-card sm:col-span-2 sm:max-w-none lg:col-span-1">
                   <p className="text-xs text-[var(--color-text-tertiary)]">
-                    Balance
+                    {t("hero.balance")}
                     {balanceSuffix ? (
                       <span className="ml-1 text-[10px] text-[var(--color-text-tertiary)]">
                         {balanceSuffix}
@@ -91,7 +95,7 @@ function MahajanLedgerHeroComponent({
                 className="shrink-0 whitespace-nowrap"
               >
                 <Plus size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-                Add credit purchase
+                {tTx("actions.add_credit_purchase")}
               </Button>
               <Button
                 type="button"
@@ -100,7 +104,7 @@ function MahajanLedgerHeroComponent({
                 className="shrink-0 whitespace-nowrap"
               >
                 <Plus size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-                Add settlement
+                {tTx("actions.add_settlement")}
               </Button>
               <Button
                 type="button"
@@ -109,7 +113,7 @@ function MahajanLedgerHeroComponent({
                 className="shrink-0 whitespace-nowrap"
               >
                 <Plus size={18} className="mr-1.5 shrink-0" aria-hidden="true" />
-                Add refund
+                {tTx("actions.add_refund")}
               </Button>
             </div>
           </div>

@@ -58,6 +58,7 @@
     "sectionTitle": "महाजन लेजर",
     "entriesTitle": "लेजर एंट्री",
     "entriesDescription": "टाइप या तारीख से फ़िल्टर करें, उधार खरीद या सेटलमेंट जोड़ें, और जरूरत पर एक्सपोर्ट करें।",
+    "backToLenders": "महाजन सूची पर वापस",
     "invalidLender": "अमान्य महाजन",
     "columns": {
       "date": "तारीख",

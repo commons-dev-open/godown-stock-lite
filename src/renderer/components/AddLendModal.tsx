@@ -502,8 +502,8 @@ export default function AddLendModal({
                   <div
                     className={`grid gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1 ml-2 ${
                       gstEnabled
-                        ? "grid-cols-[12rem_5rem_4rem_7rem_5rem_6rem_2.5rem]"
-                        : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
+                        ? "grid-cols-[12rem_5rem_6rem_7rem_5rem_6rem_2.5rem]"
+                        : "grid-cols-[12rem_6rem_6rem_8rem_2.5rem]"
                     }`}
                   >
                     <span>{t("columns.product")}</span>
@@ -529,8 +529,8 @@ export default function AddLendModal({
                         key={idx}
                         className={`grid gap-3 items-center p-3 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm ${
                           gstEnabled
-                            ? "grid-cols-[12rem_5rem_4rem_7rem_5rem_6rem_2.5rem]"
-                            : "grid-cols-[12rem_6rem_4rem_8rem_2.5rem]"
+                            ? "grid-cols-[12rem_5rem_6rem_7rem_5rem_6rem_2.5rem]"
+                            : "grid-cols-[12rem_6rem_6rem_8rem_2.5rem]"
                         }`}
                       >
                         <OptionSelectButton
@@ -603,7 +603,7 @@ export default function AddLendModal({
                             })
                           }
                           disabled={!selectedItem}
-                          className="input-base w-full min-w-0 text-sm"
+                          className="input-base w-full text-sm"
                           aria-label={t("columns.unit")}
                         >
                           {selectedItem

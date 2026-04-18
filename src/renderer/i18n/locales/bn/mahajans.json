@@ -57,6 +57,7 @@
     "sectionTitle": "মহাজন লেজার",
     "entriesTitle": "লেজার এন্ট্রি",
     "entriesDescription": "ধরণ/তারিখ দিয়ে ফিল্টার করুন, বাকিতে ক্রয় বা জমা যোগ করুন, এবং দরকারে এক্সপোর্ট করুন।",
+    "backToLenders": "মহাজন তালিকায় ফিরে যান",
     "invalidLender": "অবৈধ মহাজন",
     "columns": {
       "date": "তারিখ",
@@ -68,7 +69,7 @@
       "settlement": "পরিশোধ",
       "cashPurchase": "নগদ ক্রয়",
       "creditPurchase": "বাকিতে ক্রয়",
-      "lenderRefund": "সরবরাহকারীর ফেরত"
+      "lenderRefund": "মহাজনের ফেরত" 
     },
     "filters": {
       "type": "ধরন",
