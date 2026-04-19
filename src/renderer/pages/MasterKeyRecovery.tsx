@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PAGE } from "shared/test-ids";
 import { ArrowLeft, KeyRound, Lock, Shield, ShieldCheck } from "lucide-react";
 
 interface MasterKeyRecoveryProps {
@@ -53,7 +54,7 @@ export default function MasterKeyRecovery({ onBack, onSuccess }: MasterKeyRecove
   }
 
   return (
-    <div className="w-full max-w-sm animate-fade-in">
+    <div className="w-full max-w-sm animate-fade-in" data-testid={PAGE.masterKeyRecovery}>
       <button
         type="button"
         onClick={onBack}

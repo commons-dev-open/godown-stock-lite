@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { PAGE, modalPurchasesCashPurchase } from "shared/test-ids";
 import toast from "react-hot-toast";
 import { Banknote, Filter, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { getElectron } from "../api/client";
@@ -817,7 +818,7 @@ export default function Purchases() {
   }, [filterKind, filterLenderId, filterDateFrom, filterDateTo]);
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.purchases}>
       <SalesListHero
         title={t("hero.title")}
         metrics={[]}
@@ -1036,6 +1037,7 @@ export default function Purchases() {
       <CashPurchaseEntryModals
         open={cashPurchaseModalOpen}
         onClose={() => setCashPurchaseModalOpen(false)}
+        modalTestIds={modalPurchasesCashPurchase}
       />
 
       <FormModal

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Building2, Lock, Tag, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
+import { ONBOARDING } from "shared/test-ids";
 import AppleToggle from "../components/AppleToggle";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 import ThemeSwitcher from "../components/ThemeSwitcher";
@@ -36,7 +37,17 @@ export default function Onboarding() {
 
     const trimmedCompany = companyName.trim();
     const trimmedOwner = ownerName.trim();
-    const trimmedDisplay = displayName.trim().slice(0, DISPLAY_NAME_MAX);
+    const trimmedDisplay = displaySameAsCompany
+      ? trimmedCompany.slice(0, DISPLAY_NAME_MAX)
+      : displayName.trim().slice(0, DISPLAY_NAME_MAX);
+    const trimmedCustomerKey = customerKey.trim();
+    const trimmedConfirmCustomerKey = confirmCustomerKey.trim();
+
+    setCompanyName(trimmedCompany);
+    setOwnerName(trimmedOwner);
+    setCustomerKey(trimmedCustomerKey);
+    setConfirmCustomerKey(trimmedConfirmCustomerKey);
+    setDisplayName(trimmedDisplay);
 
     if (!trimmedCompany)
       return setError(t("onboarding.errors.companyNameRequired"));
@@ -47,10 +58,9 @@ export default function Onboarding() {
     if (!/^\d{4}$/.test(pin)) return setError(t("onboarding.errors.pinLength"));
     if (pin !== confirmPin)
       return setError(t("onboarding.errors.pinConfirmMismatch"));
-    const trimmedCustomerKey = customerKey.trim();
     if (!trimmedCustomerKey)
       return setError(t("onboarding.errors.recoveryKeyRequired"));
-    if (trimmedCustomerKey !== confirmCustomerKey.trim()) {
+    if (trimmedCustomerKey !== trimmedConfirmCustomerKey) {
       return setError(t("onboarding.errors.recoveryKeyMismatch"));
     }
 
@@ -131,6 +141,7 @@ export default function Onboarding() {
                   required
                   className="input-base w-full pl-9"
                   autoFocus
+                  data-testid={ONBOARDING.companyName}
                 />
               </div>
             </div>
@@ -154,6 +165,7 @@ export default function Onboarding() {
                   maxLength={60}
                   required
                   className="input-base w-full pl-9"
+                  data-testid={ONBOARDING.ownerName}
                 />
               </div>
             </div>
@@ -170,6 +182,7 @@ export default function Onboarding() {
                     checked={displaySameAsCompany}
                     onChange={setDisplaySameAsCompany}
                     aria-label={t("onboarding.sameAsCompany")}
+                    data-testid={ONBOARDING.displaySameAsCompany}
                   />
                   {t("onboarding.sameAsCompany")}
                 </label>
@@ -190,6 +203,7 @@ export default function Onboarding() {
                   required
                   disabled={displaySameAsCompany}
                   className="input-base w-full pl-9 disabled:opacity-60 disabled:cursor-not-allowed"
+                  data-testid={ONBOARDING.displayName}
                 />
               </div>
               <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
@@ -225,6 +239,7 @@ export default function Onboarding() {
                   placeholder={t("onboarding.pinPlaceholder")}
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
+                  data-testid={ONBOARDING.pin}
                 />
               </div>
             </div>
@@ -252,6 +267,7 @@ export default function Onboarding() {
                   placeholder={t("onboarding.pinPlaceholder")}
                   required
                   className="input-base w-full pl-9 tracking-[0.5em]"
+                  data-testid={ONBOARDING.confirmPin}
                 />
               </div>
             </div>
@@ -269,6 +285,7 @@ export default function Onboarding() {
                 placeholder={t("onboarding.recoveryKeyPlaceholder")}
                 required
                 className="input-base w-full text-sm"
+                data-testid={ONBOARDING.recoveryKey}
               />
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 mt-3">
                 {t("onboarding.recoveryKeyConfirmLabel")}{" "}
@@ -281,6 +298,7 @@ export default function Onboarding() {
                 placeholder={t("onboarding.recoveryKeyConfirmPlaceholder")}
                 required
                 className="input-base w-full text-sm"
+                data-testid={ONBOARDING.confirmRecoveryKey}
               />
               <p className="text-xs text-[var(--color-warning)] mt-1">
                 {t("onboarding.recoveryKeyHint")}
@@ -289,7 +307,11 @@ export default function Onboarding() {
 
             {/* Error */}
             {error && (
-              <p className="text-sm text-[var(--color-danger)] bg-[var(--color-danger-subtle)] border border-[var(--color-danger-muted)] rounded-lg px-3 py-2">
+              <p
+                className="text-sm text-[var(--color-danger)] bg-[var(--color-danger-subtle)] border border-[var(--color-danger-muted)] rounded-lg px-3 py-2"
+                data-testid={ONBOARDING.error}
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -299,6 +321,7 @@ export default function Onboarding() {
               type="submit"
               disabled={pending}
               className="w-full h-11 rounded-xl bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-semibold text-sm transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              data-testid={ONBOARDING.submit}
             >
               {pending ? (
                 <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

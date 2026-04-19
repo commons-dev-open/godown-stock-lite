@@ -23,6 +23,7 @@ import {
 import { getElectron } from "../api/client";
 import { getAppDisplayName } from "../lib/displayName";
 import { TRIAL_MODE } from "shared/buildConfig";
+import { LAYOUT, navLinkTestId } from "shared/test-ids";
 import { useAuth } from "../context/AuthContext";
 import TrialTimer from "./TrialTimer";
 import Tooltip from "./Tooltip";
@@ -73,7 +74,12 @@ function SidebarNavLink({
     }`;
 
   const link = (
-    <NavLink to={to} className={navClass} end={end}>
+    <NavLink
+      to={to}
+      className={navClass}
+      end={end}
+      data-testid={navLinkTestId(to)}
+    >
       <Icon
         size={20}
         strokeWidth={1.5}
@@ -165,16 +171,23 @@ export default function Layout({ children }: { children: ReactNode }) {
   const ToggleIcon = collapsed ? PanelLeft : PanelLeftClose;
 
   return (
-    <div className="app-layout-root flex h-screen bg-bg-app">
+    <div
+      className="app-layout-root flex h-screen bg-bg-app"
+      data-testid={LAYOUT.root}
+    >
       {/* Sidebar */}
       <aside
         className={`${collapsed ? "w-14" : "w-52"} shrink-0 flex flex-col bg-[var(--color-bg-sidebar)] transition-[width] duration-200`}
+        data-testid={LAYOUT.sidebar}
       >
         <div className="p-4 border-b border-[var(--color-bg-sidebar-hover)] flex items-center justify-between gap-2">
           {!collapsed && (
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base font-semibold text-[var(--color-text-sidebar-active)] truncate">
+                <h1
+                  className="text-base font-semibold text-[var(--color-text-sidebar-active)] truncate"
+                  data-testid={LAYOUT.sidebarBusinessTitle}
+                >
                   {appName}
                 </h1>
                 {TRIAL_MODE && (
@@ -190,6 +203,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           )}
           <button
+            type="button"
+            data-testid={LAYOUT.sidebarToggle}
             onClick={() => setCollapsed((c) => !c)}
             className="shrink-0 p-1 rounded text-[var(--color-text-sidebar)] hover:text-[var(--color-text-sidebar-active)] hover:bg-[var(--color-bg-sidebar-hover)] transition-colors"
             title={
@@ -266,6 +281,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             >
               <button
                 type="button"
+                data-testid={LAYOUT.lock}
                 onClick={lock}
                 className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-text-sidebar)] hover:bg-[var(--color-bg-sidebar-hover)] hover:text-[var(--color-danger)] transition-colors shrink-0"
                 aria-label={t("sidebar.lockApp")}
@@ -294,10 +310,16 @@ export default function Layout({ children }: { children: ReactNode }) {
                     {getInitials(currentUser.name)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                    <p
+                      className="text-xs font-medium text-[var(--color-text-primary)] truncate"
+                      data-testid={LAYOUT.sidebarUserName}
+                    >
                       {currentUser.name}
                     </p>
-                    <p className="text-[10px] text-[var(--color-text-tertiary)] capitalize">
+                    <p
+                      className="text-[10px] text-[var(--color-text-tertiary)] capitalize"
+                      data-testid={LAYOUT.sidebarUserRole}
+                    >
                       {roleLabel}
                     </p>
                   </div>
@@ -308,7 +330,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         )}
       </aside>
-      <main className="flex-1 overflow-auto px-8 pb-2 animate-fade-in">
+      <main
+        className="flex-1 overflow-auto px-8 pb-2 animate-fade-in"
+        data-testid={LAYOUT.main}
+      >
         {children}
       </main>
     </div>

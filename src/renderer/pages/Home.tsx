@@ -44,6 +44,7 @@ import {
   parseWeekStartsOn,
 } from "../../shared/numbers";
 import { useFormatters } from "../i18n/useFormatters";
+import { PAGE } from "shared/test-ids";
 
 interface ReportSummary {
   todaySale: number;
@@ -579,7 +580,7 @@ export default function Home() {
   }
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.home}>
       <DashboardHero
         todaySaleLabel={todaySaleLabel}
         weekSaleLabel={weekSaleLabel}

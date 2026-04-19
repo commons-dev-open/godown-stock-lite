@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { COMPACT_SWITCHER } from "shared/test-ids";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import Tooltip from "./Tooltip";
 
@@ -44,6 +45,7 @@ export default function ThemeSwitcher({
       >
         <button
           type="button"
+          data-testid={COMPACT_SWITCHER.theme}
           onClick={() => setMode(nextOption.value)}
           aria-label={t("sidebar.theme")}
           className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] hover:text-[var(--color-text-primary)] transition-colors border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]"

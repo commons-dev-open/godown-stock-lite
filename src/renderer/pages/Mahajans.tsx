@@ -55,6 +55,7 @@ import {
   getLedgerUpdatesAvailable,
   setLedgerUpdatesAvailable,
 } from "../lib/ledgerUpdatesFlag";
+import { PAGE } from "shared/test-ids";
 
 export default function Mahajans() {
   const { t } = useTranslation("mahajans");
@@ -542,7 +543,7 @@ export default function Mahajans() {
   );
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.mahajans}>
       <MahajansHero
         totalLendersDisplay={totalLendersDisplay}
         totalLendDisplay={totalLendDisplay}

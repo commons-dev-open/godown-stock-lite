@@ -27,6 +27,7 @@ import {
   UnitsSegmentedTabs,
   type UnitsTabId,
 } from "../components/units-page";
+import { PAGE } from "shared/test-ids";
 
 const TAB_LOADER_COLUMNS: Record<UnitsTabId, number> = {
   all: 4,
@@ -404,7 +405,7 @@ export default function Units() {
     activeListQuery.data.length === 0;
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.units}>
       <UnitsHero
         abbreviationStyle={abbreviationStyle}
         unitsCount={units.length}

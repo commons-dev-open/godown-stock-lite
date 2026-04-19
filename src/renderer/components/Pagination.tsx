@@ -6,6 +6,8 @@ interface PaginationProps {
   total: number;
   limit?: number;
   onPageChange: (page: number) => void;
+  /** When set, prev/next use `${testIdPrefix}-prev` / `-next`. */
+  testIdPrefix?: string;
 }
 
 export default function Pagination({
@@ -13,6 +15,7 @@ export default function Pagination({
   total,
   limit = PAGE_SIZE,
   onPageChange,
+  testIdPrefix,
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const start = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -30,6 +33,7 @@ export default function Pagination({
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
+          data-testid={testIdPrefix ? `${testIdPrefix}-prev` : undefined}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-bg-surface-raised)]"
           aria-label="Previous page"
         >
@@ -43,6 +47,7 @@ export default function Pagination({
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
+          data-testid={testIdPrefix ? `${testIdPrefix}-next` : undefined}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-bg-surface-raised)]"
           aria-label="Next page"
         >

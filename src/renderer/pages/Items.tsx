@@ -57,6 +57,7 @@ import {
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
+import { PAGE } from "shared/test-ids";
 import {
   useElectronHtmlPrintJob,
   type HtmlPrintJobBase,
@@ -617,7 +618,7 @@ export default function Items() {
   );
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.stock}>
       <ItemsHero
         abbreviationStyle={abbreviationStyle}
         catalogCount={items.length}

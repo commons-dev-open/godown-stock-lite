@@ -14,6 +14,8 @@ interface FormModalProps {
   stackAbove?: boolean;
   /** When true, closing the modal will show a discard confirmation prompt. */
   isDirty?: boolean;
+  /** Stable root id for E2E; close/discard controls use `-close`, `-discard-cancel`, `-discard-confirm`. */
+  testId?: string;
 }
 
 export default function FormModal({
@@ -25,6 +27,7 @@ export default function FormModal({
   footer,
   stackAbove = false,
   isDirty = false,
+  testId,
 }: FormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -104,6 +107,7 @@ export default function FormModal({
         ref={modalRef}
         role="dialog"
         aria-modal="true"
+        data-testid={testId}
         className={`relative z-10 flex flex-col bg-[var(--color-bg-surface)] rounded-xl shadow-overlay w-full mx-4 max-h-[90vh] animate-modal-enter ${maxWidth}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -113,6 +117,7 @@ export default function FormModal({
           <button
             type="button"
             onClick={handleCloseAttempt}
+            data-testid={testId ? `${testId}-close` : undefined}
             className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-raised)] rounded-full transition-colors"
             aria-label="Close"
           >
@@ -127,6 +132,7 @@ export default function FormModal({
               <button
                 type="button"
                 onClick={() => setShowDiscardConfirm(false)}
+                data-testid={testId ? `${testId}-discard-cancel` : undefined}
                 className="px-2.5 py-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-raised)] text-xs font-medium transition-colors"
               >
                 Cancel
@@ -134,6 +140,7 @@ export default function FormModal({
               <button
                 type="button"
                 onClick={onClose}
+                data-testid={testId ? `${testId}-discard-confirm` : undefined}
                 className="px-2.5 py-1 rounded-lg bg-[var(--color-danger)] text-white hover:opacity-90 text-xs font-medium transition-colors"
               >
                 Discard

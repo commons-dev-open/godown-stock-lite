@@ -22,6 +22,8 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "start": "electron .",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
+    "@playwright/test": "^1.59.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.3.2",
     "@types/react": "^19.2.14",

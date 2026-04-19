@@ -86,6 +86,11 @@ import {
   SalesListSectionPanel,
   SalesListAsyncPanel,
 } from "../components/sales-list-page";
+import {
+  PAGE,
+  modalTransactionsCashPurchase,
+  transactionsAction,
+} from "shared/test-ids";
 
 type PurchaseRow = Purchase & { product_name?: string };
 
@@ -988,7 +993,7 @@ export default function Transactions() {
   );
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.transactions}>
       <SalesListHero
         title={t("hero.title")}
         metrics={[]}
@@ -1038,6 +1043,7 @@ export default function Transactions() {
             <Button
               variant="primary"
               onClick={() => setPurchaseAddOpen(true)}
+              testId={transactionsAction.addCashPurchase}
               className="!bg-[var(--color-accent)] hover:!bg-[var(--color-accent-hover)]"
             >
               <Banknote size={20} className="mr-1.5" aria-hidden="true" />
@@ -2135,6 +2141,7 @@ export default function Transactions() {
       <CashPurchaseEntryModals
         open={purchaseAddOpen}
         onClose={() => setPurchaseAddOpen(false)}
+        modalTestIds={modalTransactionsCashPurchase}
       />
 
       <FormModal

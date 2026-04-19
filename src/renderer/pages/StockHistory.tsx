@@ -16,6 +16,7 @@ import { DashboardSectionBoundary } from "../components/home-dashboard";
 import { formatDateForView, formatDateForForm } from "../lib/date";
 import { formatDecimal } from "../../shared/numbers";
 import Tooltip from "../components/Tooltip";
+import { PAGE } from "shared/test-ids";
 
 interface ItemOption {
   id: number;
@@ -240,7 +241,7 @@ export default function StockHistory() {
     Boolean(filterReason);
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.stockHistory}>
       <SalesListHero
         title={t("stockHistory.hero.title")}
         metrics={[]}

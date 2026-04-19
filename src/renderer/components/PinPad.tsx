@@ -1,15 +1,23 @@
 import { Delete } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { pinPadBackspace, pinPadDigit } from "../../shared/test-ids";
 
 interface PinPadProps {
   onDigit: (d: string) => void;
   onBackspace: () => void;
   disabled?: boolean;
+  /** When set, keys use stable `data-testid` via `pinPadDigit` / `pinPadBackspace`. */
+  testIdPrefix?: string;
 }
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", ""];
 
-export default function PinPad({ onDigit, onBackspace, disabled }: PinPadProps) {
+export default function PinPad({
+  onDigit,
+  onBackspace,
+  disabled,
+  testIdPrefix,
+}: PinPadProps) {
   const { t } = useTranslation("onboarding");
 
   return (
@@ -24,6 +32,13 @@ export default function PinPad({ onDigit, onBackspace, disabled }: PinPadProps) 
             key={idx}
             type="button"
             disabled={disabled}
+            data-testid={
+              testIdPrefix
+                ? isBackspace
+                  ? pinPadBackspace(testIdPrefix)
+                  : pinPadDigit(testIdPrefix, key)
+                : undefined
+            }
             onClick={() => (isBackspace ? onBackspace() : onDigit(key))}
             className={`
               w-16 h-16 rounded-2xl text-xl font-semibold

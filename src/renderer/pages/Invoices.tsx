@@ -17,6 +17,7 @@ import FormField from "../components/FormField";
 import Button from "../components/Button";
 import SearchFilterBar from "../components/SearchFilterBar";
 import { PAGE_SIZE } from "../../shared/constants";
+import { PAGE } from "shared/test-ids";
 import { useMutationWithToast } from "../hooks/useMutationWithToast";
 import toast from "react-hot-toast";
 import {
@@ -732,7 +733,7 @@ export default function Invoices() {
   });
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.invoices}>
       <SalesListHero
         title={t("page.title")}
         metrics={[]}

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { settingsTab } from "shared/test-ids";
 import type { SettingsTabId } from "./types";
 
 type SettingsTabLabelKey =
@@ -62,6 +63,7 @@ export function SettingsSegmentedTabs({
             key={id}
             type="button"
             role="tab"
+            data-testid={settingsTab(id)}
             aria-selected={isActive}
             onClick={() => onChange(id)}
             className={`inline-flex flex-1 min-w-[6.5rem] items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors sm:flex-none sm:min-w-0 sm:gap-2 sm:px-3 sm:text-sm ${

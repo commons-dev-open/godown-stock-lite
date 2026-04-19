@@ -6,6 +6,7 @@ import PinPad from "../components/PinPad";
 import MasterKeyRecovery from "./MasterKeyRecovery";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 import ThemeSwitcher from "../components/ThemeSwitcher";
+import { PIN_ENTRY, pinEntryPadPrefix } from "shared/test-ids";
 
 function getInitials(name: string) {
   return name
@@ -177,12 +178,22 @@ export default function PinEntry() {
           onAnimationEnd={() => setHasError(false)}
         />
         {errorMsg && (
-          <p className="text-xs text-[var(--color-danger)] mt-1">{errorMsg}</p>
+          <p
+            className="text-xs text-[var(--color-danger)] mt-1"
+            data-testid={PIN_ENTRY.error}
+          >
+            {errorMsg}
+          </p>
         )}
       </div>
 
       {/* Numpad */}
-      <PinPad onDigit={handleDigit} onBackspace={handleBackspace} disabled={pending} />
+      <PinPad
+        onDigit={handleDigit}
+        onBackspace={handleBackspace}
+        disabled={pending}
+        testIdPrefix={pinEntryPadPrefix}
+      />
 
       {/* Forgot PIN — only superadmin can self-recover; others must contact admin */}
       {userRole === "superadmin" ? (

@@ -10,6 +10,8 @@ interface ConfirmModalProps {
   /** "danger" for destructive actions (e.g. Delete). Default: "primary". */
   confirmVariant?: "primary" | "danger";
   onConfirm: () => void;
+  /** Stable E2E id for dialog and footer buttons (`-cancel`, `-confirm`). */
+  testId?: string;
 }
 
 export default function ConfirmModal({
@@ -20,6 +22,7 @@ export default function ConfirmModal({
   confirmLabel = "OK",
   confirmVariant = "primary",
   onConfirm,
+  testId,
 }: Readonly<ConfirmModalProps>) {
   const handleConfirm = () => {
     onConfirm();
@@ -32,15 +35,22 @@ export default function ConfirmModal({
       open={open}
       onClose={onClose}
       maxWidth="max-w-md"
+      testId={testId}
       footer={
         <>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            testId={testId ? `${testId}-cancel` : undefined}
+          >
             Cancel
           </Button>
           <Button
             type="button"
             variant={confirmVariant}
             onClick={handleConfirm}
+            testId={testId ? `${testId}-confirm` : undefined}
           >
             {confirmLabel}
           </Button>

@@ -9,6 +9,11 @@ import {
 import Tooltip from "./Tooltip";
 import Pagination, { PAGE_SIZE } from "./Pagination";
 import {
+  dataTableRow,
+  dataTableRowDelete,
+  dataTableRowEdit,
+} from "../../shared/test-ids";
+import {
   useTableScrollMaxHeight,
   type TableScrollHeightPreset,
 } from "../hooks/useTableScrollMaxHeight";
@@ -97,6 +102,8 @@ interface DataTableProps<T extends { id: number }> {
    * (rounded border + surface bg). Default true. Use false inside modals to avoid nested cards.
    */
   tableFrame?: boolean;
+  /** When set, table/rows/actions get stable `data-testid` prefixes. */
+  testIdPrefix?: string;
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -116,6 +123,7 @@ export default function DataTable<T extends { id: number }>({
   rowActionsLabels,
   pagination,
   tableFrame,
+  testIdPrefix,
 }: DataTableProps<T>) {
   const presetMaxHeight = useTableScrollMaxHeight(
     scrollMaxHeight != null ? null : scrollHeightPreset
@@ -222,6 +230,10 @@ export default function DataTable<T extends { id: number }>({
     return sortedData.slice(start, start + pageSize);
   }, [isClient, sortedData, clientPage, pageSize]);
 
+  const paginationTestPrefix = testIdPrefix
+    ? `${testIdPrefix}-pagination`
+    : undefined;
+
   const paginationNode =
     paginationEnabled && pagination && pagination.type === "client" ? (
       <Pagination
@@ -229,6 +241,7 @@ export default function DataTable<T extends { id: number }>({
         total={sortedData.length}
         limit={pageSize}
         onPageChange={setClientPage}
+        testIdPrefix={paginationTestPrefix}
       />
     ) : paginationEnabled && pagination && pagination.type === "controlled" ? (
       <Pagination
@@ -236,12 +249,16 @@ export default function DataTable<T extends { id: number }>({
         total={pagination.total}
         limit={pagination.pageSize ?? PAGE_SIZE}
         onPageChange={pagination.onPageChange}
+        testIdPrefix={paginationTestPrefix}
       />
     ) : null;
 
   const tableBlock = (
     <div className="table-scroll-wrap overflow-x-auto" style={wrapStyle}>
-      <table className={tableClassName}>
+      <table
+        className={tableClassName}
+        data-testid={testIdPrefix ? `${testIdPrefix}-table` : undefined}
+      >
         <thead>
           <tr>
             {columns.map((col) => {
@@ -307,7 +324,15 @@ export default function DataTable<T extends { id: number }>({
         </thead>
         <tbody>
           {displayRows.map((row) => (
-            <tr key={String(rowKeyFn(row))} className={rowClassName}>
+            <tr
+              key={String(rowKeyFn(row))}
+              className={rowClassName}
+              data-testid={
+                testIdPrefix
+                  ? dataTableRow(testIdPrefix, rowKeyFn(row))
+                  : undefined
+              }
+            >
               {columns.map((col) => {
                 const align = col.align ?? "left";
                 return (
@@ -343,6 +368,11 @@ export default function DataTable<T extends { id: number }>({
                         <button
                           type="button"
                           onClick={() => onEdit(row)}
+                          data-testid={
+                            testIdPrefix
+                              ? dataTableRowEdit(testIdPrefix, rowKeyFn(row))
+                              : undefined
+                          }
                           className="p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
                           aria-label={rowActionsLabels?.edit ?? "Edit"}
                         >
@@ -358,6 +388,14 @@ export default function DataTable<T extends { id: number }>({
                           <button
                             type="button"
                             onClick={() => onDelete(row)}
+                            data-testid={
+                              testIdPrefix
+                                ? dataTableRowDelete(
+                                    testIdPrefix,
+                                    rowKeyFn(row)
+                                  )
+                                : undefined
+                            }
                             className="p-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors min-w-[32px] min-h-[32px] inline-flex items-center justify-center"
                             aria-label={rowActionsLabels?.delete ?? "Delete"}
                           >
@@ -378,7 +416,10 @@ export default function DataTable<T extends { id: number }>({
   // ── Render ──────────────────────────────────────────────────────────
   if (data.length === 0) {
     return (
-      <div className="text-center py-8 text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)]">
+      <div
+        className="text-center py-8 text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)]"
+        data-testid={testIdPrefix ? `${testIdPrefix}-empty` : undefined}
+      >
         {emptyMessage}
       </div>
     );

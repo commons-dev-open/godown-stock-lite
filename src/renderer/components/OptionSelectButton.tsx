@@ -54,6 +54,8 @@ export interface OptionSelectButtonProps<
   searchPlaceholder?: string;
   emptyText?: string;
   required?: boolean;
+  /** Stable `data-testid` for the trigger button. */
+  testId?: string;
 }
 
 function normalizeFilter(q: string): string {
@@ -91,6 +93,7 @@ export function OptionSelectButton<V extends string | number = string | number>(
     searchPlaceholder = "Search…",
     emptyText = "No matches",
     required = false,
+    testId,
   } = props;
   const reactId = useId();
   const triggerId = idProp ?? `option-select-trigger-${reactId}`;
@@ -251,6 +254,7 @@ export function OptionSelectButton<V extends string | number = string | number>(
         }}
         type="button"
         id={triggerId}
+        data-testid={testId}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}

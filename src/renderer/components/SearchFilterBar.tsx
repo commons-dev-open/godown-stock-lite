@@ -10,6 +10,8 @@ interface SearchFilterBarProps {
   placeholder?: string;
   /** Optional content on the right (e.g. toggles, extra controls) */
   rightContent?: ReactNode;
+  /** Stable `data-testid` for the search input. */
+  searchInputTestId?: string;
 }
 
 export default function SearchFilterBar({
@@ -19,6 +21,7 @@ export default function SearchFilterBar({
   hasActiveFilters,
   placeholder = "Search...",
   rightContent,
+  searchInputTestId,
 }: SearchFilterBarProps) {
   const showClear = onClearFilters && (searchValue || hasActiveFilters);
   return (
@@ -28,6 +31,7 @@ export default function SearchFilterBar({
         placeholder={placeholder}
         value={searchValue}
         onChange={(e) => onSearchChange(e.target.value)}
+        data-testid={searchInputTestId}
         className="border border-[var(--color-border-strong)] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0 w-64 max-w-full"
         aria-label="Search"
       />

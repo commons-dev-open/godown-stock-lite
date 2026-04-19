@@ -22,6 +22,7 @@ import {
   parseNumberAbbreviationStyle,
 } from "../../shared/numbers";
 import { PAGE_SIZE } from "../../shared/constants";
+import { PAGE, USERS_ROSTER } from "shared/test-ids";
 
 export interface UserRow {
   id: number;
@@ -325,7 +326,7 @@ export default function Users() {
     usersQuery.isSuccess && sortedUsers.length === 0;
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.users}>
       <UsersHero
         abbreviationStyle={abbreviationStyle}
         totalUsers={users.length}
@@ -370,6 +371,7 @@ export default function Users() {
                 scrollHeightPreset="compact"
                 columns={columns}
                 data={sortedUsers}
+                testIdPrefix={USERS_ROSTER}
                 extraActions={(row) => {
                   const canEditName =
                     row.id === currentUser.id ||

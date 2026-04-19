@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
+import { COMPACT_SWITCHER } from "shared/test-ids";
 import { useLocale, type Locale } from "./LocaleContext";
 import Tooltip from "../components/Tooltip";
 
@@ -43,6 +44,7 @@ export default function LanguageSwitcher({
       <Tooltip content={`${t("sidebar.language")}: ${current.label}`} placement={tooltipPlacement}>
         <button
           type="button"
+          data-testid={COMPACT_SWITCHER.language}
           onClick={() => setLocale(nextOption.value)}
           aria-label={t("sidebar.language")}
           className={compactClassName}

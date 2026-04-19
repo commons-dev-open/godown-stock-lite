@@ -46,6 +46,7 @@ import AppleToggle from "../components/AppleToggle";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import { PAGE, SETTINGS } from "shared/test-ids";
 
 type DangerAction =
   | "export"
@@ -96,6 +97,13 @@ const GST_RATES = ["0", "5", "12", "18", "28"] as const;
 const GST_MODE_VALUES = ["exclusive", "inclusive"] as const;
 
 const DISPLAY_NAME_MAX = 25;
+
+const SETTINGS_BUSINESS_FIELD_TEST_ID: Partial<
+  Record<(typeof BUSINESS_FIELD_KEYS)[number], string>
+> = {
+  company_name: SETTINGS.businessCompanyName,
+  owner_name: SETTINGS.businessOwnerName,
+};
 
 const NUMBER_ABBREVIATION_STYLES: NumberAbbreviationStyle[] = [
   "indian",
@@ -248,6 +256,7 @@ function AppearanceTab() {
               maxLength={DISPLAY_NAME_MAX}
               className="input-base w-full"
               placeholder={commonT("app.name")}
+              data-testid={SETTINGS.appearanceDisplayName}
             />
           </div>
           <Button
@@ -1269,7 +1278,10 @@ export default function Settings() {
   ).trim();
 
   return (
-    <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
+    <div
+      className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full"
+      data-testid={PAGE.settings}
+    >
       <SettingsHero
         companyName={companyHeroName.length > 0 ? companyHeroName : "—"}
         gstEnabled={gstEnabled}
@@ -1320,6 +1332,7 @@ export default function Settings() {
                             }
                             className="input-base w-full"
                             placeholder={label}
+                            data-testid={SETTINGS_BUSINESS_FIELD_TEST_ID[key]}
                           />
                         </FormField>
                       );

@@ -16,6 +16,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   /** When true, shows a spinner and disables the button. */
   loading?: boolean;
+  /** Stable selector for E2E (sets `data-testid`). */
+  testId?: string;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -47,6 +49,7 @@ export default function Button({
   loading = false,
   disabled,
   children,
+  testId,
   ...rest
 }: ButtonProps) {
   return (
@@ -54,6 +57,7 @@ export default function Button({
       type={type}
       className={`inline-flex items-center justify-center rounded-lg font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ${sizeClasses[size]} ${variantClasses[variant]} ${className}`.trim()}
       disabled={loading || disabled}
+      data-testid={testId}
       {...rest}
     >
       {loading && (

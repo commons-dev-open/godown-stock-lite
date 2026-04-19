@@ -1,4 +1,5 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { GATE } from "shared/test-ids";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import TrialGuard from "./components/TrialGuard";
@@ -22,7 +23,10 @@ import UserSelector from "./pages/UserSelector";
 
 function LoadingSpinner() {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--color-bg-app)]">
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-[var(--color-bg-app)]"
+      data-testid={GATE.loading}
+    >
       <span className="inline-block w-8 h-8 border-2 border-[var(--color-border-default)] border-t-[var(--color-accent)] rounded-full animate-spin" />
     </div>
   );
@@ -32,13 +36,38 @@ function AuthGate() {
   const { authState } = useAuth();
 
   if (authState.status === "loading") return <LoadingSpinner />;
-  if (authState.status === "onboarding") return <Onboarding />;
-  if (authState.status === "selecting") return <UserSelector />;
-  if (authState.status === "entering_pin") return <PinEntry />;
-  if (authState.status === "force_pin_change") return <ForcePinChange />;
+  if (authState.status === "onboarding") {
+    return (
+      <div data-testid={GATE.onboarding}>
+        <Onboarding />
+      </div>
+    );
+  }
+  if (authState.status === "selecting") {
+    return (
+      <div data-testid={GATE.userSelect}>
+        <UserSelector />
+      </div>
+    );
+  }
+  if (authState.status === "entering_pin") {
+    return (
+      <div data-testid={GATE.pinEntry}>
+        <PinEntry />
+      </div>
+    );
+  }
+  if (authState.status === "force_pin_change") {
+    return (
+      <div data-testid={GATE.forcePinChange}>
+        <ForcePinChange />
+      </div>
+    );
+  }
 
   return (
-    <HashRouter>
+    <div data-testid={GATE.appUnlocked}>
+      <HashRouter>
       <TrialGuard />
       <Layout>
         <Routes>
@@ -61,6 +90,7 @@ function AuthGate() {
         </Routes>
       </Layout>
     </HashRouter>
+    </div>
   );
 }
 

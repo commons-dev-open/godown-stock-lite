@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Building2, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
+import { userSelectUserButton } from "shared/test-ids";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 import ThemeSwitcher from "../components/ThemeSwitcher";
 
@@ -115,6 +116,7 @@ export default function UserSelector() {
               type="button"
               onClick={() => selectUser(u.id, u.name)}
               className="dashboard-action-card flex flex-col items-center gap-3 p-5 text-center group"
+              data-testid={userSelectUserButton(u.id)}
             >
               {/* Avatar */}
               <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xl font-bold transition-colors group-hover:bg-[var(--color-accent)] group-hover:text-white">

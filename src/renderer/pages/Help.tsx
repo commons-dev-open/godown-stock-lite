@@ -15,6 +15,8 @@ import {
   type HelpTabId,
   loadHelpGuide,
 } from "../components/help-page";
+import { PAGE } from "shared/test-ids";
+
 export default function Help() {
   const { t, i18n } = useTranslation("help");
   const [activeTab, setActiveTab] = useState<HelpTabId>("overview");
@@ -37,7 +39,10 @@ export default function Help() {
     activeBody === null ? null : <div className="pt-1">{activeBody}</div>;
 
   return (
-    <div className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full">
+    <div
+      className="space-y-4 home-dashboard pb-3 max-w-5xl mx-auto w-full"
+      data-testid={PAGE.help}
+    >
       <HelpHero topicCount={HELP_TAB_ORDER.length} />
       <HelpSegmentedTabs active={activeTab} onChange={setActiveTab} />
 

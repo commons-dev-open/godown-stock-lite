@@ -68,6 +68,7 @@ import {
   type ModalKVRow,
   MODAL_KV_COLUMNS,
 } from "../lib/modalTableColumns";
+import { PAGE } from "shared/test-ids";
 
 function buildMahajanLedgerDeleteRows(p: {
   type: "credit_purchase" | "settlement" | "lender_refund";
@@ -733,7 +734,7 @@ export default function MahajanLedger() {
   );
 
   return (
-    <div className="home-dashboard space-y-4 pb-3">
+    <div className="home-dashboard space-y-4 pb-3" data-testid={PAGE.mahajanLedger}>
       <MahajanLedgerHero
         lenderTitle={mahajanLabel}
         totalCreditDisplay={totalCreditDisplay}

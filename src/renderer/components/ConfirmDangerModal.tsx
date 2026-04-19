@@ -13,6 +13,8 @@ interface ConfirmDangerModalProps {
   onConfirm: () => void;
   /** Optional: disable confirm button while action is in progress */
   isConfirming?: boolean;
+  /** Stable E2E id for dialog and footer buttons (`-cancel`, `-confirm`). */
+  testId?: string;
 }
 
 export default function ConfirmDangerModal({
@@ -23,6 +25,7 @@ export default function ConfirmDangerModal({
   confirmLabel = "Proceed",
   onConfirm,
   isConfirming = false,
+  testId,
 }: Readonly<ConfirmDangerModalProps>) {
   const [input, setInput] = useState("");
 
@@ -41,9 +44,15 @@ export default function ConfirmDangerModal({
       open={open}
       onClose={onClose}
       maxWidth="max-w-md"
+      testId={testId}
       footer={
         <>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            testId={testId ? `${testId}-cancel` : undefined}
+          >
             Cancel
           </Button>
           <Button
@@ -51,6 +60,7 @@ export default function ConfirmDangerModal({
             variant="danger"
             onClick={handleConfirm}
             disabled={!canProceed}
+            testId={testId ? `${testId}-confirm` : undefined}
           >
             {isConfirming ? "Please wait..." : confirmLabel}
           </Button>

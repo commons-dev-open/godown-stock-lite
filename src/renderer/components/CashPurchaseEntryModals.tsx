@@ -55,11 +55,14 @@ function emptyPurchaseLine(): PurchaseLine {
 interface CashPurchaseEntryModalsProps {
   open: boolean;
   onClose: () => void;
+  /** Stable ids for the entry vs confirm dialogs (see `shared/test-ids`). */
+  modalTestIds: { entry: string; confirm: string };
 }
 
 export function CashPurchaseEntryModals({
   open,
   onClose,
+  modalTestIds,
 }: Readonly<CashPurchaseEntryModalsProps>) {
   const { t } = useTranslation("transactions");
   const queryClient = useQueryClient();
@@ -236,12 +239,14 @@ export function CashPurchaseEntryModals({
           }
         }}
         maxWidth="max-w-4xl"
+        testId={modalTestIds.entry}
         footer={
           <>
             <Button
               type="submit"
               form="cash-purchase-entry-form"
               variant="primary"
+              testId={`${modalTestIds.entry}-review-submit`}
             >
               {t("modals.shared.actions.review_confirm")}
             </Button>
@@ -358,6 +363,7 @@ export function CashPurchaseEntryModals({
                           name={`product_id_${idx}`}
                           required={idx === 0}
                           value={line.product_id || ""}
+                          data-testid={`${modalTestIds.entry}-line-${idx}-product`}
                           onChange={(e) => {
                             const pid = Number(e.target.value);
                             const item = itemList.find((i) => i.id === pid);
@@ -497,6 +503,7 @@ export function CashPurchaseEntryModals({
                   onClick={() =>
                     setPurchaseLines((prev) => [...prev, emptyPurchaseLine()])
                   }
+                  testId={`${modalTestIds.entry}-add-line`}
                   className="mt-3 !text-[var(--color-accent)] hover:!text-[var(--color-accent)] hover:!bg-transparent focus:outline-none focus:ring-0"
                 >
                   <Plus size={20} className="mr-1.5" aria-hidden="true" />
@@ -522,6 +529,7 @@ export function CashPurchaseEntryModals({
           setConfirmPurchasePayload(null);
         }}
         maxWidth="max-w-4xl"
+        testId={modalTestIds.confirm}
         footer={
           <>
             <Button
@@ -530,6 +538,7 @@ export function CashPurchaseEntryModals({
                 setConfirmPurchaseOpen(false);
                 setConfirmPurchasePayload(null);
               }}
+              testId={`${modalTestIds.confirm}-back`}
             >
               {t("modals.shared.actions.back")}
             </Button>
@@ -549,6 +558,7 @@ export function CashPurchaseEntryModals({
               disabled={
                 createPurchaseBatch.isPending || !confirmPurchasePayload
               }
+              testId={`${modalTestIds.confirm}-save`}
             >
               {createPurchaseBatch.isPending
                 ? t("modals.shared.actions.saving")
@@ -579,6 +589,7 @@ export function CashPurchaseEntryModals({
               tableClassName="min-w-full text-sm border-collapse"
               rowClassName="group border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-surface-raised)] transition-colors"
               columns={cashPurchasePreviewColumns}
+              testIdPrefix={`${modalTestIds.confirm}-preview`}
               data={confirmPurchasePayload.lines.map((line, idx) => {
                 const item = itemList.find((i) => i.id === line.product_id);
                 const oldStock = item?.current_stock ?? 0;

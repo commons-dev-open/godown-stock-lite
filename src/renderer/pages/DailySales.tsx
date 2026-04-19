@@ -56,6 +56,7 @@ import {
   useElectronHtmlPrintJob,
   type HtmlPrintJobBase,
 } from "../hooks/useElectronHtmlPrintJob";
+import { PAGE } from "shared/test-ids";
 
 export default function DailySales() {
   const { t } = useTranslation(["sales", "common"]);
@@ -343,7 +344,7 @@ export default function DailySales() {
   );
 
   return (
-    <div className="space-y-4 home-dashboard pb-3">
+    <div className="space-y-4 home-dashboard pb-3" data-testid={PAGE.sales}>
       <SalesListHero
         title={t("dailyRegister.title")}
         metrics={[]}
