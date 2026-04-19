@@ -3,6 +3,19 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from "@floating-ui/react";
+import { ExternalLink, Receipt } from "lucide-react";
+import type { Invoice, InvoiceLine } from "../../shared/types";
+import { invoiceNetTotal } from "../lib/invoiceDisplayTotals";
 import { getElectron } from "../api/client";
 import { PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
@@ -34,7 +47,10 @@ interface StockMovementRow {
   occurred_at: string;
   note: string | null;
   balance_after: number;
+  source_invoice_id?: number | null;
 }
+
+type InvoiceWithLines = Invoice & { lines: InvoiceLine[] };
 
 function reasonLabel(reason: string, t: TFunction<"items">): string {
   if (reason === "purchase") return t("stockHistory.filters.purchase");
@@ -49,9 +65,6 @@ function sourceLinkForRow(
   row: StockMovementRow,
   t: TFunction<"items">
 ): { to: string; label: string } | null {
-  if (row.reason === "invoice_sale") {
-    return { to: "/invoices", label: t("stockHistory.links.invoices") };
-  }
   if (
     row.reason === "purchase" ||
     row.ref_kind === "supplier_purchase_line"
@@ -68,6 +81,44 @@ export default function StockHistory() {
   const { t } = useTranslation("items");
   const { t: tTx } = useTranslation("transactions");
   const api = getElectron();
+  const [invoiceQvOpen, setInvoiceQvOpen] = useState(false);
+  const [invoiceQvInvoiceId, setInvoiceQvInvoiceId] = useState<number | null>(
+    null
+  );
+  const {
+    refs: invoiceQvRefs,
+    floatingStyles: invoiceQvFloatingStyles,
+    context: invoiceQvContext,
+  } = useFloating({
+    open: invoiceQvOpen,
+    onOpenChange: (next) => {
+      setInvoiceQvOpen(next);
+      if (!next) {
+        setInvoiceQvInvoiceId(null);
+      }
+    },
+    placement: "bottom-start",
+    middleware: [offset(6), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const invoiceQvDismiss = useDismiss(invoiceQvContext, {
+    escapeKey: true,
+    outsidePress: true,
+  });
+  const { getFloatingProps: getInvoiceQvFloatingProps } = useInteractions([
+    invoiceQvDismiss,
+  ]);
+
+  const {
+    data: invoiceQvDetail,
+    isFetching: invoiceQvFetching,
+    isError: invoiceQvError,
+  } = useQuery({
+    queryKey: ["invoiceDetailStockHistoryQv", invoiceQvInvoiceId],
+    queryFn: () => api.getInvoiceById(invoiceQvInvoiceId!) as Promise<InvoiceWithLines>,
+    enabled: invoiceQvOpen && invoiceQvInvoiceId != null,
+  });
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -195,6 +246,39 @@ export default function StockHistory() {
         key: "source",
         label: t("stockHistory.columns.source"),
         render: (row: StockMovementRow) => {
+          if (row.reason === "invoice_sale") {
+            const invId = row.source_invoice_id;
+            if (
+              invId != null &&
+              Number.isFinite(Number(invId)) &&
+              Number(invId) > 0
+            ) {
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    invoiceQvRefs.setReference(e.currentTarget);
+                    setInvoiceQvInvoiceId(Number(invId));
+                    setInvoiceQvOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center rounded-lg p-1.5 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] transition-colors min-w-[32px] min-h-[32px]"
+                  title={t("stockHistory.invoice_quickview.button_title")}
+                  aria-label={t("stockHistory.invoice_quickview.button_aria")}
+                >
+                  <Receipt size={18} aria-hidden="true" />
+                </button>
+              );
+            }
+            return (
+              <Link
+                to="/invoices"
+                className="text-sm text-[var(--color-accent)] hover:underline"
+              >
+                {t("stockHistory.links.invoices")}
+              </Link>
+            );
+          }
           const link = sourceLinkForRow(row, t);
           if (link) {
             return (
@@ -231,7 +315,7 @@ export default function StockHistory() {
         ),
       },
     ],
-    [t]
+    [t, invoiceQvRefs]
   );
 
   const hasFilters =
@@ -391,6 +475,100 @@ export default function StockHistory() {
           </div>
         </SalesListSectionPanel>
       </DashboardSectionBoundary>
+      <FloatingPortal>
+        {invoiceQvOpen && (
+          <div
+            ref={invoiceQvRefs.setFloating} // eslint-disable-line react-hooks/refs -- floating-ui assigns ref in effect
+            style={invoiceQvFloatingStyles}
+            {...getInvoiceQvFloatingProps()}
+            className="z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 shadow-lg"
+          >
+            <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border-default)] pb-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
+                  {t("stockHistory.invoice_quickview.title")}
+                </p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  {invoiceQvInvoiceId != null
+                    ? t("stockHistory.invoice_quickview.invoice_id", {
+                        id: invoiceQvInvoiceId,
+                      })
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            {invoiceQvFetching && (
+              <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+                {t("stockHistory.invoice_quickview.loading")}
+              </p>
+            )}
+            {!invoiceQvFetching && invoiceQvError && (
+              <p className="mt-3 text-sm text-[var(--color-danger)]">
+                {t("stockHistory.invoice_quickview.error")}
+              </p>
+            )}
+            {!invoiceQvFetching &&
+              !invoiceQvError &&
+              invoiceQvDetail && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--color-text-secondary)]">
+                    <span>
+                      {formatDateForView(invoiceQvDetail.invoice_date)}
+                    </span>
+                  </div>
+                  {invoiceQvDetail.customer_name && (
+                    <p className="text-sm text-[var(--color-text-primary)]">
+                      {invoiceQvDetail.customer_name}
+                    </p>
+                  )}
+                  {invoiceQvDetail.invoice_number && (
+                    <p className="text-xs text-[var(--color-text-tertiary)]">
+                      {invoiceQvDetail.invoice_number}
+                    </p>
+                  )}
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+                    {t("stockHistory.invoice_quickview.lines_heading")}
+                  </p>
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {invoiceQvDetail.lines.map((ln) => (
+                      <div
+                        key={ln.id}
+                        className="flex items-baseline justify-between gap-2 border-b border-[var(--color-border-subtle)] py-1 text-xs last:border-b-0"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-[var(--color-text-primary)]">
+                          {ln.product_name ?? `#${ln.product_id ?? ""}`}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-[var(--color-text-secondary)]">
+                          {formatDecimal(ln.quantity)} {ln.unit}
+                        </span>
+                        <span className="shrink-0 tabular-nums font-medium text-[var(--color-text-primary)]">
+                          ₹{formatDecimal(ln.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-right text-sm font-semibold text-[var(--color-text-primary)]">
+                    {t("stockHistory.invoice_quickview.total")}{" "}
+                    <span className="tabular-nums">
+                      ₹
+                      {formatDecimal(
+                        invoiceNetTotal(invoiceQvDetail, invoiceQvDetail.lines)
+                      )}
+                    </span>
+                  </p>
+                  <Link
+                    to={`/invoices?invoiceId=${invoiceQvDetail.id}`}
+                    onClick={() => setInvoiceQvOpen(false)}
+                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] px-3 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)]"
+                  >
+                    <ExternalLink size={16} aria-hidden="true" />
+                    {t("stockHistory.invoice_quickview.open_in_invoices")}
+                  </Link>
+                </div>
+              )}
+          </div>
+        )}
+      </FloatingPortal>
     </div>
   );
 }

@@ -182,6 +182,17 @@
       "transactions": "Open transactions",
       "purchases": "Open purchases"
     },
+    "invoice_quickview": {
+      "button_title": "Invoice details",
+      "button_aria": "Open invoice quick view",
+      "title": "Invoice",
+      "invoice_id": "Invoice #{{id}}",
+      "loading": "Loading…",
+      "error": "Could not load this invoice.",
+      "lines_heading": "Lines on this invoice",
+      "total": "Invoice total",
+      "open_in_invoices": "Open in Invoices"
+    },
     "rowAction": {
       "openHistory": "History"
     },

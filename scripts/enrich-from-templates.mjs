@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * Appends template-based dummy data to an existing Godown SQLite database.
- * Requires: at least one item, one lender, and an active superadmin (onboarding done).
+ * Uses an active superadmin when present; otherwise any active user, or an inactive
+ * superadmin for audit FKs. If the users table is empty, inserts a bootstrap superadmin
+ * (PIN 0000, name "Owner (template enrich bootstrap)"). Catalog/lenders may be bootstrapped when empty.
  *
  * Close the Electron app before running — the DB file must not be open elsewhere.
  *
@@ -14,10 +16,21 @@
  *   --history-years=1|2       (default: 2) synthetic purchase/invoice dates in [today−N years, today]
  *   --reference-iso=YYYY-MM-DD optional fixed "today" for reproducible runs (local noon)
  *   --dry-run                 print planned counts only, no writes
- *   --company-name=...        only fills settings.company_name when missing
- *   --owner-name=...         only fills settings.owner_name when missing
+ *   --company-name=...        used for synthetic onboarding + only fills settings.company_name when missing
+ *   --owner-name=...          used for synthetic onboarding + only fills settings.owner_name when missing
+ *   --recovery-key=...        owner recovery key when the enricher completes onboarding settings (default below)
+ *
+ * If settings.onboarding_complete is not "true", the enricher writes the same settings as the
+ * onboarding form (company, owner, display name, MASTER_KEY_CUSTOMER_HASH, onboarding_complete)
+ * before inserting template data. Default recovery key: godown-template-enrich-recovery-key
+ * (PIN for the bootstrap superadmin remains 0000 when that row is created here).
  *
  * Synthetic users all use PIN 0000 (same hash stored for each row).
+ *
+ * Invoices are created through the same pipeline as the app (createInvoiceWithLines),
+ * so item_stock_movements for invoice_sale use ref_kind invoice_line and join to
+ * invoice_lines. The Stock history screen resolves source_invoice_id from that join
+ * and can open invoice quick view / #/invoices?invoiceId=<id>.
  */
 import fs from "fs";
 import path from "path";
@@ -53,6 +66,7 @@ function parseArgs(argv) {
   let referenceIso = null;
   let companyNameIfMissing = null;
   let ownerNameIfMissing = null;
+  let syntheticOnboardingRecoveryKey = null;
   for (const a of argv) {
     if (a.startsWith("--db=")) {
       dbPathOverride = a.slice(5);
@@ -66,6 +80,8 @@ function parseArgs(argv) {
       companyNameIfMissing = a.slice(15);
     } else if (a.startsWith("--owner-name=")) {
       ownerNameIfMissing = a.slice(13);
+    } else if (a.startsWith("--recovery-key=")) {
+      syntheticOnboardingRecoveryKey = a.slice(15);
     }
   }
   const fromEnv =
@@ -91,6 +107,7 @@ function parseArgs(argv) {
     referenceIso,
     companyNameIfMissing,
     ownerNameIfMissing,
+    syntheticOnboardingRecoveryKey,
   };
 }
 
@@ -118,6 +135,7 @@ const {
   referenceIso,
   companyNameIfMissing,
   ownerNameIfMissing,
+  syntheticOnboardingRecoveryKey,
 } = parseArgs(process.argv.slice(2));
 
 const parent = path.dirname(dbPath);
@@ -148,6 +166,8 @@ try {
     dryRun,
     companyNameIfMissing: companyNameIfMissing ?? undefined,
     ownerNameIfMissing: ownerNameIfMissing ?? undefined,
+    syntheticOnboardingRecoveryKey:
+      syntheticOnboardingRecoveryKey ?? undefined,
   });
   console.log(
     "Enrich from templates:",
@@ -157,6 +177,7 @@ try {
   console.log("runToken:", report.runToken);
   console.log("historyYears:", historyYears);
   console.log("dryRun:", report.dryRun);
+  console.log("syntheticOnboardingApplied:", report.syntheticOnboardingApplied);
   console.log(
     "counts:",
     report.insertedProducts,
@@ -184,6 +205,22 @@ try {
   }
   if (!report.dryRun) {
     console.log("Synthetic users: PIN 0000 for each inserted user.");
+    const brokenInvoiceSale = db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM item_stock_movements m
+         WHERE m.reason = 'invoice_sale'
+           AND m.ref_kind = 'invoice_line'
+           AND m.ref_id IS NOT NULL
+           AND (SELECT il.invoice_id FROM invoice_lines il WHERE il.id = m.ref_id) IS NULL`
+      )
+      .get();
+    if (brokenInvoiceSale && Number(brokenInvoiceSale.c) > 0) {
+      console.warn(
+        "Warning: invoice_sale stock rows without resolvable invoice_id:",
+        brokenInvoiceSale.c,
+        "(Stock history may show Open invoices instead of quick view.)"
+      );
+    }
   }
 } finally {
   db.close();

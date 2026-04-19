@@ -27,6 +27,12 @@ export interface TemplateEnrichOptions {
   /** When set, only inserts missing settings keys (never overwrites). */
   companyNameIfMissing?: string;
   ownerNameIfMissing?: string;
+  /**
+   * When onboarding is incomplete, the enricher applies the same settings as the
+   * onboarding form (incl. MASTER_KEY_CUSTOMER_HASH). Defaults to a fixed string;
+   * override for a known recovery key.
+   */
+  syntheticOnboardingRecoveryKey?: string;
 }
 
 export interface TemplateEnrichReport {
@@ -41,6 +47,8 @@ export interface TemplateEnrichReport {
   bootstrapItemsAdded: number;
   /** Starter rows inserted when the DB had no lenders yet (non–dry-run only). */
   bootstrapLendersAdded: number;
+  /** When true, wrote onboarding-style settings so the app skips the onboarding gate. */
+  syntheticOnboardingApplied: boolean;
 }
 
 const DEFAULT_COUNTS = {
@@ -136,18 +144,130 @@ function setSettingIfMissing(
     .run(key, value.trim());
 }
 
-function resolveSuperadmin(database: Database.Database): number {
-  const admin = database
-    .prepare(
-      "SELECT id FROM users WHERE role = 'superadmin' AND is_active = 1 LIMIT 1"
-    )
-    .get() as { id: number } | undefined;
-  if (!admin) {
+const BOOTSTRAP_SUPER_NAME = "Owner (template enrich bootstrap)";
+
+function resolveSuperadmin(database: Database.Database): {
+  id: number;
+  insertedBootstrap: boolean;
+} {
+  const pick = (sql: string) =>
+    database.prepare(sql).get() as { id: number } | undefined;
+
+  const activeSuper = pick(
+    "SELECT id FROM users WHERE role = 'superadmin' AND is_active = 1 LIMIT 1"
+  );
+  if (activeSuper) {
+    return { id: activeSuper.id, insertedBootstrap: false };
+  }
+
+  const anySuper = pick(
+    "SELECT id FROM users WHERE role = 'superadmin' ORDER BY is_active DESC, id LIMIT 1"
+  );
+  if (anySuper) {
+    return { id: anySuper.id, insertedBootstrap: false };
+  }
+
+  const activeAdmin = pick(
+    "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id LIMIT 1"
+  );
+  if (activeAdmin) {
+    return { id: activeAdmin.id, insertedBootstrap: false };
+  }
+
+  const anyActive = pick(
+    "SELECT id FROM users WHERE is_active = 1 ORDER BY id LIMIT 1"
+  );
+  if (anyActive) {
+    return { id: anyActive.id, insertedBootstrap: false };
+  }
+
+  const userCount = (
+    database.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }
+  ).c;
+  if (userCount > 0) {
     throw new Error(
-      "Template enricher needs an active superadmin user (complete onboarding first)."
+      "Template enricher needs at least one active user, or a superadmin row (all users are inactive)."
     );
   }
-  return admin.id;
+
+  const pinHash = createPinHash("0000");
+  const res = database
+    .prepare(
+      "INSERT INTO users (name, pin_hash, role, pin_is_temporary, is_active) VALUES (?, ?, 'superadmin', 0, 1)"
+    )
+    .run(BOOTSTRAP_SUPER_NAME, pinHash);
+  return { id: Number(res.lastInsertRowid), insertedBootstrap: true };
+}
+
+/**
+ * When the DB was never finished through the onboarding UI, mirror
+ * `auth:setupSuperAdmin` so the renderer skips the onboarding gate and
+ * business fields match what the form would have submitted.
+ */
+function ensureSyntheticOnboardingSettings(
+  database: Database.Database,
+  params: {
+    superadminId: number;
+    insertedBootstrap: boolean;
+    companyNameHint?: string;
+    ownerNameHint?: string;
+    recoveryKey: string;
+  }
+): boolean {
+  if (getSetting(database, "onboarding_complete") === "true") {
+    return false;
+  }
+
+  const companyFromSetting = getSetting(database, "company_name")?.trim() ?? "";
+  const ownerFromSetting = getSetting(database, "owner_name")?.trim() ?? "";
+
+  const userRow = database
+    .prepare("SELECT name, role FROM users WHERE id = ?")
+    .get(params.superadminId) as
+    | { name: string; role: string }
+    | undefined;
+  const accountName = userRow?.name?.trim() ?? "";
+
+  const companyName =
+    params.companyNameHint?.trim() ||
+    companyFromSetting ||
+    "Template Enrich Demo Co.";
+
+  let ownerName = params.ownerNameHint?.trim() || ownerFromSetting;
+  if (!ownerName) {
+    if (params.insertedBootstrap && accountName === BOOTSTRAP_SUPER_NAME) {
+      ownerName = "Owner";
+    } else {
+      ownerName = accountName || "Owner";
+    }
+  }
+
+  const displayName = companyName.slice(0, 25);
+  const rk = params.recoveryKey.trim();
+  if (!rk) {
+    throw new Error("syntheticOnboardingRecoveryKey must be non-empty.");
+  }
+
+  const setBulk = database.prepare(
+    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  );
+  const runBulk = database.transaction(() => {
+    setBulk.run("onboarding_complete", "true");
+    setBulk.run("company_name", companyName);
+    setBulk.run("owner_name", ownerName);
+    setBulk.run("displayName", displayName);
+    setBulk.run("MASTER_KEY_CUSTOMER_HASH", createPinHash(rk));
+    if (
+      userRow?.role === "superadmin" &&
+      (params.insertedBootstrap || accountName === BOOTSTRAP_SUPER_NAME)
+    ) {
+      database
+        .prepare("UPDATE users SET name = ? WHERE id = ?")
+        .run(ownerName, params.superadminId);
+    }
+  });
+  runBulk();
+  return true;
 }
 
 function unitIdByName(
@@ -456,8 +576,6 @@ export function enrichFromTemplates(
   const runToken = formatRunToken(options.referenceDate);
   const rng = mulberry32(seedFromString(runToken + String(counts.products)));
 
-  const superadminId = resolveSuperadmin(database);
-
   if (options.dryRun) {
     return {
       dryRun: true,
@@ -469,8 +587,23 @@ export function enrichFromTemplates(
       runToken,
       bootstrapItemsAdded: 0,
       bootstrapLendersAdded: 0,
+      syntheticOnboardingApplied: false,
     };
   }
+
+  const { id: superadminId, insertedBootstrap } = resolveSuperadmin(database);
+
+  const recoveryKey =
+    options.syntheticOnboardingRecoveryKey?.trim() ||
+    "godown-template-enrich-recovery-key";
+
+  const syntheticOnboardingApplied = ensureSyntheticOnboardingSettings(database, {
+    superadminId,
+    insertedBootstrap,
+    companyNameHint: options.companyNameIfMissing,
+    ownerNameHint: options.ownerNameIfMissing,
+    recoveryKey,
+  });
 
   if (options.companyNameIfMissing) {
     setSettingIfMissing(database, "company_name", options.companyNameIfMissing);
@@ -784,5 +917,6 @@ export function enrichFromTemplates(
     runToken,
     bootstrapItemsAdded: bootstrap.itemsAdded,
     bootstrapLendersAdded: bootstrap.lendersAdded,
+    syntheticOnboardingApplied,
   };
 }

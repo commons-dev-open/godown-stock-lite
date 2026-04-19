@@ -61,6 +61,8 @@
     "whoIsLoggingIn": "কে লগইন করছে?",
     "loading": "লোড হচ্ছে…",
     "noUsersFound": "কোনও মেম্বার পাওয়া যায়নি।",
+    "searchPlaceholder": "নাম দিয়ে খুঁজুন…",
+    "noSearchMatches": "আপনার খোঁজার সাথে মিলে এমন কোনও মেম্বার নেই।",
     "roleOwner": "মালিক",
     "roleAdmin": "অ্যাডমিন",
     "roleUser": "মেম্বার"

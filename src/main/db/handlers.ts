@@ -4202,6 +4202,10 @@ export function registerIpcHandlers(): void {
       const dataSql = `
         WITH base AS (
           SELECT m.*, i.name AS item_name,
+            CASE
+              WHEN m.ref_kind = 'invoice_line' AND m.ref_id IS NOT NULL THEN
+                (SELECT il.invoice_id FROM invoice_lines il WHERE il.id = m.ref_id)
+            END AS source_invoice_id,
             SUM(m.delta_qty) OVER (
               PARTITION BY m.item_id
               ORDER BY m.occurred_at ASC, m.id ASC

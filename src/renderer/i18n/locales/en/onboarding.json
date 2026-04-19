@@ -61,6 +61,8 @@
     "whoIsLoggingIn": "Who is logging in?",
     "loading": "Loading…",
     "noUsersFound": "No members found.",
+    "searchPlaceholder": "Search by name…",
+    "noSearchMatches": "No members match your search.",
     "roleOwner": "Owner",
     "roleAdmin": "Admin",
     "roleUser": "Member"

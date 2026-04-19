@@ -61,6 +61,8 @@
     "whoIsLoggingIn": "कौन लॉगिन कर रहा है?",
     "loading": "लोड हो रहा है…",
     "noUsersFound": "कोई सदस्य नहीं मिला।",
+    "searchPlaceholder": "नाम से खोजें…",
+    "noSearchMatches": "आपकी खोज से मेल खाता कोई सदस्य नहीं।",
     "roleOwner": "मालिक",
     "roleAdmin": "एडमिन",
     "roleUser": "सदस्य"

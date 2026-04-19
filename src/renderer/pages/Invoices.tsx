@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n, {
   INVOICE_PRINT_LOCALE_STORAGE_KEY,
@@ -466,6 +466,8 @@ export default function Invoices() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const invoiceIdFromUrl = searchParams.get("invoiceId");
 
   useEffect(() => {
     const state = location.state as {
@@ -620,6 +622,17 @@ export default function Invoices() {
     },
     [api]
   );
+
+  useEffect(() => {
+    if (!invoiceIdFromUrl) {
+      return;
+    }
+    const n = Number(invoiceIdFromUrl);
+    if (!Number.isFinite(n) || n <= 0) {
+      return;
+    }
+    void fetchAndView(n);
+  }, [invoiceIdFromUrl, fetchAndView]);
 
   const fetchAndEdit = useCallback(
     async (id: number) => {

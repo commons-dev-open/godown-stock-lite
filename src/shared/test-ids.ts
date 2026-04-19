@@ -124,6 +124,9 @@ export function userSelectUserButton(userId: number): string {
   return `user-select-user-${userId}`;
 }
 
+/** Filter input on user picker when many accounts are shown (list mode). */
+export const userSelectSearch = "user-select-search" as const;
+
 export const transactionsAction = {
   addCashPurchase: "transactions-add-cash-purchase",
 } as const;

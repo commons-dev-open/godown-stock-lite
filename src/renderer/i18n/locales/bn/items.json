@@ -182,6 +182,17 @@
       "transactions": "ট্রানজ্যাকশন খুলুন",
       "purchases": "ক্রয় খুলুন"
     },
+    "invoice_quickview": {
+      "button_title": "ইনভয়েস বিবরণ",
+      "button_aria": "ইনভয়েস দ্রুত দেখুন খুলুন",
+      "title": "ইনভয়েস",
+      "invoice_id": "ইনভয়েস #{{id}}",
+      "loading": "লোড হচ্ছে…",
+      "error": "এই ইনভয়েস লোড করা যায়নি।",
+      "lines_heading": "এই ইনভয়েসের লাইন",
+      "total": "ইনভয়েস মোট",
+      "open_in_invoices": "ইনভয়েসে খুলুন"
+    },
     "rowAction": {
       "openHistory": "ইতিহাস"
     },

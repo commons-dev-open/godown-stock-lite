@@ -182,6 +182,17 @@
       "transactions": "लेन-देन खोलें",
       "purchases": "खरीदारी खोलें"
     },
+    "invoice_quickview": {
+      "button_title": "बिल विवरण",
+      "button_aria": "बिल त्वरित दृश्य खोलें",
+      "title": "बिल",
+      "invoice_id": "बिल #{{id}}",
+      "loading": "लोड हो रहा है…",
+      "error": "यह बिल लोड नहीं हो सका।",
+      "lines_heading": "इस बिल की पंक्तियाँ",
+      "total": "बिल कुल",
+      "open_in_invoices": "बिलों में खोलें"
+    },
     "rowAction": {
       "openHistory": "इतिहास"
     },
