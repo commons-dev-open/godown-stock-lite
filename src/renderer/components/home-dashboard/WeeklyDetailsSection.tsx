@@ -1,9 +1,11 @@
 import { memo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import DateInput from "../DateInput";
+import { type SaleMomentumScope } from "./types";
 
 interface WeeklyDetailsSectionProps {
   weeklyDate: string;
+  saleMomentumScope: SaleMomentumScope;
   onWeeklyDateChange: (value: string) => void;
   onSetToday: () => void;
   content: ReactNode;
@@ -11,11 +13,13 @@ interface WeeklyDetailsSectionProps {
 
 function WeeklyDetailsSectionComponent({
   weeklyDate,
+  saleMomentumScope,
   onWeeklyDateChange,
   onSetToday,
   content,
 }: Readonly<WeeklyDetailsSectionProps>) {
   const { t } = useTranslation("home");
+  const isCalendar = saleMomentumScope === "calendarWeek";
 
   return (
     <article className="dashboard-panel xl:col-span-2">
@@ -23,7 +27,11 @@ function WeeklyDetailsSectionComponent({
         {t("sections.weeklyDetails")}
       </h2>
       <p className="text-sm text-[var(--color-text-secondary)] mb-3">
-        {t("weeklyDetails.subtitle")}
+        {t(
+          isCalendar
+            ? "weeklyDetails.subtitleCalendar"
+            : "weeklyDetails.subtitleRolling"
+        )}
       </p>
       <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden mb-4">
         <label className="flex items-center gap-1.5 shrink-0 text-sm text-[var(--color-text-secondary)]">

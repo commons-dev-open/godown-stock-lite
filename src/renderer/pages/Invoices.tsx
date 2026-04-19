@@ -2410,10 +2410,18 @@ function InvoiceFormModal({
                           toast.error(t("toasts.couponValidationFailed"))
                         );
                     }}
+                    {...(appliedCoupon
+                      ? {
+                          "aria-label": t("formModal.footer.remove"),
+                          title: t("formModal.footer.remove"),
+                        }
+                      : {})}
                   >
-                    {appliedCoupon
-                      ? t("formModal.footer.remove")
-                      : t("formModal.footer.apply")}
+                    {appliedCoupon ? (
+                      <Trash2 size={16} aria-hidden="true" />
+                    ) : (
+                      t("formModal.footer.apply")
+                    )}
                   </Button>
                 </div>
               )}

@@ -31,7 +31,7 @@
     },
     "appearance": {
       "title": "Appearance",
-      "description": "Theme, accent color, display name, and number formatting."
+      "description": "Theme, accent color, display name, calendar week start, and number formatting."
     },
     "security": {
       "title": "Security",
@@ -52,6 +52,12 @@
   "preferences": {
     "language": "Language",
     "languageHint": "Choose the language used across the app.",
+    "weekStartsOn": "Week starts on",
+    "weekStartsOnHint": "Used for Home calendar week totals, charts, and the “This week” date preset. Default is Monday.",
+    "weekStartsOnOptions": {
+      "monday": "Monday",
+      "sunday": "Sunday"
+    },
     "theme": "Theme",
     "themeHint": "Choose light, dark, or follow your system preference.",
     "themeModes": {

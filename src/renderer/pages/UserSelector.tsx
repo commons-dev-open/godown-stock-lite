@@ -121,7 +121,7 @@ export default function UserSelector() {
                 {getInitials(u.name)}
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate max-w-fit">
+                <p className="text-sm text-center font-semibold text-[var(--color-text-primary)]">
                   {u.name}
                 </p>
                 <RoleBadge role={u.role} />

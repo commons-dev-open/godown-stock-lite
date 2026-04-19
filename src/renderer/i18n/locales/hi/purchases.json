@@ -16,6 +16,7 @@
     "lender_all": "सभी महाजन",
     "date_from": "तारीख से",
     "date_to": "तारीख तक",
+    "more_filters": "और फिल्टर",
     "clear": "फ़िल्टर हटाएँ"
   },
   "columns": {
@@ -35,6 +36,8 @@
   },
   "actions": {
     "edit": "संपादन",
+    "cash_purchase": "नकद खरीद",
+    "add_credit_purchase": "उधार खरीद जोड़ें",
     "settle": "भुगतान और सेटलमेंट",
     "view_invoice": "इनवॉइस देखें"
   },

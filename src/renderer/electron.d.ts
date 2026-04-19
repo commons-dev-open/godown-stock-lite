@@ -503,6 +503,8 @@ export interface ElectronAPI {
     todaySale: number;
     weekSale: number;
     weekExpenditure: number;
+    calendarWeekSale: number;
+    calendarWeekExpenditure: number;
     monthSale: number;
     monthExpenditure: number;
   }>;
@@ -529,6 +531,7 @@ export interface ElectronAPI {
   ) => Promise<{ totalLends: number; totalDeposits: number; balance: number }>;
   getMahajanLedger: (mahajanId: number) => Promise<unknown[]>;
   getWeeklySale: (fromDate: string) => Promise<unknown[]>;
+  getCalendarWeekSale: (anchorDate: string) => Promise<unknown[]>;
   getTotalSale: (
     fromDate: string,
     toDate: string

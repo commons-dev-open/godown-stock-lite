@@ -22,7 +22,7 @@ export function buildBengaliHelpBodies(i18n: I18n): Record<HelpTabId, ReactNode>
         <HelpSubSection title="মূল পেজগুলোতে কী কী পাবেন">
           <HelpBulletList
             items={[
-              `${terms.navHome}: উপরের সারির সূচক—${terms.homeHeroMetricToday}, ${terms.homeHeroMetricThisWeek}, ${terms.homeHeroMetricThisMonth}, ${terms.homeHeroMetricLenderNet}; ${terms.homeSectionWeeklyMomentum}; তারিখের প্রিসেটসহ ${terms.homeSectionRangeComposition}; ${terms.homeSectionQuickActions} (${terms.qaCreateInvoice}, ${terms.qaCreditPurchase}, ${terms.qaStockHistory}); ${terms.qaCashVsExp}; ${terms.homeSectionLowStockAlerts}; ${terms.homeSectionWeeklyDetails}; আর ${terms.homeSectionLenderSummary}। প্রয়োজনে এখান থেকেই সংশ্লিষ্ট পেজে চলে যেতে পারবেন।`,
+              `${terms.navHome}: উপরের সারির সূচক—${terms.homeHeroMetricToday}, ${terms.homeHeroMetricLast7Days}, ${terms.homeHeroMetricThisCalendarWeek}, ${terms.homeHeroMetricThisMonth}, ${terms.homeHeroMetricLenderNet}; ${terms.homeSectionWeeklyMomentum}; তারিখের প্রিসেটসহ ${terms.homeSectionRangeComposition}; ${terms.homeSectionQuickActions} (${terms.qaCreateInvoice}, ${terms.qaCreditPurchase}, ${terms.qaStockHistory}); ${terms.qaCashVsExp}; ${terms.homeSectionLowStockAlerts}; ${terms.homeSectionWeeklyDetails}; আর ${terms.homeSectionLenderSummary}। প্রয়োজনে এখান থেকেই সংশ্লিষ্ট পেজে চলে যেতে পারবেন।`,
               `${terms.navUnits}: ${terms.unitsTabAll}, ${terms.unitsTabTypes} ও ${terms.unitsTabConv}—একই মাল কখনো কেজিতে, কখনো গ্রামে বা পিসে বিল/স্টক এন্ট্রি করলেও যেন হিসাব এক সূত্রে মিলে।`,
               `${terms.navStock}: পণ্যের ক্যাটালগ, হাতে কত আছে, রি-অর্ডারের ইঙ্গিত, পণ্যপ্রতি বিক্রির ডিফল্ট ও GST/HSN, পণ্য-ভিত্তিক একক রূপান্তর, ${terms.itemsAddStock} ও ${terms.itemsReduceStock}, সার্চ, এক্সপোর্ট ও প্রিন্ট; সারিতে ${terms.navStockHistory}-এ যাওয়ার শর্টকাট।`,
               `${terms.navMahajans}: যাদের কাছ থেকে বাকিতে মাল নিয়ে পরে ${terms.txSettlementType} করবেন—ব্যালান্স, লেজার, এক্সপোর্ট। অ্যাপের মেনুতে নাম ${terms.navMahajans}; পুরনো ব্যাকআপ বা কোডের ভেতরে ইংরেজি লেবেল “mahajan” থাকতে পারে।`,
@@ -461,7 +461,7 @@ export function buildBengaliHelpBodies(i18n: I18n): Record<HelpTabId, ReactNode>
             SI K/M/B) সেই ফরম্যাটেই এখানেও দেখায়।
           </p>
         </HelpSubSection>
-        <HelpSubSection title="৭ দিনের বিক্রি মোমেন্টাম">
+        <HelpSubSection title="7 দিনের বিক্রি মোমেন্টাম">
           <p className="mb-2">
             সপ্তাহের শেষ তারিখ বেছে নিয়ে সাত দিনের বিক্রি ও খরচের চার্ট দেখুন—সাপ্তাহিক মোট, কোন দিনে
             সর্বোচ্চ বিক্রি, আর কতগুলো দৈনিক সারি মিলিয়ে গ্রাফ তৈরি হয়েছে। নিয়মিত শান্ত দিনগুলোর

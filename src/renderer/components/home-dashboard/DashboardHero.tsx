@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 interface DashboardHeroProps {
   todaySaleLabel: string;
   weekSaleLabel: string;
+  calendarWeekSaleLabel: string;
   monthSaleLabel: string;
   lenderNetLabel: string;
   lenderNetClassName: string;
@@ -12,6 +13,7 @@ interface DashboardHeroProps {
 function DashboardHeroComponent({
   todaySaleLabel,
   weekSaleLabel,
+  calendarWeekSaleLabel,
   monthSaleLabel,
   lenderNetLabel,
   lenderNetClassName,
@@ -39,10 +41,18 @@ function DashboardHeroComponent({
               </div>
               <div className="dashboard-metric-card">
                 <p className="text-xs text-[var(--color-text-tertiary)]">
-                  {t("hero.metrics.thisWeek")}
+                  {t("hero.metrics.last7Days")}
                 </p>
                 <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)]">
                   {weekSaleLabel}
+                </p>
+              </div>
+              <div className="dashboard-metric-card">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
+                  {t("hero.metrics.thisCalendarWeek")}
+                </p>
+                <p className="dashboard-hero-kpi-value text-[var(--color-text-primary)]">
+                  {calendarWeekSaleLabel}
                 </p>
               </div>
               <div className="dashboard-metric-card">

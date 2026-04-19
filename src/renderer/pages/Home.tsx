@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
+import type { DatePresetKey } from "../components/home-dashboard/types";
 import { useQuery } from "@tanstack/react-query";
 import ReactECharts from "echarts-for-react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +20,7 @@ import {
   WeeklyMomentumSection,
 } from "../components/home-dashboard";
 import {
-  DATE_PRESETS,
+  buildDatePresets,
   getMonthStart,
 } from "../components/home-dashboard/datePresets";
 import {
@@ -31,6 +32,7 @@ import {
 import {
   type DatePreset,
   type LowStockItem,
+  type SaleMomentumScope,
   type WeeklyRow,
 } from "../components/home-dashboard/types";
 import {
@@ -38,12 +40,15 @@ import {
   formatRupee,
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
+  WEEK_STARTS_ON_KEY,
+  parseWeekStartsOn,
 } from "../../shared/numbers";
 import { useFormatters } from "../i18n/useFormatters";
 
 interface ReportSummary {
   todaySale: number;
   weekSale: number;
+  calendarWeekSale: number;
   monthSale: number;
 }
 
@@ -84,16 +89,26 @@ export default function Home() {
     () => parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY]),
     [settings]
   );
+  const weekStartsOnSetting = useMemo(
+    () => parseWeekStartsOn(settings[WEEK_STARTS_ON_KEY]),
+    [settings]
+  );
+  const datePresets = useMemo(
+    () => buildDatePresets(weekStartsOnSetting),
+    [weekStartsOnSetting]
+  );
   const { formatAbbreviatedRupee } = useFormatters();
   const defaultTotalFrom = useMemo(() => getMonthStart(), []);
   const defaultTotalTo = useMemo(() => todayISO(), []);
   const [weeklyDate, setWeeklyDate] = useState(todayISO());
+  const [saleMomentumScope, setSaleMomentumScope] =
+    useState<SaleMomentumScope>("rolling7");
   const [totalFrom, setTotalFrom] = useState(defaultTotalFrom);
   const [totalTo, setTotalTo] = useState(defaultTotalTo);
 
   const { data: reportSummary, isLoading: reportSummaryLoading } =
     useQuery<ReportSummary>({
-      queryKey: ["reportSummary"],
+      queryKey: ["reportSummary", weekStartsOnSetting],
       queryFn: () => api.getReportSummary(),
       staleTime: 60_000,
       gcTime: 5 * 60_000,
@@ -122,8 +137,16 @@ export default function Home() {
     isLoading: weeklyLoading,
     isError: weeklyError,
   } = useQuery<WeeklyRow[]>({
-    queryKey: ["weeklySale", weeklyDate],
-    queryFn: async () => (await api.getWeeklySale(weeklyDate)) as WeeklyRow[],
+    queryKey: [
+      "weeklySale",
+      saleMomentumScope,
+      weeklyDate,
+      weekStartsOnSetting,
+    ],
+    queryFn: async () =>
+      (saleMomentumScope === "calendarWeek"
+        ? await api.getCalendarWeekSale(weeklyDate)
+        : await api.getWeeklySale(weeklyDate)) as WeeklyRow[],
     enabled: !!weeklyDate,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
@@ -145,16 +168,14 @@ export default function Home() {
     setTotalTo(preset.getTo());
   }, []);
   const handlePresetClick = useCallback(
-    (label: string) => {
-      const selectedPreset = DATE_PRESETS.find(
-        (preset) => preset.label === label
-      );
+    (key: DatePresetKey) => {
+      const selectedPreset = datePresets.find((preset) => preset.key === key);
       if (!selectedPreset) {
         return;
       }
       applyPreset(selectedPreset);
     },
-    [applyPreset]
+    [applyPreset, datePresets]
   );
   const isPresetActive = useCallback(
     (preset: DatePreset) => {
@@ -162,17 +183,15 @@ export default function Home() {
     },
     [totalFrom, totalTo]
   );
-  const isPresetLabelActive = useCallback(
-    (label: string) => {
-      const selectedPreset = DATE_PRESETS.find(
-        (preset) => preset.label === label
-      );
+  const isPresetKeyActive = useCallback(
+    (key: DatePresetKey) => {
+      const selectedPreset = datePresets.find((preset) => preset.key === key);
       if (!selectedPreset) {
         return false;
       }
       return isPresetActive(selectedPreset);
     },
-    [isPresetActive]
+    [isPresetActive, datePresets]
   );
 
   const palette = useMemo(
@@ -216,6 +235,12 @@ export default function Home() {
   const weekSaleLabel = reportSummaryLoading
     ? "..."
     : formatAbbreviatedRupee(reportSummary?.weekSale ?? 0, abbreviationStyle);
+  const calendarWeekSaleLabel = reportSummaryLoading
+    ? "..."
+    : formatAbbreviatedRupee(
+        reportSummary?.calendarWeekSale ?? 0,
+        abbreviationStyle
+      );
   const monthSaleLabel = reportSummaryLoading
     ? "..."
     : formatAbbreviatedRupee(reportSummary?.monthSale ?? 0, abbreviationStyle);
@@ -558,18 +583,26 @@ export default function Home() {
       <DashboardHero
         todaySaleLabel={todaySaleLabel}
         weekSaleLabel={weekSaleLabel}
+        calendarWeekSaleLabel={calendarWeekSaleLabel}
         monthSaleLabel={monthSaleLabel}
         lenderNetLabel={lenderNetLabel}
         lenderNetClassName={netBalanceClass(mahajanSummary?.balance ?? 0)}
       />
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <DashboardSectionBoundary
-          sectionTitle={t("weeklyMomentum.title")}
+          sectionTitle={t("sections.weeklyMomentum")}
           containerClassName="dashboard-panel xl:col-span-2 min-h-[23rem]"
-          resetKeys={[weeklyDate, orderedWeeklyData.length]}
+          resetKeys={[
+            weeklyDate,
+            orderedWeeklyData.length,
+            saleMomentumScope,
+            weekStartsOnSetting,
+          ]}
         >
           <WeeklyMomentumSection
             weeklyDate={weeklyDate}
+            saleMomentumScope={saleMomentumScope}
+            onSaleMomentumScopeChange={setSaleMomentumScope}
             content={weeklyTrendContent}
             totalWeekSales={totalWeekSales}
             totalWeekExpenditure={totalWeekExpenditure}
@@ -583,12 +616,13 @@ export default function Home() {
           resetKeys={[totalFrom, totalTo, totalSaleResult?.total ?? 0]}
         >
           <RangeCompositionSection
+            datePresets={datePresets}
             totalFrom={totalFrom}
             totalTo={totalTo}
             onFromChange={setTotalFrom}
             onToChange={setTotalTo}
             onPresetClick={handlePresetClick}
-            isPresetActive={isPresetLabelActive}
+            isPresetActive={isPresetKeyActive}
             content={rangeCompositionContent}
           />
         </DashboardSectionBoundary>
@@ -597,7 +631,12 @@ export default function Home() {
         <DashboardSectionBoundary
           sectionTitle={t("sections.quickActions")}
           containerClassName="dashboard-panel xl:col-span-4"
-          resetKeys={[weeklyDate, orderedWeeklyData.length]}
+          resetKeys={[
+            weeklyDate,
+            orderedWeeklyData.length,
+            saleMomentumScope,
+            weekStartsOnSetting,
+          ]}
         >
           <QuickActionsSection
             cashExpenditureContent={cashExpenditureContent}
@@ -618,10 +657,17 @@ export default function Home() {
         <DashboardSectionBoundary
           sectionTitle={t("sections.weeklyDetails")}
           containerClassName="dashboard-panel xl:col-span-2"
-          resetKeys={[weeklyDate, orderedWeeklyData.length, weeklyLoading]}
+          resetKeys={[
+            weeklyDate,
+            orderedWeeklyData.length,
+            weeklyLoading,
+            saleMomentumScope,
+            weekStartsOnSetting,
+          ]}
         >
           <WeeklyDetailsSection
             weeklyDate={weeklyDate}
+            saleMomentumScope={saleMomentumScope}
             onWeeklyDateChange={setWeeklyDate}
             onSetToday={() => setWeeklyDate(todayISO())}
             content={weeklyDetailsContent}
