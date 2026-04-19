@@ -1,4 +1,3 @@
-import { randomBytes, pbkdf2Sync, timingSafeEqual } from "crypto";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -14,11 +13,7 @@ import {
   WEEK_STARTS_ON_KEY,
   type WeekStartsOn,
 } from "../../shared/numbers";
-import {
-  convertToPrimaryQuantity,
-  type ConversionRow,
-  type ItemConversionRow,
-} from "../../shared/unitConversion";
+import { convertToPrimaryQuantity } from "../../shared/unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
 import { checkSoftUpdate } from "../softUpdate";
 import {
@@ -32,32 +27,19 @@ import {
 } from "../../shared/seedConstants";
 import { populateSampleData } from "./sampleData";
 import { MASTER_KEY_DEV_HASH } from "../../shared/buildConfig";
-
-// ---- Auth helpers ----
-
-function hashPin(pin: string, salt: Buffer): string {
-  return pbkdf2Sync(pin, salt, 310000, 32, "sha256").toString("hex");
-}
-
-function createPinHash(pin: string): string {
-  const salt = randomBytes(16);
-  return salt.toString("hex") + ":" + hashPin(pin, salt);
-}
-
-function verifyPinHash(pin: string, stored: string): boolean {
-  const parts = stored.split(":");
-  if (parts.length !== 2) return false;
-  const [saltHex, hashHex] = parts;
-  try {
-    const salt = Buffer.from(saltHex, "hex");
-    const computed = Buffer.from(hashPin(pin, salt), "hex");
-    const expected = Buffer.from(hashHex, "hex");
-    if (computed.length !== expected.length) return false;
-    return timingSafeEqual(computed, expected);
-  } catch {
-    return false;
-  }
-}
+import { upsertCustomer } from "./customers";
+import { shiftIsoDateByDays } from "./dateIso";
+import { upsertDailySalesForInvoice } from "./dailySales";
+import { createInvoiceWithLines } from "./invoiceCreate";
+import { createPinHash, verifyPinHash } from "./pinHash";
+import {
+  createCashPurchaseBatch,
+  createCreditPurchaseBatch,
+} from "./purchaseBatch";
+import {
+  getItemUnitConversions,
+  getUnitConversionsRows,
+} from "./unitConversionQueries";
 
 function sanitizeFileNamePart(value: string): string {
   return value
@@ -101,86 +83,11 @@ function logActivity(
   }
 }
 
-function getUnitConversionsRows(): ConversionRow[] {
-  return getDb()
-    .prepare("SELECT from_unit, to_unit, factor FROM unit_conversions")
-    .all() as ConversionRow[];
-}
-
-function getItemUnitConversions(
-  database: ReturnType<typeof getDb>,
-  itemId: number
-): ItemConversionRow[] {
-  return database
-    .prepare(
-      "SELECT to_unit, factor FROM item_unit_conversions WHERE item_id = ?"
-    )
-    .all(itemId) as ItemConversionRow[];
-}
-
-function formatDateToIsoLocal(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function shiftIsoDateByDays(isoDate: string, days: number): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const shiftedDate = new Date(year, (month ?? 1) - 1, day ?? 1);
-  shiftedDate.setDate(shiftedDate.getDate() + days);
-  return formatDateToIsoLocal(shiftedDate);
-}
-
 function readWeekStartsOnFromDb(database: ReturnType<typeof getDb>): WeekStartsOn {
   const row = database
     .prepare("SELECT value FROM settings WHERE key = ?")
     .get(WEEK_STARTS_ON_KEY) as { value: string | null } | undefined;
   return parseWeekStartsOn(row?.value ?? "");
-}
-
-/**
- * Update daily_sales when invoice totals change.
- * delta: positive to add, negative to subtract.
- * Creates a row for sale_date if none exists.
- */
-function upsertDailySalesForInvoice(
-  database: ReturnType<typeof getDb>,
-  saleDate: string,
-  delta: number
-): void {
-  const row = database
-    .prepare(
-      "SELECT id, invoice_sales, misc_sales FROM daily_sales WHERE sale_date = ? LIMIT 1"
-    )
-    .get(saleDate) as
-    | { id: number; invoice_sales: number; misc_sales: number }
-    | undefined;
-  if (row) {
-    const newInv = roundDecimal(
-      Math.max(0, (row.invoice_sales ?? 0) + delta)
-    );
-    const misc = row.misc_sales ?? 0;
-    const saleAmount = roundDecimal(newInv + misc);
-    database
-      .prepare(
-        "UPDATE daily_sales SET invoice_sales = ?, sale_amount = ?, updated_at = datetime('now') WHERE id = ?"
-      )
-      .run(newInv, saleAmount, row.id);
-  } else {
-    const invoiceSales = Math.max(0, roundDecimal(delta));
-    const prevDay = database
-      .prepare(
-        "SELECT cash_in_hand FROM daily_sales WHERE sale_date < ? ORDER BY sale_date DESC LIMIT 1"
-      )
-      .get(saleDate) as { cash_in_hand: number } | undefined;
-    const openingCash = prevDay?.cash_in_hand ?? 0;
-    database
-      .prepare(
-        "INSERT INTO daily_sales (sale_date, sale_amount, cash_in_hand, invoice_sales, misc_sales) VALUES (?, ?, ?, ?, 0)"
-      )
-      .run(saleDate, invoiceSales, openingCash, invoiceSales);
-  }
 }
 
 export function registerIpcHandlers(): void {
@@ -334,16 +241,16 @@ export function registerIpcHandlers(): void {
       const page = Math.max(1, opts?.page ?? 1);
       const limit = Math.min(100, Math.max(1, opts?.limit ?? PAGE_SIZE));
       const offset = (page - 1) * limit;
-      const likeArg = search ? `%${search}%` : null;
+      const likeArg = search ? `%${search.toLowerCase()}%` : null;
       if (likeArg) {
         const countRow = db()
           .prepare(
-            "SELECT COUNT(*) AS total FROM items WHERE name LIKE ? OR COALESCE(code, '') LIKE ?"
+            "SELECT COUNT(*) AS total FROM items WHERE LOWER(name) LIKE ? OR LOWER(COALESCE(code, '')) LIKE ?"
           )
           .get(likeArg, likeArg) as { total: number };
         const rows = db()
           .prepare(
-            "SELECT * FROM items WHERE name LIKE ? OR COALESCE(code, '') LIKE ? ORDER BY name LIMIT ? OFFSET ?"
+            "SELECT * FROM items WHERE LOWER(name) LIKE ? OR LOWER(COALESCE(code, '')) LIKE ? ORDER BY name LIMIT ? OFFSET ?"
           )
           .all(likeArg, likeArg, limit, offset);
         return { data: rows, total: countRow.total };
@@ -399,7 +306,7 @@ export function registerIpcHandlers(): void {
         (item.current_stock_value != null || item.current_stock != null)
       ) {
         const val = item.current_stock_value ?? item.current_stock ?? 0;
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const result = convertToPrimaryQuantity(
           conversions,
           {
@@ -436,7 +343,7 @@ export function registerIpcHandlers(): void {
       let reorderPrimary: number | null;
       if (reorderAlt) {
         const val = item.reorder_level_value ?? item.reorder_level ?? 0;
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const reorderConv = convertToPrimaryQuantity(
           conversions,
           {
@@ -446,7 +353,7 @@ export function registerIpcHandlers(): void {
             item_conversions: convList.length > 0 ? convList : undefined,
           },
           val,
-          item.reorder_level_unit
+          item.reorder_level_unit!
         );
         if ("error" in reorderConv) throw new Error(reorderConv.error);
         reorderPrimary = roundDecimal(reorderConv.primaryQuantity);
@@ -618,7 +525,7 @@ export function registerIpcHandlers(): void {
         (item.current_stock_value != null || item.current_stock != null)
       ) {
         const val = item.current_stock_value ?? item.current_stock ?? 0;
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const result = convertToPrimaryQuantity(
           conversions,
           {
@@ -679,7 +586,7 @@ export function registerIpcHandlers(): void {
       let nextReorder: number | null | undefined;
       if (reorderAltUpdate) {
         const val = item.reorder_level_value ?? item.reorder_level ?? 0;
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const reorderConv = convertToPrimaryQuantity(
           conversions,
           {
@@ -690,7 +597,7 @@ export function registerIpcHandlers(): void {
               itemConvsForConvert.length > 0 ? itemConvsForConvert : undefined,
           },
           val,
-          item.reorder_level_unit
+          item.reorder_level_unit!
         );
         if ("error" in reorderConv) throw new Error(reorderConv.error);
         nextReorder = roundDecimal(reorderConv.primaryQuantity);
@@ -845,7 +752,7 @@ export function registerIpcHandlers(): void {
       const itemConvs = getItemUnitConversions(db(), id);
       let primaryQty: number;
       if (fromUnit != null && fromUnit !== "" && fromUnit !== row.unit) {
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const result = convertToPrimaryQuantity(
           conversions,
           {
@@ -916,7 +823,7 @@ export function registerIpcHandlers(): void {
       const itemConvs = getItemUnitConversions(db(), id);
       let primaryQty: number;
       if (fromUnit != null && fromUnit !== "" && fromUnit !== row.unit) {
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const result = convertToPrimaryQuantity(
           conversions,
           {
@@ -1679,194 +1586,20 @@ export function registerIpcHandlers(): void {
         }[];
       }
     ) => {
-      if (!payload.lines?.length)
-        throw new Error("At least one line is required.");
-      for (const line of payload.lines) {
-        if (line.quantity <= 0) throw new Error(`Quantity must be positive for ${line.product_name ?? 'item'}.`);
-        if (line.price < 0) throw new Error(`Price cannot be negative for ${line.product_name ?? 'item'}.`);
-      }
       const run = db().transaction(() => {
-        const year = payload.invoice_date.slice(0, 4);
-        const prefix = `INV-${year}-`;
-        const prefixLen = prefix.length;
-        const maxSeq = db()
-          .prepare(
-            "SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, ?) AS INTEGER)), 0) AS n FROM invoices WHERE invoice_number LIKE ?"
-          )
-          .get(prefixLen + 1, prefix + "%") as { n: number } | undefined;
-        const nextSeq = (maxSeq?.n ?? 0) + 1;
-        const invoiceNumber = `${prefix}${String(nextSeq).padStart(4, "0")}`;
-        const conversions = getUnitConversionsRows();
-        const itemInfoStmt = db().prepare(
-          "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
-        );
-        const stockDeltaByItem = new Map<
-          number,
-          { name: string; delta: number }
-        >();
-
-        // Handle customer phone: upsert customer if phone provided
-        let customerId: number | null = null;
-        const customerPhone =
-          typeof payload.customer_phone === "string" &&
-          payload.customer_phone.trim()
-            ? payload.customer_phone.trim()
-            : null;
-        if (customerPhone) {
-          customerId = upsertCustomer(
-            customerPhone,
-            payload.customer_name ?? null,
-            payload.customer_address ?? null,
-            payload.customer_gstin ?? null
-          );
-        }
-
-        const r = db()
-          .prepare(
-            "INSERT INTO invoices (invoice_number, customer_name, customer_address, customer_phone, customer_id, invoice_date, notes, order_discount_amount, round_to_whole, coupon_code, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-          )
-          .run(
-            invoiceNumber,
-            payload.customer_name ?? null,
-            payload.customer_address ?? null,
-            customerPhone,
-            customerId,
-            payload.invoice_date,
-            payload.notes ?? null,
-            roundDecimal(payload.order_discount_amount ?? 0),
-            payload.round_to_whole ? 1 : 0,
-            payload.coupon_code ?? null,
-            payload._userId ?? null
-          );
-        const invoiceId = r.lastInsertRowid as number;
-        const getUnitId = db().prepare("SELECT id FROM units WHERE name = ?");
-        const stmt = db().prepare(
-          "INSERT INTO invoice_lines (invoice_id, product_id, product_name, quantity, unit, unit_id, price, price_unit, amount, price_entered_as, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount, hsn_code, line_discount_percent, line_discount_flat, bogo_buy_qty, bogo_get_qty, bogo_discount_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        );
-        for (const line of payload.lines) {
-          const unitId =
-            (getUnitId.get(line.unit ?? "") as { id: number } | undefined)
-              ?.id ?? null;
-          const gstRate = line.gst_rate ?? 0;
-          const gstInclusive = line.gst_inclusive ?? false;
-          const taxableAmount = line.taxable_amount ?? 0;
-          const cgstAmount = line.cgst_amount ?? 0;
-          const sgstAmount = line.sgst_amount ?? 0;
-          const lineDiscPct = line.line_discount_percent ?? 0;
-          const lineDiscFlat = line.line_discount_flat ?? 0;
-          const bogoBuy = line.bogo_buy_qty ?? null;
-          const bogoGet = line.bogo_get_qty ?? null;
-          const bogoPct = line.bogo_discount_percent ?? 100;
-          const lineRun = stmt.run(
-            invoiceId,
-            line.product_id,
-            line.product_name ?? null,
-            roundDecimal(line.quantity, 6),
-            line.unit ?? "",
-            unitId,
-            roundDecimal(line.price),
-            line.price_unit ?? null,
-            roundDecimal(line.amount),
-            line.price_entered_as ?? "per_unit",
-            gstRate,
-            gstInclusive ? 1 : 0,
-            roundDecimal(taxableAmount),
-            roundDecimal(cgstAmount),
-            roundDecimal(sgstAmount),
-            line.hsn_code ?? null,
-            lineDiscPct,
-            lineDiscFlat,
-            bogoBuy,
-            bogoGet,
-            bogoPct
-          );
-          const invoiceLineId = Number(lineRun.lastInsertRowid);
-
-          if (line.product_id > 0) {
-            const itemRow = itemInfoStmt.get(line.product_id) as
-              | {
-                  id: number;
-                  name: string;
-                  unit: string;
-                  reference_unit: string | null;
-                  quantity_per_primary: number | null;
-                  current_stock: number;
-                }
-              | undefined;
-            if (!itemRow) {
-              throw new Error("Product not found for invoice line.");
-            }
-            const itemConvs = getItemUnitConversions(db(), itemRow.id);
-            const conv = convertToPrimaryQuantity(
-              conversions,
-              {
-                unit: itemRow.unit,
-                reference_unit: itemRow.reference_unit,
-                quantity_per_primary: itemRow.quantity_per_primary,
-                item_conversions: itemConvs.length > 0 ? itemConvs : undefined,
-              },
-              line.quantity,
-              line.unit
-            );
-            if ("error" in conv) {
-              throw new Error(
-                `Cannot deduct stock for ${itemRow.name}: ${conv.error}`
-              );
-            }
-            const prev = stockDeltaByItem.get(itemRow.id)?.delta ?? 0;
-            stockDeltaByItem.set(itemRow.id, {
-              name: itemRow.name,
-              delta: prev - conv.primaryQuantity,
-            });
-            insertItemStockMovement(db(), {
-              item_id: line.product_id,
-              delta_qty: -conv.primaryQuantity,
-              reason: "invoice_sale",
-              ref_kind: "invoice_line",
-              ref_id: invoiceLineId,
-              occurred_at: payload.invoice_date,
-              note: null,
-            });
-          }
-        }
-
-        if (stockDeltaByItem.size > 0) {
-          const stockStmt = db().prepare(
-            "SELECT current_stock FROM items WHERE id = ?"
-          );
-          const updateStmt = db().prepare(
-            "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
-          );
-          for (const [itemId, info] of stockDeltaByItem) {
-            const row = stockStmt.get(itemId) as
-              | { current_stock: number }
-              | undefined;
-            if (!row) continue;
-            const newStock = row.current_stock + info.delta;
-            if (newStock < -0.005) {
-              throw new Error(
-                `Insufficient stock for ${info.name}. Current: ${row.current_stock}, required: ${-info.delta}.`
-              );
-            }
-            if (info.delta !== 0) {
-              updateStmt.run(info.delta, itemId);
-            }
-          }
-        }
-
-        const subtotal = payload.lines.reduce(
-          (s, l) => s + roundDecimal(l.amount),
-          0
-        );
-        const orderDisc = roundDecimal(payload.order_discount_amount ?? 0);
-        let invoiceTotal = subtotal - orderDisc;
-        if (payload.round_to_whole) {
-          invoiceTotal = Math.round(invoiceTotal);
-        } else {
-          invoiceTotal = roundDecimal(invoiceTotal);
-        }
-        upsertDailySalesForInvoice(db(), payload.invoice_date, invoiceTotal);
-
+        const { invoiceId, invoiceNumber } = createInvoiceWithLines(db(), {
+          customer_name: payload.customer_name ?? null,
+          customer_address: payload.customer_address ?? null,
+          customer_phone: payload.customer_phone ?? null,
+          customer_gstin: payload.customer_gstin ?? null,
+          invoice_date: payload.invoice_date,
+          notes: payload.notes ?? null,
+          order_discount_amount: payload.order_discount_amount,
+          round_to_whole: payload.round_to_whole,
+          coupon_code: payload.coupon_code ?? null,
+          created_by: payload._userId ?? null,
+          lines: payload.lines,
+        });
         if (payload._userId != null) {
           logActivity(db(), {
             userId: payload._userId,
@@ -1876,7 +1609,6 @@ export function registerIpcHandlers(): void {
             entityLabel: invoiceNumber,
           });
         }
-
         return invoiceId;
       });
       return run();
@@ -1976,7 +1708,7 @@ export function registerIpcHandlers(): void {
           quantity: number;
           unit: string;
         }[];
-        const conversions = getUnitConversionsRows();
+        const conversions = getUnitConversionsRows(db());
         const itemInfoStmt = db().prepare(
           "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
         );
@@ -2105,6 +1837,7 @@ export function registerIpcHandlers(): void {
         ) {
           customerPhone = rawPhone.trim();
           customerId = upsertCustomer(
+            db(),
             customerPhone,
             payload.customer_name ?? existing.customer_name ?? null,
             payload.customer_address ?? existing.customer_address ?? null,
@@ -2283,7 +2016,7 @@ export function registerIpcHandlers(): void {
 
     db().transaction(() => {
       deleteItemStockMovementsForInvoice(db(), id);
-      const conversions = getUnitConversionsRows();
+      const conversions = getUnitConversionsRows(db());
       const itemInfoStmt = db().prepare(
         "SELECT id, name, unit, reference_unit, quantity_per_primary, current_stock FROM items WHERE id = ?"
       );
@@ -2350,35 +2083,6 @@ export function registerIpcHandlers(): void {
   });
 
   // ---- Customers ----
-  /**
-   * Upsert customer by phone. If customer with phone exists, update name/address.
-   * Otherwise, insert new customer. Returns customer id.
-   */
-  function upsertCustomer(
-    phone: string,
-    name: string | null,
-    address: string | null,
-    gstin: string | null = null
-  ): number {
-    const trimmedPhone = phone.trim();
-    const existing = db()
-      .prepare("SELECT id FROM customers WHERE phone = ?")
-      .get(trimmedPhone) as { id: number } | undefined;
-    if (existing) {
-      db()
-        .prepare(
-          "UPDATE customers SET name = ?, address = ?, gstin = ?, updated_at = datetime('now') WHERE id = ?"
-        )
-        .run(name, address, gstin, existing.id);
-      return existing.id;
-    }
-    const r = db()
-      .prepare(
-        "INSERT INTO customers (phone, name, address, gstin) VALUES (?, ?, ?, ?)"
-      )
-      .run(trimmedPhone, name, address, gstin);
-    return r.lastInsertRowid as number;
-  }
 
   ipcMain.handle("customers:getByPhone", (_, phone: string) => {
     const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
@@ -2409,6 +2113,7 @@ export function registerIpcHandlers(): void {
       }
     ) => {
       return upsertCustomer(
+        db(),
         data.phone,
         data.name ?? null,
         data.address ?? null,
@@ -2815,103 +2520,17 @@ export function registerIpcHandlers(): void {
         };
       }
     ) => {
-      if (!payload.lines?.length) {
-        throw new Error("At least one product line is required.");
-      }
-      const totalAmount = roundDecimal(
-        payload.lines.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+      const run = db().transaction(() =>
+        createCreditPurchaseBatch(db(), {
+          lender_id: payload.lender_id,
+          transaction_date: payload.transaction_date,
+          notes: payload.notes ?? null,
+          lender_invoice_number: payload.lender_invoice_number ?? null,
+          invoice_file_path: payload.invoice_file_path ?? null,
+          lines: payload.lines,
+          pay_now: payload.pay_now,
+        })
       );
-      const payNowRaw =
-        payload.pay_now != null
-          ? roundDecimal(Number(payload.pay_now.amount) || 0)
-          : 0;
-      if (payNowRaw > totalAmount) {
-        throw new Error("Pay now amount cannot exceed the credit purchase total.");
-      }
-      const payNowAmount = payNowRaw > 0 ? payNowRaw : 0;
-      const run = db().transaction(() => {
-        const pur = db()
-          .prepare(
-            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount)
-             VALUES ('credit', ?, ?, ?, ?, ?, ?)`
-          )
-          .run(
-            payload.lender_id,
-            payload.transaction_date,
-            payload.notes ?? null,
-            payload.lender_invoice_number ?? null,
-            payload.invoice_file_path ?? null,
-            totalAmount
-          );
-        const purchaseId = Number(pur.lastInsertRowid);
-        const lineStmt = db().prepare(
-          `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-        const unitStmt = db().prepare("SELECT unit FROM items WHERE id = ?");
-        for (const line of payload.lines) {
-          const qty = roundDecimal(line.quantity);
-          if (qty <= 0) {
-            throw new Error("Quantity must be positive.");
-          }
-          const itemRow = unitStmt.get(line.product_id) as
-            | { unit: string }
-            | undefined;
-          if (!itemRow) {
-            throw new Error(`Item not found: ${line.product_id}`);
-          }
-          const amount = roundDecimal(line.amount);
-          const lr = lineStmt.run(
-            purchaseId,
-            line.product_id,
-            qty,
-            itemRow.unit,
-            amount,
-            line.gst_rate ?? 0,
-            line.gst_inclusive ? 1 : 0,
-            line.taxable_amount ?? amount,
-            line.cgst_amount ?? 0,
-            line.sgst_amount ?? 0
-          );
-          const lineId = Number(lr.lastInsertRowid);
-          db()
-            .prepare(
-              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
-            )
-            .run(qty, line.product_id);
-          insertItemStockMovement(db(), {
-            item_id: line.product_id,
-            delta_qty: qty,
-            reason: "purchase",
-            ref_kind: "supplier_purchase_line",
-            ref_id: lineId,
-            occurred_at: payload.transaction_date,
-            note: null,
-          });
-        }
-        if (payNowAmount > 0) {
-          const movementRes = db()
-            .prepare(
-              `INSERT INTO lender_movements (lender_id, direction, amount, movement_date, notes, payment_method, reference_number)
-               VALUES (?, 'out', ?, ?, ?, ?, ?)`
-            )
-            .run(
-              payload.lender_id,
-              payNowAmount,
-              payload.transaction_date,
-              payload.pay_now?.notes ?? null,
-              payload.pay_now?.payment_method ?? null,
-              payload.pay_now?.reference_number ?? null
-            );
-          const movementId = Number(movementRes.lastInsertRowid);
-          db()
-            .prepare(
-              "INSERT INTO lender_movement_allocations (movement_id, purchase_id, amount) VALUES (?, ?, ?)"
-            )
-            .run(movementId, purchaseId, payNowAmount);
-        }
-        return [purchaseId];
-      });
       return run();
     }
   );
@@ -4284,66 +3903,13 @@ export function registerIpcHandlers(): void {
         lines: PurchaseLine[];
       }
     ) => {
-      if (!payload.lines?.length) {
-        throw new Error("At least one product line is required.");
-      }
-      const totalAmount = roundDecimal(
-        payload.lines.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+      const run = db().transaction(() =>
+        createCashPurchaseBatch(db(), {
+          transaction_date: payload.transaction_date,
+          notes: payload.notes ?? null,
+          lines: payload.lines,
+        })
       );
-      const run = db().transaction(() => {
-        const pur = db()
-          .prepare(
-            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, total_amount)
-             VALUES ('cash', NULL, ?, ?, ?)`
-          )
-          .run(payload.transaction_date, payload.notes ?? null, totalAmount);
-        const purchaseId = Number(pur.lastInsertRowid);
-        const lineStmt = db().prepare(
-          `INSERT INTO supplier_purchase_lines (purchase_id, product_id, quantity, unit, amount, gst_rate, gst_inclusive, taxable_amount, cgst_amount, sgst_amount)
-           VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, 0)`
-        );
-        const unitStmt = db().prepare("SELECT unit FROM items WHERE id = ?");
-        for (const line of payload.lines) {
-          const qty = roundDecimal(line.quantity);
-          if (qty < 0) {
-            throw new Error("Quantity is required and must be non-negative.");
-          }
-          if (line.amount < 0) {
-            throw new Error("Amount must be non-negative.");
-          }
-          const itemRow = unitStmt.get(line.product_id) as
-            | { unit: string }
-            | undefined;
-          if (!itemRow) {
-            throw new Error(`Item not found: ${line.product_id}`);
-          }
-          const lamt = roundDecimal(line.amount);
-          const lr = lineStmt.run(
-            purchaseId,
-            line.product_id,
-            qty,
-            itemRow.unit,
-            lamt,
-            lamt
-          );
-          const lineId = Number(lr.lastInsertRowid);
-          db()
-            .prepare(
-              "UPDATE items SET current_stock = current_stock + ?, updated_at = datetime('now') WHERE id = ?"
-            )
-            .run(qty, line.product_id);
-          insertItemStockMovement(db(), {
-            item_id: line.product_id,
-            delta_qty: qty,
-            reason: "purchase",
-            ref_kind: "supplier_purchase_line",
-            ref_id: lineId,
-            occurred_at: payload.transaction_date,
-            note: null,
-          });
-        }
-        return [purchaseId];
-      });
       return run();
     }
   );

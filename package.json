@@ -15,6 +15,7 @@
     "dev:electron": "wait-on http://localhost:5173 && cross-env ELECTRON_DEV=true electron .",
     "db:clean": "node scripts/clean-db.mjs",
     "db:seed-dummy": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/seed-dummy-data.mjs",
+    "db:enrich-templates": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/enrich-from-templates.mjs",
     "dev:fresh": "npm run db:clean && npm run dev",
     "prebuild": "node scripts/write-build-config.mjs",
     "build": "npm run build:main && npm run build:renderer",
