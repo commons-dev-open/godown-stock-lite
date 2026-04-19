@@ -1,3 +1,4 @@
+import { getCalendarWeekRange, type WeekStartsOn } from "../../../shared/numbers";
 import { todayISO } from "../../lib/date";
 import { type DatePreset } from "./types";
 
@@ -48,60 +49,76 @@ export function getLastMonthEnd(): string {
   return date.toISOString().slice(0, 10);
 }
 
-export const DATE_PRESETS: readonly DatePreset[] = [
-  {
-    key: "today",
-    label: "Today",
-    getFrom: () => todayISO(),
-    getTo: () => todayISO(),
-  },
-  {
-    key: "yesterday",
-    label: "Yesterday",
-    getFrom: getYesterday,
-    getTo: getYesterday,
-  },
-  {
-    key: "last7Days",
-    label: "Last 7 Days",
-    getFrom: getWeekStart,
-    getTo: () => todayISO(),
-  },
-  {
-    key: "last14Days",
-    label: "Last 14 Days",
-    getFrom: () => getDaysAgo(13),
-    getTo: () => todayISO(),
-  },
-  {
-    key: "thisMonth",
-    label: "This Month",
-    getFrom: getMonthStart,
-    getTo: () => todayISO(),
-  },
-  {
-    key: "lastMonth",
-    label: "Last Month",
-    getFrom: getLastMonthStart,
-    getTo: getLastMonthEnd,
-  },
-  {
-    key: "last30Days",
-    label: "Last 30 Days",
-    getFrom: () => getDaysAgo(29),
-    getTo: () => todayISO(),
-  },
-  {
-    key: "last90Days",
-    label: "Last 90days",
-    getFrom: () => getDaysAgo(89),
-    getTo: () => todayISO(),
-  },
-  {
-    key: "thisQuarter",
-    label: "This Quarter",
-    getFrom: getQuarterStart,
-    getTo: () => todayISO(),
-  },
-  { key: "thisYear", label: "This Year", getFrom: getYearStart, getTo: () => todayISO() },
-];
+export function buildDatePresets(
+  weekStartsOn: WeekStartsOn
+): readonly DatePreset[] {
+  return [
+    {
+      key: "today",
+      label: "Today",
+      getFrom: () => todayISO(),
+      getTo: () => todayISO(),
+    },
+    {
+      key: "yesterday",
+      label: "Yesterday",
+      getFrom: getYesterday,
+      getTo: getYesterday,
+    },
+    {
+      key: "last7Days",
+      label: "Last 7 Days",
+      getFrom: getWeekStart,
+      getTo: () => todayISO(),
+    },
+    {
+      key: "thisWeek",
+      label: "This Week",
+      getFrom: () =>
+        getCalendarWeekRange(todayISO(), weekStartsOn).weekStartIso,
+      getTo: () => todayISO(),
+    },
+    {
+      key: "last14Days",
+      label: "Last 14 Days",
+      getFrom: () => getDaysAgo(13),
+      getTo: () => todayISO(),
+    },
+    {
+      key: "thisMonth",
+      label: "This Month",
+      getFrom: getMonthStart,
+      getTo: () => todayISO(),
+    },
+    {
+      key: "lastMonth",
+      label: "Last Month",
+      getFrom: getLastMonthStart,
+      getTo: getLastMonthEnd,
+    },
+    {
+      key: "last30Days",
+      label: "Last 30 Days",
+      getFrom: () => getDaysAgo(29),
+      getTo: () => todayISO(),
+    },
+    {
+      key: "last90Days",
+      label: "Last 90days",
+      getFrom: () => getDaysAgo(89),
+      getTo: () => todayISO(),
+    },
+    {
+      key: "thisQuarter",
+      label: "This Quarter",
+      getFrom: getQuarterStart,
+      getTo: () => todayISO(),
+    },
+    {
+      key: "thisYear",
+      label: "This Year",
+      getFrom: getYearStart,
+      getTo: () => todayISO(),
+    },
+  ];
+}

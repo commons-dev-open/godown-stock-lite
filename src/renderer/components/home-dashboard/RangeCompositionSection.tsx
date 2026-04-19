@@ -1,18 +1,20 @@
 import { memo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { DATE_PRESETS } from "./datePresets";
+import { type DatePresetKey } from "./types";
 
 interface RangeCompositionSectionProps {
+  datePresets: readonly { key: DatePresetKey; getFrom: () => string; getTo: () => string }[];
   totalFrom: string;
   totalTo: string;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
-  onPresetClick: (label: string) => void;
-  isPresetActive: (label: string) => boolean;
+  onPresetClick: (key: DatePresetKey) => void;
+  isPresetActive: (key: DatePresetKey) => boolean;
   content: ReactNode;
 }
 
 function RangeCompositionSectionComponent({
+  datePresets,
   onPresetClick,
   isPresetActive,
   content,
@@ -49,13 +51,13 @@ function RangeCompositionSectionComponent({
           />
         </div> */}
         <div className="flex flex-wrap gap-1.5">
-          {DATE_PRESETS.map((preset) => (
+          {datePresets.map((preset) => (
             <button
-              key={preset.label}
+              key={preset.key}
               type="button"
-              onClick={() => onPresetClick(preset.label)}
+              onClick={() => onPresetClick(preset.key)}
               className={`px-2 py-1 text-xs rounded-md border transition-colors ${
-                isPresetActive(preset.label)
+                isPresetActive(preset.key)
                   ? "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
                   : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] hover:bg-[var(--color-bg-surface)]"
               }`}

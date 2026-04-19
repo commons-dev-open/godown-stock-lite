@@ -5,13 +5,22 @@ import path from "path";
 import type { OpenDialogOptions, WebContents } from "electron";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { PAGE_SIZE } from "../../shared/constants";
-import { formatDecimal, roundDecimal } from "../../shared/numbers";
+import {
+  formatDecimal,
+  roundDecimal,
+  getCalendarWeekRange,
+  minIsoDate,
+  parseWeekStartsOn,
+  WEEK_STARTS_ON_KEY,
+  type WeekStartsOn,
+} from "../../shared/numbers";
 import {
   convertToPrimaryQuantity,
   type ConversionRow,
   type ItemConversionRow,
 } from "../../shared/unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
+import { checkSoftUpdate } from "../softUpdate";
 import {
   insertItemStockMovement,
   deleteItemStockMovementsForInvoice,
@@ -123,6 +132,13 @@ function shiftIsoDateByDays(isoDate: string, days: number): string {
   return formatDateToIsoLocal(shiftedDate);
 }
 
+function readWeekStartsOnFromDb(database: ReturnType<typeof getDb>): WeekStartsOn {
+  const row = database
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get(WEEK_STARTS_ON_KEY) as { value: string | null } | undefined;
+  return parseWeekStartsOn(row?.value ?? "");
+}
+
 /**
  * Update daily_sales when invoice totals change.
  * delta: positive to add, negative to subtract.
@@ -223,6 +239,10 @@ export function registerIpcHandlers(): void {
       return { saved: true, path: filePath };
     }
   );
+
+  ipcMain.handle("softUpdate:getCurrentVersion", () => app.getVersion());
+
+  ipcMain.handle("softUpdate:check", () => checkSoftUpdate());
 
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {
@@ -4711,6 +4731,24 @@ export function registerIpcHandlers(): void {
     const weekSale = weekRow?.total ?? 0;
     const weekExpenditure = weekRow?.expenditure ?? 0;
 
+    const database = db();
+    const weekStartsOn = readWeekStartsOnFromDb(database);
+    const { weekStartIso, weekEndIso } = getCalendarWeekRange(
+      isoToday,
+      weekStartsOn
+    );
+    const calendarPartialEnd = minIsoDate(weekEndIso, isoToday);
+    const calendarRow = database
+      .prepare(
+        "SELECT COALESCE(SUM(sale_amount), 0) AS total, COALESCE(SUM(expenditure_amount), 0) AS expenditure FROM daily_sales WHERE sale_date BETWEEN ? AND ?"
+      )
+      .get(weekStartIso, calendarPartialEnd) as {
+      total: number;
+      expenditure: number;
+    };
+    const calendarWeekSale = calendarRow?.total ?? 0;
+    const calendarWeekExpenditure = calendarRow?.expenditure ?? 0;
+
     const monthRow = db()
       .prepare(
         "SELECT COALESCE(SUM(sale_amount), 0) AS total, COALESCE(SUM(expenditure_amount), 0) AS expenditure FROM daily_sales WHERE sale_date BETWEEN ? AND ?"
@@ -4723,6 +4761,8 @@ export function registerIpcHandlers(): void {
       todaySale,
       weekSale,
       weekExpenditure,
+      calendarWeekSale,
+      calendarWeekExpenditure,
       monthSale,
       monthExpenditure,
     };
@@ -4905,6 +4945,23 @@ export function registerIpcHandlers(): void {
         "SELECT * FROM daily_sales WHERE sale_date BETWEEN ? AND ? ORDER BY sale_date DESC"
       )
       .all(weekStartDate, fromDate);
+  });
+
+  ipcMain.handle("reports:getCalendarWeekSale", (_, anchorDate: string) => {
+    if (typeof anchorDate !== "string" || !anchorDate.trim()) {
+      return [];
+    }
+    const database = db();
+    const weekStartsOn = readWeekStartsOnFromDb(database);
+    const { weekStartIso, weekEndIso } = getCalendarWeekRange(
+      anchorDate.trim(),
+      weekStartsOn
+    );
+    return database
+      .prepare(
+        "SELECT * FROM daily_sales WHERE sale_date BETWEEN ? AND ? ORDER BY sale_date DESC"
+      )
+      .all(weekStartIso, weekEndIso);
   });
 
   ipcMain.handle(

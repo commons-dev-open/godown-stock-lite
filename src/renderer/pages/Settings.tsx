@@ -27,12 +27,16 @@ import {
   NUMBER_ABBREVIATION_STYLE_KEY,
   parseNumberAbbreviationStyle,
   type NumberAbbreviationStyle,
+  WEEK_STARTS_ON_KEY,
+  parseWeekStartsOn,
+  type WeekStartsOn,
 } from "../../shared/numbers";
 import { DashboardSectionBoundary } from "../components/home-dashboard";
 import { AsyncDataPanel } from "../components/async-data-panel";
 import DataTable from "../components/DataTable";
 import {
   ActivityLogSection,
+  AppUpdatesTab,
   SettingsHero,
   SettingsSectionPanel,
   SettingsSegmentedTabs,
@@ -160,6 +164,7 @@ function AppearanceTab() {
   const [displayName, setDisplayName] = useState("");
   const [numberAbbreviation, setNumberAbbreviation] =
     useState<NumberAbbreviationStyle>("indian");
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>("monday");
 
   useEffect(() => {
     setDisplayName(settings.displayName ?? "");
@@ -169,6 +174,10 @@ function AppearanceTab() {
     setNumberAbbreviation(
       parseNumberAbbreviationStyle(settings[NUMBER_ABBREVIATION_STYLE_KEY])
     );
+  }, [settings]);
+
+  useEffect(() => {
+    setWeekStartsOn(parseWeekStartsOn(settings[WEEK_STARTS_ON_KEY]));
   }, [settings]);
 
   const setSettingsMutation = useMutationWithToast({
@@ -194,6 +203,30 @@ function AppearanceTab() {
       [NUMBER_ABBREVIATION_STYLE_KEY]: nextStyle,
     });
   };
+
+  const handleWeekStartsOnChange = (value: WeekStartsOn) => {
+    if (value === weekStartsOn) {
+      return;
+    }
+    setWeekStartsOn(value);
+    setSettingsMutation.mutate({
+      [WEEK_STARTS_ON_KEY]: value,
+    });
+  };
+
+  const weekStartOptions = useMemo(
+    () =>
+      (
+        [
+          { value: "monday" as const },
+          { value: "sunday" as const },
+        ] as const
+      ).map((row) => ({
+        ...row,
+        label: settingsT(`preferences.weekStartsOnOptions.${row.value}`),
+      })),
+    [settingsT]
+  );
 
   return (
     <div className="space-y-8">
@@ -235,6 +268,44 @@ function AppearanceTab() {
           {settingsT("preferences.languageHint")}
         </p>
         <LanguageSwitcher variant="full" />
+      </section>
+
+      {/* Week starts on */}
+      <section className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-xs p-6">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+          {settingsT("preferences.weekStartsOn")}
+        </h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+          {settingsT("preferences.weekStartsOnHint")}
+        </p>
+        <div className="flex gap-3">
+          {weekStartOptions.map(({ value, label }) => {
+            const active = weekStartsOn === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleWeekStartsOnChange(value)}
+                disabled={setSettingsMutation.isPending}
+                className={`flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 transition-colors ${
+                  active
+                    ? "border-[var(--color-accent)] bg-[var(--color-accent-subtle)]"
+                    : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-strong)]"
+                }`}
+              >
+                <span
+                  className={`text-sm font-medium ${
+                    active
+                      ? "text-[var(--color-accent)]"
+                      : "text-[var(--color-text-secondary)]"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       {/* Theme Mode */}
@@ -1427,6 +1498,8 @@ export default function Settings() {
             </AsyncDataPanel>
           ) : activeTab === "appearance" ? (
             <AppearanceTab />
+          ) : activeTab === "appUpdates" ? (
+            <AppUpdatesTab />
           ) : activeTab === "data" ? (
             <AsyncDataPanel
               isLoading={dbPathQuery.isPending}

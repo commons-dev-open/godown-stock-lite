@@ -2,6 +2,7 @@ import type {
   SupplierPurchaseDetail,
   SupplierPurchasePageRow,
 } from "../shared/types";
+import type { SoftUpdateCheckResult } from "../shared/softUpdate";
 
 export interface ElectronAPI {
   getItems: () => Promise<unknown[]>;
@@ -503,6 +504,8 @@ export interface ElectronAPI {
     todaySale: number;
     weekSale: number;
     weekExpenditure: number;
+    calendarWeekSale: number;
+    calendarWeekExpenditure: number;
     monthSale: number;
     monthExpenditure: number;
   }>;
@@ -529,6 +532,7 @@ export interface ElectronAPI {
   ) => Promise<{ totalLends: number; totalDeposits: number; balance: number }>;
   getMahajanLedger: (mahajanId: number) => Promise<unknown[]>;
   getWeeklySale: (fromDate: string) => Promise<unknown[]>;
+  getCalendarWeekSale: (anchorDate: string) => Promise<unknown[]>;
   getTotalSale: (
     fromDate: string,
     toDate: string
@@ -570,6 +574,9 @@ export interface ElectronAPI {
     landscape?: boolean;
     pageSize?: unknown;
   }) => Promise<{ saved: false } | { saved: true; path: string }>;
+
+  getSoftUpdateCurrentVersion: () => Promise<string>;
+  checkSoftUpdate: () => Promise<SoftUpdateCheckResult>;
 
   auth: {
     setupSuperAdmin: (payload: { companyName: string; ownerName: string; displayName: string; pin: string; customerMasterKey?: string }) => Promise<{ id: number }>;

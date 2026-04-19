@@ -1,3 +1,5 @@
+export type SaleMomentumScope = "rolling7" | "calendarWeek";
+
 export interface WeeklyRow {
   id: number;
   sale_date: string;
@@ -23,6 +25,7 @@ export type DatePresetKey =
   | "today"
   | "yesterday"
   | "last7Days"
+  | "thisWeek"
   | "last14Days"
   | "thisMonth"
   | "lastMonth"

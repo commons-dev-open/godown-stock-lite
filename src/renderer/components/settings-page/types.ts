@@ -5,6 +5,7 @@ export type SettingsTabId =
   | "appearance"
   | "security"
   | "activity"
+  | "appUpdates"
   | "data";
 
 export const SETTINGS_TAB_ORDER: SettingsTabId[] = [
@@ -14,6 +15,7 @@ export const SETTINGS_TAB_ORDER: SettingsTabId[] = [
   "appearance",
   "security",
   "activity",
+  "appUpdates",
   "data",
 ];
 

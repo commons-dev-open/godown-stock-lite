@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, createElement } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -1204,7 +1204,7 @@ export default function Transactions() {
           description={t("ledger.description")}
           badge={ledgerCountBadge}
         >
-          <div className="flex flex-nowrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)]">
             <select
               className="border border-[var(--color-border-strong)] rounded px-3 py-1.5 text-sm bg-[var(--color-bg-surface)] shrink-0 min-w-0"
               value={filterType}
@@ -1261,6 +1261,18 @@ export default function Transactions() {
                 </span>
               )}
             </button>
+            {ledgerHasActiveFilters ? (
+              <button
+                type="button"
+                onClick={() => {
+                  clearLedgerFilters();
+                  setMoreFiltersOpen(false);
+                }}
+                className="shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline"
+              >
+                {t("filters.clear")}
+              </button>
+            ) : null}
           </div>
 
           {moreFiltersOpen && (
@@ -1309,26 +1321,6 @@ export default function Transactions() {
                       className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
                     />
                   </label>
-                  {(filterMahajanId !== "" ||
-                    filterType !== "all" ||
-                    filterDateFrom ||
-                    filterDateTo) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleFilterChange({
-                          mahajanId: "",
-                          type: "all",
-                          dateFrom: "",
-                          dateTo: "",
-                        });
-                        setMoreFiltersOpen(false);
-                      }}
-                      className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline self-start"
-                    >
-                      {t("filters.clear")}
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -2651,7 +2643,9 @@ export default function Transactions() {
               })}
             </p>
           </header>
-          <table className="w-full border-collapse text-xs">
+          {createElement(
+            "table",
+            { className: "w-full border-collapse text-xs" },
             <thead>
               <tr>
                 {printJob.columns.map((col) => (
@@ -2663,7 +2657,7 @@ export default function Transactions() {
                   </th>
                 ))}
               </tr>
-            </thead>
+            </thead>,
             <tbody>
               {printJob.rows.map((row) => (
                 <tr key={row[0]}>
@@ -2678,7 +2672,7 @@ export default function Transactions() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          )}
         </div>
       )}
     </div>

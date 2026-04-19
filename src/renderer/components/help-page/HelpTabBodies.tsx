@@ -16,7 +16,7 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
       <HelpSubSection title="What you can run from here">
         <HelpBulletList
           items={[
-            "Home: Rolling KPIs (today, week, month, lender net), 7-Day Sale Momentum, Range Composition with date presets, Quick Actions (Create Invoice, Credit Purchase) plus a weekly cash vs expenditure strip, low-stock alerts, Weekly Sale Detail, and a lender summary with navigation into the underlying pages when you need detail.",
+            "Home: Rolling KPIs (today, last 7 days, this calendar week through today, month, lender net), sale momentum charts (last 7 days or full calendar week), Range Composition with date presets including This Week, Quick Actions (Create Invoice, Credit Purchase) plus a last-7-days cash vs expenditure strip, low-stock alerts, sale detail table, and a lender summary with navigation into the underlying pages when you need detail.",
             "Units: Master list of stock units with optional types, plus standard conversions so quantities stay consistent when you bill or move stock in different measures.",
             "Products & Stock: Catalogue, on-hand quantity, reorder hints, per-product selling defaults and GST/HSN, product-level unit conversions, manual add/reduce stock, search, export, print, and row shortcuts into Stock history.",
             "Lenders: Parties you buy from on credit and pay back; balances, ledgers, and exports. The screen label is Lenders; older data paths may still say “mahajan” internally.",
@@ -512,34 +512,38 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
       <HelpSubSection title="KPI strip">
         <p className="mb-2">
           The top strip answers “how are we doing right now?” with today’s
-          sales, this week’s sales and spend, this month’s sales and spend, and
-          lender net (credit purchase minus settlements). Large numbers respect
-          your abbreviation style from Settings → Appearance (Indian Lac/Cr, US
-          M/B, or SI K/M/B).
+          sales, last 7 days’ sales, this calendar week’s sales (partial through
+          today; week start is configurable under Settings → Appearance), this
+          month’s sales and spend, and lender net (credit purchase minus
+          settlements). Large numbers respect your abbreviation style from
+          Settings → Appearance (Indian Lac/Cr, US M/B, or SI K/M/B).
         </p>
       </HelpSubSection>
-      <HelpSubSection title="7-Day Sale Momentum">
+      <HelpSubSection title="Sale momentum">
         <p className="mb-2">
-          Pick the week-ending date to chart daily sales and expenditure across
-          seven days, with callouts for weekly totals, peak sale day, and how
-          many daily rows contributed. It is tuned for spotting rhythm: a quiet
-          Monday every week, a festival spike, or a sudden spend bubble.
+          Toggle Last 7 days vs This week. For Last 7 days, pick an end date to
+          chart a rolling seven-day window. For This week, the chart uses your
+          calendar week (Sunday or Monday start from Settings → Appearance).
+          Callouts show period totals, peak sale day, and how many daily rows
+          contributed.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Range Composition">
         <p className="mb-2">
-          Choose From/To manually or via presets (this week, this month, last 30
-          days, this year, etc.). The chart stacks invoice sales, misc sales, and
-          expenditure so you can see whether growth came from formal billing or
-          informal counter traffic.
+          Choose From/To manually or via presets (This Week uses your calendar week
+          start through today; also last 7 days, this month, last 30 days, this
+          year, etc.). The chart stacks invoice sales, misc sales, and expenditure
+          so you can see whether growth came from formal billing or informal
+          counter traffic.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Quick Actions">
         <p className="mb-2">
           Two large buttons jump straight into Create Invoice (opens Invoices with
           a fresh draft) and Credit Purchase (opens Transactions with the lender
-          purchase flow). Underneath, the “Cash vs Expenditure (weekly)” card
-          plots the same seven-day window as a compact liquidity sanity check.
+          purchase flow). Underneath, the “Cash vs Expenditure (last 7 days)” card
+          plots the same window as the momentum chart for a compact liquidity sanity
+          check.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Low Stock Alerts">
@@ -549,12 +553,13 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
           raise quantities or adjust thresholds if the business changed.
         </p>
       </HelpSubSection>
-      <HelpSubSection title="Weekly Sale Detail">
+      <HelpSubSection title="Sale detail">
         <p className="mb-2">
-          Tabular seven-day slice (newest date first) with sale amount, invoice
-          component, misc component, recorded cash in hand, and expenditure. It
-          mirrors Daily Sales rows for the chosen window so you can reconcile KPI
-          charts against ground truth numbers.
+          Tabular daily rows (newest first) for the same period as the momentum
+          chart—either rolling last 7 days or the full calendar week—with sale
+          amount, invoice component, misc component, recorded cash in hand, and
+          expenditure. It mirrors Daily Sales rows for the chosen window so you
+          can reconcile charts against ground truth numbers.
         </p>
       </HelpSubSection>
       <HelpSubSection title="Lender Summary">
@@ -571,7 +576,8 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
     <div className="space-y-1">
       <p className="text-sm text-[var(--color-text-secondary)] mb-4">
         Settings uses the same segmented pattern as Help: Business, Tax & GST,
-        Discounts, Appearance, Security, Activity log, and Data. Tax and
+        Discounts, Appearance, Security, Activity log, App updates, and Data.
+        Tax and
         discount toggles are authoritative—invoice UI simply exposes what you
         allow here.
       </p>

@@ -25,6 +25,14 @@ export {
   type IndianAbbreviationUnitLabels,
 } from "./numberAbbreviation";
 
+export {
+  WEEK_STARTS_ON_KEY,
+  parseWeekStartsOn,
+  getCalendarWeekRange,
+  minIsoDate,
+  type WeekStartsOn,
+} from "./weekStartsOn";
+
 /**
  * Round a number to a fixed number of decimal places for storage.
  * Uses DECIMAL_PLACES from constants (default 2).

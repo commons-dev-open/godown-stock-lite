@@ -14,6 +14,7 @@
     "appearance": "Appearance",
     "security": "Security",
     "activity": "Activity",
+    "appUpdates": "App updates",
     "data": "Data"
   },
   "sections": {
@@ -31,7 +32,7 @@
     },
     "appearance": {
       "title": "Appearance",
-      "description": "Theme, accent color, display name, and number formatting."
+      "description": "Theme, accent color, display name, calendar week start, and number formatting."
     },
     "security": {
       "title": "Security",
@@ -41,6 +42,10 @@
       "title": "Activity log",
       "description": "Recent changes across the app. Filters apply to the list below."
     },
+    "appUpdates": {
+      "title": "App updates",
+      "description": "Check whether a newer version is available and open the download page in your browser."
+    },
     "data": {
       "title": "Data & backups",
       "description": "Export, import, or reset your database. Irreversible actions require confirmation."
@@ -49,9 +54,36 @@
   "placeholders": {
     "optional": "Optional"
   },
+  "appUpdates": {
+    "currentVersionLabel": "This app version",
+    "intro": "We compare your version to a small file online. If a newer release exists, you can open the download page in your browser and install it manually.",
+    "checkButton": "Check for updates",
+    "checking": "Checking…",
+    "checkFailedTitle": "Could not check for updates",
+    "errors": {
+      "invalidJson": "The update server returned data that is not valid JSON.",
+      "invalidManifest": "The update response was missing required fields or URLs.",
+      "timeout": "The request timed out. Try again later.",
+      "badCurrentVersion": "This build does not report a valid version.",
+      "badStatus": "The update server returned an error status.",
+      "generic": "Something went wrong while checking. Try again later.",
+      "staleBridge": "This window is using an older app bridge (preload). Quit the app completely and open it again. If you develop locally: keep npm run dev running so main recompiles, run npm run build:main once, then restart Electron."
+    },
+    "updateAvailable": "Update available: v{{latest}}",
+    "updateAvailableHint": "Open the download page, get the installer for your system, then install it over this app.",
+    "openDownload": "Open download page",
+    "openReleaseNotes": "Release notes",
+    "upToDate": "You are up to date (latest listed: v{{latest}})."
+  },
   "preferences": {
     "language": "Language",
     "languageHint": "Choose the language used across the app.",
+    "weekStartsOn": "Week starts on",
+    "weekStartsOnHint": "Used for Home calendar week totals, charts, and the “This week” date preset. Default is Monday.",
+    "weekStartsOnOptions": {
+      "monday": "Monday",
+      "sunday": "Sunday"
+    },
     "theme": "Theme",
     "themeHint": "Choose light, dark, or follow your system preference.",
     "themeModes": {

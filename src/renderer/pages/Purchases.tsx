@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { Banknote, Pencil, Plus, Wallet } from "lucide-react";
+import { Banknote, Filter, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { getElectron } from "../api/client";
 import { PAGE_SIZE } from "../../shared/constants";
 import DateInput from "../components/DateInput";
@@ -17,7 +17,11 @@ import type {
   Lender,
   SupplierPurchaseAllocationSummary,
   SupplierPurchasePageRow,
+  Unit,
+  UnitConversion,
 } from "../../shared/types";
+import { getItemCatalogUnitsAsc } from "../../shared/itemCatalogUnits";
+import { convertToPrimaryQuantity } from "../../shared/unitConversion";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
 import {
   formatDateForView,
@@ -33,14 +37,70 @@ import {
 import Tooltip from "../components/Tooltip";
 import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 
+type ItemWithUnitGraph = Item & {
+  other_units?: { unit: string; sort_order: number }[];
+  item_unit_conversions?: { to_unit: string; factor: number }[];
+};
+
 interface EditLine {
   product_id: number;
   quantity: number;
   amount: number;
+  unit: string;
 }
 
 function emptyEditLine(): EditLine {
-  return { product_id: 0, quantity: 0, amount: 0 };
+  return { product_id: 0, quantity: 0, amount: 0, unit: "" };
+}
+
+function unitOptionLabel(u: Unit): string {
+  return (u.symbol && u.symbol.trim()) || u.name;
+}
+
+function purchaseEditUnitSelectRows(
+  selectedItem: ItemWithUnitGraph | undefined,
+  allUnits: Unit[],
+  globalConversions: UnitConversion[],
+  lineUnit: string
+): Unit[] {
+  if (!selectedItem) {
+    return [];
+  }
+  const catalog = getItemCatalogUnitsAsc(
+    selectedItem,
+    allUnits,
+    globalConversions,
+    selectedItem.unit
+  );
+  const names = new Set(catalog.map((u) => u.name));
+  const u = (lineUnit || selectedItem.unit || "").trim();
+  const extra: Unit[] =
+    u && !names.has(u)
+      ? [
+          {
+            id: -1,
+            name: u,
+            symbol: null,
+            unit_type_id: null,
+            unit_type_name: null,
+            created_at: "",
+          },
+        ]
+      : [];
+  const merged = [...extra, ...catalog];
+  if (merged.length > 0) {
+    return merged;
+  }
+  return [
+    {
+      id: -1,
+      name: selectedItem.unit,
+      symbol: null,
+      unit_type_id: null,
+      unit_type_name: null,
+      created_at: "",
+    },
+  ];
 }
 
 function formatAllocationPayment(a: SupplierPurchaseAllocationSummary) {
@@ -73,6 +133,7 @@ export default function Purchases() {
   const [filterLenderId, setFilterLenderId] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -128,7 +189,29 @@ export default function Purchases() {
     queryFn: () => api.getItems(),
   });
 
-  const itemList = useMemo(() => items as Item[], [items]);
+  const { data: units = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => api.getUnits(),
+    enabled: editOpen,
+  });
+
+  const { data: unitConversions = [] } = useQuery({
+    queryKey: ["unitConversions"],
+    queryFn: () => api.getUnitConversions(),
+    enabled: editOpen,
+  });
+
+  const itemList = useMemo(() => items as ItemWithUnitGraph[], [items]);
+
+  const globalConversionRows = useMemo(
+    () =>
+      (unitConversions as UnitConversion[]).map((c) => ({
+        from_unit: c.from_unit,
+        to_unit: c.to_unit,
+        factor: c.factor,
+      })),
+    [unitConversions]
+  );
 
   const {
     data: listPage,
@@ -207,6 +290,7 @@ export default function Purchases() {
             product_id: ln.product_id,
             quantity: ln.quantity,
             amount: ln.amount,
+            unit: ln.unit?.trim() || "",
           }))
         : [emptyEditLine()]
     );
@@ -426,27 +510,60 @@ export default function Purchases() {
         return;
       }
     }
-    const lines = editLines
-      .map((ln, idx) => {
-        const orig = detail.lines[idx];
-        return {
-          product_id: ln.product_id,
-          quantity: ln.quantity,
-          amount: ln.amount,
-          gst_rate: orig?.gst_rate ?? 0,
-          gst_inclusive: orig?.gst_inclusive ?? false,
-          taxable_amount: orig?.taxable_amount ?? ln.amount,
-          cgst_amount: orig?.cgst_amount ?? 0,
-          sgst_amount: orig?.sgst_amount ?? 0,
-        };
-      })
-      .filter(
-        (ln) =>
+    const lines: {
+      product_id: number;
+      quantity: number;
+      amount: number;
+      gst_rate: number;
+      gst_inclusive: boolean;
+      taxable_amount: number;
+      cgst_amount: number;
+      sgst_amount: number;
+    }[] = [];
+    for (let idx = 0; idx < editLines.length; idx++) {
+      const ln = editLines[idx];
+      if (
+        !(
           ln.product_id > 0 &&
           ln.quantity > 0 &&
           Number.isFinite(ln.amount) &&
           ln.amount >= 0
+        )
+      ) {
+        continue;
+      }
+      const item = itemList.find((i) => i.id === ln.product_id);
+      if (!item) {
+        continue;
+      }
+      const fromUnit = (ln.unit?.trim() || item.unit).trim();
+      const conv = convertToPrimaryQuantity(
+        globalConversionRows,
+        {
+          unit: item.unit,
+          reference_unit: item.reference_unit,
+          quantity_per_primary: item.quantity_per_primary,
+          item_conversions: item.item_unit_conversions,
+        },
+        ln.quantity,
+        fromUnit
       );
+      if ("error" in conv) {
+        toast.error(conv.error);
+        return;
+      }
+      const orig = detail.lines[idx];
+      lines.push({
+        product_id: ln.product_id,
+        quantity: conv.primaryQuantity,
+        amount: ln.amount,
+        gst_rate: orig?.gst_rate ?? 0,
+        gst_inclusive: orig?.gst_inclusive ?? false,
+        taxable_amount: orig?.taxable_amount ?? ln.amount,
+        cgst_amount: orig?.cgst_amount ?? 0,
+        sgst_amount: orig?.sgst_amount ?? 0,
+      });
+    }
     if (!lines.length) {
       toast.error(tTx("modals.cash_purchase.toasts.add_one_item"));
       return;
@@ -745,7 +862,7 @@ export default function Purchases() {
           title={t("list.title")}
           description={t("list.description")}
         >
-          <div className="flex flex-wrap items-center gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)]">
+          <div className="flex flex-wrap items-end gap-3 p-3 bg-[var(--color-bg-surface-raised)] rounded-xl border border-[var(--color-border-default)] overflow-hidden">
             <div className="flex min-w-0 flex-col gap-1 shrink-0">
               <span className="text-xs font-medium text-[var(--color-text-secondary)]">
                 {t("filters.kind")}
@@ -780,36 +897,80 @@ export default function Purchases() {
                 ))}
               </select>
             </div>
-            <div className="flex min-w-0 flex-col gap-1 shrink-0">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                {t("filters.date_from")}
-              </span>
-              <DateInput
-                value={filterDateFrom}
-                onChange={setFilterDateFrom}
-                className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full min-w-[10rem]"
-              />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1 shrink-0">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                {t("filters.date_to")}
-              </span>
-              <DateInput
-                value={filterDateTo}
-                onChange={setFilterDateTo}
-                className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full min-w-[10rem]"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setMoreFiltersOpen(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded hover:bg-[var(--color-bg-surface-raised)]"
+            >
+              <Filter size={16} aria-hidden="true" />
+              {t("filters.more_filters")}
+              {(filterDateFrom || filterDateTo) && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-medium bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded">
+                  1
+                </span>
+              )}
+            </button>
             {hasPurchaseFilters ? (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="self-end sm:self-center shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline"
+                className="shrink-0 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline pb-1.5"
               >
                 {t("filters.clear")}
               </button>
             ) : null}
           </div>
+
+          {moreFiltersOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setMoreFiltersOpen(false)}
+                aria-hidden
+              />
+              <div className="relative bg-[var(--color-bg-surface)] rounded-lg shadow-xl w-full mx-4 max-w-md p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">
+                    {t("filters.more_filters")}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setMoreFiltersOpen(false)}
+                    className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-raised)] rounded transition-colors"
+                    aria-label={tTx("actions.close")}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <label
+                    htmlFor="purchases-more-filters-date-from"
+                    className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
+                  >
+                    {t("filters.date_from")}
+                    <DateInput
+                      id="purchases-more-filters-date-from"
+                      value={filterDateFrom}
+                      onChange={setFilterDateFrom}
+                      className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
+                    />
+                  </label>
+                  <label
+                    htmlFor="purchases-more-filters-date-to"
+                    className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)]"
+                  >
+                    {t("filters.date_to")}
+                    <DateInput
+                      id="purchases-more-filters-date-to"
+                      value={filterDateTo}
+                      onChange={setFilterDateTo}
+                      className="border border-[var(--color-border-strong)] rounded px-2 py-1.5 text-sm bg-[var(--color-bg-surface)] w-full"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4">
             <SalesListAsyncPanel
@@ -1020,10 +1181,11 @@ export default function Purchases() {
                 {t("modal.lines_heading")}
               </p>
               <div className="min-w-0 overflow-x-auto">
-                <div className="min-w-[32rem] space-y-2">
-                  <div className="grid grid-cols-[12rem_6rem_8rem_2.5rem] gap-2 text-xs font-medium text-[var(--color-text-secondary)] px-1">
+                <div className="min-w-[40rem] space-y-2">
+                  <div className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-2 text-xs font-medium text-[var(--color-text-secondary)] px-1">
                     <span>{tTx("columns.product")}</span>
                     <span>{tTx("columns.qty")}</span>
+                    <span>{tTx("columns.unit")}</span>
                     <span>{tTx("columns.amount")}</span>
                     <span aria-hidden="true" />
                   </div>
@@ -1031,18 +1193,29 @@ export default function Purchases() {
                     const selectedItem = itemList.find(
                       (i) => i.id === line.product_id
                     );
+                    const unitRows = purchaseEditUnitSelectRows(
+                      selectedItem,
+                      units as Unit[],
+                      unitConversions as UnitConversion[],
+                      line.unit
+                    );
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-[12rem_6rem_8rem_2.5rem] gap-2 items-center p-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
+                        className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-2 items-center p-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
                       >
                         <select
                           value={line.product_id || ""}
                           onChange={(e) => {
                             const pid = Number(e.target.value);
+                            const item = itemList.find((i) => i.id === pid);
                             setEditLines((prev) => {
                               const next = [...prev];
-                              next[idx] = { ...next[idx], product_id: pid };
+                              next[idx] = {
+                                ...next[idx],
+                                product_id: pid,
+                                unit: item?.unit ?? "",
+                              };
                               return next;
                             });
                           }}
@@ -1075,6 +1248,28 @@ export default function Purchases() {
                           }}
                           className="input-base w-full tabular-nums"
                         />
+                        <select
+                          value={line.unit || selectedItem?.unit || ""}
+                          onChange={(e) =>
+                            setEditLines((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                unit: e.target.value,
+                              };
+                              return next;
+                            })
+                          }
+                          disabled={!selectedItem}
+                          className="input-base w-full min-w-0 text-sm"
+                          aria-label={tTx("columns.unit")}
+                        >
+                          {unitRows.map((u) => (
+                            <option key={u.name} value={u.name}>
+                              {unitOptionLabel(u)}
+                            </option>
+                          ))}
+                        </select>
                         <input
                           type="number"
                           min={0}
@@ -1101,22 +1296,19 @@ export default function Purchases() {
                           {editLines.length > 1 ? (
                             <button
                               type="button"
-                              className="text-xs text-[var(--color-danger)] hover:underline"
+                              className="inline-flex items-center justify-center rounded p-1.5 text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-subtle)]"
+                              title={t("modal.remove_line")}
+                              aria-label={t("modal.remove_line")}
                               onClick={() =>
                                 setEditLines((prev) =>
                                   prev.filter((_, j) => j !== idx)
                                 )
                               }
                             >
-                              {t("modal.remove_line")}
+                              <Trash2 size={16} aria-hidden="true" />
                             </button>
                           ) : null}
                         </div>
-                        {selectedItem ? (
-                          <p className="col-span-full text-xs text-[var(--color-text-tertiary)]">
-                            {tTx("columns.unit")}: {selectedItem.unit}
-                          </p>
-                        ) : null}
                       </div>
                     );
                   })}

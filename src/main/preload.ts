@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { SoftUpdateCheckResult } from "../shared/softUpdate";
 
 const electronAPI = {
   // Items
@@ -522,6 +523,8 @@ const electronAPI = {
       todaySale: number;
       weekSale: number;
       weekExpenditure: number;
+      calendarWeekSale: number;
+      calendarWeekExpenditure: number;
       monthSale: number;
       monthExpenditure: number;
     }>,
@@ -567,6 +570,8 @@ const electronAPI = {
   getMahajanLedger: (id: number) => ipcRenderer.invoke("reports:getLenderLedger", id),
   getWeeklySale: (fromDate: string) =>
     ipcRenderer.invoke("reports:getWeeklySale", fromDate),
+  getCalendarWeekSale: (anchorDate: string) =>
+    ipcRenderer.invoke("reports:getCalendarWeekSale", anchorDate),
   getTotalSale: (fromDate: string, toDate: string) =>
     ipcRenderer.invoke("reports:getTotalSale", fromDate, toDate) as Promise<{
       total: number;
@@ -606,6 +611,11 @@ const electronAPI = {
     ipcRenderer.invoke("app:printCurrentToPdf", opts) as Promise<
       { saved: false } | { saved: true; path: string }
     >,
+
+  getSoftUpdateCurrentVersion: () =>
+    ipcRenderer.invoke("softUpdate:getCurrentVersion") as Promise<string>,
+  checkSoftUpdate: () =>
+    ipcRenderer.invoke("softUpdate:check") as Promise<SoftUpdateCheckResult>,
 
   // Auth
   auth: {

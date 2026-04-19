@@ -5,15 +5,16 @@
     "dashboardTitle": "হোম ড্যাশবোর্ড",
     "metrics": {
       "today": "আজ",
-      "thisWeek": "এই সপ্তাহ",
+      "last7Days": "শেষ 7 দিন",
+      "thisCalendarWeek": "এই সপ্তাহ (ক্যালেন্ডার)",
       "thisMonth": "এই মাস",
       "lenderNet": "মহাজন নেট ব্যালান্স"
     }
   },
   "sections": {
     "quickActions": "কুইক অ্যাকশন",
-    "weeklyMomentum": "7 দিনের বিক্রি মোমেন্টাম",
-    "weeklyDetails": "সাপ্তাহিক বিক্রি বিস্তারিত",
+    "weeklyMomentum": "বিক্রি মোমেন্টাম",
+    "weeklyDetails": "বিক্রি বিস্তারিত",
     "rangeComposition": "রেঞ্জ কম্পোজিশন",
     "lenderSummary": "দেনা-পাওনা সংক্ষেপ",
     "lowStockAlerts": "লো স্টক সনাক্তকরণ"
@@ -38,22 +39,29 @@
       "title": "স্টকের ইতিহাস",
       "subtitle": "পণ্য অনুযায়ী পরিমাণের পরিবর্তন দেখুন।"
     },
-    "cashVsExpenditure": "ক্যাশ বনাম খরচ (সাপ্তাহিক)",
-    "cashTrendEmptyTitle": "সাপ্তাহিক ক্যাশ ট্রেন্ড নেই",
-    "cashTrendEmptyDescription": "সাপ্তাহিক বিক্রি রেকর্ড থাকলে ক্যাশ ও খরচের চার্ট দেখাবে।"
+    "cashVsExpenditure": "ক্যাশ বনাম খরচ (শেষ 7 দিন)",
+    "cashTrendEmptyTitle": "এই সময়ের জন্য ক্যাশ ট্রেন্ড নেই",
+    "cashTrendEmptyDescription": "নির্বাচিত সময়ের দৈনিক বিক্রি রেকর্ড থাকলে ক্যাশ ও খরচের চার্ট দেখাবে।"
   },
   "weeklyMomentum": {
-    "title": "7 দিনের বিক্রি মোমেন্টাম",
-    "subtitle": "আজ শেষ হওয়া নির্বাচিত সপ্তাহের বিক্রি ও খরচের ট্রেন্ড।",
+    "titleRolling": "শেষ 7 দিন — বিক্রি মোমেন্টাম",
+    "titleCalendar": "এই সপ্তাহ — বিক্রি মোমেন্টাম",
+    "subtitleRolling": "{{date}} পর্যন্ত শেষ 7 দিনের বিক্রি ও খরচ।",
+    "subtitleCalendar": "এই সপ্তাহের বিক্রি ও খরচ।",
+    "scopeGroupAria": "নিচের চার্ট ও টেবিলের সময়কাল",
+    "scopeLast7Days": "শেষ 7 দিন",
+    "scopeThisWeek": "এই সপ্তাহ",
     "liveTrend": "লাইভ ট্রেন্ড",
-    "weekSale": "সাপ্তাহিক বিক্রি",
-    "weekExpenditure": "সাপ্তাহিক খরচ",
+    "periodTotalSaleRolling": "7-দিন মোট বিক্রি",
+    "periodTotalSaleCalendar": "সপ্তাহের মোট বিক্রি",
+    "periodTotalExpenditureRolling": "7-দিন মোট খরচ",
+    "periodTotalExpenditureCalendar": "সপ্তাহের মোট খরচ",
     "peakDay": "সর্বোচ্চ দিন",
     "entries": "এন্ট্রি",
-    "errorTitle": "সাপ্তাহিক ট্রেন্ড লোড করা যায়নি",
-    "errorDescription": "সাপ্তাহিক বিক্রি আনতে সমস্যা হয়েছে। রিফ্রেশ করে আবার চেষ্টা করুন।",
-    "emptyTitle": "এই সপ্তাহে বিক্রি নেই",
-    "emptyDescription": "নির্বাচিত তারিখের জন্য কোনো বিক্রি এন্ট্রি পাওয়া যায়নি। ট্রেন্ড দেখতে ইনভয়েস বা অন্যান্য বিক্রি যোগ করুন।"
+    "errorTitle": "বিক্রি ট্রেন্ড লোড করা যায়নি",
+    "errorDescription": "দৈনিক বিক্রি আনতে সমস্যা হয়েছে। রিফ্রেশ করে আবার চেষ্টা করুন।",
+    "emptyTitle": "এই সময়ে বিক্রি নেই",
+    "emptyDescription": "নির্বাচিত সময়ে বিক্রি এন্ট্রি নেই। ইনভয়েস বা অন্যান্য বিক্রি যোগ করুন।"
   },
   "rangeComposition": {
     "title": "রেঞ্জ কম্পোজিশন",
@@ -63,18 +71,20 @@
     "presets": {
       "today": "আজ",
       "yesterday": "গতকাল",
-      "last7Days": "শেষ ৭ দিন",
-      "last14Days": "শেষ ১৪ দিন",
+      "last7Days": "শেষ 7 দিন",
+      "thisWeek": "এই সপ্তাহ",
+      "last14Days": "শেষ 14 দিন",
       "thisMonth": "এই মাস",
       "lastMonth": "গত মাস",
-      "last30Days": "শেষ ৩০ দিন",
-      "last90Days": "শেষ ৯০ দিন",
+      "last30Days": "শেষ 30 দিন",
+      "last90Days": "শেষ 90 দিন",
       "thisQuarter": "এই কোয়ার্টার",
       "thisYear": "এই বছর"
     }
   },
   "weeklyDetails": {
-    "subtitle": "একটি তারিখ বেছে নিন, তারপর সেই তারিখ থেকে ৭ দিনের এন্ট্রি দেখুন।",
+    "subtitleRolling": "শেষ তারিখ বেছে নিন: টেবিল সেই তারিখ পর্যন্ত শেষ 7 দিন দেখাবে (নতুন আগে)।",
+    "subtitleCalendar": "সপ্তাহের যেকোনো তারিখ বেছে নিন: টেবিল সেই ক্যালেন্ডার সপ্তাহের দৈনিক সারি দেখাবে (নতুন আগে)। সপ্তাহের শুরু সেটিংস → চেহারা।",
     "date": "তারিখ",
     "today": "আজ",
     "table": {
@@ -86,9 +96,9 @@
       "expenditure": "খরচ"
     },
     "errorTitle": "বিক্রি ডিটেইলস লোড করা যায়নি",
-    "errorDescription": "সাপ্তাহিক এন্ট্রি এখন লোড করা যাচ্ছে না। রিফ্রেশ করে আবার চেষ্টা করুন।",
+    "errorDescription": "এন্ট্রি এখন লোড করা যাচ্ছে না। রিফ্রেশ করে আবার চেষ্টা করুন।",
     "emptyTitle": "কোনো বিক্রি এন্ট্রি পাওয়া যায়নি",
-    "emptyDescription": "নির্বাচিত তারিখে ৭-দিনের কোনো এন্ট্রি নেই। তারিখ বদলান বা নতুন ইনভয়েস যোগ করুন।"
+    "emptyDescription": "নির্বাচিত সময়ের জন্য কোনো সারি নেই। তারিখ বদলান, শেষ 7 দিন / এই সপ্তাহ বদলান, বা নতুন ইনভয়েস যোগ করুন।"
   },
   "empty": {
     "title": "Godown Stock-এ স্বাগতম",

@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   Building2,
+  Download,
   Palette,
   Percent,
   Receipt,
@@ -18,6 +19,7 @@ type SettingsTabLabelKey =
   | "tabs.appearance"
   | "tabs.security"
   | "tabs.activity"
+  | "tabs.appUpdates"
   | "tabs.data";
 
 interface TabItem {
@@ -33,6 +35,7 @@ const TAB_ITEMS: readonly TabItem[] = [
   { id: "appearance", labelKey: "tabs.appearance", Icon: Palette },
   { id: "security", labelKey: "tabs.security", Icon: Shield },
   { id: "activity", labelKey: "tabs.activity", Icon: Activity },
+  { id: "appUpdates", labelKey: "tabs.appUpdates", Icon: Download },
   { id: "data", labelKey: "tabs.data", Icon: AlertTriangle },
 ];
 

@@ -5,15 +5,16 @@
     "dashboardTitle": "Home Dashboard",
     "metrics": {
       "today": "Today",
-      "thisWeek": "This Week",
+      "last7Days": "Last 7 days",
+      "thisCalendarWeek": "This week (calendar)",
       "thisMonth": "This Month",
       "lenderNet": "Lender Net"
     }
   },
   "sections": {
     "quickActions": "Quick Actions",
-    "weeklyMomentum": "7-Day Sale Momentum",
-    "weeklyDetails": "Weekly Sale Detail",
+    "weeklyMomentum": "Sale momentum",
+    "weeklyDetails": "Sale detail",
     "rangeComposition": "Range Composition",
     "lenderSummary": "Lender Summary",
     "lowStockAlerts": "Low Stock Alerts"
@@ -38,22 +39,29 @@
       "title": "Stock history",
       "subtitle": "Audit quantity changes by product."
     },
-    "cashVsExpenditure": "Cash vs Expenditure (weekly)",
-    "cashTrendEmptyTitle": "No weekly cash trend",
-    "cashTrendEmptyDescription": "Cash in hand and expenditure chart appears when weekly sales records are available."
+    "cashVsExpenditure": "Cash vs Expenditure (last 7 days)",
+    "cashTrendEmptyTitle": "No cash trend for this period",
+    "cashTrendEmptyDescription": "Cash in hand and expenditure chart appears when daily sales records exist for the selected period."
   },
   "weeklyMomentum": {
-    "title": "7-Day Sale Momentum",
-    "subtitle": "Sales and expenditure trend for the selected week ending on {{date}}.",
+    "titleRolling": "Last 7 days — sale momentum",
+    "titleCalendar": "This week — sale momentum",
+    "subtitleRolling": "Sales and expenditure for the last 7 days.",
+    "subtitleCalendar": "Sales and expenditure for the this week.",
+    "scopeGroupAria": "Period for charts and tables below",
+    "scopeLast7Days": "Last 7 days",
+    "scopeThisWeek": "This week",
     "liveTrend": "Live trend",
-    "weekSale": "Week Sale",
-    "weekExpenditure": "Week Expenditure",
+    "periodTotalSaleRolling": "7-day total sale",
+    "periodTotalSaleCalendar": "Week total sale",
+    "periodTotalExpenditureRolling": "7-day total expenditure",
+    "periodTotalExpenditureCalendar": "Week total expenditure",
     "peakDay": "Peak Day",
     "entries": "Entries",
-    "errorTitle": "Unable to load weekly trend",
-    "errorDescription": "Something went wrong while fetching weekly sales. Please refresh and try again.",
-    "emptyTitle": "No sales in this week",
-    "emptyDescription": "No sale entries were found for the selected date window. Add invoices or misc sales to populate this trend."
+    "errorTitle": "Unable to load sale trend",
+    "errorDescription": "Something went wrong while fetching daily sales. Please refresh and try again.",
+    "emptyTitle": "No sales in this period",
+    "emptyDescription": "No sale entries were found for the selected period. Add invoices or misc sales to populate this trend."
   },
   "rangeComposition": {
     "title": "Range Composition",
@@ -64,6 +72,7 @@
       "today": "Today",
       "yesterday": "Yesterday",
       "last7Days": "Last 7 Days",
+      "thisWeek": "This Week",
       "last14Days": "Last 14 Days",
       "thisMonth": "This Month",
       "lastMonth": "Last Month",
@@ -74,7 +83,8 @@
     }
   },
   "weeklyDetails": {
-    "subtitle": "Select a date to see 7 days of entries (descending from that date).",
+    "subtitleRolling": "Pick an end date: the table shows the last 7 days through that date (newest first).",
+    "subtitleCalendar": "Pick any date in the week: the table lists that calendar week’s daily rows (newest first). Week start follows Settings → Appearance.",
     "date": "Date",
     "today": "Today",
     "table": {
@@ -86,9 +96,9 @@
       "expenditure": "Expenditure"
     },
     "errorTitle": "Unable to load sale details",
-    "errorDescription": "Weekly entries could not be loaded right now. Refresh and try again.",
+    "errorDescription": "Sale entries could not be loaded right now. Refresh and try again.",
     "emptyTitle": "No sale entries found",
-    "emptyDescription": "No 7-day entries exist for the selected date. Change the date or add a new invoice."
+    "emptyDescription": "No rows exist for the selected period. Change the date, switch Last 7 days / This week, or add a new invoice."
   },
   "empty": {
     "title": "Welcome to Godown Stock",
