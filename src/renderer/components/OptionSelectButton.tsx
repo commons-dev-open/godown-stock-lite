@@ -24,6 +24,11 @@ import {
 /** Approximate row height (text-sm + vertical padding) for scroll viewport sizing */
 const ROW_HEIGHT_REM = 2.25;
 
+/** Default page size for DB-backed `loadOptions` (e.g. `getItemsPage`). */
+export const OPTION_SELECT_REMOTE_ITEM_LIMIT = 20;
+
+const DEFAULT_REMOTE_SEARCH_DEBOUNCE_MS = 250;
+
 export interface OptionSelectOption<
   V extends string | number = string | number,
 > {
@@ -31,6 +36,8 @@ export interface OptionSelectOption<
   label: string;
   /** Extra text used only for filtering (not shown) */
   searchText?: string;
+  /** SKU / item code — included in search (not shown) */
+  code?: string;
 }
 
 export interface OptionSelectButtonProps<
@@ -56,6 +63,15 @@ export interface OptionSelectButtonProps<
   required?: boolean;
   /** Stable `data-testid` for the trigger button. */
   testId?: string;
+  /**
+   * When set, the list is loaded via this callback (e.g. DB) instead of filtering `options`.
+   * Empty string means the default first page. Typing uses a trailing debounce.
+   */
+  loadOptions?: (
+    query: string
+  ) => Promise<ReadonlyArray<OptionSelectOption<V>>>;
+  /** Debounce for remote search after typing; opening the panel still fetches immediately. */
+  remoteSearchDebounceMs?: number;
 }
 
 function normalizeFilter(q: string): string {
@@ -73,7 +89,16 @@ function matchesOption<V extends string | number>(
   if (label.includes(q)) {
     return true;
   }
-  return opt.searchText?.toLowerCase().includes(q) ?? false;
+  if (opt.searchText?.toLowerCase().includes(q)) {
+    return true;
+  }
+  if (opt.code?.toLowerCase().includes(q)) {
+    return true;
+  }
+  if (typeof opt.value === "string" && opt.value.toLowerCase().includes(q)) {
+    return true;
+  }
+  return false;
 }
 
 export function OptionSelectButton<V extends string | number = string | number>(
@@ -94,6 +119,8 @@ export function OptionSelectButton<V extends string | number = string | number>(
     emptyText = "No matches",
     required = false,
     testId,
+    loadOptions,
+    remoteSearchDebounceMs = DEFAULT_REMOTE_SEARCH_DEBOUNCE_MS,
   } = props;
   const reactId = useId();
   const triggerId = idProp ?? `option-select-trigger-${reactId}`;
@@ -102,6 +129,11 @@ export function OptionSelectButton<V extends string | number = string | number>(
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [panelWidth, setPanelWidth] = useState<number | undefined>(undefined);
+  const [remoteOptions, setRemoteOptions] = useState<
+    ReadonlyArray<OptionSelectOption<V>>
+  >([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const remoteFetchIdRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -130,11 +162,63 @@ export function OptionSelectButton<V extends string | number = string | number>(
     [options, qNorm]
   );
 
+  const listItems = useMemo(() => {
+    if (!loadOptions) {
+      return filtered;
+    }
+    if (qNorm === "") {
+      return remoteOptions;
+    }
+    const fromRemote = remoteOptions.filter((o) => matchesOption(o, qNorm));
+    if (fromRemote.length > 0) {
+      return fromRemote;
+    }
+    return options.filter((o) => matchesOption(o, qNorm));
+  }, [loadOptions, filtered, remoteOptions, options, qNorm]);
+
   useEffect(() => {
     if (!open) {
       setQuery("");
+      if (loadOptions) {
+        remoteFetchIdRef.current += 1;
+        setRemoteOptions([]);
+        setRemoteLoading(false);
+      }
     }
-  }, [open]);
+  }, [open, loadOptions]);
+
+  useEffect(() => {
+    if (!open || !loadOptions) {
+      return;
+    }
+    const trimmed = query.trim();
+    const delay = trimmed === "" ? 0 : remoteSearchDebounceMs;
+    const handle = window.setTimeout(() => {
+      const fetchId = ++remoteFetchIdRef.current;
+      setRemoteLoading(true);
+      void (async () => {
+        try {
+          const rows = await loadOptions(trimmed);
+          if (fetchId !== remoteFetchIdRef.current) {
+            return;
+          }
+          setRemoteOptions(rows);
+        } catch {
+          if (fetchId !== remoteFetchIdRef.current) {
+            return;
+          }
+          setRemoteOptions([]);
+        } finally {
+          if (fetchId === remoteFetchIdRef.current) {
+            setRemoteLoading(false);
+          }
+        }
+      })();
+    }, delay);
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, [open, query, loadOptions, remoteSearchDebounceMs]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -150,16 +234,21 @@ export function OptionSelectButton<V extends string | number = string | number>(
     if (!open) {
       return;
     }
-    const i = options.findIndex((o) => o.value === value);
-    setActiveIndex(Math.max(0, i));
-  }, [open, options, value]);
-
-  useLayoutEffect(() => {
-    if (filtered.length === 0) {
+    if (loadOptions) {
+      const i = listItems.findIndex((o) => o.value === value);
+      setActiveIndex(i >= 0 ? i : 0);
       return;
     }
-    setActiveIndex((i) => Math.min(i, filtered.length - 1));
-  }, [filtered.length]);
+    const i = options.findIndex((o) => o.value === value);
+    setActiveIndex(Math.max(0, i));
+  }, [open, loadOptions, listItems, options, value]);
+
+  useLayoutEffect(() => {
+    if (listItems.length === 0) {
+      return;
+    }
+    setActiveIndex((i) => Math.min(i, listItems.length - 1));
+  }, [listItems.length]);
 
   useEffect(() => {
     if (open) {
@@ -168,7 +257,7 @@ export function OptionSelectButton<V extends string | number = string | number>(
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!open || filtered.length === 0) {
+    if (!open || listItems.length === 0) {
       return;
     }
     const root = refs.floating.current;
@@ -176,12 +265,21 @@ export function OptionSelectButton<V extends string | number = string | number>(
     if (el instanceof HTMLElement) {
       el.scrollIntoView({ block: "nearest" });
     }
-  }, [activeIndex, filtered.length, open, refs.floating]);
+  }, [activeIndex, listItems.length, open, refs.floating]);
 
   const selectedLabel = useMemo(() => {
-    const hit = options.find((o) => o.value === value);
-    return hit?.label ?? "";
-  }, [options, value]);
+    const fromOpts = options.find((o) => o.value === value)?.label;
+    if (fromOpts) {
+      return fromOpts;
+    }
+    if (loadOptions) {
+      const fromRemote = remoteOptions.find((o) => o.value === value)?.label;
+      if (fromRemote) {
+        return fromRemote;
+      }
+    }
+    return "";
+  }, [loadOptions, options, remoteOptions, value]);
 
   const listMaxHeight = `min(55vh, ${Math.max(1, maxVisibleItems) * ROW_HEIGHT_REM}rem)`;
 
@@ -207,18 +305,18 @@ export function OptionSelectButton<V extends string | number = string | number>(
   }
 
   function handleSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (filtered.length === 0) {
+    if (listItems.length === 0) {
       return;
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
+      setActiveIndex((i) => Math.min(i + 1, listItems.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const opt = filtered[activeIndex];
+      const opt = listItems[activeIndex];
       if (opt) {
         pick(opt.value);
       }
@@ -227,7 +325,7 @@ export function OptionSelectButton<V extends string | number = string | number>(
       setActiveIndex(0);
     } else if (e.key === "End") {
       e.preventDefault();
-      setActiveIndex(filtered.length - 1);
+      setActiveIndex(listItems.length - 1);
     }
   }
 
@@ -311,7 +409,7 @@ export function OptionSelectButton<V extends string | number = string | number>(
                 aria-autocomplete="list"
                 aria-controls={listboxId}
                 aria-activedescendant={
-                  filtered.length > 0
+                  listItems.length > 0
                     ? `${listboxId}-opt-${activeIndex}`
                     : undefined
                 }
@@ -324,12 +422,16 @@ export function OptionSelectButton<V extends string | number = string | number>(
               className="overflow-y-auto overscroll-contain py-1"
               style={{ maxHeight: listMaxHeight }}
             >
-              {filtered.length === 0 ? (
+              {loadOptions && remoteLoading && listItems.length === 0 ? (
+                <div className="px-3 py-4 text-center text-sm text-[var(--color-text-tertiary)]">
+                  Loading…
+                </div>
+              ) : listItems.length === 0 ? (
                 <div className="px-3 py-4 text-center text-sm text-[var(--color-text-tertiary)]">
                   {emptyText}
                 </div>
               ) : (
-                filtered.map((opt, idx) => {
+                listItems.map((opt, idx) => {
                   const isSelected = opt.value === value;
                   const isActive = idx === activeIndex;
                   return (

@@ -16,7 +16,10 @@ import {
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "../components/FormModal";
-import { OptionSelectButton } from "../components/OptionSelectButton";
+import {
+  OptionSelectButton,
+  OPTION_SELECT_REMOTE_ITEM_LIMIT,
+} from "../components/OptionSelectButton";
 import DateInput from "../components/DateInput";
 import TransactionTypeBadge, {
   type TransactionType,
@@ -339,8 +342,30 @@ export default function MahajanLedger() {
   );
   const itemList = items as Item[];
   const editLendItemOptions = useMemo(
-    () => itemList.map((i) => ({ value: i.id, label: i.name })),
+    () =>
+      itemList.map((i) => ({
+        value: i.id,
+        label: i.name,
+        code: i.code ?? undefined,
+      })),
     [itemList]
+  );
+
+  const loadEditLendItemOptions = useCallback(
+    async (search: string) => {
+      const q = search.trim();
+      const { data } = (await api.getItemsPage({
+        search: q || undefined,
+        page: 1,
+        limit: OPTION_SELECT_REMOTE_ITEM_LIMIT,
+      })) as { data: Item[] };
+      return data.map((i) => ({
+        value: i.id,
+        label: i.name,
+        code: i.code ?? undefined,
+      }));
+    },
+    [api]
   );
 
   const updateLend = useMutation({
@@ -954,6 +979,7 @@ export default function MahajanLedger() {
               </label>
               <OptionSelectButton
                 options={editLendItemOptions}
+                loadOptions={loadEditLendItemOptions}
                 value={editLendProductId}
                 onChange={(next) => setEditLendProductId(next)}
                 placeholder="—"

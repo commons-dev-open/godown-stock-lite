@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { getElectron } from "../api/client";
 import FormModal from "./FormModal";
-import { OptionSelectButton } from "./OptionSelectButton";
+import {
+  OptionSelectButton,
+  OPTION_SELECT_REMOTE_ITEM_LIMIT,
+} from "./OptionSelectButton";
 import DateInput from "./DateInput";
 import Tooltip from "./Tooltip";
 import MahajanBalanceCard from "./MahajanBalanceCard";
@@ -364,8 +367,30 @@ export default function AddLendModal({
     [mahajanList]
   );
   const itemSelectOptions = useMemo(
-    () => itemList.map((i) => ({ value: i.id, label: i.name })),
+    () =>
+      itemList.map((i) => ({
+        value: i.id,
+        label: i.name,
+        code: i.code ?? undefined,
+      })),
     [itemList]
+  );
+
+  const loadItemSelectOptions = useCallback(
+    async (search: string) => {
+      const q = search.trim();
+      const { data } = (await api.getItemsPage({
+        search: q || undefined,
+        page: 1,
+        limit: OPTION_SELECT_REMOTE_ITEM_LIMIT,
+      })) as { data: Item[] };
+      return data.map((i) => ({
+        value: i.id,
+        label: i.name,
+        code: i.code ?? undefined,
+      }));
+    },
+    [api]
   );
 
   const handleClose = () => {
@@ -535,6 +560,7 @@ export default function AddLendModal({
                       >
                         <OptionSelectButton
                           options={itemSelectOptions}
+                          loadOptions={loadItemSelectOptions}
                           value={line.product_id > 0 ? line.product_id : null}
                           onChange={(next) => {
                             const id = next ?? 0;
