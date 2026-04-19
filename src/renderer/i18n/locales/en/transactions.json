@@ -262,12 +262,33 @@
     "cash_purchase": {
       "title": "Cash Purchase",
       "confirm_title": "Confirm Cash Purchase",
+      "fields": {
+        "vendor": "Vendor / shop",
+        "invoice_number": "Bill / invoice number",
+        "invoice_file_path": "Invoice file path (optional)",
+        "other_charges": "Freight & other charges (₹)",
+        "gst_percent": "GST %",
+        "gst_mode": "GST mode"
+      },
+      "placeholders": {
+        "invoice_file_path": "e.g. /path/to/scan.pdf"
+      },
+      "hints": {
+        "other_charges": "Added to the bill total; not split across product lines."
+      },
+      "gst_modes": {
+        "exclusive": "Excl. GST",
+        "inclusive": "Incl. GST"
+      },
       "messages": {
         "on_date": "Cash purchase on",
-        "total_amount": "Total amount"
+        "total_amount": "Lines total",
+        "other_charges_label": "Freight & other charges",
+        "grand_total": "Grand total"
       },
       "toasts": {
-        "add_one_item": "Add at least one product with Qty and amount (integer)."
+        "add_one_item": "Add at least one product with quantity and a valid amount.",
+        "other_charges_invalid": "Freight and other charges must be a valid non-negative number."
       }
     },
     "edit_cash_purchase": {

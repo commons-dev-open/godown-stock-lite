@@ -262,12 +262,33 @@
     "cash_purchase": {
       "title": "नकद खरीद",
       "confirm_title": "नकद खरीद कन्फर्म करें",
+      "fields": {
+        "vendor": "विक्रेता / दुकान",
+        "invoice_number": "बिल / इनवॉइस नंबर",
+        "invoice_file_path": "इनवॉइस फ़ाइल पथ (वैकल्पिक)",
+        "other_charges": "ढुलाई व अन्य शुल्क (₹)",
+        "gst_percent": "GST %",
+        "gst_mode": "GST मोड"
+      },
+      "placeholders": {
+        "invoice_file_path": "जैसे /path/to/scan.pdf"
+      },
+      "hints": {
+        "other_charges": "बिल कुल में जोड़ा जाता है; प्रोडक्ट लाइनों में बँटता नहीं।"
+      },
+      "gst_modes": {
+        "exclusive": "GST अलग",
+        "inclusive": "GST समेत"
+      },
       "messages": {
         "on_date": "नकद खरीद दिनांक",
-        "total_amount": "कुल राशि"
+        "total_amount": "लाइनों का योग",
+        "other_charges_label": "ढुलाई व अन्य शुल्क",
+        "grand_total": "कुल योग"
       },
       "toasts": {
-        "add_one_item": "Qty और राशि (पूर्णांक) के साथ कम से कम एक प्रोडक्ट जोड़ें।"
+        "add_one_item": "मात्रा और वैध राशि के साथ कम से कम एक प्रोडक्ट जोड़ें।",
+        "other_charges_invalid": "ढुलाई व अन्य शुल्क ऋणात्मक नहीं हो सकते।"
       }
     },
     "edit_cash_purchase": {

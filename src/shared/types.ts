@@ -145,6 +145,12 @@ export interface SupplierPurchasePageRow {
   notes: string | null;
   lender_invoice_number: string | null;
   invoice_file_path: string | null;
+  /** Cash purchase: optional vendor / shop name. */
+  vendor_name: string | null;
+  /** Cash purchase: how the bill was paid (cash, UPI, bank, etc.). */
+  payment_method: string | null;
+  /** Cash purchase: freight and other non-line charges included in total_amount. */
+  other_charges: number;
   line_count: number;
   product_summary: string | null;
 }
@@ -181,6 +187,9 @@ export interface SupplierPurchaseDetail {
     notes: string | null;
     lender_invoice_number: string | null;
     invoice_file_path: string | null;
+    vendor_name: string | null;
+    payment_method: string | null;
+    other_charges: number;
     total_amount: number;
   };
   lines: SupplierPurchaseLineDetail[];

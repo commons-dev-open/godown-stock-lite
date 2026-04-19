@@ -813,6 +813,9 @@ export function enrichFromTemplates(
         createCashPurchaseBatch(database, {
           transaction_date: docDate,
           notes: `Synthetic cash purchase ${runToken}-${p}`,
+          vendor_name: `Vendor ${runToken}-${p}`,
+          payment_method: "cash",
+          other_charges: 0,
           lines,
         });
       }

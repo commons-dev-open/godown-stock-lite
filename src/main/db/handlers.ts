@@ -2390,11 +2390,17 @@ export function registerIpcHandlers(): void {
         "SELECT COALESCE(SUM(amount), 0) AS s FROM supplier_purchase_lines WHERE purchase_id = ?"
       )
       .get(purchaseId) as { s: number };
+    const chRow = db()
+      .prepare(
+        "SELECT COALESCE(other_charges, 0) AS o FROM supplier_purchases WHERE id = ?"
+      )
+      .get(purchaseId) as { o: number } | undefined;
+    const other = roundDecimal(Number(chRow?.o) || 0);
     db()
       .prepare(
         "UPDATE supplier_purchases SET total_amount = ?, updated_at = datetime('now') WHERE id = ?"
       )
-      .run(roundDecimal(sumRow.s), purchaseId);
+      .run(roundDecimal(roundDecimal(sumRow.s) + other), purchaseId);
   }
 
   ipcMain.handle(
@@ -2931,6 +2937,7 @@ export function registerIpcHandlers(): void {
         .prepare(
           `SELECT sp.id, sp.kind, sp.lender_id, m.name AS lender_name, sp.document_date,
             sp.total_amount, sp.notes, sp.lender_invoice_number, sp.invoice_file_path,
+            sp.vendor_name, sp.payment_method, COALESCE(sp.other_charges, 0) AS other_charges,
             COALESCE((SELECT SUM(lma.amount) FROM lender_movement_allocations lma WHERE lma.purchase_id = sp.id), 0) AS allocated_total,
             (SELECT COUNT(*) FROM supplier_purchase_lines spl WHERE spl.purchase_id = sp.id) AS line_count,
             (SELECT COALESCE(group_concat(i.name, ' | '), '')
@@ -2951,6 +2958,9 @@ export function registerIpcHandlers(): void {
         notes: string | null;
         lender_invoice_number: string | null;
         invoice_file_path: string | null;
+        vendor_name: string | null;
+        payment_method: string | null;
+        other_charges: number;
         allocated_total: number;
         line_count: number;
         product_summary: string | null;
@@ -2973,7 +2983,8 @@ export function registerIpcHandlers(): void {
     }
     const header = db()
       .prepare(
-        `SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount
+        `SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path,
+            vendor_name, payment_method, COALESCE(other_charges, 0) AS other_charges, total_amount
          FROM supplier_purchases WHERE id = ? AND kind IN ('credit','cash')`
       )
       .get(purchaseId) as
@@ -2985,6 +2996,9 @@ export function registerIpcHandlers(): void {
           notes: string | null;
           lender_invoice_number: string | null;
           invoice_file_path: string | null;
+          vendor_name: string | null;
+          payment_method: string | null;
+          other_charges: number;
           total_amount: number;
         }
       | undefined;
@@ -3061,6 +3075,9 @@ export function registerIpcHandlers(): void {
         notes?: string | null;
         lender_invoice_number?: string | null;
         invoice_file_path?: string | null;
+        vendor_name?: string | null;
+        payment_method?: string | null;
+        other_charges?: number;
         lines: SupplierPurchaseLineInput[];
       }
     ) => {
@@ -3075,7 +3092,7 @@ export function registerIpcHandlers(): void {
 
       const header = db()
         .prepare(
-          "SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, total_amount FROM supplier_purchases WHERE id = ? AND kind IN ('credit','cash')"
+          "SELECT id, kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, vendor_name, payment_method, COALESCE(other_charges, 0) AS other_charges, total_amount FROM supplier_purchases WHERE id = ? AND kind IN ('credit','cash')"
         )
         .get(purchaseId) as
         | {
@@ -3086,6 +3103,9 @@ export function registerIpcHandlers(): void {
             notes: string | null;
             lender_invoice_number: string | null;
             invoice_file_path: string | null;
+            vendor_name: string | null;
+            payment_method: string | null;
+            other_charges: number;
             total_amount: number;
           }
         | undefined;
@@ -3103,8 +3123,19 @@ export function registerIpcHandlers(): void {
         : { s: 0 };
       const allocatedTotal = roundDecimal(Number(allocatedTotalRow.s) || 0);
 
+      const otherChargesNext = isCredit
+        ? 0
+        : roundDecimal(
+            payload.other_charges !== undefined
+              ? Number(payload.other_charges) || 0
+              : header.other_charges
+          );
+      if (!isCredit && otherChargesNext < 0) {
+        throw new Error("Freight and other charges cannot be negative.");
+      }
       const totalAmount = roundDecimal(
-        linesIn.reduce((s, ln) => s + roundDecimal(ln.amount), 0)
+        linesIn.reduce((s, ln) => s + roundDecimal(ln.amount), 0) +
+          otherChargesNext
       );
 
       const docDate =
@@ -3218,9 +3249,24 @@ export function registerIpcHandlers(): void {
           });
         }
 
+        const vendorNext = isCredit
+          ? null
+          : payload.vendor_name !== undefined
+            ? payload.vendor_name?.trim()
+              ? payload.vendor_name.trim()
+              : null
+            : header.vendor_name;
+        const paymentNext = isCredit
+          ? null
+          : payload.payment_method !== undefined
+            ? payload.payment_method?.trim()
+              ? payload.payment_method.trim()
+              : null
+            : header.payment_method;
+
         db()
           .prepare(
-            `UPDATE supplier_purchases SET lender_id = ?, document_date = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, total_amount = ?, updated_at = datetime('now') WHERE id = ?`
+            `UPDATE supplier_purchases SET lender_id = ?, document_date = ?, notes = ?, lender_invoice_number = ?, invoice_file_path = ?, vendor_name = ?, payment_method = ?, other_charges = ?, total_amount = ?, updated_at = datetime('now') WHERE id = ?`
           )
           .run(
             isCredit ? newLenderId : null,
@@ -3232,6 +3278,9 @@ export function registerIpcHandlers(): void {
             payload.invoice_file_path !== undefined
               ? payload.invoice_file_path
               : header.invoice_file_path,
+            vendorNext,
+            paymentNext,
+            otherChargesNext,
             totalAmount,
             purchaseId
           );
@@ -3858,8 +3907,8 @@ export function registerIpcHandlers(): void {
       const run = db().transaction(() => {
         const pur = db()
           .prepare(
-            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, total_amount)
-             VALUES ('cash', NULL, ?, ?, ?)`
+            `INSERT INTO supplier_purchases (kind, lender_id, document_date, notes, lender_invoice_number, invoice_file_path, vendor_name, payment_method, other_charges, total_amount)
+             VALUES ('cash', NULL, ?, ?, NULL, NULL, NULL, NULL, 0, ?)`
           )
           .run(p.transaction_date, p.notes ?? null, amt);
         const purchaseId = Number(pur.lastInsertRowid);
@@ -3892,7 +3941,13 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  type PurchaseLine = { product_id: number; quantity: number; amount: number };
+  type PurchaseLine = {
+    product_id: number;
+    quantity: number;
+    amount: number;
+    gst_rate?: number;
+    gst_inclusive?: boolean;
+  };
   ipcMain.handle(
     "purchases:createBatch",
     (
@@ -3900,6 +3955,11 @@ export function registerIpcHandlers(): void {
       payload: {
         transaction_date: string;
         notes?: string;
+        vendor_name?: string | null;
+        payment_method?: string | null;
+        other_charges?: number;
+        lender_invoice_number?: string | null;
+        invoice_file_path?: string | null;
         lines: PurchaseLine[];
       }
     ) => {
@@ -3907,6 +3967,11 @@ export function registerIpcHandlers(): void {
         createCashPurchaseBatch(db(), {
           transaction_date: payload.transaction_date,
           notes: payload.notes ?? null,
+          vendor_name: payload.vendor_name ?? null,
+          payment_method: payload.payment_method ?? null,
+          other_charges: payload.other_charges,
+          lender_invoice_number: payload.lender_invoice_number ?? null,
+          invoice_file_path: payload.invoice_file_path ?? null,
           lines: payload.lines,
         })
       );

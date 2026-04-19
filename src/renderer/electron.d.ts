@@ -444,7 +444,18 @@ export interface ElectronAPI {
   createPurchaseBatch: (payload: {
     transaction_date: string;
     notes?: string;
-    lines: { product_id: number; quantity: number; amount: number }[];
+    vendor_name?: string | null;
+    payment_method?: string | null;
+    other_charges?: number;
+    lender_invoice_number?: string | null;
+    invoice_file_path?: string | null;
+    lines: {
+      product_id: number;
+      quantity: number;
+      amount: number;
+      gst_rate?: number;
+      gst_inclusive?: boolean;
+    }[];
   }) => Promise<number[]>;
   updatePurchase: (
     id: number,
@@ -475,6 +486,9 @@ export interface ElectronAPI {
       notes?: string | null;
       lender_invoice_number?: string | null;
       invoice_file_path?: string | null;
+      vendor_name?: string | null;
+      payment_method?: string | null;
+      other_charges?: number;
       lines: {
         product_id: number;
         quantity: number;

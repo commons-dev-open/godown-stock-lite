@@ -262,12 +262,33 @@
     "cash_purchase": {
       "title": "নগদ ক্রয়",
       "confirm_title": "নগদ ক্রয় নিশ্চিত করুন",
+      "fields": {
+        "vendor": "বিক্রেতা / দোকান",
+        "invoice_number": "বিল / ইনভয়েস নম্বর",
+        "invoice_file_path": "ইনভয়েস ফাইল পাথ (ঐচ্ছিক)",
+        "other_charges": "পরিবহন ও অন্যান্য চার্জ (₹)",
+        "gst_percent": "GST %",
+        "gst_mode": "GST মোড"
+      },
+      "placeholders": {
+        "invoice_file_path": "যেমন /path/to/scan.pdf"
+      },
+      "hints": {
+        "other_charges": "বিলের মোটে যোগ হয়; পণ্য লাইনে ভাগ হয় না।"
+      },
+      "gst_modes": {
+        "exclusive": "GST বাদে",
+        "inclusive": "GST সহ"
+      },
       "messages": {
         "on_date": "নগদ ক্রয় তারিখ",
-        "total_amount": "মোট টাকা (₹)"
+        "total_amount": "লাইনের মোট",
+        "other_charges_label": "পরিবহন ও অন্যান্য চার্জ",
+        "grand_total": "সর্বমোট"
       },
       "toasts": {
-        "add_one_item": "পরিমাণ ও টাকা (পূর্ণসংখ্যা) সহ অন্তত একটি পণ্য যোগ করুন"
+        "add_one_item": "পরিমাণ ও বৈধ টাকাসহ অন্তত একটি পণ্য যোগ করুন।",
+        "other_charges_invalid": "পরিবহন ও অন্যান্য চার্জ অ-ঋণাত্মক বৈধ সংখ্যা হতে হবে।"
       }
     },
     "edit_cash_purchase": {

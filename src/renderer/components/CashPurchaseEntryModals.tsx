@@ -14,7 +14,8 @@ import { setLedgerUpdatesAvailable } from "../lib/ledgerUpdatesFlag";
 import type { Item, Unit, UnitConversion } from "../../shared/types";
 import { convertToPrimaryQuantity } from "../../shared/unitConversion";
 import { getItemCatalogUnitsAsc } from "../../shared/itemCatalogUnits";
-import { formatDecimal } from "../../shared/numbers";
+import { formatDecimal, roundDecimal } from "../../shared/numbers";
+import { computeLineGst, GST_SLABS } from "../../shared/gst";
 
 type ItemWithUnitGraph = Item & {
   other_units?: { unit: string; sort_order: number }[];
@@ -27,7 +28,28 @@ interface PurchaseLine {
   quantity: number;
   quantity_unit: string;
   amount: number;
+  gst_rate: number;
+  gst_inclusive: boolean;
 }
+
+const PAYMENT_METHODS = [
+  {
+    value: "cash",
+    labelKey: "modals.shared.payment_methods.cash.label",
+  },
+  {
+    value: "bank",
+    labelKey: "modals.shared.payment_methods.bank.label",
+  },
+  {
+    value: "upi",
+    labelKey: "modals.shared.payment_methods.upi.label",
+  },
+  {
+    value: "cheque",
+    labelKey: "modals.shared.payment_methods.cheque.label",
+  },
+] as const;
 
 interface CashPurchasePreviewRow {
   id: number;
@@ -49,7 +71,22 @@ function emptyPurchaseLine(): PurchaseLine {
     quantity: 0,
     quantity_unit: "",
     amount: 0,
+    gst_rate: 0,
+    gst_inclusive: false,
   };
+}
+
+function lineDisplayTotalRupees(
+  line: PurchaseLine,
+  gstEnabled: boolean
+): number {
+  const rate = gstEnabled ? line.gst_rate : 0;
+  if (rate > 0) {
+    return roundDecimal(
+      computeLineGst(line.amount, rate, line.gst_inclusive).total_amount
+    );
+  }
+  return roundDecimal(line.amount);
 }
 
 interface CashPurchaseEntryModalsProps {
@@ -72,10 +109,21 @@ export function CashPurchaseEntryModals({
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([
     emptyPurchaseLine(),
   ]);
+  const [vendorName, setVendorName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [headerInvoiceNumber, setHeaderInvoiceNumber] = useState("");
+  const [headerInvoiceFilePath, setHeaderInvoiceFilePath] = useState("");
+  const [otherChargesInput, setOtherChargesInput] = useState("");
+
   const [confirmPurchaseOpen, setConfirmPurchaseOpen] = useState(false);
   const [confirmPurchasePayload, setConfirmPurchasePayload] = useState<{
     transaction_date: string;
     notes: string;
+    vendor_name: string;
+    payment_method: string;
+    lender_invoice_number: string;
+    invoice_file_path: string;
+    other_charges: number;
     lines: PurchaseLine[];
   } | null>(null);
 
@@ -83,6 +131,14 @@ export function CashPurchaseEntryModals({
     queryKey: ["items"],
     queryFn: () => api.getItems(),
   });
+
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+    enabled: open || confirmPurchaseOpen,
+  });
+  const gstEnabled =
+    (settings as Record<string, string>).gst_enabled === "true";
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"],
@@ -110,15 +166,18 @@ export function CashPurchaseEntryModals({
 
   useEffect(() => {
     if (open) {
-      queueMicrotask(() => setPurchaseFormDate(todayISO()));
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
+      queueMicrotask(() => {
+        setPurchaseFormDate(todayISO());
+        setPurchaseLines([emptyPurchaseLine()]);
+        setVendorName("");
+        setPaymentMethod("cash");
+        setHeaderInvoiceNumber("");
+        setHeaderInvoiceFilePath("");
+        setOtherChargesInput("");
+      });
+    } else {
       setConfirmPurchaseOpen(false);
       setConfirmPurchasePayload(null);
-      setPurchaseLines([emptyPurchaseLine()]);
     }
   }, [open]);
 
@@ -126,6 +185,11 @@ export function CashPurchaseEntryModals({
     mutationFn: (payload: {
       transaction_date: string;
       notes?: string;
+      vendor_name?: string | null;
+      payment_method?: string | null;
+      other_charges?: number;
+      lender_invoice_number?: string | null;
+      invoice_file_path?: string | null;
       lines: PurchaseLine[];
       globalConversionRows: {
         from_unit: string;
@@ -140,6 +204,8 @@ export function CashPurchaseEntryModals({
             product_id: l.product_id,
             quantity: l.quantity,
             amount: l.amount,
+            gst_rate: l.gst_rate,
+            gst_inclusive: l.gst_inclusive,
           };
         }
         const fromUnit = (l.quantity_unit || item.unit).trim();
@@ -161,11 +227,18 @@ export function CashPurchaseEntryModals({
           product_id: l.product_id,
           quantity: conv.primaryQuantity,
           amount: l.amount,
+          gst_rate: l.gst_rate,
+          gst_inclusive: l.gst_inclusive,
         };
       });
       return api.createPurchaseBatch({
         transaction_date: payload.transaction_date,
         notes: payload.notes,
+        vendor_name: payload.vendor_name,
+        payment_method: payload.payment_method,
+        other_charges: payload.other_charges,
+        lender_invoice_number: payload.lender_invoice_number,
+        invoice_file_path: payload.invoice_file_path,
         lines: linesApi,
       });
     },
@@ -174,6 +247,7 @@ export function CashPurchaseEntryModals({
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["purchasesPage"] });
       queryClient.invalidateQueries({ queryKey: ["supplierPurchasesPage"] });
+      queryClient.invalidateQueries({ queryKey: ["supplierPurchaseDetail"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["lowStockItems"] });
       queryClient.invalidateQueries({ queryKey: ["stockHistory"] });
@@ -181,6 +255,11 @@ export function CashPurchaseEntryModals({
       setConfirmPurchaseOpen(false);
       setConfirmPurchasePayload(null);
       setPurchaseLines([emptyPurchaseLine()]);
+      setVendorName("");
+      setPaymentMethod("cash");
+      setHeaderInvoiceNumber("");
+      setHeaderInvoiceFilePath("");
+      setOtherChargesInput("");
       toast.success(t("toasts.cash_purchases_saved"));
       onClose();
     },
@@ -227,6 +306,13 @@ export function CashPurchaseEntryModals({
     [t]
   );
 
+  const lineGridClass = gstEnabled
+    ? "grid-cols-[12rem_5rem_6rem_7rem_5rem_6rem_2.5rem]"
+    : "grid-cols-[12rem_6rem_6rem_8rem_2.5rem]";
+  const headerGridClass = gstEnabled
+    ? "grid grid-cols-[12rem_5rem_6rem_7rem_5rem_6rem_2.5rem] gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1"
+    : "grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1";
+
   return (
     <>
       <FormModal
@@ -235,6 +321,11 @@ export function CashPurchaseEntryModals({
         onClose={() => {
           if (!createPurchaseBatch.isPending) {
             setPurchaseLines([emptyPurchaseLine()]);
+            setVendorName("");
+            setPaymentMethod("cash");
+            setHeaderInvoiceNumber("");
+            setHeaderInvoiceFilePath("");
+            setOtherChargesInput("");
             onClose();
           }
         }}
@@ -263,36 +354,30 @@ export function CashPurchaseEntryModals({
               return;
             }
             const notes = (form.notes as HTMLInputElement).value?.trim() || "";
-            const lines: PurchaseLine[] = purchaseLines
-              .map((line, idx) => {
-                const productId = Number(
-                  (form[`product_id_${idx}`] as HTMLSelectElement)?.value
-                );
-                const quantity = Number(
-                  (form[`quantity_${idx}`] as HTMLInputElement)?.value
-                );
-                const amountRaw = (form[`amount_${idx}`] as HTMLInputElement)
-                  ?.value;
-                const amount =
-                  amountRaw !== "" && amountRaw != null
-                    ? Math.floor(Number(amountRaw))
-                    : Number.NaN;
-                const item = itemList.find((i) => i.id === productId);
-                const quantityUnit = line.quantity_unit || item?.unit || "";
-                return productId &&
-                  quantity > 0 &&
-                  Number.isFinite(amount) &&
-                  amount >= 0
-                  ? {
-                      product_id: productId,
-                      product_name: item?.name ?? "",
-                      quantity,
-                      quantity_unit: quantityUnit,
-                      amount,
-                    }
-                  : null;
-              })
-              .filter((l): l is PurchaseLine => l != null);
+            const ocRaw = otherChargesInput.trim().replace(/,/g, "");
+            const ocParsed = ocRaw === "" ? 0 : Number(ocRaw);
+            if (!Number.isFinite(ocParsed) || ocParsed < 0) {
+              toast.error(t("modals.cash_purchase.toasts.other_charges_invalid"));
+              return;
+            }
+            const other_charges = roundDecimal(ocParsed);
+
+            const lines: PurchaseLine[] = [];
+            for (const line of purchaseLines) {
+              if (!(line.product_id > 0 && line.quantity > 0)) {
+                continue;
+              }
+              if (!Number.isFinite(line.amount) || line.amount < 0) {
+                continue;
+              }
+              const item = itemList.find((i) => i.id === line.product_id);
+              const quantityUnit = line.quantity_unit || item?.unit || "";
+              lines.push({
+                ...line,
+                product_name: item?.name ?? "",
+                quantity_unit: quantityUnit,
+              });
+            }
             if (!lines.length) {
               toast.error(t("modals.cash_purchase.toasts.add_one_item"));
               return;
@@ -322,6 +407,11 @@ export function CashPurchaseEntryModals({
             setConfirmPurchasePayload({
               transaction_date: purchaseFormDate,
               notes,
+              vendor_name: vendorName.trim(),
+              payment_method: paymentMethod.trim() || "cash",
+              lender_invoice_number: headerInvoiceNumber.trim(),
+              invoice_file_path: headerInvoiceFilePath.trim(),
+              other_charges,
               lines,
             });
             setConfirmPurchaseOpen(true);
@@ -337,15 +427,92 @@ export function CashPurchaseEntryModals({
               className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
             />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("modals.cash_purchase.fields.vendor")}
+              </label>
+              <input
+                type="text"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+                className="w-full border rounded px-3 py-2 input-base"
+                autoComplete="organization"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("modals.cash_purchase.fields.invoice_number")}
+              </label>
+              <input
+                type="text"
+                value={headerInvoiceNumber}
+                onChange={(e) => setHeaderInvoiceNumber(e.target.value)}
+                className="w-full border rounded px-3 py-2 input-base"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("modals.cash_purchase.fields.invoice_file_path")}
+              </label>
+              <input
+                type="text"
+                value={headerInvoiceFilePath}
+                onChange={(e) => setHeaderInvoiceFilePath(e.target.value)}
+                className="w-full border rounded px-3 py-2 input-base"
+                placeholder={t(
+                  "modals.cash_purchase.placeholders.invoice_file_path"
+                )}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("modals.shared.fields.payment_method")}
+              </label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full border rounded px-3 py-2 input-base"
+              >
+                {PAYMENT_METHODS.map((pm) => (
+                  <option key={pm.value} value={pm.value}>
+                    {t(pm.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("modals.cash_purchase.fields.other_charges")}
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={otherChargesInput}
+                onChange={(e) => setOtherChargesInput(e.target.value)}
+                className="w-full border rounded px-3 py-2 input-base tabular-nums"
+                placeholder="0"
+              />
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                {t("modals.cash_purchase.hints.other_charges")}
+              </p>
+            </div>
+          </div>
           <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)]/60 p-4 space-y-3">
             <div className="min-w-0 overflow-x-auto">
               <div className="min-w-[32rem]">
                 {purchaseLines.length > 0 && (
-                  <div className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-3 items-center text-sm font-medium text-[var(--color-text-secondary)] mb-2 px-1">
+                  <div className={headerGridClass}>
                     <span>{t("columns.product")}</span>
                     <span>{t("columns.qty")}</span>
                     <span>{t("columns.unit")}</span>
                     <span>{t("columns.amount")}</span>
+                    {gstEnabled ? (
+                      <>
+                        <span>{t("modals.cash_purchase.fields.gst_percent")}</span>
+                        <span>{t("modals.cash_purchase.fields.gst_mode")}</span>
+                      </>
+                    ) : null}
                     <span aria-hidden="true" />
                   </div>
                 )}
@@ -357,7 +524,7 @@ export function CashPurchaseEntryModals({
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm"
+                        className={`grid ${lineGridClass} gap-3 items-center p-3 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-sm`}
                       >
                         <select
                           name={`product_id_${idx}`}
@@ -367,6 +534,9 @@ export function CashPurchaseEntryModals({
                           onChange={(e) => {
                             const pid = Number(e.target.value);
                             const item = itemList.find((i) => i.id === pid);
+                            const itemGst =
+                              (item as Item & { gst_rate?: number })?.gst_rate ??
+                              0;
                             setPurchaseLines((prev) => {
                               const next = [...prev];
                               next[idx] = {
@@ -374,6 +544,7 @@ export function CashPurchaseEntryModals({
                                 product_id: pid,
                                 product_name: item?.name ?? "",
                                 quantity_unit: item?.unit ?? "",
+                                gst_rate: itemGst,
                               };
                               return next;
                             });
@@ -462,24 +633,82 @@ export function CashPurchaseEntryModals({
                         <input
                           name={`amount_${idx}`}
                           type="number"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           min="0"
-                          step="1"
+                          step="0.01"
                           required={idx === 0}
                           placeholder={t("modals.shared.placeholders.zero")}
                           value={line.amount === 0 ? "" : line.amount}
                           onChange={(e) =>
                             setPurchaseLines((prev) => {
                               const n = [...prev];
+                              const raw = e.target.value;
                               const val =
-                                Math.floor(Number(e.target.value)) || 0;
-                              n[idx] = { ...n[idx], amount: val };
+                                raw === "" ? 0 : roundDecimal(Number(raw));
+                              n[idx] = {
+                                ...n[idx],
+                                amount: Number.isFinite(val) ? val : 0,
+                              };
                               return n;
                             })
                           }
                           className="input-base w-full text-right"
                           aria-label={t("columns.amount")}
                         />
+                        {gstEnabled ? (
+                          <>
+                            <select
+                              value={line.gst_rate}
+                              onChange={(e) =>
+                                setPurchaseLines((prev) => {
+                                  const n = [...prev];
+                                  n[idx] = {
+                                    ...n[idx],
+                                    gst_rate: Number(e.target.value) || 0,
+                                  };
+                                  return n;
+                                })
+                              }
+                              className="input-base w-full text-sm"
+                              aria-label={t(
+                                "modals.cash_purchase.fields.gst_percent"
+                              )}
+                            >
+                              {GST_SLABS.map((r) => (
+                                <option key={r} value={r}>
+                                  {r}%
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={
+                                line.gst_inclusive ? "inclusive" : "exclusive"
+                              }
+                              onChange={(e) =>
+                                setPurchaseLines((prev) => {
+                                  const n = [...prev];
+                                  n[idx] = {
+                                    ...n[idx],
+                                    gst_inclusive:
+                                      e.target.value === "inclusive",
+                                  };
+                                  return n;
+                                })
+                              }
+                              className="input-base w-full text-sm"
+                              aria-label={t(
+                                "modals.cash_purchase.fields.gst_mode"
+                              )}
+                            >
+                              <option value="exclusive">
+                                {t("modals.cash_purchase.gst_modes.exclusive")}
+                              </option>
+                              <option value="inclusive">
+                                {t("modals.cash_purchase.gst_modes.inclusive")}
+                              </option>
+                            </select>
+                          </>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() =>
@@ -551,6 +780,16 @@ export function CashPurchaseEntryModals({
                 createPurchaseBatch.mutate({
                   transaction_date: confirmPurchasePayload.transaction_date,
                   notes: confirmPurchasePayload.notes || undefined,
+                  vendor_name:
+                    confirmPurchasePayload.vendor_name.trim() || null,
+                  payment_method:
+                    confirmPurchasePayload.payment_method.trim() || "cash",
+                  other_charges: confirmPurchasePayload.other_charges,
+                  lender_invoice_number:
+                    confirmPurchasePayload.lender_invoice_number.trim() ||
+                    null,
+                  invoice_file_path:
+                    confirmPurchasePayload.invoice_file_path.trim() || null,
                   lines: confirmPurchasePayload.lines,
                   globalConversionRows,
                 });
@@ -580,6 +819,9 @@ export function CashPurchaseEntryModals({
                   {formatDateForView(confirmPurchasePayload.transaction_date)}
                 </strong>
               </Tooltip>
+              {confirmPurchasePayload.vendor_name.trim()
+                ? ` · ${confirmPurchasePayload.vendor_name.trim()}`
+                : ""}
               {confirmPurchasePayload.notes
                 ? ` — ${confirmPurchasePayload.notes}`
                 : ""}
@@ -610,22 +852,32 @@ export function CashPurchaseEntryModals({
                     : { primaryQuantity: line.quantity };
                 const primaryQty =
                   "error" in conv ? line.quantity : conv.primaryQuantity;
+                const lineTot = lineDisplayTotalRupees(line, gstEnabled);
                 return {
                   id: idx + 1,
                   product: line.product_name || item?.name || "—",
                   oldStock,
                   qty: primaryQty,
                   totalAfter: oldStock + primaryQty,
-                  amountDisplay: `₹${formatDecimal(line.amount)}`,
+                  amountDisplay: `₹${formatDecimal(lineTot)}`,
                 };
               })}
               pagination={{ type: "client" }}
               tableFrame={false}
             />
+            {confirmPurchasePayload.other_charges > 0 ? (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {t("modals.cash_purchase.messages.other_charges_label")}: ₹
+                {formatDecimal(confirmPurchasePayload.other_charges)}
+              </p>
+            ) : null}
             <p className="text-sm font-medium">
-              {t("modals.cash_purchase.messages.total_amount")}: ₹
+              {t("modals.cash_purchase.messages.grand_total")}: ₹
               {formatDecimal(
-                confirmPurchasePayload.lines.reduce((s, l) => s + l.amount, 0)
+                confirmPurchasePayload.lines.reduce(
+                  (s, l) => s + lineDisplayTotalRupees(l, gstEnabled),
+                  0
+                ) + confirmPurchasePayload.other_charges
               )}
             </p>
           </div>

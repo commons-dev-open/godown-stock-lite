@@ -104,6 +104,9 @@ export function createSchema(db: DbLike): void {
       notes TEXT,
       lender_invoice_number TEXT,
       invoice_file_path TEXT,
+      vendor_name TEXT,
+      payment_method TEXT,
+      other_charges REAL NOT NULL DEFAULT 0,
       total_amount REAL NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -317,6 +320,7 @@ export function createSchema(db: DbLike): void {
   ensureUserColumns(db);
   ensureGstColumns(db);
   ensureDiscountColumns(db);
+  ensureSupplierPurchaseCashMeta(db);
   migrateBusinessNameToCompanyName(db);
   ensureLedgerSourceCreatedAtDateTime(db);
 }
@@ -354,6 +358,24 @@ function ensureGstColumns(db: DbLike): void {
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN cgst_amount REAL NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN sgst_amount REAL NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "invoice_lines", "ALTER TABLE invoice_lines ADD COLUMN hsn_code TEXT");
+}
+
+function ensureSupplierPurchaseCashMeta(db: DbLike): void {
+  addColumnIfMissing(
+    db,
+    "supplier_purchases",
+    "ALTER TABLE supplier_purchases ADD COLUMN vendor_name TEXT"
+  );
+  addColumnIfMissing(
+    db,
+    "supplier_purchases",
+    "ALTER TABLE supplier_purchases ADD COLUMN payment_method TEXT"
+  );
+  addColumnIfMissing(
+    db,
+    "supplier_purchases",
+    "ALTER TABLE supplier_purchases ADD COLUMN other_charges REAL NOT NULL DEFAULT 0"
+  );
 }
 
 function ensureDiscountColumns(db: DbLike): void {

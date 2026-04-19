@@ -24,6 +24,7 @@ import type {
 import { getItemCatalogUnitsAsc } from "../../shared/itemCatalogUnits";
 import { convertToPrimaryQuantity } from "../../shared/unitConversion";
 import { formatDecimal, roundDecimal } from "../../shared/numbers";
+import { computeLineGst, GST_SLABS } from "../../shared/gst";
 import {
   formatDateForView,
   formatDateForForm,
@@ -48,10 +49,19 @@ interface EditLine {
   quantity: number;
   amount: number;
   unit: string;
+  gst_rate: number;
+  gst_inclusive: boolean;
 }
 
 function emptyEditLine(): EditLine {
-  return { product_id: 0, quantity: 0, amount: 0, unit: "" };
+  return {
+    product_id: 0,
+    quantity: 0,
+    amount: 0,
+    unit: "",
+    gst_rate: 0,
+    gst_inclusive: false,
+  };
 }
 
 function unitOptionLabel(u: Unit): string {
@@ -166,6 +176,10 @@ export default function Purchases() {
   const [editNotes, setEditNotes] = useState("");
   const [editLenderId, setEditLenderId] = useState(0);
   const [editInvoiceNumber, setEditInvoiceNumber] = useState("");
+  const [editInvoiceFilePath, setEditInvoiceFilePath] = useState("");
+  const [editVendorName, setEditVendorName] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
+  const [editOtherCharges, setEditOtherCharges] = useState("");
   const [editLines, setEditLines] = useState<EditLine[]>([emptyEditLine()]);
   const [addSettlementDate, setAddSettlementDate] = useState("");
   const [addSettlementAmount, setAddSettlementAmount] = useState("");
@@ -225,6 +239,14 @@ export default function Purchases() {
     queryFn: () => api.getUnitConversions(),
     enabled: editOpen,
   });
+
+  const { data: settings = {} } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.getSettings(),
+    enabled: editOpen,
+  });
+  const gstEnabled =
+    (settings as Record<string, string>).gst_enabled === "true";
 
   const itemList = useMemo(() => items as ItemWithUnitGraph[], [items]);
 
@@ -309,6 +331,17 @@ export default function Purchases() {
       detail.header.kind === "credit" ? detail.header.lender_id ?? 0 : 0
     );
     setEditInvoiceNumber(detail.header.lender_invoice_number ?? "");
+    setEditInvoiceFilePath(detail.header.invoice_file_path ?? "");
+    setEditVendorName(detail.header.vendor_name ?? "");
+    setEditPaymentMethod(
+      detail.header.payment_method?.trim() || "cash"
+    );
+    setEditOtherCharges(
+      detail.header.other_charges != null &&
+        detail.header.other_charges > 0
+        ? String(detail.header.other_charges)
+        : ""
+    );
     setEditLines(
       detail.lines.length
         ? detail.lines.map((ln) => ({
@@ -316,6 +349,8 @@ export default function Purchases() {
             quantity: ln.quantity,
             amount: ln.amount,
             unit: ln.unit?.trim() || "",
+            gst_rate: ln.gst_rate ?? 0,
+            gst_inclusive: ln.gst_inclusive ?? false,
           }))
         : [emptyEditLine()]
     );
@@ -451,6 +486,9 @@ export default function Purchases() {
       notes: string | null;
       lender_invoice_number: string | null;
       invoice_file_path?: string | null;
+      vendor_name?: string | null;
+      payment_method?: string | null;
+      other_charges?: number;
       lines: {
         product_id: number;
         quantity: number;
@@ -578,16 +616,37 @@ export default function Purchases() {
         return;
       }
       const orig = detail.lines[idx];
-      lines.push({
-        product_id: ln.product_id,
-        quantity: conv.primaryQuantity,
-        amount: ln.amount,
-        gst_rate: orig?.gst_rate ?? 0,
-        gst_inclusive: orig?.gst_inclusive ?? false,
-        taxable_amount: orig?.taxable_amount ?? ln.amount,
-        cgst_amount: orig?.cgst_amount ?? 0,
-        sgst_amount: orig?.sgst_amount ?? 0,
-      });
+      if (detail.header.kind === "cash") {
+        const gstRate = gstEnabled ? (ln.gst_rate ?? orig?.gst_rate ?? 0) : 0;
+        const gstInclusive = ln.gst_inclusive ?? orig?.gst_inclusive ?? false;
+        const g =
+          gstRate > 0
+            ? computeLineGst(ln.amount, gstRate, gstInclusive)
+            : null;
+        lines.push({
+          product_id: ln.product_id,
+          quantity: conv.primaryQuantity,
+          amount: g ? roundDecimal(g.total_amount) : roundDecimal(ln.amount),
+          gst_rate: gstRate,
+          gst_inclusive: gstInclusive,
+          taxable_amount: g
+            ? roundDecimal(g.taxable_amount)
+            : roundDecimal(ln.amount),
+          cgst_amount: g ? roundDecimal(g.cgst_amount) : 0,
+          sgst_amount: g ? roundDecimal(g.sgst_amount) : 0,
+        });
+      } else {
+        lines.push({
+          product_id: ln.product_id,
+          quantity: conv.primaryQuantity,
+          amount: ln.amount,
+          gst_rate: orig?.gst_rate ?? 0,
+          gst_inclusive: orig?.gst_inclusive ?? false,
+          taxable_amount: orig?.taxable_amount ?? ln.amount,
+          cgst_amount: orig?.cgst_amount ?? 0,
+          sgst_amount: orig?.sgst_amount ?? 0,
+        });
+      }
     }
     if (!lines.length) {
       toast.error(tTx("modals.cash_purchase.toasts.add_one_item"));
@@ -597,14 +656,30 @@ export default function Purchases() {
       toast.error(t("toasts.save_failed"));
       return;
     }
+    if (detail.header.kind === "cash") {
+      const ocRaw = editOtherCharges.trim().replace(/,/g, "");
+      const ocParsed = ocRaw === "" ? 0 : Number(ocRaw);
+      if (!Number.isFinite(ocParsed) || ocParsed < 0) {
+        toast.error(tTx("modals.cash_purchase.toasts.other_charges_invalid"));
+        return;
+      }
+      updateMutation.mutate({
+        transaction_date: editDate,
+        notes: editNotes.trim() || null,
+        lender_invoice_number: editInvoiceNumber.trim() || null,
+        invoice_file_path: editInvoiceFilePath.trim() || null,
+        vendor_name: editVendorName.trim() || null,
+        payment_method: editPaymentMethod.trim() || null,
+        other_charges: roundDecimal(ocParsed),
+        lines,
+      });
+      return;
+    }
     updateMutation.mutate({
       transaction_date: editDate,
       notes: editNotes.trim() || null,
-      lender_invoice_number:
-        detail.header.kind === "credit"
-          ? editInvoiceNumber.trim() || null
-          : null,
-      ...(detail.header.kind === "credit" ? { lender_id: editLenderId } : {}),
+      lender_invoice_number: editInvoiceNumber.trim() || null,
+      lender_id: editLenderId,
       lines,
     });
   }
@@ -683,7 +758,9 @@ export default function Purchases() {
           <span className="text-sm">
             {row.kind === "credit"
               ? row.lender_name ?? "—"
-              : t("counterparty_cash")}
+              : row.vendor_name?.trim()
+                ? row.vendor_name.trim()
+                : t("counterparty_cash")}
           </span>
         ),
       },
@@ -1190,7 +1267,82 @@ export default function Purchases() {
                   className="input-base w-full max-w-md"
                 />
               </div>
-            ) : null}
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                      {tTx("modals.cash_purchase.fields.vendor")}
+                    </label>
+                    <input
+                      type="text"
+                      value={editVendorName}
+                      onChange={(e) => setEditVendorName(e.target.value)}
+                      className="input-base w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                      {tTx("modals.cash_purchase.fields.invoice_number")}
+                    </label>
+                    <input
+                      type="text"
+                      value={editInvoiceNumber}
+                      onChange={(e) => setEditInvoiceNumber(e.target.value)}
+                      className="input-base w-full"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                    {tTx("modals.cash_purchase.fields.invoice_file_path")}
+                  </label>
+                  <input
+                    type="text"
+                    value={editInvoiceFilePath}
+                    onChange={(e) => setEditInvoiceFilePath(e.target.value)}
+                    className="input-base w-full"
+                    placeholder={tTx(
+                      "modals.cash_purchase.placeholders.invoice_file_path"
+                    )}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                      {tTx("modals.shared.fields.payment_method")}
+                    </label>
+                    <select
+                      value={editPaymentMethod}
+                      onChange={(e) => setEditPaymentMethod(e.target.value)}
+                      className="input-base w-full"
+                    >
+                      {PAYMENT_METHODS.map((pm) => (
+                        <option key={pm.value} value={pm.value}>
+                          {tTx(pm.labelKey)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                      {tTx("modals.cash_purchase.fields.other_charges")}
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={editOtherCharges}
+                      onChange={(e) => setEditOtherCharges(e.target.value)}
+                      className="input-base w-full tabular-nums"
+                      placeholder="0"
+                    />
+                    <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                      {tTx("modals.cash_purchase.hints.other_charges")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 {t("modal.fields.notes")}
@@ -1208,11 +1360,23 @@ export default function Purchases() {
               </p>
               <div className="min-w-0 overflow-x-auto">
                 <div className="min-w-[40rem] space-y-2">
-                  <div className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-2 text-xs font-medium text-[var(--color-text-secondary)] px-1">
+                  <div
+                    className={`grid gap-2 text-xs font-medium text-[var(--color-text-secondary)] px-1 ${
+                      detail.header.kind === "cash" && gstEnabled
+                        ? "grid-cols-[12rem_5rem_5rem_7rem_5rem_6rem_2.5rem]"
+                        : "grid-cols-[12rem_6rem_6rem_8rem_2.5rem]"
+                    }`}
+                  >
                     <span>{tTx("columns.product")}</span>
                     <span>{tTx("columns.qty")}</span>
                     <span>{tTx("columns.unit")}</span>
                     <span>{tTx("columns.amount")}</span>
+                    {detail.header.kind === "cash" && gstEnabled ? (
+                      <>
+                        <span>{tTx("modals.cash_purchase.fields.gst_percent")}</span>
+                        <span>{tTx("modals.cash_purchase.fields.gst_mode")}</span>
+                      </>
+                    ) : null}
                     <span aria-hidden="true" />
                   </div>
                   {editLines.map((line, idx) => {
@@ -1228,19 +1392,29 @@ export default function Purchases() {
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-[12rem_6rem_6rem_8rem_2.5rem] gap-2 items-center p-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
+                        className={`grid gap-2 items-center p-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] ${
+                          detail.header.kind === "cash" && gstEnabled
+                            ? "grid-cols-[12rem_5rem_5rem_7rem_5rem_6rem_2.5rem]"
+                            : "grid-cols-[12rem_6rem_6rem_8rem_2.5rem]"
+                        }`}
                       >
                         <select
                           value={line.product_id || ""}
                           onChange={(e) => {
                             const pid = Number(e.target.value);
                             const item = itemList.find((i) => i.id === pid);
+                            const itemGst =
+                              (item as Item & { gst_rate?: number })
+                                ?.gst_rate ?? 0;
                             setEditLines((prev) => {
                               const next = [...prev];
                               next[idx] = {
                                 ...next[idx],
                                 product_id: pid,
                                 unit: item?.unit ?? "",
+                                ...(detail.header.kind === "cash"
+                                  ? { gst_rate: itemGst }
+                                  : {}),
                               };
                               return next;
                             });
@@ -1299,14 +1473,14 @@ export default function Purchases() {
                         <input
                           type="number"
                           min={0}
-                          step="1"
+                          step="0.01"
                           value={line.amount || ""}
                           onChange={(e) => {
                             const raw = e.target.value;
                             const a =
                               raw === ""
                                 ? 0
-                                : Math.floor(Number(raw));
+                                : roundDecimal(Number(raw));
                             setEditLines((prev) => {
                               const next = [...prev];
                               next[idx] = {
@@ -1318,6 +1492,54 @@ export default function Purchases() {
                           }}
                           className="input-base w-full tabular-nums"
                         />
+                        {detail.header.kind === "cash" && gstEnabled ? (
+                          <>
+                            <select
+                              value={line.gst_rate}
+                              onChange={(e) =>
+                                setEditLines((prev) => {
+                                  const next = [...prev];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    gst_rate: Number(e.target.value) || 0,
+                                  };
+                                  return next;
+                                })
+                              }
+                              className="input-base w-full text-sm"
+                            >
+                              {GST_SLABS.map((r) => (
+                                <option key={r} value={r}>
+                                  {r}%
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={
+                                line.gst_inclusive ? "inclusive" : "exclusive"
+                              }
+                              onChange={(e) =>
+                                setEditLines((prev) => {
+                                  const next = [...prev];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    gst_inclusive:
+                                      e.target.value === "inclusive",
+                                  };
+                                  return next;
+                                })
+                              }
+                              className="input-base w-full text-sm"
+                            >
+                              <option value="exclusive">
+                                {tTx("modals.cash_purchase.gst_modes.exclusive")}
+                              </option>
+                              <option value="inclusive">
+                                {tTx("modals.cash_purchase.gst_modes.inclusive")}
+                              </option>
+                            </select>
+                          </>
+                        ) : null}
                         <div className="flex justify-end">
                           {editLines.length > 1 ? (
                             <button
