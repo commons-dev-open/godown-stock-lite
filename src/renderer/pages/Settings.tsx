@@ -36,6 +36,7 @@ import { AsyncDataPanel } from "../components/async-data-panel";
 import DataTable from "../components/DataTable";
 import {
   ActivityLogSection,
+  AppUpdatesTab,
   SettingsHero,
   SettingsSectionPanel,
   SettingsSegmentedTabs,
@@ -1497,6 +1498,8 @@ export default function Settings() {
             </AsyncDataPanel>
           ) : activeTab === "appearance" ? (
             <AppearanceTab />
+          ) : activeTab === "appUpdates" ? (
+            <AppUpdatesTab />
           ) : activeTab === "data" ? (
             <AsyncDataPanel
               isLoading={dbPathQuery.isPending}

@@ -2,6 +2,7 @@ import type {
   SupplierPurchaseDetail,
   SupplierPurchasePageRow,
 } from "../shared/types";
+import type { SoftUpdateCheckResult } from "../shared/softUpdate";
 
 export interface ElectronAPI {
   getItems: () => Promise<unknown[]>;
@@ -573,6 +574,9 @@ export interface ElectronAPI {
     landscape?: boolean;
     pageSize?: unknown;
   }) => Promise<{ saved: false } | { saved: true; path: string }>;
+
+  getSoftUpdateCurrentVersion: () => Promise<string>;
+  checkSoftUpdate: () => Promise<SoftUpdateCheckResult>;
 
   auth: {
     setupSuperAdmin: (payload: { companyName: string; ownerName: string; displayName: string; pin: string; customerMasterKey?: string }) => Promise<{ id: number }>;

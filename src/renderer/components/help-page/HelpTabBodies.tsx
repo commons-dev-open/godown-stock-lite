@@ -576,7 +576,8 @@ export const HELP_TAB_BODIES: Record<HelpTabId, ReactNode> = {
     <div className="space-y-1">
       <p className="text-sm text-[var(--color-text-secondary)] mb-4">
         Settings uses the same segmented pattern as Help: Business, Tax & GST,
-        Discounts, Appearance, Security, Activity log, and Data. Tax and
+        Discounts, Appearance, Security, Activity log, App updates, and Data.
+        Tax and
         discount toggles are authoritative—invoice UI simply exposes what you
         allow here.
       </p>

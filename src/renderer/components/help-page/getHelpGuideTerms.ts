@@ -36,6 +36,7 @@ export function getHelpGuideTerms(i18n: I18n) {
     setAppearance: tSettings("tabs.appearance"),
     setSecurity: tSettings("tabs.security"),
     setActivity: tSettings("tabs.activity"),
+    setAppUpdates: tSettings("tabs.appUpdates"),
     setData: tSettings("tabs.data"),
     roleOwner: tUsers("roles.owner"),
     roleAdmin: tUsers("roles.admin"),

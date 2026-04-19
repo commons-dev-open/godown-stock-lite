@@ -509,7 +509,7 @@ export function buildBengaliHelpBodies(i18n: I18n): Record<HelpTabId, ReactNode>
       <div className="space-y-1">
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           {terms.navSettings}-এ {terms.navHelp}-এর মতো সেগমেন্ট: {terms.setBusiness}, {terms.setTax},{" "}
-          {terms.setDiscounts}, {terms.setAppearance}, {terms.setSecurity}, {terms.setActivity}, {terms.setData}। কর ও ছাড়ের টগলই নির্ধারক—ইনভয়েসের পর্দায় শুধু যা চালু সেটাই দেখায়, অপ্রয়োজনীয় অপশন লুকিয়ে থাকে।
+          {terms.setDiscounts}, {terms.setAppearance}, {terms.setSecurity}, {terms.setActivity}, {terms.setAppUpdates}, {terms.setData}। কর ও ছাড়ের টগলই নির্ধারক—ইনভয়েসের পর্দায় শুধু যা চালু সেটাই দেখায়, অপ্রয়োজনীয় অপশন লুকিয়ে থাকে।
         </p>
         <HelpSubSection title={terms.setBusiness}>
           <p>

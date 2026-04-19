@@ -20,6 +20,7 @@ import {
   type ItemConversionRow,
 } from "../../shared/unitConversion";
 import { closeDb, getDb, getDbPath, getSkipSeedFlagPath } from "./index";
+import { checkSoftUpdate } from "../softUpdate";
 import {
   insertItemStockMovement,
   deleteItemStockMovementsForInvoice,
@@ -238,6 +239,10 @@ export function registerIpcHandlers(): void {
       return { saved: true, path: filePath };
     }
   );
+
+  ipcMain.handle("softUpdate:getCurrentVersion", () => app.getVersion());
+
+  ipcMain.handle("softUpdate:check", () => checkSoftUpdate());
 
   // ---- Items ----
   ipcMain.handle("items:getAll", () => {

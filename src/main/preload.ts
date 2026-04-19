@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { SoftUpdateCheckResult } from "../shared/softUpdate";
 
 const electronAPI = {
   // Items
@@ -610,6 +611,11 @@ const electronAPI = {
     ipcRenderer.invoke("app:printCurrentToPdf", opts) as Promise<
       { saved: false } | { saved: true; path: string }
     >,
+
+  getSoftUpdateCurrentVersion: () =>
+    ipcRenderer.invoke("softUpdate:getCurrentVersion") as Promise<string>,
+  checkSoftUpdate: () =>
+    ipcRenderer.invoke("softUpdate:check") as Promise<SoftUpdateCheckResult>,
 
   // Auth
   auth: {
