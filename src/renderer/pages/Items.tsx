@@ -92,6 +92,13 @@ function getStockModalUnitsForItem(
     .filter((u): u is Unit => u != null);
 }
 
+function parseReorderLevelField(raw: string): number | undefined {
+  const t = raw.trim();
+  if (t === "") return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export default function Items() {
   const { t } = useTranslation("items");
   const queryClient = useQueryClient();
@@ -117,6 +124,8 @@ export default function Items() {
   const [editRetailPrimary, setEditRetailPrimary] = useState<string>("");
   const [editOtherUnits, setEditOtherUnits] = useState<ItemOtherUnit[]>([]);
   const [editStockUnit, setEditStockUnit] = useState<string>("");
+  const [addReorderUnit, setAddReorderUnit] = useState<string>("");
+  const [editReorderUnit, setEditReorderUnit] = useState<string>("");
   const [editConversions, setEditConversions] = useState<ConversionRow[]>([
     { to_unit: "", factor: 0 },
   ]);
@@ -139,6 +148,9 @@ export default function Items() {
 
   useEffect(() => {
     if (addProductOpen) setAddStockUnit(addUnitSelect);
+  }, [addProductOpen, addUnitSelect]);
+  useEffect(() => {
+    if (addProductOpen) setAddReorderUnit(addUnitSelect);
   }, [addProductOpen, addUnitSelect]);
   useEffect(() => {
     if (addProductOpen && addGstRate === 0 && settings?.gst_default_rate) {
@@ -322,6 +334,8 @@ export default function Items() {
       current_stock_unit?: string;
       conversions?: { to_unit: string; factor: number }[];
       reorder_level?: number;
+      reorder_level_value?: number;
+      reorder_level_unit?: string;
       selling_price?: number | null;
       selling_price_unit?: string | null;
       gst_rate?: number;
@@ -338,6 +352,8 @@ export default function Items() {
         current_stock_unit: payload.current_stock_unit,
         conversions: payload.conversions,
         reorder_level: payload.reorder_level,
+        reorder_level_value: payload.reorder_level_value,
+        reorder_level_unit: payload.reorder_level_unit,
         selling_price: payload.selling_price ?? null,
         selling_price_unit: payload.selling_price_unit ?? null,
         gst_rate: payload.gst_rate ?? 0,
@@ -748,6 +764,7 @@ export default function Items() {
                 setEditGstRate(full.gst_rate ?? 0);
                 setEditHsnCode(full.hsn_code ?? "");
                 setEditStockUnit(full.unit);
+        setEditReorderUnit(full.unit);
                 setEditConversions(
                   (full as ItemWithUnits).item_unit_conversions?.length
                     ? (full as ItemWithUnits).item_unit_conversions!
@@ -810,6 +827,7 @@ export default function Items() {
           setAddProductOpen(false);
           setAddUnitSelect("");
           setAddRetailPrimary("");
+          setAddReorderUnit("");
           setAddOtherUnits([]);
           setAddConversions([{ to_unit: "", factor: 0 }]);
           setAddSellingPrice("");
@@ -872,7 +890,20 @@ export default function Items() {
               current_stock_unit:
                 stockUnit && stockUnit !== primaryUnit ? stockUnit : undefined,
               conversions: conversions.length > 0 ? conversions : undefined,
-              reorder_level: Number(els.reorder_level.value) || undefined,
+              ...(() => {
+                const reorderN = parseReorderLevelField(
+                  els.reorder_level.value
+                );
+                const reorderUnit = addReorderUnit || primaryUnit;
+                if (reorderN === undefined) return {};
+                if (reorderUnit === primaryUnit) {
+                  return { reorder_level: reorderN };
+                }
+                return {
+                  reorder_level_value: reorderN,
+                  reorder_level_unit: reorderUnit,
+                };
+              })(),
             });
           }}
         >
@@ -1242,12 +1273,33 @@ export default function Items() {
                 </div>
               </FormField>
               <FormField label={t("columns.reorderLevel")}>
-                <input
-                  name="reorder_level"
-                  type="number"
-                  min="0"
-                  className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-                />
+                <div className="flex gap-2">
+                  <input
+                    name="reorder_level"
+                    type="number"
+                    min="0"
+                    className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
+                  />
+                  <select
+                    value={addReorderUnit}
+                    onChange={(e) => setAddReorderUnit(e.target.value)}
+                    className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
+                  >
+                    {addAllowedStockUnits.length === 0 ? (
+                      <option value="">
+                        {addUnitSelect
+                          ? unitDisplay(addUnitSelect)
+                          : "Select unit"}
+                      </option>
+                    ) : (
+                      addAllowedStockUnits.map((name) => (
+                        <option key={name} value={name}>
+                          {unitDisplay(name)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </FormField>
             </div>
           </section>
@@ -1334,6 +1386,7 @@ export default function Items() {
           setEditUnitSelect("");
           setEditRetailPrimary("");
           setEditStockUnit("");
+          setEditReorderUnit("");
           setEditConversions([{ to_unit: "", factor: 0 }]);
           setEditOtherUnits([]);
           setEditSellingPrice("");
@@ -1403,7 +1456,22 @@ export default function Items() {
                     stockUnit && stockUnit !== primaryUnit
                       ? stockUnit
                       : undefined,
-                  reorder_level: Number(els.reorder_level.value) || undefined,
+                  ...(() => {
+                    const reorderN = parseReorderLevelField(
+                      els.reorder_level.value
+                    );
+                    const reorderUnit = editReorderUnit || primaryUnit;
+                    if (reorderN === undefined) {
+                      return { reorder_level: null };
+                    }
+                    if (reorderUnit === primaryUnit) {
+                      return { reorder_level: reorderN };
+                    }
+                    return {
+                      reorder_level_value: reorderN,
+                      reorder_level_unit: reorderUnit,
+                    };
+                  })(),
                 },
                 other_units: editOtherUnits,
               });
@@ -1791,13 +1859,32 @@ export default function Items() {
                   </div>
                 </FormField>
                 <FormField label={t("columns.reorderLevel")}>
-                  <input
-                    name="reorder_level"
-                    type="number"
-                    min="0"
-                    defaultValue={editing.reorder_level ?? ""}
-                    className="w-full border border-[var(--color-border-strong)] rounded px-3 py-2"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      name="reorder_level"
+                      type="number"
+                      min="0"
+                      defaultValue={editing.reorder_level ?? ""}
+                      className="flex-1 border border-[var(--color-border-strong)] rounded px-3 py-2"
+                    />
+                    <select
+                      value={editReorderUnit}
+                      onChange={(e) => setEditReorderUnit(e.target.value)}
+                      className="w-32 border border-[var(--color-border-strong)] rounded px-3 py-2"
+                    >
+                      {editAllowedStockUnits.length === 0 ? (
+                        <option value={editing.unit}>
+                          {unitDisplay(editing.unit)}
+                        </option>
+                      ) : (
+                        editAllowedStockUnits.map((name) => (
+                          <option key={name} value={name}>
+                            {unitDisplay(name)}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </FormField>
               </div>
             </section>

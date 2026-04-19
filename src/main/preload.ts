@@ -24,6 +24,8 @@ const electronAPI = {
     current_stock_value?: number;
     current_stock_unit?: string;
     reorder_level?: number;
+    reorder_level_value?: number;
+    reorder_level_unit?: string;
     other_units?: { unit: string; sort_order?: number }[];
     conversions?: { to_unit: string; factor: number }[];
     _userId?: number | null;
@@ -44,7 +46,9 @@ const electronAPI = {
       current_stock?: number;
       current_stock_value?: number;
       current_stock_unit?: string;
-      reorder_level?: number;
+      reorder_level?: number | null;
+      reorder_level_value?: number;
+      reorder_level_unit?: string;
       other_units?: { unit: string; sort_order?: number }[];
       conversions?: { to_unit: string; factor: number }[];
       _userId?: number | null;

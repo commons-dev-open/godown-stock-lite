@@ -377,7 +377,9 @@ export function registerIpcHandlers(): void {
         current_stock?: number;
         current_stock_value?: number;
         current_stock_unit?: string;
-        reorder_level?: number;
+        reorder_level?: number | null;
+        reorder_level_value?: number;
+        reorder_level_unit?: string;
         other_units?: { unit: string; sort_order?: number }[];
         conversions?: { to_unit: string; factor: number }[];
         _userId?: number | null;
@@ -426,6 +428,33 @@ export function registerIpcHandlers(): void {
           : item.quantity_per_primary != null
             ? roundDecimal(item.quantity_per_primary, 6)
             : null;
+      const reorderAlt =
+        item.reorder_level_unit != null &&
+        item.reorder_level_unit !== "" &&
+        item.reorder_level_unit !== primaryUnit &&
+        (item.reorder_level_value != null || item.reorder_level != null);
+      let reorderPrimary: number | null;
+      if (reorderAlt) {
+        const val = item.reorder_level_value ?? item.reorder_level ?? 0;
+        const conversions = getUnitConversionsRows();
+        const reorderConv = convertToPrimaryQuantity(
+          conversions,
+          {
+            unit: primaryUnit,
+            reference_unit: item.reference_unit ?? null,
+            quantity_per_primary: item.quantity_per_primary ?? null,
+            item_conversions: convList.length > 0 ? convList : undefined,
+          },
+          val,
+          item.reorder_level_unit
+        );
+        if ("error" in reorderConv) throw new Error(reorderConv.error);
+        reorderPrimary = roundDecimal(reorderConv.primaryQuantity);
+      } else if (item.reorder_level != null) {
+        reorderPrimary = roundDecimal(item.reorder_level);
+      } else {
+        reorderPrimary = null;
+      }
       const unitIdRow = db()
         .prepare("SELECT id FROM units WHERE name = ?")
         .get(primaryUnit) as { id: number } | undefined;
@@ -458,7 +487,7 @@ export function registerIpcHandlers(): void {
           item.gst_rate ?? 0,
           item.hsn_code ?? null,
           stockPrimary,
-          item.reorder_level != null ? roundDecimal(item.reorder_level) : null,
+          reorderPrimary,
           item._userId ?? null
         );
       const itemId = result.lastInsertRowid as number;
@@ -537,7 +566,9 @@ export function registerIpcHandlers(): void {
         current_stock?: number;
         current_stock_value?: number;
         current_stock_unit?: string;
-        reorder_level?: number;
+        reorder_level?: number | null;
+        reorder_level_value?: number;
+        reorder_level_unit?: string;
         other_units?: { unit: string; sort_order?: number }[];
         conversions?: { to_unit: string; factor: number }[];
         _userId?: number | null;
@@ -640,6 +671,35 @@ export function registerIpcHandlers(): void {
         stockPrimary - roundDecimal(row.current_stock, 6),
         6
       );
+      const reorderAltUpdate =
+        item.reorder_level_unit != null &&
+        item.reorder_level_unit !== "" &&
+        item.reorder_level_unit !== primaryUnit &&
+        (item.reorder_level_value != null || item.reorder_level != null);
+      let nextReorder: number | null | undefined;
+      if (reorderAltUpdate) {
+        const val = item.reorder_level_value ?? item.reorder_level ?? 0;
+        const conversions = getUnitConversionsRows();
+        const reorderConv = convertToPrimaryQuantity(
+          conversions,
+          {
+            unit: primaryUnit,
+            reference_unit: refUnit,
+            quantity_per_primary: qtyPerPrimary != null ? qtyPerPrimary : null,
+            item_conversions:
+              itemConvsForConvert.length > 0 ? itemConvsForConvert : undefined,
+          },
+          val,
+          item.reorder_level_unit
+        );
+        if ("error" in reorderConv) throw new Error(reorderConv.error);
+        nextReorder = roundDecimal(reorderConv.primaryQuantity);
+      } else if (item.reorder_level !== undefined) {
+        nextReorder =
+          item.reorder_level != null ? roundDecimal(item.reorder_level) : null;
+      } else {
+        nextReorder = undefined;
+      }
       db()
         .prepare(
           "UPDATE items SET name = ?, code = ?, unit = ?, unit_id = ?, reference_unit = ?, quantity_per_primary = ?, retail_primary_unit = ?, selling_price = ?, selling_price_unit = ?, selling_price_unit_id = ?, gst_rate = ?, hsn_code = ?, current_stock = ?, reorder_level = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?"
@@ -660,9 +720,9 @@ export function registerIpcHandlers(): void {
           gstRate,
           hsnCode,
           stockPrimary,
-          item.reorder_level !== undefined
-            ? item.reorder_level != null
-              ? roundDecimal(item.reorder_level)
+          nextReorder !== undefined
+            ? nextReorder != null
+              ? roundDecimal(nextReorder)
               : null
             : row.reorder_level,
           item._userId ?? null,

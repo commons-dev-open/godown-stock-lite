@@ -100,8 +100,11 @@ export function convertToPrimaryQuantity(
   quantity: number,
   fromUnit: string
 ): { primaryQuantity: number } | { error: string } {
-  if (quantity <= 0) {
+  if (quantity < 0) {
     return { error: "Quantity must be positive." };
+  }
+  if (quantity === 0) {
+    return { primaryQuantity: 0 };
   }
   const primary = item.unit;
   if (fromUnit === primary) {
