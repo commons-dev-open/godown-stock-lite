@@ -120,6 +120,30 @@ function formatAllocationPayment(a: SupplierPurchaseAllocationSummary) {
   return "—";
 }
 
+const PAYMENT_METHODS = [
+  {
+    value: "cash",
+    labelKey: "modals.shared.payment_methods.cash.label",
+    refLabelKey: "modals.shared.payment_methods.cash.reference_label",
+  },
+  {
+    value: "bank",
+    labelKey: "modals.shared.payment_methods.bank.label",
+    refLabelKey: "modals.shared.payment_methods.bank.reference_label",
+    placeholderKey: "modals.shared.payment_methods.bank.placeholder",
+  },
+  {
+    value: "upi",
+    labelKey: "modals.shared.payment_methods.upi.label",
+    refLabelKey: "modals.shared.payment_methods.upi.reference_label",
+  },
+  {
+    value: "cheque",
+    labelKey: "modals.shared.payment_methods.cheque.label",
+    refLabelKey: "modals.shared.payment_methods.cheque.reference_label",
+  },
+] as const;
+
 export default function Purchases() {
   const { t } = useTranslation("purchases");
   const { t: tTx } = useTranslation("transactions");
@@ -1570,39 +1594,77 @@ export default function Purchases() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                      {t("modal.add_settlement_payment_method")}
+                    <label
+                      htmlFor="add-settlement-payment-method"
+                      className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1"
+                    >
+                      {tTx("modals.shared.fields.payment_method")}
                     </label>
-                    <input
-                      type="text"
+                    <select
+                      id="add-settlement-payment-method"
                       value={addSettlementPaymentMethod}
-                      onChange={(e) =>
-                        setAddSettlementPaymentMethod(e.target.value)
-                      }
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setAddSettlementPaymentMethod(next);
+                        if (!next) {
+                          setAddSettlementReference("");
+                        }
+                      }}
                       disabled={
                         addSettlementMutation.isPending ||
                         remainingForSettlement <= 0
                       }
                       className="input-base w-full"
-                    />
+                    >
+                      <option value="">
+                        {tTx("modals.shared.placeholders.none")}
+                      </option>
+                      {PAYMENT_METHODS.map((pm) => (
+                        <option key={pm.value} value={pm.value}>
+                          {tTx(pm.labelKey)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                      {t("modal.add_settlement_reference")}
-                    </label>
-                    <input
-                      type="text"
-                      value={addSettlementReference}
-                      onChange={(e) =>
-                        setAddSettlementReference(e.target.value)
-                      }
-                      disabled={
-                        addSettlementMutation.isPending ||
-                        remainingForSettlement <= 0
-                      }
-                      className="input-base w-full"
-                    />
-                  </div>
+                  {addSettlementPaymentMethod
+                    ? (() => {
+                        const pm = PAYMENT_METHODS.find(
+                          (p) => p.value === addSettlementPaymentMethod
+                        );
+                        return (
+                          <div>
+                            <label
+                              htmlFor="add-settlement-reference"
+                              className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1"
+                            >
+                              {pm
+                                ? tTx(pm.refLabelKey)
+                                : tTx("modals.shared.fields.reference")}
+                            </label>
+                            <input
+                              id="add-settlement-reference"
+                              type="text"
+                              value={addSettlementReference}
+                              onChange={(e) =>
+                                setAddSettlementReference(e.target.value)
+                              }
+                              placeholder={
+                                pm &&
+                                "placeholderKey" in pm &&
+                                pm.placeholderKey
+                                  ? tTx(pm.placeholderKey)
+                                  : undefined
+                              }
+                              disabled={
+                                addSettlementMutation.isPending ||
+                                remainingForSettlement <= 0
+                              }
+                              className="input-base w-full"
+                            />
+                          </div>
+                        );
+                      })()
+                    : null}
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                       {t("modal.add_settlement_notes")}
